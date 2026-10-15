@@ -78,7 +78,11 @@ Existing decomp-style names are renamed in plan § Phase 1, with the old names r
 
 ## Typed scene references
 
-`Player`, `DialogueOverlay` and `World` have class names. Reach them with `Player.find(tree)`, `DialogueOverlay.find(tree)` (plus `uttering_in` / `open_in`) and `World.find(tree)`, and call their methods directly — no `get_first_node_in_group("player")`, `.call("method")`, `has_method` guards or `connect("closed", …)` strings. Duck typing stays where a slot really takes different nodes: `InteractionContext.actor` / `.world` (tests pass grid stubs), talk-camera speakers, the follow-camera target, NPC hand-over actors, and villager player checks (tests use stand-ins).
+`Player`, `DialogueOverlay`, `World`, `Interior` and the one-per-scene overlays and props (`InventoryOverlay`, `LetterWriterOverlay`, `MapOverlay`, `WishingWell`, `FollowCamera`, …) have class names and a static `find(tree)`. Reach them with `Player.find(tree)`, `DialogueOverlay.find(tree)` (plus `uttering_in` / `open_in`), `Interior.find(tree)` and so on, and call their methods and signals directly — no `get_first_node_in_group("player")`, `.call("method")`, `has_method` guards or `connect("closed", …)` strings. Duck typing stays where a slot really takes different nodes: `InteractionContext.actor` / `.world` (tests pass grid stubs), talk-camera speakers, the follow-camera target, NPC hand-over actors, and villager player checks (tests use stand-ins).
+
+## Components
+
+A large actor splits by responsibility into child `Node`s declared in its `.tscn` (`player.tscn`: `Doors`, `Furniture`, `Tools`, `Net`, `Fishing`, `Snowball`; `villager.tscn`: `Mover`, `Conversation`, `Greeter`, `Brain`). The actor holds them as node exports assigned in the scene (`@export var doors: PlayerDoors`, `node_paths` in the `.tscn`), so they are set before any child's `_ready`. A component finds its actor on first use (`_player` / `_villager`, a getter on `get_parent()`), so scenes built in tests without a tree work. Components are parts of one actor: they may read its private state (`_motor`, `_anim`, `_busy`) and each other's through it. Code outside the actor goes through the component (`player.doors.begin_door_enter(…)`).
 
 ## Autoloads
 
