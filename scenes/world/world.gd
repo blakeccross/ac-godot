@@ -284,7 +284,7 @@ func _spawn_player() -> void:
 		## shows on the stand for a frame before the emerge starts (it is deferred).
 		player.visible = false
 		## `OUTDOOR` carries no item; `take_out_tool` brings it back after the emerge.
-		player.stow_tool_for_door_exit()
+		player.tools.stow_tool_for_door_exit()
 		call_deferred("_play_door_emerge", player)
 
 
@@ -300,7 +300,7 @@ func _play_door_emerge(player: Player) -> void:
 		return
 	player.visible = true
 	## `RETURN_OUTDOOR` → `TAKEOUT_ITEM` → `RETURN_OUTDOOR2` once the emerge demo ends.
-	await player.take_out_tool()
+	await player.tools.take_out_tool()
 
 
 func _apply_time_of_day() -> void:

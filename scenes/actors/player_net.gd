@@ -38,7 +38,7 @@ func begin_net() -> void:
 ## back to the mover. Returns the planar velocity for `move_and_slide`.
 func tick_net(delta: float, input_dir: Vector2, wish: Vector3, stick: float, menu_open: bool) -> Vector3:
 	## `kind != getkind`: the net left the hand (inventory swap, scene change) → back to wait.
-	var tool: ToolData = _player._equipped_tool()
+	var tool: ToolData = _player.tools.equipped_tool()
 	if tool == null or tool.field_verb != Interaction.SWING_NET:
 		_end_net()
 		return _player._motor.forward() * _player._motor.planar_speed
@@ -193,7 +193,7 @@ func _end_net() -> void:
 	_player._motor.mode_changed = true
 	if _player._anim != null:
 		_player._anim.speed_scale = 1.0
-	HeldTool.play(HeldTool.find_skeleton(_player._mesh), _player._tool_hold_anim, true)
+	HeldTool.play(HeldTool.find_skeleton(_player._mesh), _player.tools.tool_hold_anim, true)
 
 
 ## `pull_net` → `notice_net` → `putaway_net`, from the tick the swing came back full.
@@ -228,7 +228,7 @@ func _run_net_catch() -> void:
 	_player._motor.mode_changed = true
 	if _player._anim != null:
 		_player._anim.speed_scale = 1.0
-	HeldTool.play(skeleton, _player._tool_hold_anim, true)
+	HeldTool.play(skeleton, _player.tools.tool_hold_anim, true)
 	_player.catch_showing = false
 	_player._busy = false
 	_player._gait = PlayerLocomotion.Gait.WAIT

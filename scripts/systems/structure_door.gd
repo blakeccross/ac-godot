@@ -76,7 +76,7 @@ static func play_enter(host: Node) -> void:
 	var player := _find_player(host)
 	## `Player_actor_CheckAndRequest_ItemInOut`: the door request waits on `PUTIN_ITEM`.
 	if player != null and is_instance_valid(player):
-		await player.put_away_tool_for_door()
+		await player.tools.put_away_tool_for_door()
 	var visual_id: StringName = _visual_id(root) if root != null else &""
 	var look: Vector3 = approach_position(root) if root != null else Vector3.ZERO
 	if root != null:

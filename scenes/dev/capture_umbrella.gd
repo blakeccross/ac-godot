@@ -34,7 +34,7 @@ func _run() -> void:
 		await get_tree().create_timer(0.15).timeout
 		await _shot("open_%d" % i)
 	await get_tree().create_timer(1.0).timeout
-	print("UMB open=", player.is_umbrella_open(), " rain id=", Audio.syslev_id())
+	print("UMB open=", player.tools.is_umbrella_open(), " rain id=", Audio.syslev_id())
 	await _shot("hold_wait")
 	## Walk south a little (scripted walk).
 	player.doors.begin_demo_walk(player.global_position + Vector3(6, 0, 0), 3.0, 0.1)
@@ -55,7 +55,7 @@ func _run() -> void:
 	await get_tree().create_timer(0.4).timeout
 	await _shot("close")
 	await get_tree().create_timer(1.5).timeout
-	print("UMB after put-away open=", player.is_umbrella_open(), " rain id=", Audio.syslev_id())
+	print("UMB after put-away open=", player.tools.is_umbrella_open(), " rain id=", Audio.syslev_id())
 	get_tree().quit()
 
 

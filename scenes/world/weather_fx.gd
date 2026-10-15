@@ -168,7 +168,7 @@ func _check_umbrella() -> void:
 	if _kind != Weather.Kind.RAIN:
 		return
 	var player := Player.find(get_tree())
-	var open: bool = player != null and player.is_umbrella_open()
+	var open: bool = player != null and player.tools.is_umbrella_open()
 	if open != _umbrella_open:
 		_umbrella_open = open
 		_sync_rain_se()

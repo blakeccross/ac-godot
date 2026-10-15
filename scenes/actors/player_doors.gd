@@ -152,8 +152,8 @@ func _begin_animation_move(
 
 func end_door_enter() -> void:
 	## A failed enter (`Game.try_enter_interior`) stays outdoors — the tool comes back out.
-	if _player._tool_stowed and not Game.is_indoors():
-		_player.take_out_tool()
+	if _player.tools.tool_stowed and not Game.is_indoors():
+		_player.tools.take_out_tool()
 	door_entering = false
 	_door_animation_move = false
 	_door_getoff = false
