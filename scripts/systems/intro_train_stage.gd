@@ -70,7 +70,7 @@ const CAM_NEAR_GX := 60.0
 const CAM_FAR_GX := 800.0
 ## Decomp passes near=60 in GX world units. Converted literally (×0.05 → 3 m) the clip
 ## plane eats the foreground seat; keep ~2 GX for Godot.
-const CAM_NEAR_METERS := 2.0 * FieldCatalog.GX_TO_METERS
+const CAM_NEAR_METERS := 0.1  ## 2 GX
 ## `obj_look_y_max[] = { 30, 20 }` — NORMAL looks 30 above the floor, TALK 20 above the
 ## shadow (root-motion) height.
 const OBJ_LOOK_Y_NORMAL_GX := 30.0

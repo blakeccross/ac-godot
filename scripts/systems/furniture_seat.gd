@@ -17,7 +17,7 @@ const STICK_MIN := 0.6
 const SIT_COS := 0.9659
 const BED_COS := 0.8192
 ## `Player_actor_request_main_standup`: the player steps 35 GX out of the seat.
-const STAND_STEP := 35.0 * FieldCatalog.GX_TO_METERS
+const STAND_STEP := 1.75  ## 35 GX
 
 ## Seconds the stick has been held straight at a seat or a bed.
 var sit_time: float = 0.0

@@ -6,7 +6,7 @@ extends StaticBody3D
 const STUMP_VISUAL := &"TREE_STUMP004"
 ## `mCoBG_MakeOneColumnCollisionData`: a grown stump (`TREE_STUMP004`) is an 18 GX column
 ## (the `*_STUMP001` saplings' stumps would be 10). Trees are 19 (`HostCollision`).
-const STUMP_RADIUS := 18.0 * FieldCatalog.GX_TO_METERS
+const STUMP_RADIUS := 0.9  ## 18 GX
 ## Player shake effect lands on frame 10 (`Player_actor_SetEffect_Shake_tree`).
 const SHAKE_EFFECT_FRAME := 10.0
 ## `STATUS_FOR_BEE_ATTACK` at frame 29.5 — delay from the effect mark (frame 10).

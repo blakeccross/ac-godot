@@ -24,7 +24,7 @@ const RAMP0 := 6.0
 const RAMP1 := 12.0
 const EDGE_EPS := 0.25
 ## Player / NPC `BgCheckControll` range is 18 GX (`m_player_common` / `ac_npc_ct`).
-const ACTOR_RADIUS := 18.0 * FieldCatalog.GX_TO_METERS
+const ACTOR_RADIUS := 0.9  ## 18 GX
 const WALL_ITERS := 4
 const SEG_CELL_PAD := 2
 const SEG_END_PAD := 0.02

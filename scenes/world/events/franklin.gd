@@ -5,7 +5,7 @@ extends EventNpc
 ## player who comes close (`mDemo_TYPE_SPEAK`, 55 GX) the first time; `FranklinTalk` runs
 ## the rest.
 
-const CALL_RANGE := 55.0 * FieldCatalog.GX_TO_METERS
+const CALL_RANGE := 2.75  ## 55 GX
 
 var _present: int = -1
 var _spoke: bool = false

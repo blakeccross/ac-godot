@@ -26,7 +26,7 @@ const YAW_RATE_FAST := YAW_RATE * 3.0
 const PITCH_RATE_FAST := PITCH_RATE * 3.0
 const HEAD_BONE := "joint_21"
 ## `Actor_world_to_eye(player, 33.0f)`: the target is the player's eye, not their feet.
-const PLAYER_EYE := 33.0 * FieldCatalog.GX_TO_METERS
+const PLAYER_EYE := 1.65  ## 33 GX
 ## `aNPC_set_head_request` priorities: player in view 1, talk partner 4.
 const PRIO_LOOK := 1
 const PRIO_TALK := 4

@@ -5,7 +5,7 @@ extends EventNpc
 ## within 70 GX, starts the trick-or-treat talk itself; afterwards just a Halloween line.
 
 const RUN_SPEED := 3.0
-const CALL_RANGE := 70.0 * FieldCatalog.GX_TO_METERS
+const CALL_RANGE := 3.5  ## 70 GX
 const CHASE_REPATH := 0.5
 
 var villager: VillagerData
