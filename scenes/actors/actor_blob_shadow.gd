@@ -43,7 +43,7 @@ func _place() -> void:
 		## otherwise the shadow snaps onto the structure's raised roof at the door stand
 		## while the body (correctly) stays on the yard.
 		var with_plus: bool = not (
-			host.has_method("is_door_entering") and bool(host.call("is_door_entering"))
+			host is Player and (host as Player).doors.is_door_entering()
 		)
 		xform = ActorBlobShadow.ground_transform(
 			bg[0] as WorldData, bg[1] as WorldGrid, host.global_position, yaw, with_plus

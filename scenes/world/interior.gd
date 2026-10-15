@@ -89,7 +89,7 @@ func _physics_process(_delta: float) -> void:
 	var player := Player.find(get_tree())
 	if player == null or not (player is Node3D):
 		return
-	if player.is_busy() or player.is_door_entering():
+	if player.is_busy() or player.doors.is_door_entering():
 		return
 	var cell: Vector2i = grid.world_to_cell((player as Node3D).global_position)
 	if not session.room.is_exit_cell(cell):

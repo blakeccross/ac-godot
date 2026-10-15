@@ -175,7 +175,7 @@ func _resume_debt_sequence() -> void:
 		await get_tree().process_frame
 		await get_tree().process_frame
 	if _player != null:
-		while is_instance_valid(_player) and _player.is_door_entering():
+		while is_instance_valid(_player) and _player.doors.is_door_entering():
 			await get_tree().process_frame
 	if _finishing or _player == null or not is_instance_valid(_player):
 		return

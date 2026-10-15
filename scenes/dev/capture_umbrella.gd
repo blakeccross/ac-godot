@@ -37,10 +37,10 @@ func _run() -> void:
 	print("UMB open=", player.is_umbrella_open(), " rain id=", Audio.syslev_id())
 	await _shot("hold_wait")
 	## Walk south a little (scripted walk).
-	player.begin_demo_walk(player.global_position + Vector3(6, 0, 0), 3.0, 0.1)
+	player.doors.begin_demo_walk(player.global_position + Vector3(6, 0, 0), 3.0, 0.1)
 	await get_tree().create_timer(0.8).timeout
 	await _shot("hold_walk")
-	player.end_demo_walk()
+	player.doors.end_demo_walk()
 	await get_tree().create_timer(1.2).timeout
 	await _shot("hold_wait_east")
 	## Twirl (A with nothing to interact with).

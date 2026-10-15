@@ -324,14 +324,14 @@ func _save_walk() -> void:
 			var stage: int = GyroidTalk.door_stage(house_idx, offset)
 			var goal_gx: Vector2 = GyroidTalk.door_goal_gx(house_idx, stage)
 			var goal := global_position + Vector3(goal_gx.x * gx, 0.0, goal_gx.y * gx)
-			player.begin_demo_walk(goal, speed, arrive)
+			player.doors.begin_demo_walk(goal, speed, arrive)
 			var near: float = Vector2(player.global_position.x - goal.x, player.global_position.z - goal.z).length()
 			if stage == 1 and near < arrive * 2.0:
 				break
 			await get_tree().physics_frame
 			frames += get_physics_process_delta_time() * DecompTime.TICK_HZ
 		if is_instance_valid(player):
-			player.end_demo_walk()
+			player.doors.end_demo_walk()
 	var house: Node3D = _house_node() as Node3D
 	if house != null:
 		await StructureDoor.play_enter(house)
@@ -339,7 +339,7 @@ func _save_walk() -> void:
 	## `return_to_title` saves where the player stands, which is now halfway through the
 	## door. Continue from the porch instead, facing out (`rewrite_out_data`'s stand).
 	if house != null and is_instance_valid(player):
-		player.end_door_enter()
+		player.doors.end_door_enter()
 		var stand: Vector3 = StructureDoor.exit_stand(house)
 		player.global_position = stand
 		player.set_facing(StructureDoor.leave_yaw(house, stand))

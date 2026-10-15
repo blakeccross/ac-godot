@@ -521,7 +521,7 @@ func _lead_player() -> void:
 				return
 			var wait: Vector3 = ShrineQueue.to_world(_well, ShrineQueue.PLAYER_WAIT)
 			wait.y = player.global_position.y
-			player.begin_demo_walk(wait, ShrineQueue.PLAYER_WALK_SPEED, 0.05)
+			player.doors.begin_demo_walk(wait, ShrineQueue.PLAYER_WALK_SPEED, 0.05)
 		ShrineQueue.PlayerState.DONE:
 			if not _sq_thanked:
 				if not can_call_out():
@@ -553,14 +553,14 @@ func _player_offering(player: Player) -> void:
 	var stand: Array = _well.call("visit_stand")
 	var at: Vector3 = stand[0]
 	at.y = player.global_position.y
-	player.begin_demo_walk(at, ShrineQueue.PLAYER_WALK_SPEED, 0.05)
+	player.doors.begin_demo_walk(at, ShrineQueue.PLAYER_WALK_SPEED, 0.05)
 	while is_inside_tree() and is_instance_valid(player):
 		var to: Vector3 = at - player.global_position
 		if Vector2(to.x, to.z).length() <= 0.08:
 			break
 		await get_tree().physics_frame
 	if is_instance_valid(player):
-		player.end_demo_walk()
+		player.doors.end_demo_walk()
 	var ui := DialogueOverlay.find(get_tree()) if is_inside_tree() else null
 	if ui != null and is_instance_valid(player) and is_instance_valid(_well):
 		await _well.call("offer_wish", ui, player)

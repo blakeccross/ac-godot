@@ -40,13 +40,13 @@ func _run() -> void:
 		cam.global_position = at + Vector3(-2.2, 1.6, 2.6)
 		cam.look_at(at + Vector3(0.0, 0.8, 0.0))
 		await _shot("%s_idle" % tool)
-		player.begin_demo_walk(at + Vector3(8.0, 0.0, 0.0), 3.0, 0.1)
+		player.doors.begin_demo_walk(at + Vector3(8.0, 0.0, 0.0), 3.0, 0.1)
 		await get_tree().create_timer(0.7).timeout
 		var at2: Vector3 = player.global_position
 		cam.global_position = at2 + Vector3(2.4, 1.6, 2.4)
 		cam.look_at(at2 + Vector3(0.0, 0.8, 0.0))
 		await _shot("%s_walk" % tool)
-		player.end_demo_walk()
+		player.doors.end_demo_walk()
 		await get_tree().create_timer(0.8).timeout
 		player.global_position = at
 	get_tree().quit()

@@ -219,7 +219,7 @@ func _same_block(player: Node3D) -> bool:
 
 func _player_free(player: Node3D) -> bool:
 	var p: Player = player as Player
-	if p == null or p.is_busy() or p.is_door_entering():
+	if p == null or p.is_busy() or p.doors.is_door_entering():
 		return false
 	return not DialogueOverlay.open_in(get_tree())
 

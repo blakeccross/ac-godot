@@ -28,7 +28,7 @@ var rest: Dictionary = {}
 var _player: Player
 
 
-func _ready() -> void:
+func _enter_tree() -> void:
 	_player = get_parent() as Player
 
 

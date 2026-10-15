@@ -74,7 +74,7 @@ func _run() -> void:
 			last_log = t
 			var off: Vector3 = (player.global_position - gyroid.global_position) / FieldCatalog.GX_TO_METERS
 			print("AUDIT t=%d walk=%s door=%s off_gx=(%.0f, %.0f)" % [
-				t, player.is_demo_walking(), player.is_door_entering(), off.x, off.z
+				t, player.doors.is_demo_walking(), player.doors.is_door_entering(), off.x, off.z
 			])
 			if t in [500, 1000] or (t >= 1500 and _shots < 4):
 				await _shot("walk_%d" % t)
