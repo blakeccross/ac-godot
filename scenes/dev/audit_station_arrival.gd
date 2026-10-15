@@ -167,7 +167,7 @@ func _log(kind: String) -> void:
 			" window_visible=", DialogueOverlay.find(get_tree()).visible if DialogueOverlay.find(get_tree()) else null)
 	print("AUDIT %s t=%.2f stage=%s player=(%.1f, %.1f, %.1f) yaw=%.0f busy=%s door=%s demo=%s nook=(%.1f, %.1f) porter=(%.1f, %.1f) train=%s x=%.1f v=%.3f" % [
 		kind, (Time.get_ticks_msec() - _t0) / 1000.0, _stage_name, p.x, p.y, p.z,
-		rad_to_deg(player.animation_player().get_parent().rotation.y) if player != null and player.animation_player() != null else 0.0,
+		rad_to_deg((player.get_node("MeshPivot") as Node3D).rotation.y) if player != null else 0.0,
 		player.is_busy() if player else false, player.is_door_entering() if player else false,
 		player.is_demo_walking() if player else false, n.x, n.z, s.x, s.z,
 		TrainControl.Action.keys()[c.action], c.x_gx, c.speed,

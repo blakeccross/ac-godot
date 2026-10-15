@@ -323,6 +323,24 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
   - **Layers:** `project.godot` names `creatures`, `pickups`, `water` and `triggers`, and `PhysicsLayers` holds their bits. Layers set in code now are presence toggles (an NPC that leaves or hides) and bodies built from data (hulls, shell collision).
   - **Still built in code:** the museum's tank and exhibit collisions and the hull helpers. Both come from per-room data, not a fixed layout.
 
+- **Phase 4 done.** Bodies animate through an `AnimationTree`, with these differences from the plan:
+  - **One tree for every body:** `body_animation.tres` is a `Body` state machine feeding a `Speed` time scale. `BodyAnimator` (the `Animator` node in `player.tscn` and `villager.tscn`) binds it to the model's `AnimationPlayer`, which then only holds the libraries. Each scene names its own gait clips (`ply_1_*` or `npc_1_*`).
+  - **Locomotion:** `Move` is a synced transition over walk, run and dash with input reset off. Switching gait keeps the step phase, as `frame = current_frame` does in the original, so the hand-written seek is gone. It is not a `BlendSpace1D`: the original switches clips with a morph, and blending walk into run would change the look.
+  - **Other clips:** there are no `Tool`, `Talk`, `Sit` or `Door` states.
+    - Those actions play dozens of clips chosen by tool, furniture and door. So any clip goes to `ClipA` or `ClipB`, whichever is idle, and crossfades from the one playing.
+    - `BodyAnimator` keeps the `AnimationPlayer` calls (`play`, `seek`, `is_playing`, `animation_finished`), so the one-shot actions in `player.gd` read as before.
+    - The carry pose stays a `mixer_applied` overlay.
+  - **Villagers** go through `play()` only, because their walk clips change with mood.
+  - **Clip events:** `PlayerSe.CLIP_MARKS` and the tumble's rumble, dust and body print are written into the clips as method-call tracks when the model binds. This happens at runtime rather than in a post-import script, so the GLBs stay as generated and the marks stay in GDScript tables.
+    - Events now follow the clip: a slowed clip fires them late, and a clip cut off or sought past never fires them.
+    - The seek nodes have `explicit_elapse` off, so a seek doesn't fire the keys it jumps over.
+    - The tumble's frame-17 body print never fired before, because the clip is 16 frames long. It now lands on the last frame.
+    - Footsteps keep the gait cadence, because the clips carry no foot tags.
+  - **Kept as they are:**
+    - The face machine (`NpcFaceAnim`): blinks rest a random time and a mouth table is picked per utterance. Clips could hold only the fixed sequences, and the timing would stay in code.
+    - The lighthouse arm, the Christmas lights, the weathervane and the balloons: they follow wind, game state or a clock shared across the town, and already run on seconds since Phase 2.
+  - **Asset pipeline fix:** `texbank.py` called a removed helper, so every cKF character and most interiors failed to convert. With that fixed, the suite runs against full assets: 1912 cases, with 8 tests failing on `main` as well.
+
 Lessons from the weather particles:
 
 - **Stay inside what the Compatibility renderer does.** Headless captures run there, and some players may too. It silently skips these:

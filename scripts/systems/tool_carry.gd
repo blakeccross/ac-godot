@@ -27,7 +27,7 @@ var time: float = 0.0
 
 
 ## Null when the tool has no carry clip or the player GLB lacks it.
-static func build(anim: AnimationPlayer, skeleton: Skeleton3D, tool: ToolData) -> ToolCarry:
+static func build(anim: AnimationMixer, skeleton: Skeleton3D, tool: ToolData) -> ToolCarry:
 	if anim == null or skeleton == null or tool == null or tool.hold_anim == &"":
 		return null
 	return build_part(anim, skeleton, String(tool.hold_anim), PART_JOINTS.get(tool.carry_part, []))
@@ -35,7 +35,7 @@ static func build(anim: AnimationPlayer, skeleton: Skeleton3D, tool: ToolData) -
 
 ## A carry clip (`clip_suffix`) driving `joints` over whatever the body plays — also the NPC
 ## sub-animation (`aNPC_part_tbl1x`, e.g. `UMBRELLA1` on the right arm).
-static func build_part(anim: AnimationPlayer, skeleton: Skeleton3D, clip_suffix: String, joints: Array) -> ToolCarry:
+static func build_part(anim: AnimationMixer, skeleton: Skeleton3D, clip_suffix: String, joints: Array) -> ToolCarry:
 	if anim == null or skeleton == null or joints.is_empty() or clip_suffix == "":
 		return null
 	var clip_name: String = ""

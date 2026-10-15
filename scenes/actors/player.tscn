@@ -1,7 +1,9 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scenes/actors/player.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/actors/actor_blob_shadow.tscn" id="2"]
+[ext_resource type="Script" path="res://scenes/actors/body_animator.gd" id="3"]
+[ext_resource type="AnimationNodeBlendTree" path="res://scenes/actors/body_animation.tres" id="4"]
 
 [sub_resource type="CylinderShape3D" id="PlayerShape"]
 radius = 0.9
@@ -47,5 +49,10 @@ shape = SubResource("ProbeShape")
 
 [node name="CameraLook" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+
+[node name="Animator" type="AnimationTree" parent="."]
+active = false
+tree_root = ExtResource("4")
+script = ExtResource("3")
 
 [node name="ActorBlobShadow" parent="." instance=ExtResource("2")]

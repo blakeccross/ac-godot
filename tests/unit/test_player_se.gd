@@ -61,3 +61,28 @@ func test_rain_plays_the_level_se_not_the_door_se() -> void:
 	Game.title_demo_active = was_demo
 	Audio.sync_rain_syslev(Weather.Kind.CLEAR, 0, false)
 	assert_int(Audio.syslev_id()).is_equal(0)
+
+
+func test_the_players_clips_carry_their_marks_as_event_tracks() -> void:
+	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	add_child(player)
+	await get_tree().process_frame
+	var anim: BodyAnimator = player.animation_player()
+	if anim == null:
+		return  ## player model not generated (no disc)
+	var keys := func(clip: StringName) -> Array:
+		var out: Array = []
+		var a: Animation = anim.get_animation(clip)
+		for t: int in a.get_track_count():
+			if a.track_get_type(t) != Animation.TYPE_METHOD:
+				continue
+			for k: int in a.track_get_key_count(t):
+				out.append([roundi(a.track_get_key_time(t, k) * DecompTime.FRAME_HZ), a.method_track_get_params(t, k)[1]])
+		return out
+	assert_array(keys.call(&"ply_1_pickup1")).is_equal([[10, &"item_get"], [20, &"gasagoso"]])
+	## The tumble is 16 frames long, so frame 17 (counted from 1) is its last: the body
+	## print lands as the clip ends. The old frame check never reached it.
+	assert_array(keys.call(&"ply_1_kokeru1")).is_equal(
+		[[10, &"tumble_rumble"], [15, &"tumble_dust"], [16, &"tumble_print"]]
+	)
+	assert_bool(anim.clip_event.is_connected(player._on_clip_event)).is_true()

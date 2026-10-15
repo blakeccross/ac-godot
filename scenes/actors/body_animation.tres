@@ -1,0 +1,102 @@
+[gd_resource type="AnimationNodeBlendTree" format=3]
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_g36av"]
+animation = &"ply_1_wait1"
+
+[sub_resource type="AnimationNodeTimeSeek" id="AnimationNodeTimeSeek_khnsu"]
+explicit_elapse = false
+
+[sub_resource type="AnimationNodeBlendTree" id="AnimationNodeBlendTree_dy2uo"]
+nodes/Clip/node = SubResource("AnimationNodeAnimation_g36av")
+nodes/Clip/position = Vector2(0, 0)
+nodes/Seek/node = SubResource("AnimationNodeTimeSeek_khnsu")
+nodes/Seek/position = Vector2(200, 0)
+node_connections = [&"output", 0, &"Seek", &"Seek", 0, &"Clip"]
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_2x17h"]
+animation = &"ply_1_wait1"
+
+[sub_resource type="AnimationNodeTimeSeek" id="AnimationNodeTimeSeek_u0x68"]
+explicit_elapse = false
+
+[sub_resource type="AnimationNodeBlendTree" id="AnimationNodeBlendTree_cjk4p"]
+nodes/Clip/node = SubResource("AnimationNodeAnimation_2x17h")
+nodes/Clip/position = Vector2(0, 0)
+nodes/Seek/node = SubResource("AnimationNodeTimeSeek_u0x68")
+nodes/Seek/position = Vector2(200, 0)
+node_connections = [&"output", 0, &"Seek", &"Seek", 0, &"Clip"]
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_7avaa"]
+animation = &"ply_1_dash1"
+
+[sub_resource type="AnimationNodeTransition" id="AnimationNodeTransition_wf86v"]
+sync = true
+xfade_time = 0.16666666666666666
+input_0/name = "walk"
+input_0/auto_advance = false
+input_0/break_loop_at_end = false
+input_0/reset = false
+input_1/name = "run"
+input_1/auto_advance = false
+input_1/break_loop_at_end = false
+input_1/reset = false
+input_2/name = "dash"
+input_2/auto_advance = false
+input_2/break_loop_at_end = false
+input_2/reset = false
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_nrtoi"]
+animation = &"ply_1_run1"
+
+[sub_resource type="AnimationNodeAnimation" id="AnimationNodeAnimation_b5dww"]
+animation = &"ply_1_walk1"
+
+[sub_resource type="AnimationNodeBlendTree" id="AnimationNodeBlendTree_211c0"]
+nodes/Gait/node = SubResource("AnimationNodeTransition_wf86v")
+nodes/Gait/position = Vector2(200, 0)
+nodes/Walk/node = SubResource("AnimationNodeAnimation_b5dww")
+nodes/Walk/position = Vector2(0, 0)
+nodes/Run/node = SubResource("AnimationNodeAnimation_nrtoi")
+nodes/Run/position = Vector2(0, 120)
+nodes/Dash/node = SubResource("AnimationNodeAnimation_7avaa")
+nodes/Dash/position = Vector2(0, 240)
+node_connections = [&"output", 0, &"Gait", &"Gait", 0, &"Walk", &"Gait", 1, &"Run", &"Gait", 2, &"Dash"]
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_rrh05"]
+xfade_time = 0.16666667
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_tbtk1"]
+xfade_time = 0.16666667
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_rgitc"]
+xfade_time = 0.16666667
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_8ddyo"]
+xfade_time = 0.16666667
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_y84xt"]
+xfade_time = 0.16666667
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_n66gr"]
+xfade_time = 0.16666667
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_42a22"]
+advance_mode = 2
+
+[sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_fvsl3"]
+states/ClipA/node = SubResource("AnimationNodeBlendTree_dy2uo")
+states/ClipA/position = Vector2(300, 150)
+states/ClipB/node = SubResource("AnimationNodeBlendTree_cjk4p")
+states/ClipB/position = Vector2(550, 150)
+states/Move/node = SubResource("AnimationNodeBlendTree_211c0")
+states/Move/position = Vector2(300, 0)
+transitions = ["Move", "ClipA", SubResource("AnimationNodeStateMachineTransition_rrh05"), "Move", "ClipB", SubResource("AnimationNodeStateMachineTransition_tbtk1"), "ClipA", "ClipB", SubResource("AnimationNodeStateMachineTransition_rgitc"), "ClipA", "Move", SubResource("AnimationNodeStateMachineTransition_8ddyo"), "ClipB", "Move", SubResource("AnimationNodeStateMachineTransition_y84xt"), "ClipB", "ClipA", SubResource("AnimationNodeStateMachineTransition_n66gr"), "Start", "ClipA", SubResource("AnimationNodeStateMachineTransition_42a22")]
+
+[sub_resource type="AnimationNodeTimeScale" id="AnimationNodeTimeScale_dn62v"]
+
+[resource]
+nodes/Body/node = SubResource("AnimationNodeStateMachine_fvsl3")
+nodes/Body/position = Vector2(0, 0)
+nodes/Speed/node = SubResource("AnimationNodeTimeScale_dn62v")
+nodes/Speed/position = Vector2(250, 0)
+node_connections = [&"output", 0, &"Speed", &"Speed", 0, &"Body"]

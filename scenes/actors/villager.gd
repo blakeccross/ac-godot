@@ -79,7 +79,8 @@ var _motor: VillagerMotor = VillagerMotor.new()
 var _placeholder_bob: float = 0.0
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _layer_present: int = 4
-var _body_anim: AnimationPlayer
+## The body tree once the model is bound (`_animator`), null without a model.
+var _body_anim: BodyAnimator
 var _clip: String = ""
 var _goal_stand: Vector3 = Vector3.ZERO
 var _goal_block: Vector2i = Vector2i.ZERO
@@ -167,6 +168,7 @@ var event_away: bool = false
 @onready var _agent: NavigationAgent3D = $NavigationAgent3D
 @onready var _volume: Area3D = $InteractionArea
 @onready var _anim: AnimationPlayer = $Animation
+@onready var _animator: BodyAnimator = $Animator
 
 
 func _ready() -> void:
@@ -191,10 +193,13 @@ func _ready() -> void:
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, data.species if data else &"")
 	_visual = vis
 	if vis != null:
-		_body_anim = VisualAnimation.find_animation_player(vis)
-		if _body_anim != null:
+		var body_player: AnimationPlayer = VisualAnimation.find_animation_player(vis)
+		if body_player != null:
+			_animator.bind(body_player)
+			_body_anim = _animator
 			## Before the head look binds, so the head override lands on top of the arm pose.
-			_body_anim.mixer_applied.connect(_apply_sub_anim)
+			if not _body_anim.mixer_applied.is_connected(_apply_sub_anim):
+				_body_anim.mixer_applied.connect(_apply_sub_anim)
 		_play_clip(ANIM_WAIT, true)
 		var texture_set: StringName = data.texture_set if data else &""
 		VillagerTextures.apply(vis, texture_set)
@@ -1098,7 +1103,7 @@ func play_wait_anim() -> void:
 	_play_clip(ANIM_WAIT, true)
 
 
-func animation_player() -> AnimationPlayer:
+func animation_player() -> BodyAnimator:
 	return _body_anim
 
 
@@ -1115,7 +1120,7 @@ func _play_clip(suffix: String, loop: bool) -> void:
 
 
 func _resolve_clip(suffix: String) -> String:
-	var player: AnimationPlayer = _body_anim
+	var player: AnimationMixer = _body_anim
 	if player == null:
 		player = _anim
 	if player == null or suffix.is_empty():

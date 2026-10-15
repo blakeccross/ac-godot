@@ -2,7 +2,8 @@ class_name PlayerSe
 extends RefCounted
 
 ## Player action SE on animation frames (`m_player_main_*` / `m_player_sound.c_inc`).
-## Schedules one-shots via `Audio.play_se`. Outcome-specific hits also call helpers.
+## `CLIP_MARKS` is written into the body's clips as event tracks (`BodyAnimator`), so each
+## SE fires on its clip's frame. Outcome-specific hits also call helpers.
 
 
 ## Clip basename → [[frame, se_id], …] always played for that clip.
@@ -44,31 +45,11 @@ const CLIP_MARKS: Dictionary = {
 }
 
 
-static func schedule_clip(at: Node, clip_name: StringName, extra: Array = []) -> void:
-	## Fire SE at decomp frame marks. `extra` is [[frame, id], …] for outcome overlays.
-	if at == null or not is_instance_valid(at):
-		return
-	var tree: SceneTree = at.get_tree()
-	if tree == null:
-		return
-	var base: StringName = _basename(clip_name)
-	var marks: Array = []
-	if CLIP_MARKS.has(base):
-		marks.append_array(CLIP_MARKS[base])
-	marks.append_array(extra)
-	for mark: Variant in marks:
-		if typeof(mark) != TYPE_ARRAY or (mark as Array).size() < 2:
-			continue
-		var frame: float = float((mark as Array)[0])
-		var se_id: StringName = (mark as Array)[1] as StringName
-		if se_id == &"":
-			continue
-		var delay: float = maxf(0.0, frame / DecompTime.FRAME_HZ)
-		if delay <= 0.001:
-			Audio.play_se(se_id, at)
-			continue
-		var timer: SceneTreeTimer = tree.create_timer(delay)
-		timer.timeout.connect(_play.bind(at, se_id), CONNECT_ONE_SHOT)
+## The marks at a clip's first frame, now: for a clip played backwards, whose events hold.
+static func play_opening(at: Node, clip_name: StringName) -> void:
+	for mark: Array in CLIP_MARKS.get(_basename(clip_name), []):
+		if float(mark[0]) <= 0.0:
+			_play_now(at, mark[1] as StringName)
 
 
 static func axe_cut(at: Node) -> void:

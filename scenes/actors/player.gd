@@ -47,6 +47,14 @@ const ANIM_RUN_SLIP := "ply_1_run_slip1"
 ## cKF morph −5 / −12 at 60 Hz (`-5.0f` on walk/run/dash/wait, `-12.0f` skid → wait).
 const MORPH_5 := 10.0 / DecompTime.TICK_HZ
 const MORPH_12 := 24.0 / DecompTime.TICK_HZ
+## `Player_actor_SetEffect_Tumble` frames.
+const TUMBLE_MARKS: Array = [[10.0, &"tumble_rumble"], [15.0, &"tumble_dust"], [17.0, &"tumble_print"]]
+## `BodyAnimator` gait per moving gait.
+const GAIT_STATES := {
+	PlayerLocomotion.Gait.WALK: &"walk",
+	PlayerLocomotion.Gait.RUN: &"run",
+	PlayerLocomotion.Gait.DASH: &"dash",
+}
 ## `Player_actor_sound_slip` (`0x4129`).
 const SE_SLIP := &"4129"
 ## `mPlayer_ANIM_OPEN1` — door enter demo (`mPlayer_INDEX_DOOR`, type 0).
@@ -139,6 +147,7 @@ const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 @onready var _placeholder: MeshInstance3D = $MeshPivot/PlaceholderMesh
 @onready var _probe: Area3D = $MeshPivot/InteractProbe
 @onready var _look: Marker3D = $CameraLook
+@onready var _animator: BodyAnimator = $Animator
 
 ## Title demo: a recorded stick + A replace live input (`mEv_IsTitleDemo` swaps the controller
 ## in `m_player_controller.c_inc`). Null during normal play.
@@ -167,7 +176,8 @@ var _busy: bool = false
 ## Station intro ride / guided walk — stage owns XZ/Y; skip snap + move_and_slide.
 var _cutscene_driven: bool = false
 var _focus: Node = null
-var _anim: AnimationPlayer
+## The body tree once the model is bound (`_animator`), null without a model.
+var _anim: BodyAnimator
 var _gait: PlayerLocomotion.Gait = PlayerLocomotion.Gait.WAIT
 var _placeholder_bob: float = 0.0
 var _hold_anim: StringName = &""
@@ -437,7 +447,7 @@ func play_wait_anim() -> void:
 	play_wait_idle()
 
 
-func animation_player() -> AnimationPlayer:
+func animation_player() -> BodyAnimator:
 	return _anim
 
 
@@ -951,7 +961,6 @@ func _begin_rest(hit: Dictionary) -> void:
 	_motor.reset(yaw)
 	_mesh.rotation.y = yaw
 	_play_grip_clip(leaf, false)
-	PlayerSe.schedule_clip(self, StringName(leaf))
 
 
 func _tick_rest(delta: float) -> void:
@@ -1105,7 +1114,6 @@ func play_storage_close(storage_type: int) -> void:
 		animation.loop_mode = Animation.LOOP_NONE
 	_anim.speed_scale = 1.0
 	_anim.play(clip, 0.08)
-	PlayerSe.schedule_clip(self, leaf)
 	await _anim.animation_finished
 
 
@@ -1536,23 +1544,33 @@ func _feed_clip_state() -> void:
 		_motor.clip_frame = 0.0
 		_motor.clip_done = false
 		return
-	var frame: float = _anim.current_animation_position * DecompTime.FRAME_HZ
 	_motor.clip_done = not _anim.is_playing()
-	if mode == PlayerLocomotion.Gait.TUMBLE:
-		_tumble_events(_motor.clip_frame, frame)
-	_motor.clip_frame = frame
+	_motor.clip_frame = _anim.current_animation_position * DecompTime.FRAME_HZ
 
 
-## `Player_actor_SetEffect_Tumble`: rumble at frame 10, landing dust at 15, body print at 17.
-func _tumble_events(before: float, now: float) -> void:
-	var bg: Array = _bg()
-	var attr: int = _unit_attr(bg)
-	if before < 10.0 and now >= 10.0:
-		GameConfig.rumble(GameConfig.TUMBLE)
-	if before < 15.0 and now >= 15.0:
-		FootstepEffects.tumble(bg, global_position, _motor.facing, attr, 1)
-	if before < 17.0 and now >= 17.0:
-		FootstepEffects.body_print(bg, global_position, _motor.facing, attr)
+## Frame marks written into the body's clips: each action's SE (`PlayerSe.CLIP_MARKS`) and
+## `Player_actor_SetEffect_Tumble`'s rumble at frame 10, landing dust at 15 and body print
+## at 17, on every tumble clip.
+func _clip_marks() -> Dictionary:
+	var marks: Dictionary = PlayerSe.CLIP_MARKS.duplicate()
+	for clip: String in [ToolUse.ANIM_KOKERU, ToolUse.ANIM_KOKERU_A, ToolUse.ANIM_KOKERU_N]:
+		marks[StringName(clip)] = TUMBLE_MARKS
+	return marks
+
+
+func _on_clip_event(_clip: StringName, event: StringName) -> void:
+	match event:
+		&"tumble_rumble":
+			GameConfig.rumble(GameConfig.TUMBLE)
+		&"tumble_dust", &"tumble_print":
+			var bg: Array = _bg()
+			var attr: int = _unit_attr(bg)
+			if event == &"tumble_dust":
+				FootstepEffects.tumble(bg, global_position, _motor.facing, attr, 1)
+			else:
+				FootstepEffects.body_print(bg, global_position, _motor.facing, attr)
+		_:
+			Audio.play_se(event, self)
 
 
 func _unit_attr(bg: Array) -> int:
@@ -1610,25 +1628,22 @@ func _update_animation(delta: float) -> void:
 	if clip.is_empty():
 		return
 	_on_mode_entered(prev, next)
+	var blend: float = MORPH_12 if prev == PlayerLocomotion.Gait.TURN_DASH else MORPH_5
+	## Walk ↔ run ↔ dash keep the current keyframe (`frame = current_frame`), which the
+	## tree's synced gait transition does; wait → walk and every other start restart at
+	## frame 1.
+	if GAIT_STATES.has(next) and clip == _anim.gait_clips.get(GAIT_STATES[next], ""):
+		_ensure_loop(clip)
+		_anim.play_gait(GAIT_STATES[next], _anim_speed(next), blend)
+		return
 	if one_shot:
 		var once: Animation = _anim.get_animation(clip)
 		if once != null:
 			once.loop_mode = Animation.LOOP_NONE
 	else:
 		_ensure_loop(clip)
-	## Walk ↔ run ↔ dash keep the current keyframe (`frame = current_frame`); wait → walk
-	## and every other start restart at frame 1.
-	var gaits: Array = [
-		PlayerLocomotion.Gait.WALK, PlayerLocomotion.Gait.RUN, PlayerLocomotion.Gait.DASH
-	]
-	var carry: bool = prev in gaits and next in gaits and _anim.is_playing()
-	var phase: float = _anim.current_animation_position if carry else 0.0
-	var blend: float = MORPH_12 if prev == PlayerLocomotion.Gait.TURN_DASH else MORPH_5
 	_anim.speed_scale = _anim_speed(next)
 	_anim.play(clip, blend)
-	if carry:
-		var length: float = _anim.get_animation(clip).length
-		_anim.seek(fmod(phase, maxf(length, 0.001)), true)
 
 
 ## Mode entry side effects: skid SE + `TURN_ASIMOTO`, tumble SE + `TUMBLE` (arg 0), and the
@@ -2007,7 +2022,6 @@ func _play_action(clip_name: StringName, effect_frame: float = -1.0) -> float:
 	_anim.speed_scale = 1.0
 	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_use_anim, false)
 	_anim.play(clip, 0.08)
-	PlayerSe.schedule_clip(self, clip_name)
 	if effect_frame < 0.0:
 		await _anim.animation_finished
 		HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)
@@ -3240,7 +3254,6 @@ func _play_clip(clip_name: StringName, tool_clip: StringName, start_frame: float
 	_anim.play(clip, 0.08)
 	if start_frame > 0.0:
 		_anim.seek(start_frame / DecompTime.FRAME_HZ, true)
-	PlayerSe.schedule_clip(self, clip_name)
 	await _anim.animation_finished
 	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)
 
@@ -3261,15 +3274,21 @@ func _try_load_generated_visual() -> void:
 	_mesh.add_child(body)
 	_scale_visual(body)
 	_apply_preview_materials(body)
-	_anim = _find_animation_player(body)
-	if _anim != null:
+	var body_player: AnimationPlayer = _find_animation_player(body)
+	if body_player != null:
+		_animator.bind(body_player)
+		_anim = _animator
 		## Carry overlay lands after the body's own mix (anim1 on the part-table joints).
-		_anim.mixer_applied.connect(_apply_carry_pose)
+		if not _anim.mixer_applied.is_connected(_apply_carry_pose):
+			_anim.mixer_applied.connect(_apply_carry_pose)
+		_anim.add_clip_events(_clip_marks(), DecompTime.FRAME_HZ)
+		if not _anim.clip_event.is_connected(_on_clip_event):
+			_anim.clip_event.connect(_on_clip_event)
 		## INDEX_DOOR / getoff: capture joint_0 XZ into AnimationMove, strip so the mesh stays on the body.
 		## INDEX_OUTDOOR GO_OUT keeps joint_0 (starts behind stand, ends at bind — no snap).
-		_capture_door_root_xz(_anim)
+		_capture_door_root_xz(body_player)
 		VisualAnimation.strip_named_joint_tracks(
-			_anim,
+			body_player,
 			"joint_0",
 			PackedStringArray(
 				[
@@ -3459,7 +3478,6 @@ func _play_umbrella_clip(leaf: String) -> float:
 		return 0.0
 	_anim.speed_scale = 1.0
 	_anim.play(clip, 0.08)
-	PlayerSe.schedule_clip(self, StringName(clip))
 	var res: Animation = _anim.get_animation(clip)
 	return res.length if res != null else 0.0
 
@@ -3672,7 +3690,9 @@ func _play_tool_swap_clip(reverse: bool) -> float:
 		_anim.play_backwards(clip, TOOL_MORPH_SEC)
 	else:
 		_anim.play(clip, TOOL_MORPH_SEC)
-	PlayerSe.schedule_clip(self, StringName(clip))
+	if reverse:
+		## The take-out rustles as it starts, which is the clip's end.
+		PlayerSe.play_opening(self, StringName(clip))
 	var res: Animation = _anim.get_animation(clip)
 	return res.length if res != null else 0.0
 

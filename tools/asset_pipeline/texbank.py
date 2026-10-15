@@ -1935,9 +1935,6 @@ class TextureBank:
                     state.siz,
                     palette_from_rgba5551(pal) if pal else None,
                 )
-            elif is_museum_clock_texture(name):
-                ## REL keeps N64 row-major RGBA5551; GX 4×4 RGB5A3 reads as neon noise.
-                image = decode_linear_rgba5551(data, state.width, state.height)
             elif is_house_clock_texture(name) and state.fmt == G_IM_FMT_CI:
                 ## Shop/house CI clocks ship N64 RGBA16 TLUTs (`obj_shop1_clock_pal`).
                 ## RGB5A3 misreads them as cyan/purple instead of wood.
