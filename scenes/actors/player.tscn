@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scenes/actors/player.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/actors/actor_blob_shadow.tscn" id="2"]
 [ext_resource type="Script" path="res://scenes/actors/body_animator.gd" id="3"]
-[ext_resource type="AnimationNodeBlendTree" path="res://scenes/actors/player_animation.tres" id="4"]
+[ext_resource type="AnimationNodeBlendTree" path="res://scenes/actors/body_animation.tres" id="4"]
 
 [sub_resource type="CylinderShape3D" id="PlayerShape"]
 radius = 0.9

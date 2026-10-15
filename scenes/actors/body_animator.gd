@@ -3,8 +3,8 @@ extends AnimationTree
 
 ## A character's body animation: an `AnimationTree` over the generated model's clips.
 ##
-## The tree (`player_animation.tres`) is a `Body` state machine feeding a `Speed` time
-## scale:
+## The tree (`body_animation.tres`, shared by the player and villagers) is a `Body`
+## state machine feeding a `Speed` time scale:
 ## - `Move` is a synced transition over the walk / run / dash gait clips. Switching gait
 ##   keeps the step phase (`frame = current_frame` in `Player_actor_CulcAnimation_*`);
 ##   entering it from anything else starts the gait at frame 1.
@@ -23,7 +23,7 @@ const SPEED := &"parameters/Speed/scale"
 const GAIT := &"parameters/Body/Move/Gait/transition_request"
 const PLAYBACK := &"parameters/Body/playback"
 
-## Gait clip per `Move` input.
+## Gait clip per `Move` input; written into this body's copy of the tree.
 @export var gait_clips: Dictionary = {&"walk": "ply_1_walk1", &"run": "ply_1_run1", &"dash": "ply_1_dash1"}
 
 ## Playback rate, like `AnimationPlayer.speed_scale`. Negative plays backwards.
@@ -56,6 +56,11 @@ func _ready() -> void:
 	## Each body changes clip names and fade times on its own copy.
 	if tree_root != null:
 		tree_root = tree_root.duplicate(true)
+		var move: AnimationNodeBlendTree = _body().get_node(MOVE)
+		for gait: StringName in gait_clips:
+			var node := StringName(String(gait).capitalize())
+			if move.has_node(node):
+				(move.get_node(node) as AnimationNodeAnimation).animation = gait_clips[gait]
 	active = false
 	mixer_applied.connect(_check_finished)
 
@@ -135,8 +140,7 @@ func stop() -> void:
 
 func _start_clip(clip: StringName, blend: float, at: float) -> void:
 	var target: StringName = CLIP_STATES[1] if _state == CLIP_STATES[0] else CLIP_STATES[0]
-	var body: AnimationNodeStateMachine = (tree_root as AnimationNodeBlendTree).get_node(&"Body")
-	var node: AnimationNodeBlendTree = body.get_node(target)
+	var node: AnimationNodeBlendTree = _body().get_node(target)
 	(node.get_node(&"Clip") as AnimationNodeAnimation).animation = clip
 	_clip = String(clip)
 	_gait = &""
@@ -147,7 +151,7 @@ func _start_clip(clip: StringName, blend: float, at: float) -> void:
 
 
 func _travel(target: StringName, blend: float) -> void:
-	var body: AnimationNodeStateMachine = (tree_root as AnimationNodeBlendTree).get_node(&"Body")
+	var body: AnimationNodeStateMachine = _body()
 	var playback: AnimationNodeStateMachinePlayback = get(PLAYBACK)
 	for i: int in body.get_transition_count():
 		if body.get_transition_from(i) == _state and body.get_transition_to(i) == target:
@@ -157,6 +161,10 @@ func _travel(target: StringName, blend: float) -> void:
 	else:
 		playback.travel(target, true)
 	_state = target
+
+
+func _body() -> AnimationNodeStateMachine:
+	return (tree_root as AnimationNodeBlendTree).get_node(&"Body") as AnimationNodeStateMachine
 
 
 func _position() -> float:

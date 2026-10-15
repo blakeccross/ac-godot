@@ -15,7 +15,7 @@ func _animator() -> BodyAnimator:
 	var body: Node3D = (load(Player.PLAYER_BOY_GLB) as PackedScene).instantiate()
 	host.add_child(body)
 	var animator := BodyAnimator.new()
-	animator.tree_root = load("res://scenes/actors/player_animation.tres")
+	animator.tree_root = load("res://scenes/actors/body_animation.tres")
 	animator.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	host.add_child(animator)
 	var player: AnimationPlayer = body.find_children("*", "AnimationPlayer", true, false)[0]
