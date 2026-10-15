@@ -206,7 +206,7 @@ func _run_net_catch() -> void:
 	var catch_: Netting.Catch = Netting.begin_catch(caught)
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_player._mesh)
 	## `PULL_NET` / `NOTICE_NET` / `PUTAWAY_NET`: showing off a bug.
-	_player.catch_showing = catch_ != null
+	_player.fishing.catch_showing = catch_ != null
 	if catch_ != null:
 		var ui: DialogueOverlay = DialogueOverlay.find(get_tree())
 		await _net_pull(catch_, skeleton, ui)
@@ -229,7 +229,7 @@ func _run_net_catch() -> void:
 	if _player._anim != null:
 		_player._anim.speed_scale = 1.0
 	HeldTool.play(skeleton, _player.tools.tool_hold_anim, true)
-	_player.catch_showing = false
+	_player.fishing.catch_showing = false
 	_player._busy = false
 	_player._gait = PlayerLocomotion.Gait.WAIT
 	_player._update_focus()

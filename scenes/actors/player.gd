@@ -68,7 +68,6 @@ const ANIM_GO_OUT_O1 := "ply_1_go_out_o1"
 ## `mPlayer_INDEX_HOLD` / `PUSH` / `PULL` / `ROTATE_FURNITURE` clips (`FurnitureGrip`).
 const ANIM_HOLD_WAIT1 := "ply_1_hold_wait1"
 const ANIM_PUSH1 := "ply_1_push1"
-const ANIM_PUSH_YUKI1 := "ply_1_push_yuki1"
 const ANIM_PULL1 := "ply_1_pull1"
 const ANIM_LTURN1 := "ply_1_Lturn1"
 const ANIM_RTURN1 := "ply_1_Rturn1"
@@ -117,11 +116,23 @@ const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 @onready var _placeholder: MeshInstance3D = $MeshPivot/PlaceholderMesh
 @onready var _probe: Area3D = $MeshPivot/InteractProbe
 @onready var _look: Marker3D = $CameraLook
-@export var tools: PlayerTools
-@export var net: PlayerNet
+@onready var _animator: BodyAnimator = $Animator
+
+## The player's components, child nodes declared in `player.tscn` (set before any child's
+## `_ready`). Each owns one kind of action and reads this node's motor, body animation and
+## busy flag directly.
 @export var doors: PlayerDoors
 @export var furniture: PlayerFurniture
-@onready var _animator: BodyAnimator = $Animator
+@export var tools: PlayerTools
+@export var net: PlayerNet
+@export var fishing: PlayerFishing
+@export var snowball: PlayerSnowball
+
+## The catch is up in the show-off pose (`PlayerFishing`). Villagers ask for it by name
+## so their tests can use stand-ins.
+var catch_showing: bool:
+	get:
+		return fishing != null and fishing.catch_showing
 
 ## Title demo: a recorded stick + A replace live input (`mEv_IsTitleDemo` swaps the controller
 ## in `m_player_controller.c_inc`). Null during normal play.
@@ -133,9 +144,6 @@ var unable_wade: bool = false
 ## player-house acre, and the wade border with them.
 var intro_block_bg_check: bool = false
 var _motor: PlayerLocomotion = PlayerLocomotion.new()
-## `Player_actor_SetPlayerAngle_forUki`'s clamps (per tick).
-const UKI_TURN_MAX := 13.73291015625 * PI / 180.0
-const UKI_TURN_MIN := 0.274658203125 * PI / 180.0
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 ## `Player_actor_Movement_Base_Braking_common(actor, 0.32625002f)`.
 const RECOIL_BRAKE := 0.32625002
@@ -149,9 +157,6 @@ var _focus: Node = null
 var _anim: BodyAnimator
 var _gait: PlayerLocomotion.Gait = PlayerLocomotion.Gait.WAIT
 var _placeholder_bob: float = 0.0
-## `mPlib_check_player_actor_main_index_catch_insect` / `_catch_fish`: pulling in and showing
-## a bug or fish — villagers nearby clap (`aNPC_check_clap`).
-var catch_showing: bool = false
 var _radio := RadioExercise.new()
 ## Doing a radio exercise (`mPlayer_INDEX_RADIO_EXERCISE`).
 var exercising: bool = false
@@ -313,58 +318,6 @@ func is_busy() -> bool:
 	return _busy
 
 
-## `mPlib_request_main_push_snowball_type1`: the ball leads, the player keeps behind it.
-func begin_snowball_push(ball: Node3D) -> bool:
-	if _busy or furniture.gripping or _snowball != null or not _wade.is_empty() or _menu_open():
-		return false
-	_snowball = ball
-	if ball is PhysicsBody3D:
-		add_collision_exception_with(ball)
-	_play_grip_clip(ANIM_PUSH_YUKI1, true)
-	return true
-
-
-## `mPlib_request_main_push_snowball_end_type1`.
-func end_snowball_push() -> void:
-	var ball: Node3D = _snowball
-	_snowball = null
-	if is_instance_valid(ball):
-		if ball is PhysicsBody3D:
-			remove_collision_exception_with(ball)
-		if ball.has_method("end_push"):
-			ball.call("end_push")
-	velocity = Vector3.ZERO
-
-
-func is_pushing_snowball() -> bool:
-	return _snowball != null
-
-
-## `Player_actor_main_Push_snowball`: the ball moves each step and hands back where the
-## player stands (`mPlib_SetParam_for_push_snowball`).
-func _push_snowball(
-	delta: float, wish: Vector3, stick: float, dash: bool, input_dir: Vector2 = Vector2.ZERO, bg: Array = []
-) -> void:
-	if not is_instance_valid(_snowball):
-		end_snowball_push()
-		return
-	var last: Dictionary = _snowball.call("push", delta, wish, stick, dash, self)
-	if last.is_empty():
-		end_snowball_push()
-		return
-	var aim: Vector3 = last["aim"]
-	var before: Vector3 = global_position
-	global_position = Vector3(aim.x, global_position.y, aim.z)
-	_snap_to_bg()
-	set_facing(float(last["yaw"]))
-	_motor.body_yaw = _motor.facing
-	velocity = Vector3.ZERO
-	if bg.size() == 2 and TownSpace.is_outdoor_town() and _snowball_border(before, input_dir, bg):
-		return
-	if _anim != null:
-		_anim.speed_scale = clampf(float(last["speed"]) / (1.5 * Snowball.FRAME), 0.2, 2.0)
-
-
 func play_wait_anim() -> void:
 	play_wait_idle()
 
@@ -476,7 +429,7 @@ func _physics_process(delta: float) -> void:
 	)
 	move_intent = wish * stick
 	if _snowball != null:
-		_push_snowball(delta, wish, stick, sprint and not menu_open, input_dir, bg)
+		snowball.push_snowball(delta, wish, stick, sprint and not menu_open, input_dir, bg)
 		if _snowball == null:
 			_update_animation(delta)
 		return
@@ -500,7 +453,7 @@ func _physics_process(delta: float) -> void:
 	planar += _tick_recoil(delta)
 	velocity.x = planar.x
 	velocity.z = planar.z
-	_face_bobber(delta)
+	fishing.face_bobber(delta)
 	_tick_talk_face(delta)
 	_mesh.rotation.y = _motor.body_yaw
 	_mesh.rotation.x = _motor.lean
@@ -605,38 +558,6 @@ func _can_land(pos_gx: Vector3, dir: AcreWade.Dir, bg: Array) -> bool:
 		for npc: Node in get_tree().get_nodes_in_group("villagers"):
 			if npc is Node3D and (npc as Node3D).global_position.distance_to(probe) < clear:
 				return false
-	return true
-
-
-## `aSMAN_player_push_scroll_request`: pushing, the player is walled in the acre too
-## (`mCoBG_UniqueWallCheck`). At the wall with the stick across and the body within 5°,
-## the player and the ball wade together (`WADE_SNOWBALL`); otherwise the push lets go.
-func _snowball_border(before: Vector3, input_dir: Vector2, bg: Array) -> bool:
-	var old_gx: Vector3 = TownSpace.world_to_gx(before)
-	var now_gx: Vector3 = TownSpace.world_to_gx(global_position)
-	var held: Vector3 = AcreWade.confine(old_gx, now_gx)
-	if held.x == now_gx.x and held.z == now_gx.z:
-		return false
-	var back: Vector3 = TownSpace.gx_to_world(held)
-	global_position.x = back.x
-	global_position.z = back.z
-	_snap_to_bg()
-	var pos_gx: Vector3 = TownSpace.world_to_gx(global_position)
-	var dir: AcreWade.Dir = AcreWade.direction(
-		pos_gx, _motor.facing, Vector2(input_dir.x, -input_dir.y),
-		func(d: AcreWade.Dir) -> bool: return _can_land(pos_gx, d, bg),
-		0.0, unable_wade, AcreWade.SNOWBALL_ANGLE_RANGE,
-	)
-	if dir == AcreWade.Dir.NONE or unable_wade:
-		end_snowball_push()
-		return true
-	var ball: Node3D = _snowball
-	var ofs: Vector3 = ball.global_position - global_position
-	_begin_wade(pos_gx, dir)
-	_wade["ball"] = ball
-	_wade["ball_ofs"] = ofs
-	## Still leaning on it through the scroll (`Wade_snowball` keeps the push pose).
-	_play_grip_clip(ANIM_PUSH_YUKI1, true)
 	return true
 
 
@@ -803,20 +724,6 @@ func _group_open(group: String) -> bool:
 		return false
 	var ui: Node = get_tree().get_first_node_in_group(group)
 	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
-
-
-## `Player_actor_SetPlayerAngle_forUki`: `add_calc_short_angle2(1−√½, 13.73°, 0.27°)` a
-## tick toward the bobber while the line is out.
-func _face_bobber(delta: float) -> void:
-	if not Fishing.faces_bobber(self):
-		return
-	var to_uki: Vector3 = Fishing.anchor() - global_position
-	if is_zero_approx(to_uki.x) and is_zero_approx(to_uki.z):
-		return
-	_motor.facing = MathUtil.short_angle2(
-		_motor.facing, atan2(to_uki.x, to_uki.z), MathUtil.HALF_FRACTION, UKI_TURN_MAX, UKI_TURN_MIN,
-		delta * DecompTime.TICK_HZ
-	)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -1336,7 +1243,7 @@ func _run_interact(hit: InteractionQuery) -> void:
 	if Fishing.take_cut_swing():
 		tail = 0.0
 	await _finish_action(maxf(0.0, tail - spent))
-	await _play_reel()
+	await fishing.play_reel()
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
@@ -1395,117 +1302,6 @@ func _finish_action(tail: float) -> void:
 		return
 	await get_tree().create_timer(tail).timeout
 	HeldTool.play(HeldTool.find_skeleton(_mesh), tools.tool_hold_anim, true)
-
-
-## The rod's reel-in runs after the action, not through `player_anim`: the hook has to
-## resolve on the button frame or the bite window is spent animating. `Fishing` picks the
-## beats from what came up on the line.
-func _play_reel() -> void:
-	await _wait_for_line()
-	var beats: Array = Fishing.take_reel_beats()
-	for beat: Fishing.ReelBeat in beats:
-		## `FLY_ROD` → `NOTICE_ROD` → `PUTAWAY_ROD`: a fish is coming out of the water.
-		if beat.fish != null:
-			catch_showing = true
-	for beat: Fishing.ReelBeat in beats:
-		if beat.face_camera or beat.hold > 0.0:
-			await _play_show(beat)
-		else:
-			await _play_clip(beat.player_anim, beat.tool_anim, beat.start_frame)
-	catch_showing = false
-
-
-## Between A and the line coming up. `relax_rod` holds its pose until the bobber reports
-## `aUKI_STATUS_VIB`, and from then `vib_rod` loops `TURI_HIKI1` against the fish for as long
-## as the fight lasts (`FIGHT_FRAMES`); an empty line just waits out the bobber's 12 ticks.
-func _wait_for_line() -> void:
-	## The longest fight is 156 ticks; anything past this means nothing is ticking the line.
-	var budget: float = 5.0
-	var pulling: bool = false
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	while Fishing.is_reeling() and budget > 0.0:
-		if not pulling and Fishing.state() == Fishing.State.BITE:
-			pulling = true
-			var clip := _resolve_clip(String(Fishing.REEL_PULL))
-			if _anim != null and not clip.is_empty():
-				var res: Animation = _anim.get_animation(clip)
-				if res != null:
-					res.loop_mode = Animation.LOOP_LINEAR
-				_anim.speed_scale = 1.0
-				_anim.play(clip, 0.08)
-			HeldTool.play(skeleton, Fishing.ROD_PULL, true)
-		await get_tree().process_frame
-		budget -= get_process_delta_time()
-	if Fishing.is_reeling():
-		Fishing.cancel(Fishing.school_of(_make_context()))
-	if pulling:
-		HeldTool.play(skeleton, tools.tool_hold_anim, true)
-
-
-## `m_player_main_notice_rod`: hold the catch up and turn square-on to the camera, then put
-## the catch report on screen and keep the pose until the player dismisses it. The facing is
-## restored afterwards because the original threads it through `notice_rod` into
-## `putaway_rod`, which turns the player back the way they were fishing.
-func _play_show(beat: Fishing.ReelBeat) -> void:
-	if beat.player_anim == &"":
-		return
-	var entry_yaw: float = _motor.facing
-	var clip := _resolve_clip(String(beat.player_anim))
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	HeldTool.play(skeleton, beat.tool_anim, false)
-	HeldCatch.bind(skeleton, beat.fish)
-	var length: float = 0.0
-	if _anim != null and not clip.is_empty():
-		_anim.speed_scale = 1.0
-		_anim.play(clip, 0.08)
-		var res: Animation = _anim.get_animation(clip)
-		if res != null:
-			length = res.length
-	## `main_notice->timer` counts independently of the animation, so the report opens on
-	## frame 42 whether or not the clip has finished — `GET_T2` is longer than that and plays
-	## on underneath the text.
-	var held: float = 0.0
-	while held < beat.hold:
-		await get_tree().process_frame
-		var delta: float = get_process_delta_time()
-		held += delta
-		if beat.face_camera:
-			## `Player_actor_Movement_Notice_rod`.
-			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW, delta)
-	if beat.catch_msg == 0:
-		## Nothing to hold for, so the pose still has to outlast its own clip: dropping
-		## `_busy` early would let the idle animation cut it off mid-hold.
-		if held < length:
-			await get_tree().create_timer(length - held).timeout
-	else:
-		await _report_catch(beat.catch_msg, beat.pockets_full, beat.fish, beat.completes_record)
-	_motor.facing = entry_yaw
-	await _play_putaway(skeleton)
-
-
-## `Player_actor_request_proc_index_fromNotice_rod` hands the dismissed report to
-## `putaway_rod`, which plays `PUTAWAY_T1` with a `GASAGOSO` rustle and then falls back to the
-## wait. The catch is in the pocket well before this: `setup_main_Notice_rod` banks it with
-## `Player_actor_putin_item` before the text ever opens, so this is the visible half of a move
-## already made — which is also why a full pocket takes the other branch and throws it back.
-func _play_putaway(skeleton: Skeleton3D) -> void:
-	## The rod has no putaway clip of its own — `tol_sao_1` carries six and none is one — so it
-	## holds the wait pose while the player's hands do the work.
-	HeldTool.play(skeleton, tools.tool_hold_anim, true)
-	var clip := _resolve_clip(String(Fishing.PUTAWAY))
-	if _anim == null or clip.is_empty():
-		HeldCatch.unbind(skeleton)
-		return
-	_anim.speed_scale = 1.0
-	_anim.play(clip, 0.08)
-	## Timed off the clip rather than waited on `animation_finished`, which never arrives if
-	## anything else drives the player in the meantime — and then the catch is never released.
-	var res: Animation = _anim.get_animation(clip)
-	if res != null and res.length > 0.0:
-		await get_tree().create_timer(res.length).timeout
-	## Released at the end, not the start: the fish rides the hand down and goes as the pose
-	## closes, rather than blinking out from under a hand still holding it up.
-	HeldCatch.unbind(skeleton)
 
 
 ## `Player_actor_setup_main_Mail_jump`: `CONFIRM1` while sliding onto `to` and turning to

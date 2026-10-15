@@ -178,7 +178,7 @@ func _touch_player(player: Player, delta: float) -> void:
 		vel += want.normalized() * (NUDGE - n * NUDGE_PER_SIZE) * delta
 		return
 	_lean_time = minf(_lean_time + delta, PUSH_REQUEST_TIME)
-	if _lean_time >= PUSH_REQUEST_TIME - 0.0001 and speed() < PUSH_START_MAX and player.begin_snowball_push(self):
+	if _lean_time >= PUSH_REQUEST_TIME - 0.0001 and speed() < PUSH_START_MAX and player.snowball.begin_snowball_push(self):
 		_pushing = true
 		_wall_time = 0.0
 		## `aSMAN_process_player_push_init`: start near the player's pace.
@@ -417,7 +417,7 @@ func _release_player() -> void:
 	if _pushing:
 		var player := _player()
 		if player != null:
-			player.end_snowball_push()
+			player.snowball.end_snowball_push()
 	_pushing = false
 
 
