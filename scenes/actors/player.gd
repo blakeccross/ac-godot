@@ -135,6 +135,7 @@ const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 @onready var _placeholder: MeshInstance3D = $MeshPivot/PlaceholderMesh
 @onready var _probe: Area3D = $MeshPivot/InteractProbe
 @onready var _look: Marker3D = $CameraLook
+@export var net: PlayerNet
 @export var doors: PlayerDoors
 @export var furniture: PlayerFurniture
 @onready var _animator: BodyAnimator = $Animator
@@ -190,11 +191,6 @@ var _tool_stowed: bool = false
 ## `PUTIN_ITEM` / `TAKEOUT_ITEM` own the pose; `_update_animation` stays out of the way.
 var _tool_swap: bool = false
 var _step_time: float = 0.0
-## The net's ready / walk / swing / stop states (`NetSwing`), stepped every physics frame
-## while active; the catch that follows a pull runs in `_run_net_catch`.
-var _net := NetSwing.new()
-## `player->net_pos` as of the last swing step.
-var _net_pos: Vector3 = Vector3.ZERO
 var _right_foot: bool = true
 ## `Player_actor_Movement_Talk` — ease yaw toward the NPC while the talk demo runs.
 var _talk_face: Node3D = null
@@ -464,7 +460,7 @@ func _physics_process(delta: float) -> void:
 		furniture.tick_grip(delta)
 	elif not furniture.rest.is_empty():
 		furniture.tick_rest(delta)
-	elif not _busy and scripted_input == null and not _net.is_active():
+	elif not _busy and scripted_input == null and not net.is_active():
 		furniture.poll_furniture_pickup()
 		_poll_pitfall()
 		_poll_radio_exercise(delta)
@@ -524,8 +520,8 @@ func _physics_process(delta: float) -> void:
 		_motor.axes_active = _axes_active(input_dir)
 	_feed_clip_state()
 	var planar: Vector3
-	if _net.is_active():
-		planar = _tick_net(delta, input_dir, wish, stick, menu_open)
+	if net.is_active():
+		planar = net.tick_net(delta, input_dir, wish, stick, menu_open)
 	else:
 		planar = _motor.tick(
 			delta, wish, stick, sprint and not menu_open, _busy or menu_open or rod_locked
@@ -853,7 +849,7 @@ func _face_bobber(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if scripted_input != null or _busy or _menu_open() or doors.is_demo_walking() or _net.is_active():
+	if scripted_input != null or _busy or _menu_open() or doors.is_demo_walking() or net.is_active():
 		return
 	if event.is_action_pressed("interact"):
 		if furniture.try_grip():
@@ -985,7 +981,7 @@ func _note_wall_contact(before: Vector3, planar: Vector3, delta: float) -> void:
 
 
 func _update_animation(delta: float) -> void:
-	if _tool_swap or _net.is_active():
+	if _tool_swap or net.is_active():
 		return
 	var next: PlayerLocomotion.Gait = _motor.gait()
 	if _anim == null:
@@ -1317,7 +1313,7 @@ func _face_cell(ctx: InteractionContext, cell: Vector2i) -> void:
 func _try_interact() -> void:
 	if _motor.gait() in [PlayerLocomotion.Gait.TUMBLE, PlayerLocomotion.Gait.TUMBLE_GETUP]:
 		return
-	if _net.state != NetSwing.State.NONE:
+	if net.net_swing.state != NetSwing.State.NONE:
 		return
 	if Game.held_furniture() != null and Game.try_place_furniture(self):
 		return
@@ -1329,14 +1325,14 @@ func _try_interact() -> void:
 	if scripted_input != null and not TitleDemo.allows_verb(hit.action.id):
 		return
 	if hit.host == null and hit.action.id == Interaction.SWING_NET:
-		_begin_net()
+		net.begin_net()
 		return
 	await _run_interact(hit)
 
 
 func _try_auto_enter() -> void:
 	## Museum walk-in (`aMsm_check_player`): no A press while open.
-	if scripted_input != null or _busy or doors.door_entering or _menu_open() or _net.is_active():
+	if scripted_input != null or _busy or doors.door_entering or _menu_open() or net.is_active():
 		return
 	var hit: InteractionQuery = _resolve_interact()
 	if hit == null or hit.host == null or hit.action == null:
@@ -1541,216 +1537,6 @@ func _play_putaway(skeleton: Skeleton3D) -> void:
 	HeldCatch.unbind(skeleton)
 
 
-## `request_main_ready_net` from wait / walk / run, `request_main_slip_net` from a dash.
-func _begin_net() -> void:
-	var from_dash: bool = _motor.gait() == PlayerLocomotion.Gait.DASH
-	_net.begin(from_dash, _motor.speed, _motor.facing)
-	if from_dash:
-		_net_events()
-	_play_net_clip()
-
-
-## One physics frame of the net states: a `NetSwing` step, then its speed and facing handed
-## back to the mover. Returns the planar velocity for `move_and_slide`.
-func _tick_net(delta: float, input_dir: Vector2, wish: Vector3, stick: float, menu_open: bool) -> Vector3:
-	## `kind != getkind`: the net left the hand (inventory swap, scene change) → back to wait.
-	var tool: ToolData = _equipped_tool()
-	if tool == null or tool.field_verb != Interaction.SWING_NET:
-		_end_net()
-		return _motor.forward() * _motor.planar_speed
-	var a_held: bool = false
-	if scripted_input != null:
-		a_held = scripted_input.a_held
-	elif not menu_open:
-		a_held = Input.is_action_pressed("interact")
-	var has_dir: bool = not menu_open and stick > 0.0 and wish.length_squared() > 0.0001
-	var wish_yaw: float = atan2(wish.x, wish.z) if has_dir else _net.yaw
-	var axes: bool = has_dir and (scripted_input != null or _axes_active(input_dir))
-	if _net.is_active():
-		var probe: NetSwing.Probe = null
-		if _net.state == NetSwing.State.SWING:
-			probe = _net_probe()
-			_net_pos = probe.net_pos
-		_net.tick(
-			delta,
-			a_held,
-			stick if has_dir else 0.0,
-			wish_yaw,
-			axes,
-			probe,
-			_motor.over_speed_normalize(global_position),
-			_motor.wall_ratio
-		)
-		_net_events()
-		if _net.state_changed:
-			_play_net_clip()
-		_sync_net_clip()
-	_motor.speed = _net.speed
-	_motor.facing = _net.yaw
-	if _net.state == NetSwing.State.PULL:
-		_run_net_catch()
-	elif _net.state == NetSwing.State.NONE:
-		_end_net()
-	return _motor.forward() * _motor.planar_speed
-
-
-func _net_probe() -> NetSwing.Probe:
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	var hand := Transform3D.IDENTITY
-	var has_hand: bool = false
-	if skeleton != null:
-		var idx: int = skeleton.find_bone(HeldTool.HAND_BONE)
-		if idx >= 0:
-			hand = skeleton.global_transform * skeleton.get_bone_global_pose(idx)
-			has_hand = true
-	return Netting.probe(_make_context(), global_position, _net.yaw, hand, has_hand)
-
-
-func _net_events() -> void:
-	for event: StringName in _net.events:
-		match event:
-			&"furi":
-				PlayerSe.net_furi(self)
-			&"get":
-				PlayerSe.net_get(self)
-			&"hit":
-				PlayerSe.net_hit(self)
-			&"swing_fx":
-				FootstepEffects.swing_net(_bg(), global_position, _net.yaw)
-			&"splash":
-				var splash_bg: Array = _bg()
-				var head: Vector3 = _net_pos
-				if splash_bg.size() == 2:
-					var surface: float = FieldCollision.ground_y_at(splash_bg[0] as WorldData, splash_bg[1] as WorldGrid, head)
-					if FieldCollision.has_floor(surface):
-						head.y = surface
-				if FootstepEffects.net_splash(splash_bg, head, _net.yaw):
-					Audio.play_se(&"ami_hit_water", self)
-			&"slip":
-				var bg: Array = _bg()
-				Audio.play_se(SE_SLIP, self)
-				FootstepEffects.turn(bg, global_position, _net.yaw, _unit_attr(bg), 1)
-			&"stop_net":
-				## `mPlib_Check_StopNet`: insects near the net panic, fish bolt.
-				var ctx: InteractionContext = _make_context()
-				var field: BugField = Netting.field_of(ctx)
-				if field != null:
-					field.notify_stop_net(_net_pos)
-				var school: FishSchool = Fishing.school_of(ctx)
-				if school != null:
-					school.notify_tool_swing()
-				## `Player_actor_CheckAndSet_UZAI_forNpc`: a villager the net struck.
-				var npc := _net.hit_actor as Villager
-				if npc != null and is_instance_valid(npc):
-					npc.register_net_hit()
-
-
-func _play_net_clip() -> void:
-	_net.state_changed = false
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	var body: StringName = &""
-	var tool_clip: StringName = &""
-	var loop: bool = true
-	match _net.state:
-		NetSwing.State.READY:
-			body = NetSwing.ANIM_READY
-			tool_clip = NetSwing.TOOL_READY
-		NetSwing.State.READY_WALK:
-			body = NetSwing.ANIM_READY_WALK
-			tool_clip = NetSwing.TOOL_READY
-		NetSwing.State.SLIP:
-			body = NetSwing.ANIM_SLIP
-			tool_clip = NetSwing.TOOL_READY
-			loop = false
-		NetSwing.State.SWING:
-			body = NetSwing.ANIM_SWING
-			tool_clip = NetSwing.TOOL_SWING
-			loop = false
-		NetSwing.State.STOP:
-			## `setup_main_Stop_net`: the body holds its last pose; only the net moves.
-			HeldTool.play(skeleton, NetSwing.TOOL_STOP, false)
-			if _anim != null:
-				_anim.speed_scale = 0.0
-			return
-		_:
-			return
-	HeldTool.play(skeleton, tool_clip, loop)
-	if _anim == null:
-		return
-	var clip := _resolve_clip(String(body))
-	if clip.is_empty():
-		return
-	var res: Animation = _anim.get_animation(clip)
-	if res != null:
-		res.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
-	_anim.speed_scale = _net.frame_speed / NetSwing.FRAME_SPEED
-	_anim.play(clip, MORPH_5)
-	_gait = PlayerLocomotion.Gait.WAIT
-
-
-## Keeps the clip on `NetSwing`'s keyframe: the swing can step back half a keyframe when the
-## net strikes something, which a free-running clip would not.
-func _sync_net_clip() -> void:
-	if _anim == null:
-		return
-	match _net.state:
-		NetSwing.State.READY_WALK:
-			_anim.speed_scale = _net.frame_speed / NetSwing.FRAME_SPEED
-		NetSwing.State.SWING:
-			_anim.speed_scale = 0.0
-			if _anim.current_animation != "":
-				_anim.seek((_net.frame - 1.0) / DecompTime.FRAME_HZ, true)
-
-
-## Back to the wait (`request_main_wait_all`).
-func _end_net() -> void:
-	_net.cancel()
-	_motor.reset(_net.yaw)
-	_motor.mode_changed = true
-	if _anim != null:
-		_anim.speed_scale = 1.0
-	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)
-
-
-## `pull_net` → `notice_net` → `putaway_net`, from the tick the swing came back full.
-func _run_net_catch() -> void:
-	var caught: Object = _net.caught
-	_net.cancel()
-	_busy = true
-	var ctx: InteractionContext = _make_context()
-	var field: BugField = Netting.field_of(ctx)
-	var catch_: Netting.Catch = Netting.begin_catch(caught)
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	## `PULL_NET` / `NOTICE_NET` / `PUTAWAY_NET`: showing off a bug.
-	catch_showing = catch_ != null
-	if catch_ != null:
-		var ui: DialogueOverlay = DialogueOverlay.find(get_tree())
-		await _net_pull(catch_, skeleton, ui)
-		## `setup_main_Notice_net`.
-		Netting.bank(catch_, Game.inventory)
-		_motor.facing = Netting.SHOW_YAW
-		_mesh.rotation.y = Netting.SHOW_YAW
-		await _net_notice(catch_, skeleton, ui)
-		## `settle_main_Notice_net`.
-		Audio.pop_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_COMPLETE if catch_.completes_record else Netting.FANFARE_CATCH))
-		if catch_.banked:
-			await _net_putaway(skeleton)
-		else:
-			## `release_creature`: let it go from the hand, then stand and watch it go.
-			var freed: BugActor = Netting.release(catch_, field, left_hand_global())
-			HeldCatch.unbind(skeleton)
-			await _watch_release(freed, skeleton)
-	_motor.reset(_motor.facing)
-	_motor.mode_changed = true
-	if _anim != null:
-		_anim.speed_scale = 1.0
-	HeldTool.play(skeleton, _tool_hold_anim, true)
-	catch_showing = false
-	_busy = false
-	_gait = PlayerLocomotion.Gait.WAIT
-	_update_focus()
-
-
 ## `Player_actor_setup_main_Mail_jump`: `CONFIRM1` while sliding onto `to` and turning to
 ## `yaw` over its first 8 frames; the clip holds its last frame while the box is open.
 func mail_jump(to: Vector3, yaw: float) -> void:
@@ -1889,34 +1675,6 @@ static func _release_target_pos(target: Variant) -> Variant:
 	return null
 
 
-## `main_Pull_net`: `GET_M1` plays out; the insect shows in the left hand past keyframe 15,
-## the player turns to the camera past 17, and the report opens 50 ticks in. The pull hands
-## on once the clip has ended and the report is up.
-func _net_pull(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay) -> void:
-	HeldTool.play(skeleton, Netting.TOOL_PULL, false)
-	_play_body_once(Netting.ANIM_PULL)
-	var elapsed: float = 0.0
-	var shown: bool = false
-	var reported: bool = false
-	while true:
-		await get_tree().physics_frame
-		var delta: float = get_physics_process_delta_time()
-		var frame: float = _keyframe_at(elapsed)
-		if frame > Netting.PULL_TURN_FRAME:
-			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Netting.SHOW_YAW, delta)
-			_mesh.rotation.y = _motor.facing
-		if frame > Netting.PULL_TO_HAND_FRAME and not shown:
-			HeldCatch.bind_bug(skeleton, catch_.bug)
-			shown = true
-		elapsed += delta
-		if elapsed >= Netting.PULL_REPORT_SEC and not reported:
-			_net_say(ui, catch_.report_msg(), catch_.bug)
-			Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
-			reported = true
-		if _clip_ended(elapsed, Netting.PULL_FRAMES) and reported:
-			return
-
-
 ## `mPlayer_INDEX_DEMO_GET_GOLDEN_ITEM(2)`: the golden tool held up in the hand with
 ## `YATTA1`, turning to face the camera, and 42 frames in the player's own green report
 ## ("YESSSSS!!!!! I got the Golden Rod!", 0x306D–0x306F); then back to waiting with the
@@ -2027,55 +1785,6 @@ func _play_body_loop(clip_name: StringName) -> void:
 		res.loop_mode = Animation.LOOP_LINEAR
 	_anim.speed_scale = 1.0
 	_anim.play(clip, MORPH_5)
-
-
-## `main_Notice_net`'s message states: the collection-complete follow-up with `YATTA2`, or the
-## pockets-full swap question, then wait for the report to close.
-func _net_notice(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay) -> void:
-	await _net_wait_closed(ui)
-	if catch_.completes_record:
-		HeldTool.play(skeleton, Netting.TOOL_YATTA, false)
-		_play_body_once(Netting.ANIM_YATTA)
-		Audio.pop_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
-		Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_COMPLETE))
-		_net_say(ui, Netting.LAST_GET_CONTINUE_MSG, catch_.bug)
-		await _net_wait_closed(ui)
-	if not catch_.banked and catch_.bug != null:
-		## 0xA4D: "Swap" trades a pocket for it (`mSM_IV_OPEN_EXCHANGE`), else it goes.
-		if await _ask_swap(Netting.POCKETS_FULL_MSG) and await exchange_into_pockets(catch_.bug.id):
-			catch_.banked = true
-
-
-## `main_Putaway_net`: `PUTAWAY_M1` with `GASAGOSO`; the insect shrinks each tick until
-## keyframe 17 and is gone from the hand there.
-func _net_putaway(skeleton: Skeleton3D) -> void:
-	HeldTool.play(skeleton, Netting.TOOL_PUTAWAY, false)
-	_play_body_once(Netting.ANIM_PUTAWAY)
-	PlayerSe.gasagoso(self)
-	var elapsed: float = 0.0
-	## Shrinks until keyframe 17, then leaves the hand.
-	var shrink_sec: float = (Netting.PUTAWAY_GONE_FRAME - 1.0) / DecompTime.FRAME_HZ
-	while not _clip_ended(elapsed, Netting.PUTAWAY_FRAMES):
-		await get_tree().physics_frame
-		elapsed += get_physics_process_delta_time()
-		if elapsed < shrink_sec:
-			var held: Node3D = HeldCatch.held_creature(skeleton)
-			if held != null:
-				held.scale = Vector3.ONE * pow(Netting.PUTAWAY_SHRINK, elapsed * DecompTime.TICK_HZ)
-		elif HeldCatch.is_held(skeleton):
-			HeldCatch.unbind(skeleton)
-	HeldCatch.unbind(skeleton)
-
-
-## The keyframe (1-based, 30 a second) a clip started `elapsed` seconds ago is showing.
-static func _keyframe_at(elapsed: float) -> float:
-	return 1.0 + elapsed * DecompTime.FRAME_HZ
-
-
-## `CulcAnimation_Base2` end detection for a stop-mode clip: it reports the end one tick
-## after the clip reaches `end_frame`.
-static func _clip_ended(elapsed: float, end_frame: float) -> bool:
-	return elapsed >= (end_frame - 1.0) / DecompTime.FRAME_HZ + DecompTime.TICK_SEC - 0.0001
 
 
 func _play_body_once(clip_name: StringName) -> void:
