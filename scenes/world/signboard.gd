@@ -47,11 +47,14 @@ func _paint(node: Node, tex: Texture2D) -> void:
 		_paint(child, tex)
 
 
-func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
-	return [
-		Interaction.of(Interaction.READ, "Post a design", 8),
+func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
+	var out: Array[Interaction] = [
 		Interaction.of(Interaction.PICK_UP, "Pick up signboard", 7, &"ply_1_pickup1", 20.0),
 	]
+	var actor := ctx.actor as Node3D if ctx != null else null
+	if actor == null or not actor.has_method("facing_yaw") or SignboardUse.can_read(global_position, actor.global_position, float(actor.call("facing_yaw"))):
+		out.push_front(Interaction.of(Interaction.READ, "Post a design", 8))
+	return out
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
