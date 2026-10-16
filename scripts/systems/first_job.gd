@@ -28,9 +28,16 @@ enum Kind {
 const UNIFORM_ID := &"shirt_016"
 ## Default worn shirt (`ITM_CLOTH001` male starter table).
 const DEFAULT_CLOTH_ID := &"shirt_001"
-## Plant kit sizes (`aNRG2_set_possession` JOB2).
+## Plant kit (`aNRG2_set_possession` JOB2): 7 seed bags, each `ITM_WHITE_PANSY_BAG +
+## RANDOM(9)`, and 3 plain saplings, one pocket each.
 const PLANT_FLOWER_COUNT := 7
 const PLANT_SAPLING_COUNT := 3
+const PLANT_BAG_IDS: Array[StringName] = [
+	&"white_pansy_bag", &"purple_pansy_bag", &"yellow_pansy_bag",
+	&"red_tulip_bag", &"white_tulip_bag", &"yellow_tulip_bag",
+	&"pink_cosmos_bag", &"white_cosmos_bag", &"blue_cosmos_bag",
+]
+const PLANT_SAPLING_ID := &"sapling"
 ## Delivery / stationery stand-ins for decomp items.
 const FURNITURE_ID := &"wood_chair"
 const CARPET_ID := &"floor_tile"
@@ -425,19 +432,20 @@ func give_uniform(inventory: Inventory) -> bool:
 	return inventory.add(item, 1) == 0
 
 
-func give_plant_kit(inventory: Inventory) -> bool:
-	if inventory == null:
+func give_plant_kit(inventory: Inventory, rng: RandomNumberGenerator = null) -> bool:
+	if not can_start_plant(inventory):
 		return false
-	var flower: ItemData = ItemCatalog.get_item(&"flower")
-	var sapling: ItemData = ItemCatalog.get_item(&"apple_sapling")
-	if flower == null or sapling == null:
-		return false
-	if inventory.empty_slot_count() < _plant_slots_needed(flower, sapling):
-		return false
-	if inventory.add(flower, PLANT_FLOWER_COUNT) != 0:
-		return false
-	if inventory.add(sapling, PLANT_SAPLING_COUNT) != 0:
-		return false
+	if rng == null:
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	var sapling: ItemData = ItemCatalog.get_item(PLANT_SAPLING_ID)
+	for _i in PLANT_FLOWER_COUNT:
+		var bag: ItemData = ItemCatalog.get_item(PLANT_BAG_IDS[rng.randi_range(0, PLANT_BAG_IDS.size() - 1)])
+		if bag == null or inventory.add(bag, 1) != 0:
+			return false
+	for _i in PLANT_SAPLING_COUNT:
+		if inventory.add(sapling, 1) != 0:
+			return false
 	return true
 
 
@@ -456,14 +464,11 @@ func can_start_change_cloth(inventory: Inventory) -> bool:
 	return inventory != null and inventory.empty_slot_count() > 0
 
 
+## `aNRG2_check_job_start`: one free pocket for each of the ten.
 func can_start_plant(inventory: Inventory) -> bool:
-	if inventory == null:
+	if inventory == null or ItemCatalog.get_item(PLANT_SAPLING_ID) == null:
 		return false
-	var flower: ItemData = ItemCatalog.get_item(&"flower")
-	var sapling: ItemData = ItemCatalog.get_item(&"apple_sapling")
-	if flower == null or sapling == null:
-		return false
-	return inventory.empty_slot_count() >= _plant_slots_needed(flower, sapling)
+	return inventory.empty_slot_count() >= PLANT_FLOWER_COUNT + PLANT_SAPLING_COUNT
 
 
 func can_start_delivery(inventory: Inventory) -> bool:
@@ -726,16 +731,6 @@ static func _remove_quest_item(inventory: Inventory, id: StringName) -> bool:
 			inventory.remove_from_slot(i, 1)
 			return true
 	return false
-
-
-static func _plant_slots_needed(flower: ItemData, sapling: ItemData) -> int:
-	var flower_slots: int = ceili(
-		float(PLANT_FLOWER_COUNT) / float(maxi(1, flower.max_stack))
-	)
-	var sapling_slots: int = ceili(
-		float(PLANT_SAPLING_COUNT) / float(maxi(1, sapling.max_stack))
-	)
-	return flower_slots + sapling_slots
 
 
 static func _pockets_have_plant(inventory: Inventory) -> bool:

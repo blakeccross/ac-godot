@@ -658,6 +658,9 @@ func _apply_identity(identity: Dictionary) -> void:
 	resident.player_face = clampi(
 		int(identity.get("player_face", 0)), 0, IntroSequence.FACE_TYPE_NUM - 1
 	)
+	var shirt: StringName = IntroSequence.starting_cloth(resident.player_gender)
+	if ItemCatalog.get_item(shirt) != null:
+		resident.cloth_id = shirt
 
 
 func resolve_world_data() -> WorldData:

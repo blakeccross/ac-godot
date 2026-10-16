@@ -73,6 +73,16 @@ static func normalize_gender(value: Variant) -> StringName:
 	return GENDER_MALE
 
 
+## `mPr_SetNowPrivateCloth` once Rover's questions end: one of eight starting shirts,
+## `CLOTH000`–`007` for a boy and `CLOTH008`–`015` for a girl.
+static func starting_cloth(p_gender: StringName, rng: RandomNumberGenerator = null) -> StringName:
+	if rng == null:
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	var first: int = 8 if normalize_gender(p_gender) == GENDER_FEMALE else 0
+	return StringName("shirt_%03d" % (first + rng.randi_range(0, 7)))
+
+
 ## Decomp: bit0 clear → random; else table[gender][flags >> 1].
 static func resolve_face(
 	p_gender: StringName, flags: int, rng: RandomNumberGenerator = null

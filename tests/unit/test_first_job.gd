@@ -66,8 +66,25 @@ func test_give_uniform_and_plant_kit() -> void:
 	assert_int(inv.count_of(FirstJob.UNIFORM_ID)).is_equal(1)
 	inv.clear()
 	assert_bool(job.give_plant_kit(inv)).is_true()
-	assert_int(inv.count_of(&"flower")).is_equal(FirstJob.PLANT_FLOWER_COUNT)
-	assert_int(inv.count_of(&"apple_sapling")).is_equal(FirstJob.PLANT_SAPLING_COUNT)
+	## `aNRG2_set_possession`: 7 bags of the nine flower seeds and 3 plain saplings.
+	var bags: int = 0
+	for id: StringName in FirstJob.PLANT_BAG_IDS:
+		bags += inv.count_of(id)
+	assert_int(bags).is_equal(FirstJob.PLANT_FLOWER_COUNT)
+	assert_int(inv.count_of(FirstJob.PLANT_SAPLING_ID)).is_equal(FirstJob.PLANT_SAPLING_COUNT)
+	assert_int(inv.count_of(&"apple_sapling")).is_equal(0)
+
+
+func test_the_plant_job_needs_ten_free_pockets() -> void:
+	## `aNRG2_check_job_start`.
+	var job := FirstJob.new()
+	var inv: Inventory = Game.inventory
+	inv.clear()
+	var filler: ItemData = ItemCatalog.get_item(FirstJob.PAPER_ID)
+	while inv.empty_slot_count() > FirstJob.PLANT_FLOWER_COUNT + FirstJob.PLANT_SAPLING_COUNT - 1:
+		assert_int(inv.add(filler, 1)).is_equal(0)
+	assert_bool(job.can_start_plant(inv)).is_false()
+	assert_bool(job.give_plant_kit(inv)).is_false()
 
 
 func test_plant_job_finishes_when_pockets_empty_of_plants() -> void:
