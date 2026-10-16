@@ -20,9 +20,11 @@ static func on(p_volume: InteractVolume, p_action: Interaction) -> InteractionQu
 	return query
 
 
-## The nearest volume among `areas` with something to offer, and its primary action.
+## The nearest volume among `areas` with something to offer, and its primary action. Picking
+## up is its own button (`Player_actor_CheckController_forPickup`: B), so `pickup` chooses
+## between the pick-up verbs and everything else (A).
 static func best_in_areas(
-	areas: Array, face_pt: Vector3, ctx: InteractionContext
+	areas: Array, face_pt: Vector3, ctx: InteractionContext, pickup: bool = false
 ) -> InteractionQuery:
 	var best: InteractionQuery = null
 	var best_d := INF
@@ -30,7 +32,11 @@ static func best_in_areas(
 		var volume := entry as InteractVolume
 		if volume == null or volume.host == null:
 			continue
-		var action: Interaction = Interaction.primary(volume.offers(ctx))
+		var offered: Array[Interaction] = []
+		for action: Interaction in volume.offers(ctx):
+			if (action.id == Interaction.PICK_UP) == pickup:
+				offered.append(action)
+		var action: Interaction = Interaction.primary(offered)
 		if action == null:
 			continue
 		var d: float = face_pt.distance_squared_to(volume.global_position)

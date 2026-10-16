@@ -101,6 +101,12 @@ func consume_a_pressed() -> bool:
 	return pressed
 
 
+func consume_b_pressed() -> bool:
+	var pressed: bool = b_pressed
+	b_pressed = false
+	return pressed
+
+
 func _word(index: int) -> int:
 	if index < 0 or index >= keys.size():
 		return 0

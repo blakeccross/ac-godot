@@ -102,8 +102,8 @@ func test_best_in_areas_picks_closer_host_not_higher_priority() -> void:
 	talker.priority = 20
 	talker.position = Vector3(8, 0, 0)
 	var item := auto_free(_StubHost.new()) as _StubHost
-	item.verb = Interaction.PICK_UP
-	item.prompt = "Pick up"
+	item.verb = Interaction.READ
+	item.prompt = "Read"
 	item.priority = 15
 	item.position = Vector3(1, 0, 0)
 	var talk_area := InteractVolume.new()
@@ -116,7 +116,30 @@ func test_best_in_areas_picks_closer_host_not_higher_priority() -> void:
 		[talk_area, item_area], Vector3.ZERO, InteractionContext.new()
 	)
 	assert_object(hit.host).is_same(item)
-	assert_str(String(hit.action.id)).is_equal(String(Interaction.PICK_UP))
+	assert_str(String(hit.action.id)).is_equal(String(Interaction.READ))
+
+
+func test_picking_up_is_b_and_never_a() -> void:
+	## `Player_actor_CheckController_forPickup`: B. A goes past a ground item to the next host.
+	var talker := auto_free(_StubHost.new()) as _StubHost
+	talker.verb = Interaction.TALK
+	talker.priority = 20
+	talker.position = Vector3(8, 0, 0)
+	var item := auto_free(_StubHost.new()) as _StubHost
+	item.verb = Interaction.PICK_UP
+	item.priority = 15
+	item.position = Vector3(1, 0, 0)
+	var talk_area := InteractVolume.new()
+	var item_area := InteractVolume.new()
+	talker.add_child(talk_area)
+	item.add_child(item_area)
+	add_child(talker)
+	add_child(item)
+	var a: InteractionQuery = InteractionQuery.best_in_areas([talk_area, item_area], Vector3.ZERO, InteractionContext.new())
+	assert_object(a.host).is_same(talker)
+	var b: InteractionQuery = InteractionQuery.best_in_areas([talk_area, item_area], Vector3.ZERO, InteractionContext.new(), true)
+	assert_object(b.host).is_same(item)
+	assert_str(String(b.action.id)).is_equal(String(Interaction.PICK_UP))
 
 
 func test_dummy_hosts_talk_and_pick_up_without_type_checks() -> void:
