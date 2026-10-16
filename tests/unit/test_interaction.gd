@@ -210,11 +210,6 @@ func test_scene_hosts_offer_expected_verbs() -> void:
 	_assert_verb("res://scenes/world/house.tscn", Interaction.ENTER, ctx)
 	_assert_verb("res://scenes/world/shop.tscn", Interaction.SHOP, ctx)
 	_assert_verb("res://scenes/world/sign.tscn", Interaction.READ, ctx)
-	_assert_verb("res://scenes/world/flower.tscn", Interaction.PICK_UP, ctx)
-	var flower: Node = auto_free(load("res://scenes/world/flower.tscn").instantiate())
-	var flower_action: Interaction = Interaction.primary(flower.get_interactions(ctx))
-	assert_str(String(flower_action.player_anim)).is_equal("ply_1_pickup1")
-	assert_float(flower_action.effect_frame).is_equal(20.0)
 	_assert_verb("res://scenes/world/door.tscn", Interaction.ENTER, ctx)
 
 
@@ -323,8 +318,9 @@ func test_seed_flower_cannot_pick() -> void:
 	assert_str(String(action.id)).is_equal(String(Interaction.WATER))
 
 
-func test_bloom_colors_can_pick() -> void:
-	## `FLOWER_PANSIES0/1/2` are bloom colors, not growth stages — all are pickable.
+func test_flowers_are_dug_up_not_picked() -> void:
+	## Flowers are ENV-range FG ids, which `Player_actor_CheckItem_fromPosition` never
+	## accepts: bare hands get nothing, the shovel digs them up.
 	ItemCatalog.reload()
 	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 1, "hour": 12, "minute": 0})
 	for color: StringName in [&"FLOWER_PANSIES0", &"FLOWER_PANSIES1", &"FLOWER_PANSIES2"]:
@@ -335,10 +331,9 @@ func test_bloom_colors_can_pick() -> void:
 		add_child(flower)
 		var empty := InteractionContext.new()
 		empty.inventory = Inventory.new()
-		var actions: Array = flower.get_interactions(empty)
-		assert_int(actions.size()).is_greater(0)
-		var action: Interaction = Interaction.primary(actions)
-		assert_str(String(action.id)).is_equal(String(Interaction.PICK_UP))
+		assert_int(flower.get_interactions(empty).size()).is_equal(0)
+		var action: Interaction = Interaction.primary(flower.get_interactions(_ctx_with_tool(&"shovel")))
+		assert_str(String(action.id)).is_equal(String(Interaction.DIG))
 
 
 func test_building_exposes_verbs_on_child_door() -> void:

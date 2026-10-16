@@ -221,3 +221,13 @@ func test_console_start_and_goto() -> void:
 	assert_int(Clock.day).is_equal(31)
 	assert_int(Clock.hour).is_equal(18)
 	assert_str(console.execute("event start nonsense")).contains("Unknown event")
+
+
+func test_town_day_skips_the_fourth_and_reaches_the_thirty_first() -> void:
+	var days: Dictionary = {}
+	for roll in 30:
+		days[EventCalendar.town_day_from_roll(roll)] = true
+	assert_bool(days.has(4)).is_false()
+	assert_bool(days.has(31)).is_true()
+	assert_bool(days.has(1)).is_true()
+	assert_int(days.size()).is_equal(30)

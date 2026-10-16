@@ -81,19 +81,18 @@ func test_cycle_debug_walks_kinds() -> void:
 	assert_that(Game.town.weather).is_equal(&"clear")
 
 
-func test_field_renew_rerolls_weather() -> void:
-	Game.set_weather(&"clear")
+func test_the_weather_rerolls_at_midnight_not_at_six() -> void:
+	## `mTM_renewal_renew_time`: the weather is decided on a change of date. Sakura never
+	## rolls in July, so it surviving a crossing means nothing rolled.
 	Weather.seed_rng(99)
-	## Advance across a 06:00 so `field_renewed` fires.
 	Clock.apply_snapshot({"year": 2001, "month": 7, "day": 1, "hour": 5, "minute": 50})
+	Game.set_weather(&"sakura")
 	Clock.advance_minutes(20)
-	## July term allows rain/thunder; seeded roll should leave clear or precip — just ensure it set something valid.
-	assert_bool(
-		Game.town.weather == &"clear"
-		or Game.town.weather == &"rain"
-		or Game.town.weather == &"snow"
-		or Game.town.weather == &"sakura"
-	).is_true()
+	assert_that(Game.town.weather).is_equal(&"sakura")
+	Clock.apply_snapshot({"year": 2001, "month": 7, "day": 1, "hour": 23, "minute": 50})
+	Game.set_weather(&"sakura")
+	Clock.advance_minutes(20)
+	assert_that(Game.town.weather).is_not_equal(&"sakura")
 
 
 func test_precip_uses_rain_palette() -> void:

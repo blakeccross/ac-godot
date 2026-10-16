@@ -131,8 +131,9 @@ const _RAIN_LIGHT: Array[Dictionary] = [
 	},
 ]
 
-## Shadow / sun energy scale while raining or snowing (`mEnv_MakeShadowInfo`).
-const PRECIP_LIGHT_SCALE := 0.75
+## Shadow alpha scale while raining or snowing (`mEnv_MakeShadowInfo`'s weather adjust).
+## Shadows only: the light itself is already the rain palette (`l_mEnv_kcolor_rain_data`).
+const PRECIP_SHADOW_SCALE := 0.75
 
 const CYCLE_ORDER: Array[StringName] = [&"clear", &"rain", &"snow", &"sakura"]
 
@@ -271,13 +272,13 @@ static func rain_outdoor_light() -> Dictionary:
 		"fog_end": lerpf(float(a["fog_end"]), float(b["fog_end"]), t),
 		"sun_dir": dirs["sun_dir"],
 		"moon_dir": dirs["moon_dir"],
-		"sun_energy": maxf(sun.get_luminance() * 1.35, 0.02) * PRECIP_LIGHT_SCALE,
-		"moon_energy": maxf(moon.get_luminance() * 0.9, 0.0) * PRECIP_LIGHT_SCALE,
+		"sun_energy": maxf(sun.get_luminance() * 1.35, 0.02),
+		"moon_energy": maxf(moon.get_luminance() * 0.9, 0.0),
 	}
 
 
 static func outdoor_light_for(weather_name: StringName) -> Dictionary:
-	## Fine palette for clear/sakura; rain palette (and dim) for rain/snow.
+	## Fine palette for clear/sakura; rain palette for rain/snow.
 	var kind: Kind = kind_from_name(weather_name)
 	if is_precip(kind):
 		return rain_outdoor_light()

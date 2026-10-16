@@ -87,7 +87,14 @@ func clear() -> void:
 ## New town: the seed fixes `town_day` and the special-visit rolls. Keeps any other state.
 func assign_town(seed_value: int) -> void:
 	town_seed = seed_value
-	town_day = 1 + posmod(seed_value, 28)
+	town_day = town_day_from_roll(posmod(seed_value, 30))
+
+
+## `ac_npc_guide_move.c_inc` (new town): `1 + RANDOM(30)`, then one more from the 4th on, so July
+## 4 (Independence Day) is never Town Day and the 29th–31st can be.
+static func town_day_from_roll(roll: int) -> int:
+	var day: int = 1 + roll
+	return day + 1 if day >= 4 else day
 
 
 static func date_from_clock() -> Dictionary:
@@ -694,7 +701,7 @@ func to_save() -> Dictionary:
 
 func apply_snapshot(data: Dictionary) -> void:
 	clear()
-	town_day = clampi(int(data.get("town_day", 15)), 1, 28)
+	town_day = clampi(int(data.get("town_day", 15)), 1, 31)
 	town_seed = int(data.get("town_seed", 0))
 	birthday_md = int(data.get("birthday", 0))
 	weekly_type = StringName(String(data.get("weekly_type", "")))
