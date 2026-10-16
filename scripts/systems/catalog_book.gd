@@ -105,7 +105,8 @@ static func is_orderable(data: ItemData) -> bool:
 		return true
 	if data is FurnitureData and FurnitureUse.is_diary(data as FurnitureData):
 		return true
-	if not ShopGoods.has_disc_lists():
+	## Authored stand-ins are on no disc list; they keep the plain rule.
+	if not ShopGoods.has_disc_lists() or (data is FurnitureData and not (data as FurnitureData).from_disc):
 		return not data.shop_rare
 	var kind: String = "ftr"
 	match data.category:
