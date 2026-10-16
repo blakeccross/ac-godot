@@ -3,23 +3,23 @@
 [ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_un83m"]
 [ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_f_1.tres" id="2_uvutt"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_f_1/grd_s_f_12.res" id="3_nfau8"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/b9aef45eb859.tres" id="4_rkis0"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/986e0bfb5eca.tres" id="5_tqxv3"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/2e39962aec4c.tres" id="6_34315"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/764198791dcf.tres" id="4_rkis0"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/fedc45c44ba0.tres" id="5_tqxv3"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/7e92e26d749b.tres" id="6_34315"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_f_1/grd_s_f_1_mask.res" id="7_kusl0"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/4286832075a5.tres" id="8_wwu31"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/981c2d14e555.tres" id="8_wwu31"]
 
-[node name="grd_s_f_1" type="Node3D" unique_id=2124726156]
+[node name="grd_s_f_1" type="Node3D" unique_id=733150005]
 script = ExtResource("1_un83m")
 visual_id = &"grd_s_f_1"
 grid = ExtResource("2_uvutt")
 
-[node name="grd_s_f_12" type="MeshInstance3D" parent="." unique_id=1365387427]
+[node name="grd_s_f_12" type="MeshInstance3D" parent="." unique_id=575243998]
 mesh = ExtResource("3_nfau8")
 surface_material_override/0 = ExtResource("4_rkis0")
 surface_material_override/1 = ExtResource("5_tqxv3")
 surface_material_override/2 = ExtResource("6_34315")
 
-[node name="grd_s_f_1_mask" type="MeshInstance3D" parent="." unique_id=1202917737]
+[node name="grd_s_f_1_mask" type="MeshInstance3D" parent="." unique_id=1617367263]
 mesh = ExtResource("7_kusl0")
 surface_material_override/0 = ExtResource("8_wwu31")

@@ -3,15 +3,15 @@
 [ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_v5hxg"]
 [ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_e2_c1_1.tres" id="2_gc2g6"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_e2_c1_1/grd_s_e2_c1_1.res" id="3_tda70"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/1048b6b1d6c2.tres" id="4_7onnt"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/687d1de7bc62.tres" id="5_36q5t"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/010683c2b247.tres" id="4_7onnt"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/7d5fa7640970.tres" id="5_36q5t"]
 
-[node name="grd_s_e2_c1_1" type="Node3D" unique_id=1500211321]
+[node name="grd_s_e2_c1_1" type="Node3D" unique_id=1005869962]
 script = ExtResource("1_v5hxg")
 visual_id = &"grd_s_e2_c1_1"
 grid = ExtResource("2_gc2g6")
 
-[node name="grd_s_e2_c1_1" type="MeshInstance3D" parent="." unique_id=1206626754]
+[node name="grd_s_e2_c1_1" type="MeshInstance3D" parent="." unique_id=267231972]
 mesh = ExtResource("3_tda70")
 surface_material_override/0 = ExtResource("4_7onnt")
 surface_material_override/1 = ExtResource("5_36q5t")
