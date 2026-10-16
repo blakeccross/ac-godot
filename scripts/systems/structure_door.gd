@@ -79,8 +79,11 @@ static func play_enter(host: Node) -> void:
 		await player.tools.put_away_tool_for_door()
 	var visual_id: StringName = _visual_id(root) if root != null else &""
 	var look: Vector3 = approach_position(root) if root != null else Vector3.ZERO
+	## `Camera2_setup_main_Door`: the centre is the player's eye at the moment of the
+	## request, not the approach stand.
 	if root != null:
-		_DoorCamera.begin(look, host.get_tree() if host != null else null)
+		var center: Vector3 = player.camera_look_position() if player != null and is_instance_valid(player) else look
+		_DoorCamera.begin(center, host.get_tree() if host != null else null, true)
 	if root != null and player != null:
 		var target: Vector3 = look
 		var yaw: float = enter_yaw(root, player.global_position)
@@ -144,13 +147,13 @@ static func play_emerge(host: Node) -> void:
 		## 3 (Nook / police / …) = full walk-out. Same split as the enter walk-in.
 		player.doors.begin_door_leave(stand, stand, out_yaw, uses_walk_in(visual_id))
 	## `Camera2_request_main_door` (OUTDOOR, flags&1 == 0, morph 0): the door camera
-	## centres on the *player* actor, not the enter approach stand — so it stays put
-	## (use the player's real Y; `exit_stand` Y is only the structure base).
+	## snaps onto the *player's* eye, not the enter approach stand, and the normal camera
+	## eases back out from there once it ends.
 	if root != null:
 		var cam_center: Vector3 = (
-			player.global_position if player != null else stand
+			player.camera_look_position() if player != null else stand + Vector3(0.0, Player.LOOK_HEIGHT, 0.0)
 		)
-		_DoorCamera.begin(cam_center, host.get_tree() if host != null else null)
+		_DoorCamera.begin(cam_center, host.get_tree() if host != null else null, false)
 	var played: bool = await _play(host, false)
 	## Museum / police have no leave cKF — hold on player GO_OUT.
 	if not played and player != null and is_instance_valid(player):

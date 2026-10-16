@@ -10,7 +10,9 @@ extends CharacterBody3D
 
 const PLAYER_BOY_GLB := "res://assets/generated/characters/player/boy_1.glb"
 const PLAYER_GIRL_GLB := "res://assets/generated/characters/player/grl_1.glb"
-const LOOK_HEIGHT := 0.85
+## `Player_actor_set_eye_PositionAndAngle`: the eye is 33 GX up (`Actor_world_to_eye`).
+## The outdoor and talk cameras centre on it.
+const LOOK_HEIGHT := 33.0 * PlayerLocomotion.UNIT_METERS
 const INTERACT_REACH := 1.1
 
 ## `notice_rod` chains message 0x1348 onto the fish catch report when pockets are full.
