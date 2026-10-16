@@ -782,6 +782,20 @@ func test_museum_entrance_sets_spawn_without_arrive() -> void:
 	Game.has_interior_spawn = false
 
 
+func test_door_iris_follows_the_triforce_scroll() -> void:
+	## `fbdemo_triforce_move`: 54 ticks each way, closing fast then slowing.
+	var script: GDScript = SceneTransition.get_script()
+	assert_int(script.IRIS_STEPS.size() - 1).is_equal(54)
+	assert_float(script.IRIS_SEC).is_equal_approx(0.9, 0.001)
+	assert_float(script.iris_progress(0.0, true)).is_equal(0.0)
+	assert_float(script.iris_progress(1.0, true)).is_equal(1.0)
+	assert_float(script.iris_progress(0.25, true)).is_greater(0.3)
+	## Opening runs the same curve backwards: slow off the closed screen, fast at the end.
+	assert_float(script.iris_progress(0.0, false)).is_equal(1.0)
+	assert_float(script.iris_progress(0.25, false)).is_greater(0.75)
+	assert_float(script.iris_progress(1.0, false)).is_equal(0.0)
+
+
 func test_scene_transition_wipe_flags() -> void:
 	## Wipe-out arms wipe-in; cancel clears without a scene change.
 	SceneTransition.cancel_wipe()
