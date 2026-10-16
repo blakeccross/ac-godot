@@ -1,8 +1,8 @@
 extends Node3D
 
-## Uki (`ac_uki.h`) presentation: a parabola out to the cast point, a slow float bob, a dip
-## on every nibble, pulled under while a fish has it and yanked up out of the water once
-## struck. `Fishing` owns all the timing and
+## Uki (`ac_uki.h`) presentation: a backswing on the rod and a parabola out to the cast
+## point, a slow float bob, a dip on every nibble, pulled under while a fish has it and
+## yanked up out of the water once struck. `Fishing` owns all the timing and
 ## the bobber's position once it lands (`aUKI_movement`'s drift), including when this node
 ## is freed — this script only reads it.
 
@@ -32,9 +32,6 @@ const SETTLE_HALF_LIFE := 0.1035  ## Motion.half_life_from_fraction(1 − √0.8
 const SETTLE_MAX_RATE := PI * 0.25 * 60.0
 ## `aUKI_PROC_CAST` / `aUKI_PROC_WAIT` while `cast_timer` runs: the float lies flat.
 const PITCH_FLAT := PI * 0.5
-## `aUKI_PROC_BITE` with `gyo_status == 4`: yanked over toward the rod. Before the strike
-## the bite proc draws no RotateX or RotateY at all — the float stands straight.
-const PITCH_PULLED := -PI * 0.5
 
 var _base: Vector3 = Vector3.INF
 var _phase: float = 0.0
@@ -65,13 +62,9 @@ func _process(delta: float) -> void:
 	_base = Fishing.anchor()
 	_phase += delta
 	var offset: Vector3 = Vector3.ZERO
-	var progress: float = Fishing.cast_progress()
-	if progress < 1.0:
-		## `parabola_vec` / `parabola_acc`: the bobber arcs from the rod tip to the cast
-		## point. We only have the landing spot, so the arc is drawn from the caster's side.
-		var throw: Vector3 = _base - _origin()
-		offset = -throw * (1.0 - progress)
-		offset.y += throw.length() * Fishing.CAST_ARC * sin(progress * PI)
+	if Fishing.state() == Fishing.State.CAST:
+		## Swinging back on the rod, then `parabola_vec`'s arc out to the landing spot.
+		offset = Fishing.cast_position() - _base
 	else:
 		if Fishing.state() == Fishing.State.BITE:
 			offset.y = Fishing.rise()
@@ -93,21 +86,25 @@ func _tilt(delta: float, height: float) -> void:
 	var drawn := true
 	match Fishing.state():
 		Fishing.State.BITE:
-			target = PITCH_PULLED
-			drawn = Fishing.is_struck()
+			## `aUKI_PROC_BITE` draws no RotateX at all: the float stands straight while a
+			## fish has it, struck or not. Only a struck one is turned toward the rod. The
+			## pitch it eases toward is never drawn, and the hit proc replaces it.
+			drawn = false
 		Fishing.State.FLOAT:
-			## `aUKI_PROC_WAIT` once `cast_timer` has run out: stand upright, and stand up
-			## fast — this is the beat that tells you the cast has settled.
-			target = 0.0
-			half_life = SETTLE_HALF_LIFE
-			max_rate = SETTLE_MAX_RATE
+			## `aUKI_PROC_WAIT` lies flat at the cast rates while `cast_timer` runs, then
+			## stands up fast — the beat that tells you fish can see it now.
+			if Fishing.is_settled():
+				target = 0.0
+				half_life = SETTLE_HALF_LIFE
+				max_rate = SETTLE_MAX_RATE
 	if drawn:
 		_pitch = tilt_toward(_pitch, target, half_life, max_rate, delta)
 	_rgb = chase_color(_rgb, height < -UNDERWATER, delta)
-	## Every proc but an unstruck bite turns the float to face the rod (`uki_angle.y`) and
-	## then tips it; an unstruck bite leaves it standing with neither.
+	## Every proc but an unstruck bite turns the float to face the rod (`uki_angle.y`); all
+	## but the bite then tip it.
+	var faces_rod: bool = drawn or Fishing.is_struck()
 	var to_rod: Vector3 = _origin() - global_position if is_inside_tree() else Vector3.ZERO
-	var yaw: float = atan2(to_rod.x, to_rod.z) if drawn and to_rod.length_squared() > 0.0 else 0.0
+	var yaw: float = atan2(to_rod.x, to_rod.z) if faces_rod and to_rod.length_squared() > 0.0 else 0.0
 	_float.rotation = Vector3(REST_PITCH + (_pitch if drawn else 0.0), yaw, 0.0)
 	_paint()
 

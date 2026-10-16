@@ -27,12 +27,25 @@ const CAST_PROBE_METERS := 0.5  ## 10 GX
 ## point in exactly that span and `aUKI_cast` ends it the moment the bobber touches water.
 const CAST_SECONDS := 50.0 / DecompTime.TICK_HZ
 ## `Player_actor_request_proc_index_fromReady_rod` fires once the swing reaches animation
-## frame 10, and `cast_rod` gives the bobber its cast command on its very first frame. So the
-## line leaves the rod a third of the way through the swing, not after it — the rest of the
-## swing plays out around a bobber that is already in the air.
+## frame 10, and `cast_rod` sends the bobber its cast command from its very first frame. The
+## session starts there; the line itself leaves a little later (`LAUNCH_DELAY_SECONDS`).
 const CAST_RELEASE_FRAME := 10.0
-## How high the parabola peaks, as a fraction of the throw distance.
-const CAST_ARC := 0.35
+## The bobber only honours that command once its own ready swing is done: `aUKI_carry`
+## counts 4 ticks and `aUKI_set_proc_ready` 32 more, about 36 ticks after the press, against
+## frame 10's 18. So it leaves the rod around swing frame 19, with `cast_rod`'s `ROD_STROKE`.
+const LAUNCH_DELAY_SECONDS := 18.0 / DecompTime.TICK_HZ
+## `aUKI_set_proc_ready`: the float swings back from the rod tip toward 30 GX behind the
+## player at 30/20 GX a tick, for the 31 ticks its timer runs, so it ends 46.5 GX back. At
+## frame 10 it has made 14 of those steps (21 GX).
+const BACKSWING_START_GX := 21.0
+const BACKSWING_END_GX := 46.5
+## Where the rod tip holds the float over the player's feet. Not in the decomp's tables (the
+## tip is a joint of the rod model); an estimate of the held rod's height.
+const ROD_TIP_HEIGHT_GX := 40.0
+## `aUKI_parabola_init` type 1: the launch's vertical speed parameter, GX a tick (12 when the
+## target is more than 100 GX above the release).
+const ARC_RISE_GX := 4.5
+const ARC_RISE_HIGH_GX := 12.0
 ## How long a nibble visibly pulls the bobber under.
 const DIP_SECONDS := 0.22
 ## `aUKI_set_proc_cast`: `cast_timer = 40` ticks, counted down only once the bobber is
@@ -220,6 +233,9 @@ static var _rise_gx: float = 0.0
 static var _rise_speed: float = 0.0
 static var _rise_held: bool = false
 static var _bank_range: float = BANK_RANGE_START_GX
+## Which way the cast went (unit, on the ground plane) and where the line left the rod.
+static var _cast_dir: Vector3 = Vector3.FORWARD
+static var _caster_feet: Vector3 = Vector3.ZERO
 static var _ctx: InteractionContext = null
 static var _last: Outcome = null
 ## Set by an `air_rod` swing: the rest of the cast swing is cut and the beat takes over.
@@ -268,6 +284,50 @@ static func cast_progress() -> float:
 	if _state != State.CAST:
 		return 1.0
 	return clampf(_cast_time / CAST_SECONDS, 0.0, 1.0)
+
+
+## True once the bobber has left the rod (its ready swing is over).
+static func is_launched() -> bool:
+	return _state != State.IDLE and (_state != State.CAST or _cast_time >= 0.0)
+
+
+## True once the bobber is floating and its `cast_timer` has run out: fish can see it, and
+## the float stands up.
+static func is_settled() -> bool:
+	return _state != State.IDLE and _state != State.CAST and _settle <= 0.0
+
+
+## Where the rod tip holds the float, `gx` behind the caster (`aUKI_set_proc_ready`).
+static func backswing_point(gx: float) -> Vector3:
+	return _caster_feet - _cast_dir * gx * FieldCatalog.GX_TO_METERS + Vector3.UP * ROD_TIP_HEIGHT_GX * FieldCatalog.GX_TO_METERS
+
+
+## The bobber's position while the cast is in progress: swinging back on the rod, then on
+## `aUKI_parabola_init` type 1's arc from there to the landing spot. Horizontal speed starts
+## at twice the average and falls to nothing, so it shoots out and drops; vertically it rises
+## at `ARC_RISE_GX` a tick less a constant pull that brings it down on the water in 50 ticks.
+## The landing spot once it has landed.
+static func cast_position() -> Vector3:
+	if _state != State.CAST:
+		return _anchor
+	if _cast_time < 0.0:
+		var t: float = clampf(1.0 + _cast_time / LAUNCH_DELAY_SECONDS, 0.0, 1.0)
+		return backswing_point(lerpf(BACKSWING_START_GX, BACKSWING_END_GX, t))
+	return arc_point(backswing_point(BACKSWING_END_GX), _anchor, _cast_time)
+
+
+## `aUKI_parabola_init(…, 50, 1)` / `aUKI_parabola_move(…, 1)` from `from` to `to`,
+## `seconds` into the flight.
+static func arc_point(from: Vector3, to: Vector3, seconds: float) -> Vector3:
+	var f: float = CAST_SECONDS * DecompTime.TICK_HZ
+	var n: float = clampf(seconds * DecompTime.TICK_HZ, 0.0, f)
+	var u: float = n / f
+	var out: Vector3 = from + (to - from) * (2.0 * u - u * u)
+	var dy: float = (to.y - from.y) / FieldCatalog.GX_TO_METERS
+	var rise: float = ARC_RISE_HIGH_GX if dy > 100.0 else ARC_RISE_GX
+	var pull: float = 2.0 * (rise * f - dy) / (f * f)
+	out.y = from.y + (rise * n - pull * n * n * 0.5) * FieldCatalog.GX_TO_METERS
+	return out
 
 
 ## How far under the surface a nibble is currently pulling the bobber, 0–1.
@@ -328,9 +388,14 @@ static func cast(ctx: InteractionContext, point: Vector3) -> bool:
 	_inventory = ctx.inventory
 	_golden_rod = ctx.inventory != null and ctx.inventory.equipment_id in GOLDEN_ROD_IDS
 	_anchor = point
-	## Catalog water is a heightfield below land and we do not model the surface plane yet,
-	## so the shore height the caster stands on is the closest waterline we have.
-	_anchor.y = actor.global_position.y
+	## `mCoBG_GetWaterHeight`: the float comes to rest on the water's own surface, not at
+	## the height of the bank the caster stands on.
+	var school: FishSchool = school_of(ctx)
+	_anchor.y = school.surface_at(point) if school != null else actor.global_position.y
+	_caster_feet = actor.global_position
+	var out := Vector3(point.x - _caster_feet.x, 0.0, point.z - _caster_feet.z)
+	_cast_dir = out.normalized() if out.length_squared() > 0.0 else Vector3.FORWARD
+	_cast_time = -LAUNCH_DELAY_SECONDS
 	_bobber = _spawn_bobber(ctx.world, _anchor)
 	return true
 
