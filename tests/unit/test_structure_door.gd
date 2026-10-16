@@ -239,3 +239,17 @@ func test_animation_move_counter_matches_decomp() -> void:
 		StructureDoor.ANIM_MOVE_COUNTER / 0.5 / DecompTime.TICK_HZ
 	).is_equal_approx(StructureDoor.APPROACH_SEC, 0.01)
 	assert_float(StructureDoor.OPEN1_SEC).is_equal_approx(65.0 / 30.0, 0.01)
+
+
+func test_villager_doors_get_a_knock_first() -> void:
+	## `Player_actor_Check_NecessaryDoorKnock`.
+	assert_bool(StructureDoor.needs_knock(&"obj_s_house1")).is_true()
+	assert_bool(StructureDoor.needs_knock(&"obj_s_myhome1")).is_false()
+	assert_bool(StructureDoor.needs_knock(&"obj_s_toudai")).is_false()
+	assert_bool(StructureDoor.needs_knock(&"obj_s_shop1")).is_false()
+	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	add_child(player)
+	await get_tree().process_frame
+	if player.animation_player() == null:
+		return
+	assert_str(player._resolve_clip(Player.ANIM_KNOCK1)).is_not_empty()

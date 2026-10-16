@@ -31,6 +31,8 @@ const APPROACH_SEC := 9.0 / DecompTime.FRAME_HZ
 const ANIM_MOVE_COUNTER := 9.0
 ## Getoff train uses counter 5 (`AnimationMove_ct_base(..., 5.0f, ...)`).
 const ANIM_MOVE_COUNTER_GETOFF := 5.0
+## `Player_actor_setup_main_Knock_door`.
+const KNOCK_MOVE_COUNTER := 5.0
 ## Demo `size_adj` floor when house_info.size is 0 (`aMHS_set_demo_info`).
 const APPROACH_GX := 20.0
 ## `cKF_ba_r_ply_1_go_out_o1` frames 25→end (door-close-only emerge).
@@ -61,6 +63,14 @@ const PLAYER_APPROACH_GX := Vector2(-28.28, 28.28)
 const NPC_HOUSE_APPROACH_GX := Vector2(0.0, 40.0)
 
 
+## `Player_actor_Check_NecessaryDoorKnock`: a villager's house, or the player houses while
+## the newcomer is still choosing one (`mEv_CheckFirstIntro`).
+static func needs_knock(visual_id: StringName) -> bool:
+	if HostCollision.is_villager_house(visual_id) and not HostCollision.is_lighthouse(visual_id):
+		return true
+	return HostCollision.is_player_house(visual_id) and Game.intro_station_active
+
+
 static func uses_walk_in(visual_id: StringName) -> bool:
 	## `Player_actor_setup_main_Door`: type≠0 → INTO_S1. Museum / police / shop pass TRUE.
 	return (
@@ -79,6 +89,9 @@ static func play_enter(host: Node) -> void:
 		await player.tools.put_away_tool_for_door()
 	var visual_id: StringName = _visual_id(root) if root != null else &""
 	var look: Vector3 = approach_position(root) if root != null else Vector3.ZERO
+	## `Player_actor_CheckAndRequest_KnockDoor`: someone else's home gets a knock first.
+	if root != null and player != null and is_instance_valid(player) and needs_knock(visual_id):
+		await player.doors.knock(look, enter_yaw(root, player.global_position))
 	## `Camera2_setup_main_Door`: the centre is the player's eye at the moment of the
 	## request, not the approach stand.
 	if root != null:

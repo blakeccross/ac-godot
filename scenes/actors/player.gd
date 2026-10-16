@@ -61,6 +61,8 @@ const GAIT_STATES := {
 const SE_SLIP := &"4129"
 ## `mPlayer_ANIM_OPEN1` — door enter demo (`mPlayer_INDEX_DOOR`, type 0).
 const ANIM_OPEN1 := "ply_1_open1"
+## `mPlayer_ANIM_KNOCK1`: knocking before a door that is not the player's own.
+const ANIM_KNOCK1 := "ply_1_knock1"
 ## `mPlayer_ANIM_INTO_S1` — indoor door / exit walk (`mPlayer_INDEX_DOOR`, type ≠ 0).
 const ANIM_INTO_S1 := "ply_1_into_s1"
 ## `mPlayer_ANIM_GO_OUT_S1` — outdoor emerge demo (`mPlayer_INDEX_OUTDOOR`, is_start_demo).

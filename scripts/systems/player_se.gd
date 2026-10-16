@@ -23,6 +23,8 @@ const CLIP_MARKS: Dictionary = {
 	&"ply_1_kagu_close_k1": [[6.0, &"ftr_door_close"]],
 	&"ply_1_kagu_close_d1": [[6.0, &"ftr_door_close"]],
 	&"ply_1_pickup1": [[10.0, &"item_get"], [20.0, &"gasagoso"]],
+	## `Player_actor_SetSound_Knock_door`: two raps, frames 13 and 20.
+	&"ply_1_knock1": [[13.0, &"sound_knock"], [20.0, &"sound_knock"]],
 	## `ply_1_sao_swing1`'s stroke belongs to `cast_rod` / `air_rod`, not `ready_rod`, so it is
 	## played by `rod_stroke` once the water check has picked one of them.
 	## `Player_actor_sound_JUMP` at setup, `Player_actor_sound_SIT` at frame 18 (`SetSound_Sitdown`).
