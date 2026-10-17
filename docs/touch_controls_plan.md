@@ -2,6 +2,8 @@
 
 Goal: play the whole game with one finger, the way *Pocket Camp* plays. You tap the ground to walk there, and you tap a villager, tree, item or building to walk up and use it. This is an added input mode, not a different game. Pad and keyboard keep working unchanged, and every touch action ends in the verbs the player already has (`_try_interact`, `_try_pick_up`, the net swing, the reel).
 
+The file-by-file build of phases 2–6 is in [touch_controls_implementation.md](touch_controls_implementation.md).
+
 ## Design rules
 
 - **One seam into the player.** Touch never calls hosts directly. It drives the player through a `PlayerInput` source, the same way `TitleDemoInput` already does: a `move` vector plus A and B presses and holds. The player cannot tell a finger from a stick. Interaction choice stays in `InteractionQuery` / `ToolUse.resolve`, so touch picks exactly what A or B would pick when standing there.
@@ -67,7 +69,7 @@ When a host offers more than one verb, a small row of chips appears over it with
 ### `TouchHud` (new scene, `scenes/ui/touch_hud.tscn`)
 - A tap marker on the ground: a ring that fades, scene-authored. It also shows the path's end.
 - Context chips over the target host.
-- Corner buttons: pockets, map and pause, plus a B button while something offers only B. The buttons send the existing actions with `Input.action_press` / `action_release`, so overlays need no changes for opening.
+- Corner buttons: pockets, map and pause, plus a B button while something offers only B. The buttons send the existing actions as `InputEventAction`s through `Input.parse_input_event` (`action_press` only sets the polled state and sends no event), so overlays need no changes for opening.
 - It is visible only while the touch device is active. The `InputDeviceTracker` autoload switches on the last `InputEventScreenTouch` / `ScreenDrag` vs. key / joypad event.
 
 ### Project settings
