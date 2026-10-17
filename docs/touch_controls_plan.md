@@ -8,6 +8,7 @@ The file-by-file build of phases 2–6 is in [touch_controls_implementation.md](
 
 - **One seam into the player.** Touch never calls hosts directly. It drives the player through a `PlayerInput` source, the same way `TitleDemoInput` already does: a `move` vector plus A and B presses and holds. The player cannot tell a finger from a stick. Interaction choice stays in `InteractionQuery` / `ToolUse.resolve`, so touch picks exactly what A or B would pick when standing there.
 - **Movement keeps its physics.** Tap-to-walk produces a stick vector each tick (steering toward the next waypoint), never a teleport or a tween. Speed, turning, slopes, tripping and footprints all stay exactly as they are.
+- **No on-screen joystick or d-pad.** Movement is tapping where to go, or holding a finger on the ground for the player to follow. Nothing stick-shaped is ever drawn. The finger never acts as a stick relative to a fixed point; it always names a place in the world.
 - **Scene-first UI.** On-screen buttons and markers live in a `TouchHud` scene, shown only when touch is the last device used.
 - **Every phase leaves the game playable.** Each phase can ship on its own.
 
@@ -18,8 +19,8 @@ The file-by-file build of phases 2–6 is in [touch_controls_implementation.md](
 | Tap | ground | walk there (path around cliffs, water and objects) |
 | Tap | an interactable (villager, tree, sign, door, item, furniture…) | walk up to it, face it, then do its A verb (or its B verb if B is all it offers) |
 | Tap | the player | A in place (dig, swing, cast, talk to whoever is in front) |
-| Long-press | the ground | walk there at a dash (B held) |
-| Drag from the player | anywhere | free move like a stick (dash past the outer ring), until released |
+| Double-tap | the ground | run there |
+| Hold and slide | the ground | the player walks toward the spot under the finger and keeps following it until release (runs when the finger is far ahead). No stick is drawn. |
 | Tap | water (rod equipped) | walk to the bank and cast toward the tap |
 | Tap | anywhere while fishing | reel (A) |
 | Hold | anywhere (net equipped) | ready the net and creep toward the finger; release swings (hold-A semantics) |
@@ -48,7 +49,7 @@ When a host offers more than one verb, a small row of chips appears over it with
 - It turns gestures into the source's fields each physics tick:
   - **Walk-to.** Follow a path of world points, and set `move` from the camera-relative direction to the next point. Use the inverse of `_camera_wish`, and keep full deflection until the last metre, then ease. Stop on arrival, on a blocked step (`FieldCollision.revise_xz` makes no progress for 0.3 s) or on a new tap.
   - **Interact-on-arrival.** When the target host's `InteractVolume` overlaps the probe and the player faces it, pulse `a_pressed` (or `b_pressed`). Facing reuses `_face_host`.
-  - **Drag.** `move` comes from the finger's offset from the player's screen position: deflection 0–1 over 120 px, and dash beyond 160 px.
+  - **Follow.** While a finger is held on the ground, pick the ground point under it each tick and steer straight toward it. Walk within 4 m, and run (`dash_held`) beyond that. Stop within 0.3 m. No path is planned, so the player stops at walls, just as a held stick would.
   - **Holds** map straight to `a_held` / `b_held`.
 
 ### `TouchPick` (new, static, `scripts/systems/touch_pick.gd`)
@@ -94,7 +95,7 @@ Each overlay needs a touch path. Most of them read raw keycodes today, so each o
 ## Phases
 
 1. **Seam (no behaviour change).** Promote `PlayerInput` and route the direct `Input` readers through it. Add `InputDeviceTracker` and the debug `emulate_touch_from_mouse` setting. *Done when:* the title demo and all pad/keyboard play are unchanged, and the full suite passes. **Done.** The pockets' click handler now takes only the mouse click, because a finger also arrives as one (`emulate_mouse_from_touch`), and taking the touch as well fired every tap twice.
-2. **Drag-to-move and tap-to-act.** Add `TouchDriver` with drag (stick) and tap-on-player (A), plus the HUD corner buttons. *Playable:* walk and do everything A/B do, with one thumb.
+2. **Hold-to-follow and tap-to-act.** Add `TouchDriver` with hold-to-follow (the player walks toward the finger) and tap-on-player (A), plus the HUD corner buttons. No joystick. *Playable:* walk and do everything A/B do, with one finger.
 3. **Tap-to-walk.** Add `TouchPick` (ground) and `TouchPath` (A*), the walk-to steering and the tap marker. *Playable:* tap anywhere to go there.
 4. **Tap-to-interact.** Add `TouchPick` (objects), approach-and-face, A/B on arrival, and context chips. Fishing taps (cast toward the tap, tap to reel) and the net hold. *Playable:* the Pocket Camp loop: tap a tree to shake it, tap a villager to talk, tap fruit to pick it up.
 5. **Menus.** Dialogue, then pockets, then the keycode-only overlays in order of how often they come up: bank, catalog, letters and names, notice board, tune board and the rest.
@@ -117,6 +118,6 @@ Each overlay needs a touch path. Most of them read raw keycodes today, so each o
 
 - **One tap, several verbs.** The chips solve it, but they add a tap. *Pocket Camp* avoids the problem because each object has one verb. Proposal: chips only when a host has more than one *primary-priority* verb, otherwise act.
 - **Tools that aim.** Shovel and axe act on the facing cell. Tap-to-act on ground with a tool equipped should walk next to the tapped cell and face it, then A. This needs a "tool target" goal type in `TouchPath`.
-- **Dash on touch.** Long-press could clash with the net hold. Resolve it by the equipped tool: with the net, long-press is the net.
+- **Dash on touch.** There is no dash button. Holding the finger far ahead runs, and a double-tap runs to the spot. With the net equipped, a hold is the net hold rather than a follow.
 - **Furniture push/pull** needs a drag from the piece rather than from the player. That could be phase 4b.
 - **Villagers move.** Re-path to a moving host every 0.5 s, and give up after 5 s (the original's talk range is generous).
