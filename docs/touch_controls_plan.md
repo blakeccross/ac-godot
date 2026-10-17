@@ -91,7 +91,7 @@ Each overlay needs a touch path. Most of them read raw keycodes today, so each o
 
 ## Phases
 
-1. **Seam (no behaviour change).** Promote `PlayerInput` and route the direct `Input` readers through it. Add `InputDeviceTracker` and the debug `emulate_touch_from_mouse` setting. *Done when:* the title demo and all pad/keyboard play are unchanged, and the full suite passes.
+1. **Seam (no behaviour change).** Promote `PlayerInput` and route the direct `Input` readers through it. Add `InputDeviceTracker` and the debug `emulate_touch_from_mouse` setting. *Done when:* the title demo and all pad/keyboard play are unchanged, and the full suite passes. **Done.** The pockets' click handler now takes only the mouse click, because a finger also arrives as one (`emulate_mouse_from_touch`), and taking the touch as well fired every tap twice.
 2. **Drag-to-move and tap-to-act.** Add `TouchDriver` with drag (stick) and tap-on-player (A), plus the HUD corner buttons. *Playable:* walk and do everything A/B do, with one thumb.
 3. **Tap-to-walk.** Add `TouchPick` (ground) and `TouchPath` (A*), the walk-to steering and the tap marker. *Playable:* tap anywhere to go there.
 4. **Tap-to-interact.** Add `TouchPick` (objects), approach-and-face, A/B on arrival, and context chips. Fishing taps (cast toward the tap, tap to reel) and the net hold. *Playable:* the Pocket Camp loop: tap a tree to shake it, tap a villager to talk, tap fruit to pick it up.
