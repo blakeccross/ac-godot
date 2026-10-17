@@ -454,6 +454,16 @@ func _move_camera(eye: Vector3, look: Vector3, snap: bool, delta: float, rate: f
 	look_at(_look_current, Vector3.UP)
 
 
+## `Camera2_getCenterPos_p` — the look-at the eye is easing toward (acre clamp, talk,
+## door, lag). Weather spawn boxes use this, not the player's marker.
+func look_center() -> Vector3:
+	if _has_look:
+		return _look_current
+	if _target != null and is_instance_valid(_target):
+		return _look_point()
+	return global_position - global_transform.basis.z * 8.0
+
+
 func _look_point() -> Vector3:
 	if _target.has_method("camera_look_position"):
 		return _target.call("camera_look_position") as Vector3

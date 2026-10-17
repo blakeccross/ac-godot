@@ -4,15 +4,15 @@ extends Node3D
 ## authored in `weather_fx.tscn`, plus the rain sound level, umbrella swap and summer
 ## lightning.
 ##
-## - **Rain** streaks (`ef_ame02_04`) fall from a box 190 GX above the player for 10 ticks.
+## - **Rain** streaks (`ef_ame02_04`) fall from a box 190 GX above the look-at for 10 ticks.
 ##   As many splashes (`ef_ame02_00`–`03`, a four-card flipbook) land on the ground under
 ##   random points in the same box (`aWeatherRain_MakePicha`): the `Splash` emitter emits
 ##   from an emission-points texture this node refills with ground heights.
 ## - **Snow** (`ef_yuki01`) and **petals** (`ef_hanabira01`) run `weather_floaters.gdshader`:
-##   fall, wobble, wind or drift, and wrap round a box that follows the player.
+##   fall, wobble, wind or drift, and wrap round a box on the camera look-at.
 ##
-## This node keeps the emitters on the look-at (the player, as `Camera2_getCenterPos_p`),
-## turns them on by kind and intensity, and fills in the generated cards and sprites.
+## Emitters sit on `Camera2_getCenterPos_p` (the follow camera's look-at, which eases /
+## acre-clamps with the view — not the player's marker), so the volume stays on screen.
 
 const GX := FieldCatalog.GX_TO_METERS
 ## `70 + 120` GX above ground (`aWeatherRain_make`).
@@ -188,21 +188,40 @@ func _renew_level(delta: float) -> void:
 	_sync_rain_se()
 
 
-## The look-at: the player (`Camera2_getCenterPos_p`), not the camera eye.
+## `Camera2_getCenterPos_p`: the follow camera's look-at centre, not the eye and not the
+## player's marker (that marker drifts ahead of a lagging / acre-clamped view).
 func _center() -> Vector3:
+	var follow: FollowCamera = _follow_camera()
+	if follow != null:
+		return follow.look_center()
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	if cam is FollowCamera:
+		return (cam as FollowCamera).look_center()
+	if cam != null:
+		## Demo / cutscene cameras: project the view ray to a ground-ish height.
+		var forward: Vector3 = -cam.global_transform.basis.z
+		var t: float = 8.0
+		if absf(forward.y) > 0.001:
+			t = clampf(-cam.global_position.y / forward.y, 8.0, 40.0)
+		var at: Vector3 = cam.global_position + forward * t
+		at.y = maxf(at.y, 0.5)
+		return at
 	var player := Player.find(get_tree())
 	if player != null:
 		return player.camera_look_position()
-	var cam: Camera3D = get_viewport().get_camera_3d()
-	if cam == null:
-		return Vector3.ZERO
-	var forward: Vector3 = -cam.global_transform.basis.z
-	var t: float = 0.0
-	if absf(forward.y) > 0.001:
-		t = -cam.global_position.y / forward.y
-	var at: Vector3 = cam.global_position + forward * clampf(t, 8.0, 40.0)
-	at.y = maxf(at.y, 0.5)
-	return at
+	return Vector3.ZERO
+
+
+func _follow_camera() -> FollowCamera:
+	for node: Node in get_tree().get_nodes_in_group(FollowCamera.GROUP):
+		if node is FollowCamera and is_instance_valid(node):
+			var cam := node as FollowCamera
+			if cam.current:
+				return cam
+	for node: Node in get_tree().get_nodes_in_group(FollowCamera.GROUP):
+		if node is FollowCamera and is_instance_valid(node):
+			return node as FollowCamera
+	return null
 
 
 func _tick_lightning(delta: float) -> void:

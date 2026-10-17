@@ -377,6 +377,14 @@ def main() -> int:
                 report = convert_assets(cfg)
                 report["results"].extend(convert_villager_texture_sets(cfg).get("results", []))
                 label = "assets"
+                ## Title-demo sakura / snow need these sprites; without them
+                ## `WeatherFx` falls back to a solid pink/white quad.
+                sprites = export_weather_sprites(cfg)
+                if not sprites.get("ok"):
+                    print(f"weather sprites: {sprites.get('error')}")
+                    failed = True
+                else:
+                    print(f"wrote {sprites['written']} weather sprites -> {sprites['out']}")
             if report is not None:
                 converted = sum(1 for r in report["results"] if r["status"] == "converted")
                 errors = [r for r in report["results"] if r["status"] == "error"]

@@ -57,6 +57,21 @@ func test_clear_weather_stops_every_emitter() -> void:
 		assert_bool((fx.get_node(name) as GPUParticles3D).emitting).override_failure_message(name).is_false()
 
 
+func test_spawn_box_follows_the_follow_camera_lookat() -> void:
+	## `Camera2_getCenterPos_p`, not the player's look marker.
+	var fx := _fx()
+	var cam := FollowCamera.new()
+	auto_free(cam)
+	add_child(cam)
+	cam.current = true
+	cam.add_to_group(FollowCamera.GROUP)
+	var center := Vector3(12.0, 2.0, -8.0)
+	cam._look_current = center
+	cam._has_look = true
+	cam.global_position = center + FollowCamera.DEFAULT_OFFSET
+	assert_vector(fx.call("_center") as Vector3).is_equal_approx(center, Vector3.ONE * 0.001)
+
+
 func test_splash_points_sit_in_the_rain_box() -> void:
 	var fx := _fx()
 	var process := (fx.get_node("Splash") as GPUParticles3D).process_material as ParticleProcessMaterial

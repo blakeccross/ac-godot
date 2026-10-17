@@ -58,7 +58,7 @@ Saved as one byte: `(type << 4) | intensity`. After rain/snow clears to fine/sak
 - RTC month/day at 06:00 renew.
 - Event weather overrides; Arbeit clear-force.
 - Field type (FG vs interior / island).
-- Camera center (spawn box follows player).
+- Camera look-at centre (`Camera2_getCenterPos_p` — spawn box tracks the view, not the player marker).
 
 ## Outputs / events
 

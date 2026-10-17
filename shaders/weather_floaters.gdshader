@@ -2,10 +2,10 @@ shader_type particles;
 render_mode disable_velocity, disable_force;
 
 // Snow flakes and cherry petals (`aWeatherSnow_*` / `aWeatherSakura_*`). Each starts at the top
-// of a box that follows the player (the emitter's origin), falls at its own speed, wobbles
-// round a small circle, rides the wind (snow) or drifts east (petals), and wraps round the
-// box: off a side back in at the other, below the floor back to the top. Snow shrinks away
-// over the last stretch above the floor; petals tumble. All in metres and seconds.
+// of a box on the camera look-at (the emitter's origin = `Camera2_getCenterPos_p`), falls at
+// its own speed, wobbles round a small circle, rides the wind (snow) or drifts east (petals),
+// and wraps round the box: off a side back in at the other, below the floor back to the top.
+// Snow shrinks away over the last stretch above the floor; petals tumble. Metres / seconds.
 
 uniform float box_x = 5.0;
 uniform float box_z_back = 10.0;

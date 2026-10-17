@@ -17,6 +17,17 @@ func _elevation(cam: FollowCamera, center: Vector3) -> float:
 	return atan2(arm.y, Vector2(arm.x, arm.z).length())
 
 
+func test_look_center_is_the_eased_lookat_not_the_eye() -> void:
+	## `Camera2_getCenterPos_p` — weather spawn boxes use this.
+	var cam: FollowCamera = _camera()
+	var center := Vector3(4.0, 1.5, -3.0)
+	cam._look_current = center
+	cam._has_look = true
+	cam.global_position = center + FollowCamera.DEFAULT_OFFSET
+	assert_vector(cam.look_center()).is_equal(center)
+	assert_vector(cam.look_center()).is_not_equal(cam.global_position)
+
+
 func test_coming_out_snaps_to_the_door_framing() -> void:
 	var cam: FollowCamera = _camera()
 	var center := Vector3(3.0, 1.65, -2.0)
