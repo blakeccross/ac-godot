@@ -102,8 +102,8 @@ func test_best_in_areas_picks_closer_host_not_higher_priority() -> void:
 	talker.priority = 20
 	talker.position = Vector3(8, 0, 0)
 	var item := auto_free(_StubHost.new()) as _StubHost
-	item.verb = Interaction.PICK_UP
-	item.prompt = "Pick up"
+	item.verb = Interaction.READ
+	item.prompt = "Read"
 	item.priority = 15
 	item.position = Vector3(1, 0, 0)
 	var talk_area := InteractVolume.new()
@@ -116,7 +116,30 @@ func test_best_in_areas_picks_closer_host_not_higher_priority() -> void:
 		[talk_area, item_area], Vector3.ZERO, InteractionContext.new()
 	)
 	assert_object(hit.host).is_same(item)
-	assert_str(String(hit.action.id)).is_equal(String(Interaction.PICK_UP))
+	assert_str(String(hit.action.id)).is_equal(String(Interaction.READ))
+
+
+func test_picking_up_is_b_and_never_a() -> void:
+	## `Player_actor_CheckController_forPickup`: B. A goes past a ground item to the next host.
+	var talker := auto_free(_StubHost.new()) as _StubHost
+	talker.verb = Interaction.TALK
+	talker.priority = 20
+	talker.position = Vector3(8, 0, 0)
+	var item := auto_free(_StubHost.new()) as _StubHost
+	item.verb = Interaction.PICK_UP
+	item.priority = 15
+	item.position = Vector3(1, 0, 0)
+	var talk_area := InteractVolume.new()
+	var item_area := InteractVolume.new()
+	talker.add_child(talk_area)
+	item.add_child(item_area)
+	add_child(talker)
+	add_child(item)
+	var a: InteractionQuery = InteractionQuery.best_in_areas([talk_area, item_area], Vector3.ZERO, InteractionContext.new())
+	assert_object(a.host).is_same(talker)
+	var b: InteractionQuery = InteractionQuery.best_in_areas([talk_area, item_area], Vector3.ZERO, InteractionContext.new(), true)
+	assert_object(b.host).is_same(item)
+	assert_str(String(b.action.id)).is_equal(String(Interaction.PICK_UP))
 
 
 func test_dummy_hosts_talk_and_pick_up_without_type_checks() -> void:
@@ -210,11 +233,6 @@ func test_scene_hosts_offer_expected_verbs() -> void:
 	_assert_verb("res://scenes/world/house.tscn", Interaction.ENTER, ctx)
 	_assert_verb("res://scenes/world/shop.tscn", Interaction.SHOP, ctx)
 	_assert_verb("res://scenes/world/sign.tscn", Interaction.READ, ctx)
-	_assert_verb("res://scenes/world/flower.tscn", Interaction.PICK_UP, ctx)
-	var flower: Node = auto_free(load("res://scenes/world/flower.tscn").instantiate())
-	var flower_action: Interaction = Interaction.primary(flower.get_interactions(ctx))
-	assert_str(String(flower_action.player_anim)).is_equal("ply_1_pickup1")
-	assert_float(flower_action.effect_frame).is_equal(20.0)
 	_assert_verb("res://scenes/world/door.tscn", Interaction.ENTER, ctx)
 
 
@@ -323,8 +341,9 @@ func test_seed_flower_cannot_pick() -> void:
 	assert_str(String(action.id)).is_equal(String(Interaction.WATER))
 
 
-func test_bloom_colors_can_pick() -> void:
-	## `FLOWER_PANSIES0/1/2` are bloom colors, not growth stages — all are pickable.
+func test_flowers_are_dug_up_not_picked() -> void:
+	## Flowers are ENV-range FG ids, which `Player_actor_CheckItem_fromPosition` never
+	## accepts: bare hands get nothing, the shovel digs them up.
 	ItemCatalog.reload()
 	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 1, "hour": 12, "minute": 0})
 	for color: StringName in [&"FLOWER_PANSIES0", &"FLOWER_PANSIES1", &"FLOWER_PANSIES2"]:
@@ -335,10 +354,9 @@ func test_bloom_colors_can_pick() -> void:
 		add_child(flower)
 		var empty := InteractionContext.new()
 		empty.inventory = Inventory.new()
-		var actions: Array = flower.get_interactions(empty)
-		assert_int(actions.size()).is_greater(0)
-		var action: Interaction = Interaction.primary(actions)
-		assert_str(String(action.id)).is_equal(String(Interaction.PICK_UP))
+		assert_int(flower.get_interactions(empty).size()).is_equal(0)
+		var action: Interaction = Interaction.primary(flower.get_interactions(_ctx_with_tool(&"shovel")))
+		assert_str(String(action.id)).is_equal(String(Interaction.DIG))
 
 
 func test_building_exposes_verbs_on_child_door() -> void:

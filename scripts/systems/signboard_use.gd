@@ -104,3 +104,19 @@ static func _instance(world: Node, grid: WorldGrid, cell: Vector2i, pid: StringN
 	if "layout" in world and world.layout != null:
 		pos.y = FieldCollision.ground_y(world.layout as WorldData, cell, FieldCollision.FG_GROUND_DIST)
 	host.global_position = pos
+
+
+## `aSIGN_actor_set_target`: a signboard reads only from in front — the player south of it,
+## within 45° of due south, facing within 68.83° of it, and closer than 55 GX.
+const READ_RANGE := 55.0 * FieldCatalog.GX_TO_METERS
+const READ_ARC := PI * 0.25
+const READ_FACING := 68.83483 * PI / 180.0
+
+
+static func can_read(sign_pos: Vector3, player_pos: Vector3, player_yaw: float) -> bool:
+	if player_pos.z <= sign_pos.z or sign_pos.distance_to(player_pos) >= READ_RANGE:
+		return false
+	var to_player: float = atan2(player_pos.x - sign_pos.x, player_pos.z - sign_pos.z)
+	if absf(to_player) >= READ_ARC:
+		return false
+	return absf(angle_difference(player_yaw, to_player + PI)) <= READ_FACING

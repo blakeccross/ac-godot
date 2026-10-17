@@ -59,3 +59,15 @@ func test_visitors_are_told_hands_off() -> void:
 	assert_int(talk.start_msg()).is_equal(SignboardUse.MSG_POST)
 	assert_int(talk.picked(SignboardUse.MSG_POST, 0)).is_equal(-1)
 	assert_bool(talk.post).is_true()
+
+
+func test_a_signboard_reads_only_from_the_front() -> void:
+	## `aSIGN_actor_set_target`: south of it, within 45°, facing it, under 55 GX.
+	var sign := Vector3.ZERO
+	assert_bool(SignboardUse.can_read(sign, Vector3(0, 0, 2.0), PI)).is_true()
+	## Behind it, or beside it.
+	assert_bool(SignboardUse.can_read(sign, Vector3(0, 0, -2.0), 0.0)).is_false()
+	assert_bool(SignboardUse.can_read(sign, Vector3(2.0, 0, 0.5), -PI * 0.5)).is_false()
+	## In front but facing away, or too far.
+	assert_bool(SignboardUse.can_read(sign, Vector3(0, 0, 2.0), 0.0)).is_false()
+	assert_bool(SignboardUse.can_read(sign, Vector3(0, 0, 3.0), PI)).is_false()

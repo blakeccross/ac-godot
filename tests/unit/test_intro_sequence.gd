@@ -166,3 +166,18 @@ func test_save_roundtrip_includes_identity() -> void:
 	assert_str(Game.town.town_name).is_equal("Cedar")
 	assert_that(Game.resident.player_gender).is_equal(IntroSequence.GENDER_FEMALE)
 	assert_int(Game.resident.player_face).is_equal(3)
+
+
+func test_starting_shirt_is_one_of_eight_by_gender() -> void:
+	## `mPr_SetNowPrivateCloth`: CLOTH000–007 for boys, CLOTH008–015 for girls.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var boys: Dictionary = {}
+	var girls: Dictionary = {}
+	for _i in 200:
+		boys[IntroSequence.starting_cloth(IntroSequence.GENDER_MALE, rng)] = true
+		girls[IntroSequence.starting_cloth(IntroSequence.GENDER_FEMALE, rng)] = true
+	assert_int(boys.size()).is_equal(8)
+	assert_int(girls.size()).is_equal(8)
+	assert_bool(boys.has(&"shirt_000") and boys.has(&"shirt_007")).is_true()
+	assert_bool(girls.has(&"shirt_008") and girls.has(&"shirt_015")).is_true()

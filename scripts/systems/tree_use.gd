@@ -217,18 +217,20 @@ func _apply_drops(out: Outcome) -> void:
 		return
 	match content:
 		Content.BELLS, Content.MONEY_100, Content.MONEY_1000, Content.MONEY_10000, Content.MONEY_30000:
-			var bag: ItemData = ItemCatalog.get_item(MONEY_IDS.get(content, &"money_100") as StringName)
+			var bag_id: StringName = MONEY_IDS.get(content, &"money_100") as StringName
+			## `TREE_BELLS` drops 1,000 Bells instead of 100 on a money-luck day.
+			if content == Content.BELLS and Game.destiny() == PlayerState.Destiny.MONEY_LUCK:
+				bag_id = &"money_1000"
+			var bag: ItemData = ItemCatalog.get_item(bag_id)
 			var n: int = money_drop_count(content)
 			for _i: int in n:
 				if bag != null:
 					out.drops.append(bag)
 		Content.BEES:
-			var comb: ItemData = ItemCatalog.get_item(&"honeycomb")
-			if comb != null:
-				out.drops.append(comb)
+			## The nest is a prop that falls and fades (`bIT_actor_drop_wait_bee`), not an item.
 			out.spawn_bees = true
 		Content.FURNITURE:
-			var ftr: ItemData = _random_furniture()
+			var ftr: ItemData = _random_furniture(Game.destiny() == PlayerState.Destiny.GOODS_LUCK)
 			if ftr != null:
 				out.drops.append(ftr)
 		Content.GOLDEN_SHOVEL:
@@ -250,7 +252,16 @@ func _fruit_items(count: int) -> Array[ItemData]:
 	return out
 
 
-static func _random_furniture() -> ItemData:
+## `drop_fruit`: Nook's A/B/C lists, or on a goods-luck day Redd's (`Event`) or the raffle's
+## (`Lottery`) list, half and half.
+static func _random_furniture(goods_luck: bool = false) -> ItemData:
+	if goods_luck:
+		var list: String = "Event" if randf() >= 0.5 else "Lottery"
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		var lucky: ItemData = ItemCatalog.get_item(FurnitureCatalog.pick_named("ftr", list, rng))
+		if lucky != null:
+			return lucky
 	var picks: Array[FurnitureData] = []
 	## Disc furniture only from Nook's A/B/C lists (the shop's `mSP_LISTTYPE_ABC`).
 	for item: ItemData in ItemCatalog.all_items():

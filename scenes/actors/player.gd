@@ -10,7 +10,9 @@ extends CharacterBody3D
 
 const PLAYER_BOY_GLB := "res://assets/generated/characters/player/boy_1.glb"
 const PLAYER_GIRL_GLB := "res://assets/generated/characters/player/grl_1.glb"
-const LOOK_HEIGHT := 0.85
+## `Player_actor_set_eye_PositionAndAngle`: the eye is 33 GX up (`Actor_world_to_eye`).
+## The outdoor and talk cameras centre on it.
+const LOOK_HEIGHT := 33.0 * PlayerLocomotion.UNIT_METERS
 const INTERACT_REACH := 1.1
 
 ## `notice_rod` chains message 0x1348 onto the fish catch report when pockets are full.
@@ -59,6 +61,8 @@ const GAIT_STATES := {
 const SE_SLIP := &"4129"
 ## `mPlayer_ANIM_OPEN1` — door enter demo (`mPlayer_INDEX_DOOR`, type 0).
 const ANIM_OPEN1 := "ply_1_open1"
+## `mPlayer_ANIM_KNOCK1`: knocking before a door that is not the player's own.
+const ANIM_KNOCK1 := "ply_1_knock1"
 ## `mPlayer_ANIM_INTO_S1` — indoor door / exit walk (`mPlayer_INDEX_DOOR`, type ≠ 0).
 const ANIM_INTO_S1 := "ply_1_into_s1"
 ## `mPlayer_ANIM_GO_OUT_S1` — outdoor emerge demo (`mPlayer_INDEX_OUTDOOR`, is_start_demo).
@@ -417,6 +421,8 @@ func _physics_process(delta: float) -> void:
 		wish = _camera_wish(input_dir)
 		if scripted_input != null and scripted_input.consume_a_pressed():
 			_try_interact()
+		elif scripted_input != null and scripted_input.consume_b_pressed():
+			_try_pick_up()
 
 	## `cast_rod` / `relax_rod` / `vib_rod`: `Movement_Base_Braking_common`, stick ignored.
 	var rod_locked: bool = Fishing.holds(self)
@@ -734,6 +740,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 		_try_interact()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("pick_up"):
+		_try_pick_up()
 		get_viewport().set_input_as_handled()
 
 
@@ -1086,6 +1095,9 @@ func _resolve_clip(suffix: String) -> String:
 
 func _update_focus() -> void:
 	var hit: InteractionQuery = _resolve_interact()
+	if hit == null or hit.action == null:
+		## Nothing for A: show what B would pick up.
+		hit = _query_focus(true)
 	var next: Node = hit.host if hit else null
 	var prompt := ""
 	if hit != null and hit.action != null:
@@ -1101,13 +1113,14 @@ func _update_focus() -> void:
 	Game.set_interact_prompt(prompt)
 
 
-func _query_focus() -> InteractionQuery:
+func _query_focus(pickup: bool = false) -> InteractionQuery:
 	if _probe == null:
 		return null
 	return InteractionQuery.best_in_areas(
 		_probe.get_overlapping_areas(),
 		_motor.facing_point(global_position, INTERACT_REACH),
-		_make_context()
+		_make_context(),
+		pickup
 	)
 
 
@@ -1204,6 +1217,21 @@ func _try_interact() -> void:
 		return
 	if hit.host == null and hit.action.id == Interaction.SWING_NET:
 		net.begin_net()
+		return
+	await _run_interact(hit)
+
+
+## B (`Player_actor_CheckAndRequest_main_pickup_all`): ground items, weeds, signboards and
+## furniture. A never picks anything up.
+func _try_pick_up() -> void:
+	if _motor.gait() in [PlayerLocomotion.Gait.TUMBLE, PlayerLocomotion.Gait.TUMBLE_GETUP]:
+		return
+	if net.net_swing.state != NetSwing.State.NONE or Fishing.holds(self):
+		return
+	var hit: InteractionQuery = _query_focus(true)
+	if hit == null or hit.action == null:
+		return
+	if scripted_input != null and not TitleDemo.allows_verb(hit.action.id):
 		return
 	await _run_interact(hit)
 

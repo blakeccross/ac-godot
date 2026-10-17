@@ -658,6 +658,9 @@ func _apply_identity(identity: Dictionary) -> void:
 	resident.player_face = clampi(
 		int(identity.get("player_face", 0)), 0, IntroSequence.FACE_TYPE_NUM - 1
 	)
+	var shirt: StringName = IntroSequence.starting_cloth(resident.player_gender)
+	if ItemCatalog.get_item(shirt) != null:
+		resident.cloth_id = shirt
 
 
 func resolve_world_data() -> WorldData:
@@ -1709,8 +1712,22 @@ func _in_police_box() -> bool:
 
 
 ## `mTM_*` time step: `Kabu_manager` runs when the date changes (midnight, not 06:00).
+## `mTM_renewal_renew_time` raises the weather and daily flags on a change of calendar date,
+## at midnight — not at the 06:00 field renewal, which is growth, weeds and the lost and found.
 func _on_day_changed() -> void:
 	shops.stalk_market.update(Clock.year, Clock.month, Clock.day)
+	## `mEv_RenewalDataEveryDay`: the Academy sign-up comes due the day after the job.
+	if hra != null:
+		hra.renew_day()
+	## One roll for the new date (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
+	var previous_weather: StringName = town.weather
+	apply_weather_roll(Weather.roll())
+	apply_event_weather()
+	## Fine after rain or snow: a rainbow over the falls today and gyroids in the ground
+	## with the next growth (`mEnv_PreRainNowFine_Init`).
+	rainbow.note_weather_change(previous_weather, town.weather, Clock.month, Clock.day)
+	if Rainbow.pre_rain_now_fine(previous_weather, town.weather):
+		town.gyroids_scheduled = true
 
 
 ## `mMl_send_postoffice_mail`: a balance milestone's gift by mail, one per game start.
@@ -1785,8 +1802,6 @@ func _on_field_renewed(days: int) -> void:
 	melt_snowmen(days)
 	## `mAGrw_ClearSpoiledKabu` / `mAGrw_SpoilKabu` / `mAGrw_SpoilAllPossession`.
 	FieldItems.renew(FieldItems.sunday_passed(Clock.year, Clock.month, Clock.day, days), inventory, get_tree())
-	if hra != null and days > 0:
-		hra.renew_day()
 	var vt_rng := RandomNumberGenerator.new()
 	vt_rng.randomize()
 	_check_valentines(vt_rng)
@@ -1809,15 +1824,6 @@ func _on_field_renewed(days: int) -> void:
 	_deliver_shop_mail()
 	if redd != null:
 		redd.check_unlock()
-	## One roll for the current date after renew (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
-	var previous_weather: StringName = town.weather
-	apply_weather_roll(Weather.roll())
-	apply_event_weather()
-	## Fine after rain or snow: a rainbow over the falls today and gyroids in the ground
-	## with the next growth (`mEnv_PreRainNowFine_Init`).
-	rainbow.note_weather_change(previous_weather, town.weather, Clock.month, Clock.day)
-	if Rainbow.pre_rain_now_fine(previous_weather, town.weather):
-		town.gyroids_scheduled = true
 	update_notice_board()
 
 

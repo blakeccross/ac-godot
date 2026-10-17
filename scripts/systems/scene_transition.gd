@@ -21,6 +21,12 @@ enum Style { FADE, IRIS }
 
 ## Rough hold (~0.6 s) before / after the scene load (`transition.wipe_rate` 28 / `fade_rate` 30).
 const WIPE_SEC := 0.6
+## `fbdemo_triforce_move`: the door iris scrolls its texture 0 → 548 by
+## `int(0.5 * (16 + 12 * (1 - txt / 548)))` a tick — 14 at the start, 8 at the end — so it
+## closes fast then slows, takes 54 ticks either way, and opens along the same curve reversed.
+const IRIS_SPAN := 548
+static var IRIS_STEPS: PackedInt32Array = _iris_steps()
+static var IRIS_SEC: float = float(IRIS_STEPS.size() - 1) / 60.0
 const IRIS_SHADER := preload("res://shaders/iris_wipe.gdshader")
 
 ## Armed by `play_wipe_out()` / `hold_black()`; consumed by `play_wipe_in_if_pending()`
@@ -184,11 +190,37 @@ func _fade_to(alpha: float) -> void:
 		return
 	if _tween != null:
 		_tween.kill()
-	_rect.material = _iris_material if pending_style == Style.IRIS else null
+	var iris: bool = pending_style == Style.IRIS
+	_rect.material = _iris_material if iris else null
 	_tween = create_tween()
 	_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	_tween.set_parallel(true)
-	_tween.tween_property(_rect, "color:a", alpha, WIPE_SEC)
-	if _iris_material != null:
-		_tween.tween_property(_iris_material, "shader_parameter/progress", alpha, WIPE_SEC)
+	if iris and _iris_material != null:
+		var closing: bool = alpha > _rect.color.a
+		_tween.tween_method(
+			func(t: float) -> void: _set_alpha(iris_progress(t, closing)), 0.0, 1.0, IRIS_SEC
+		)
+	else:
+		_tween.tween_property(_rect, "color:a", alpha, WIPE_SEC)
+		if _iris_material != null:
+			_tween.tween_property(_iris_material, "shader_parameter/progress", alpha, WIPE_SEC)
 	await _tween.finished
+
+
+## How closed the iris is (0 open, 1 shut) a fraction `t` of the way through a wipe.
+static func iris_progress(t: float, closing: bool) -> float:
+	var u: float = clampf(t if closing else 1.0 - t, 0.0, 1.0) * float(IRIS_STEPS.size() - 1)
+	var i: int = mini(floori(u), IRIS_STEPS.size() - 2)
+	var txt: float = lerpf(float(IRIS_STEPS[i]), float(IRIS_STEPS[i + 1]), u - float(i))
+	return txt / float(IRIS_SPAN)
+
+
+## The scroll after each tick of a closing wipe, from 0 to `IRIS_SPAN`.
+static func _iris_steps() -> PackedInt32Array:
+	var out := PackedInt32Array([0])
+	var txt: int = 0
+	while txt < IRIS_SPAN:
+		var left: float = 1.0 - float(txt) / float(IRIS_SPAN)
+		txt = mini(IRIS_SPAN, txt + int(0.5 * (16.0 + 12.0 * left)))
+		out.append(txt)
+	return out

@@ -24,11 +24,11 @@ data tables before a category is called done.
 ## 1. Boot, save, and session
 
 - [~] Title screen: New Game / Continue (`m_scene`, `m_start_data_init`) — `scenes/ui/title.tscn` (attract-mode town + animated logo; see [title](decomp_notes/title.md))
-- [~] New town vs. load-existing branch (`mSDI_StartInitNew`)
+- [~] New town vs. load-existing branch (`mSDI_StartInitNew`). Town Day is `1 + RANDOM(30)` skipping the 4th. Missing: the station design roll (`station_type = RANDOM(15)`: three models, 15 palettes)
 - [x] Up to **4 human residents** per town, picked at K.K.'s player select (`ac_npc_p_sel2`): the disc's talk from `MSG_5106` — "Shall we get started?", the residents' names plus "I'm new" (four names, no newcomer, in a full town), then "That's right!" and the town loads for them, or a newcomer rides Rover's train in and gets a vacant house from Nook ("That house has already been taken, by…" on the others) — `PlayerRoster`, `PlayerSelectTalk`, `Game.start_player_select` / `start_new_resident`. The save is the town plus four private parts (`SaveService` version 2; older saves are resident 1). K.K.'s options (`GameConfig`): stereo / mono / headphones, Animalese / Bebebese / silence, and rumble on digging, chopping, shaking, tool hits and the bobber. Missing: K.K.'s own word ending
 - [~] Character creation flow driven by Rover Q&A (`ac_npc_guide` / intro train) — `intro_train_stage.gd`
 - [x] Delete a resident ("Demolish a house", two names a page with "Someone else." in a full town; never the last house) or the whole town ("Build a new town") from K.K.'s "Other things" (`aNPS2_chk_clr_pl_data*`, `aNPS2_chk_clr_village_data_cartridge`)
-- [~] Save + return to title on quit (`save_menu.c`, `m_save`) — `save_service.gd`
+- [~] Save + return to title on quit (`save_menu.c`, `m_save`) — `save_service.gd`. Deviation: Esc saves wherever the player stands (even indoors); on the GameCube only the house gyroid saves, and anything else is a Resetti reset
 - [x] **House gyroid** outside each house plot is the save point (`ac_haniwa`, `ACTOR_PROP_HANIWA0`–`3`) — `scenes/world/gyroid.tscn` + `GyroidTalk` + `GyroidStore`: FG placement two units south of every house, `hnw_move` bob / dance speeds and turn-to-player, empty-plot freeze facing front, first-job "need a friend" line; owner menu: **Save** (walk to the door → door opens → save → title), **Store an item** (4-slot consignment table in the pockets: free / display only / for sale with a 5-digit price, take back), **Other things** → **About the door** (post one of your designs on the front door / remove it) and **Set message** (4-line visitor message, ROM default text); sale **proceeds** collected on the next talk (wallet, then 30 000-bell bags); **visitor** flow (read the message, pay and take) is in place but can't trigger in a one-resident town. `BGM_ENTER_HOUSE` is a plain BGM swap rather than a pushed demo track
 - [x] ~~Memory Card management, copy, "not saved correctly" recovery~~ — no Memory Card here; saves are files (`SaveService`), and quitting without saving is Mr. Resetti's job (below)
 - [x] **Mr. Resetti** appears if you quit without saving; escalating lectures by reset count; **Don** on the fifth (`mCD_SetResetInfo`, `ac_reset_demo`, `ac_npc_majin*`) — the save carries a `reset_code` set at load and cleared by a proper save; `ResettiVisit` picks the visitor and opening message (9+ cycle 6–8), `scenes/world/resetti.tscn` pops up (`APPEAR1`), lectures, waits to be spoken to on the fourth, digs back down (`GO_UG1`), with his helmet light at night. The typing test of the sixth follows the messages' own default branch
@@ -39,13 +39,13 @@ data tables before a category is called done.
 ## 2. Time, calendar, seasons
 
 - [~] Real-time clock drives the whole simulation (`m_time`, `lb_rtc`) — `clock.gd`
-- [~] Day / night with 8 lighting windows, per-term colour tables (`m_kankyo` `klight_chg_tim`) — `Clock.outdoor_light()`
-- [~] Daily renewal at **06:00** (weeds spread, stock rotates, plants grow, villager moves resolve) — `field_renewed`
-- [~] 18 calendar terms, years 2001–2030 (`lb_rtc`)
+- [x] Day / night with 8 lighting windows, per-term colour tables (`m_kankyo` `klight_chg_tim`) — `Clock.outdoor_light()`. Windows match `klight_chg_tim` and the fine rows `l_mEnv_kcolor_fine_data`; rain/snow use the rain table as-is (the extra 0.75 is shadow alpha only, `mEnv_MakeShadowInfo`)
+- [x] Daily renewal at **06:00** (weeds spread, stock rotates, plants grow, villager moves resolve) — `field_renewed`. Growth, weeds, turnip spoiling and the lost-and-found top-up are 06:00 (`m_all_grow_ovl`); the weather roll and the Academy sign-up go on the date change at midnight (`mTM_renewal_renew_time`, `Game._on_day_changed`)
+- [x] 18 calendar terms, years 2001–2030 (`lb_rtc`) — term ends and seasons match `mTM_calender`; the year clamp behaves like `mTM_rtcTime_limit_check`
 - [x] The calendar screen (`m_calendar_ovl`, `m_calendar`): month pages eleven months either side, each day boxed by type (Sunday, holiday, today), footprints on the days played and red ones where Tortimer was met in the last twelve months, the day's holidays named on the plate with a badge for those taken part in; picking a day opens the diary on that month — `CalendarOverlay`, `CalendarBook`
 - [x] Seasons: snow cover Dec–Feb, cherry-blossom trees early April, coloured foliage in autumn, bare trees in winter — `VisualSeasons`, `Acre.apply_season`
 - [x] Season affects grass colour / acre visuals, tree models (no river ice; snow ground) — `Clock.season`, seasonal textures from the pipeline's `seasons` kind
-- [~] Weekday tracking; shop closed days; K.K. on Saturday night — K.K. on Saturday night and Joan on Sunday morning come through the event manager (§30); Nook closes for renovations
+- [x] Weekday tracking; shop closed days; K.K. on Saturday night — Nook has no weekly closed day (`mSP_ShopOpen`); hours {9,7,9,9}–{22,23,22,22}, 10:00 on raffle day. Sale-day closures are §21. K.K. on Saturday night and Joan on Sunday morning come through the event manager (§30); Nook closes for renovations
 - [x] Played days and long absences: the calendar marks every day played over the last twelve months (`CalendarBook`); villagers greet a player they haven't spoken to in two weeks or two months with the "long time" lines (`aQMgr_get_meet_time`, `DialogueGreeting.meet_type`)
 - [x] The player's birthday: a villager asks for it (the cake date picker, `m_birthday_ovl`) and uses it for star-sign lines; on the day, when continuing from the house, the villager who likes you most waits outside with a wrapped Famicom (`ac_present_demo`, `ac_present_npc`); every other villager who remembers you mails a card with a present once the date has passed (`mNpc_SendEventBirthdayCard2`) — `BirthdayOverlay`, `PresentVisit`. In the rain the visitor comes under their umbrella (`aPST_make_umbrella`). GameCube villagers have no birthdays of their own (a later-games feature)
 
@@ -104,13 +104,13 @@ data tables before a category is called done.
 
 - [~] 3/4 fixed-angle follow camera, ~20° FOV, ~45°, focus distance 620 (`m_camera2`) — `follow_camera` / `FollowCamera`
 - [x] ~~Camera rotates 90° per acre~~ — the GCN camera keeps one heading; acre crossings only re-aim the follow (`AcreCamera`)
-- [~] Special cameras: door enter/exit, talking, sitting, fishing show-off, demos — `door_camera.gd`, `talk_camera.gd`
-- [x] ~~C-stick / look controls~~ — `m_camera2` reads no input; there is no look or pause zoom
+- [~] Special cameras: door enter/exit, talking, sitting, fishing show-off, demos — `door_camera.gd`, `talk_camera.gd`. Door: 350 GX at 20.3° on the player's eye, 140-tick morph in, snap out (`Camera2_Door_SetEyePos`); after a talk or door the outdoor camera eases distance, pitch and yaw home. Missing: the item show-off camera (`CAMERA2_PROCESS_ITEM`, 370 GX at 37.3°), the fishing camera (`Camera2_request_main_simple_fishing`), talk culling and the no-low-angle fallback
+- [ ] Indoor C-stick camera (`Player_actor_Set_Indoor_Camera_Index`): in homes and the museum rooms C-up/down moves the distance −280 / +300 GX with pitch, C-left/right yaws ±16.1°, 80-tick morph, `camera_move1/2` SE. Outdoors there is none. Indoor framing still zooms out for big rooms instead of following the player in depth (the decomp's room block extent is not modelled)
 - [~] Cutscene direction for events (`m_demo.c`) — each event drives its own camera and actors (door, talk, intro train, K.K., Resetti, present visit); there is no shared demo director
 
 ## 7. Movement & locomotion
 
-- [~] Analog walk (~4.875 u/frame) and run (~7.5 u/frame); B / L / R to dash (`m_player_main_walk`, `run`, `dash`) — `player_locomotion.gd`
+- [x] Analog walk (4.875 GX/frame) and dash (7.5 with B / L / R held) (`m_player_main_walk`, `run`, `dash`) — `player_locomotion.gd`. Targets, ×cos of the heading error, accel/brake, turn rate, slope, rate gauge and the bad-luck trip match `Movement_Walk`; dash is on B, the shoulders and the triggers (`mPlib_CheckButtonOnly_forDush`)
 - [x] Turn-in-place, dash turn, skid (`turn_dash`) — `PlayerLocomotion` `Gait.TURN_DASH`: a dash turned ≥ 100° off the stick brakes 0.261 a frame and swings the body round
 - [x] Trample flowers when dashing through them; walking is safe — `PlantGrowth.trample_flower`, `FootstepEffects` petal burst (`eHanatiri_ct`)
 - [x] ~~Grass wears into dirt paths~~ — not on the GameCube (no wear in `ac_field_draw` or the BG code; that is Wild World onward)
@@ -121,18 +121,18 @@ data tables before a category is called done.
 
 ## 8. Interaction system (Field A button)
 
-- [~] Context verb chosen from nearby actor + equipment: pick up, talk, shake, sit, read, open door, dig, etc. (`m_player` Field A) — `interaction.gd`, `interaction_query.gd`
+- [~] Context verb chosen from nearby actor + equipment: talk, shake, sit, read, open door, dig, etc. on A; pick up on B (`Player_actor_CheckController_forPickup`) — `interaction.gd`, `interaction_query.gd`. Missing: the pickup search geometry (hand point 35 / 20 / 10 GX ahead, 15 GX radius and height)
 - [x] Pick up dropped items / fruit / shells off the ground (`m_player_main_pickup`) — `item_pickup.gd`. What is dropped, shaken from trees or brought down off a balloon stays on its unit and is saved (`FieldItems`)
 - [x] Talk to villagers & special NPCs (`m_player_main_talk`) — villagers, shopkeepers, visitors, event NPCs and gyroids all talk through `DialogueOverlay` (see §15–§17)
-- [~] Shake trees (fruit, furniture, bells, bees, wasp nest) (`m_player_main_shake_tree`) — `tree_use.gd`
+- [~] Shake trees (fruit, furniture, bells, bees, wasp nest) (`m_player_main_shake_tree`) — `tree_use.gd`. Frame-10 effect, timers, drop speeds and crown offsets match; the nest is a prop that lies 120 ticks and fades (`bIT_actor_drop_wait_bee`); money luck makes a bell tree drop 1,000 Bells and goods luck draws furniture from Redd's or the raffle list (`drop_fruit`). Missing: the bee startle (`request_main_shock_all`, `GAAAN1`, `BEE_CHASE`) and A-shake targeting through `TreeBump.pick`
 - [~] Push signs to read; read bulletin board; read gravestones/signposts (`ac_sign`) — community board (`MESSAGE_BOARD0`, `obj_*_notice`) is placed from the FG templates and hosts the first-job "post a notice" chore and opens the board's posts (`NoticeBoardOverlay`, §26). Sight-map boards (`MAP_BOARD0`) open the town map without needing the item; tune boards (`MUSIC_BOARD0`) open the town tune editor; fences (`FENCE0` / `WOOD_FENCE`) are solid props; the station statue (`DOUZOU`) is placed and shows once a house reaches the statue (§26)
-- [~] Knock on villager doors (`m_player_main_knock_door`)
-- [~] Enter/exit buildings: step-in animation, door swing, screen wipe (`m_player_main_door`) — `structure_door.gd`, `scene_transition.gd`
+- [x] Knock on villager doors (`m_player_main_knock_door`) — `StructureDoor.needs_knock`, `PlayerDoors.knock`: villager houses (and the player houses during the first intro) get `ply_1_knock1` on the door stand with knocks on frames 13 and 20 before the door request runs
+- [x] Enter/exit buildings: step-in animation, door swing, screen wipe (`m_player_main_door`) — `structure_door.gd`, `scene_transition.gd`. The door iris follows `fbdemo_triforce_move` (54 ticks, fast then slow); the door camera is in §6
 - [x] Hand an item to a villager / receive an item (give / receive animations) (`m_player_main_give`, `recieve`, `ac_handOverItem`) — `HandOver`, `HandOverItem`
 - [x] ~~Refuse / decline prompt~~ — `m_player_main_refuse` is only a brake-to-standstill state (the paper-airplane catch, a room message); the port stops the player there
 - [x] Pick fruit vs. shake whole tree — GCN only shakes; fruit falls and is picked up off the ground (`TreeUse`)
 - [x] Pluck weeds (`m_player_main_remove_grass`) — A on a weed: `ZASSOU1`, out on frame 17 with `zassou_nuku`, flies off over the shoulder (`weed.tscn`)
-- [~] Pick / dig up flowers; pick mushrooms (`m_mushroom`) — mushrooms are ground items (`MushroomUse`)
+- [x] Dig up flowers; pick mushrooms (`m_mushroom`) — flowers are ENV-range FG ids that `Player_actor_CheckItem_fromPosition` never accepts, so only the shovel takes them; mushrooms are ground items (`MushroomUse`) and match `mMsr_*` (8:00, five a day, the quarter-hour schedule)
 - [x] Talk to gyroids — house gyroids (`GyroidTalk`); GCN has no pets or reflections
 
 ## 9. Tools
@@ -175,7 +175,7 @@ data tables before a category is called done.
   colour (`letter_color[]`) at the board's own offsets, dropping in from the top —
   `letter_reader_overlay.tscn`, `LetterBoard`, `LetterChrome`. Read-only (decomp confirms
   `mBD_roll_control`/pagination/caret are write-mode-only, dead code for reading).
-- [~] **Catalog** of every item you've ever owned/received; order from catalog at Nook's (`m_catalog_ovl`) — `CatalogBook`: furniture / clothing / wallpaper / carpet / stationery / umbrellas register as they reach the pockets (`mSP_CollectCheck`); Nook takes up to 5 paid orders that arrive enclosed in a letter the next morning (`mPO_delivery_mail_with_order_ftr`). The browser is `CatalogOverlay` (§21). Missing: non-orderable flags beyond "rare"
+- [~] **Catalog** of every item you've ever owned/received; order from catalog at Nook's (`m_catalog_ovl`) — `CatalogBook`: furniture / clothing / wallpaper / carpet / stationery / umbrellas register as they reach the pockets (`mSP_CollectCheck`); Nook takes up to 5 paid orders that arrive enclosed in a letter the next morning (`mPO_delivery_mail_with_order_ftr`). The browser is `CatalogOverlay` (§21). Orderable means on a shop list at any priority (furniture also the train, Redd's, raffle and present lists; `mCL_*_init`)
 - [~] Item data tables: tools, fruit, fossils, umbrellas, tickets, turnips, stationery and money as `.tres`; furniture, clothing, wallpaper and carpet from the disc (`FurnitureCatalog`, `ItemCatalog`). Shells as `.tres`; paintings and Redd's forgeries are furniture made by `ReddBook.ensure_art_items`
 - [x] Fruit: native fruit per town + foreign fruit (apple, orange, peach, pear, cherry); coconuts on beach palms — `Game.town_fruit`, `TreeUse`
 - [x] ~~Perfect fruit~~ — _not in GCN_
@@ -191,7 +191,7 @@ data tables before a category is called done.
 
 - [x] Bells as currency; wallet cap 99,999; 30,000-bell bags — `Inventory`
 - [x] **Post Office bank (ABD)**: the clerk's deposit line opens the terminal from the disc's `tyo_win` art — Cash (wallet plus money bags), a six-digit amount picked digit by digit, Balance to 999,999,999, Deposit / Withdrawal lit by direction; settling spends bags first and pays cash over the wallet cap as 30,000-bell bags; she then reads out the balance (`m_bank_ovl`, `aPG_deposit_*`) — `BankOverlay`, `BankTerminal`; `abd` console command. No interest on the GameCube: the post office mails a gift at 1M / 10M / 100M / 999,999,999 Bells, one per game start (`mMl_send_postoffice_mail`)
-- [x] **Tom Nook home loan**: each size has its loan, paid any amount at the counter; the next upgrade is offered once it is paid off; the last ends in the statue (`m_repay_ovl`) — `HouseUpgrade`, `NookHouseTalk`, `Statue`
+- [~] **Tom Nook home loan**: each size has its loan (17,400 / 148,000 / 398,000 / 49,800 / 798,000, matching `m_player.h`); the next upgrade is offered once it is paid off; the last ends in the statue — `HouseUpgrade`, `NookHouseTalk`, `Statue`. Missing: the repay screen (`m_repay_ovl`): a six-digit picker up to min(loan, wallet + money bags), spending bags and giving change to the wallet; the counter offers only "All I can" / "1,000 bells" from the wallet
 - [x] House sizes: small → medium → large → upper floor, basement as a separate order (`m_home`) — `HouseUpgrade` (duplicate of §18)
 - [x] **HRA — Happy Room Academy**: welcome letter, then at game start a scored letter the day after the layout changes (or a 2-in-10 tip otherwise): points by origin, necessities, base / theme / set series with matching wallpaper and carpet, lucky pieces, facing the wall, theme obstacles; rewards at 70,000 / 100,000 (house and manor models); wing paper (`m_mark_room`, `m_mark_room_ovl`) — `HappyRoomAcademy`, tables from `hra.py`. Loose items count against the room (`mMkRm_EvaluateLetsClean`): in your house "Drop" puts a thing on the floor in front of you or on the table there (`RoomItems`), at the table's own height (`aFTR_PROFILE.height`); it rides along when the table is pushed and saves with the room. Feng shui is its own score (see Feng shui)
 - [x] Feng shui: each piece's colour from the disc (`mMkRm_ftr_info`) pays on its side — yellow west (money), red east (goods), orange north and green south (both), lucky anywhere — with the face-to-the-wall penalty, over every room of the house when you head out (`m_huusui_room_ovl`) — `FengShui`. Money power lengthens the money rock; goods power raises Nook's rare / uncommon odds
@@ -203,15 +203,15 @@ data tables before a category is called done.
 
 ## 12. Fishing (§ of tools, detailed)
 
-- [~] Cast: fixed ~100 GX ahead, only onto water (5-point probe) (`ready_rod`, `request_proc_index_fromReady_rod`) — `fishing.gd`, `tool_use.gd`
-- [~] Bobber parabola ~50 frames, ends on water contact; lies flat then stands up (`aUKI_set_proc_cast`, `aUKI_rotate_calc`) — `bobber.gd`
-- [~] Fish-shadow AI: wait / swim / approach / touch / nibble / bite / comeback / escape (`ac_gyo_test` `aGTT_*`) — `fish_shadow.gd`
-- [~] Shadow size classes, per-species speed / search radius / bite time (`aGTT_speed`, `gyoei_type[]`) — `fish_size.gd`
+- [x] Cast: fixed 100 GX ahead, only onto water (5-point probe) (`ready_rod`, `request_proc_index_fromReady_rod`) — `fishing.gd`, `tool_use.gd`. The float leaves the rod about 36 ticks after the press, once its own ready swing is over (`aUKI_carry` + `aUKI_set_proc_ready`), not at frame 10. Moving BG (bridges) and water 60 GX up are not modelled
+- [x] Bobber parabola 50 frames, lies flat then stands up (`aUKI_set_proc_cast`, `aUKI_rotate_calc`) — `bobber.gd`, `Fishing.cast_position`. Backswing to 46.5 GX behind, then `aUKI_parabola_init` type 1 from there to the water surface; flat until `cast_timer` runs out; upright while a fish has it, turned to the rod once struck
+- [x] Fish-shadow AI: wait / swim / approach / touch / nibble / bite / comeback / escape (`ac_gyo_test` `aGTT_*`) — `fish_shadow.gd`. Checked line by line; the only gap is the 10 GX height check on another terrace
+- [x] Shadow size classes, per-species speed / search radius / bite time (`aGTT_speed`, `gyoei_type[]`) — `fish_size.gd`
 - [~] At most 2 live shadows, distance-culled; scared fish leaves a fading puff (`aGYO_MAX_GYOEI`, `ac_gyo_kage`) — `fish_school.gd`
 - [~] Nibble dip → bite shudder → hook timing window (`ac_uki` status chain) — `fishing.gd`
 - [x] Water rings (`ef_turi_hamon`): the bobber landing (1), each nibble (2), one tick in ten while a fish has the hook (0), a bolting shadow (3 small / 2 big) and its fading shadow 4 ticks on (by size), and a fish thrown back (3). The ring eases out to its size, fades with its timer and drifts along the river's flow — `FieldEffects.Kind.HAMON`, `FootstepEffects.ripple`. The reel-in wake far out (4) is not drawn
-- [~] Reel-in beats: pull / swing up / reel empty, per-beat player + rod clips (`vib_rod`, `fly_rod`, `collect_rod`) — `fishing.gd` `reel_beats`
-- [~] Show-off pose, turn square to camera, catch report at frame 42 (`m_player_main_notice_rod`) — `held_catch.gd`, `held_fish.gd`
+- [x] Reel-in beats: pull / swing up / reel empty, per-beat player + rod clips (`vib_rod`, `fly_rod`, `collect_rod`) — `fishing.gd` `reel_beats`
+- [x] Show-off pose, turn square to camera, catch report at frame 42 (`m_player_main_notice_rod`) — `held_catch.gd`, `held_fish.gd`. `putaway_rod` leaves the player facing the camera
 - [x] Species report dialogue; shorter report if already donated; "pockets full → toss back / swap" (`Get_sakana_msg_num`, `0x1348`) — the per-species report (`0x1327 + type`, `0x2FA9 +` past 0x20), `0x1348` chained on full pockets with the toss-back / swap; the rod always reports in full (`notice_rod` clears `already_collected`)
 - [x] **40 fish** plus the junk catches (empty can, boot, old tire), with month × time × water availability and rarity from the disc tables (`ac_set_ovl_gyoei`, `ac_gyoei_type.c_inc`) — `data/creatures/*.tres`, `fish_spawn_table.json`, `FishSpawnScheduler`
 - [x] Half-month term split + transition ramp for spawn weights (`gyoei_term`) — `FishSpawnScheduler.term_blend`
@@ -239,7 +239,7 @@ data tables before a category is called done.
 
 ## 14. Digging, buried items, rocks
 
-- [~] Dig a hole on empty ground; fill a hole (`DIG_SCOOP`, `FILL_SCOOP`, `HOLE00`–`HOLE24`) — `hole_use.gd`, `scenes/world/hole.tscn`
+- [~] Dig a hole on empty ground; fill a hole (`DIG_SCOOP`, `FILL_SCOOP`, `HOLE00`–`HOLE24`) — `hole_use.gd`, `scenes/world/hole.tscn`. Fill timing matches. Missing: the hole appears at frame 20 (not 15); the dirt sprays (`ef_dig_hole`, `DIG_SCOOP`); slope holes pick `HOLE01`–`24` by the unit's corner pattern (`mCoBG_GetHoleNumber`)
 - [x] Bury an item in a hole; dig it back up (`mTG_TYPE_FIELD_DEFAULT_BURY`, `bIT_common_hole_throw`) — pockets "Bury" → `BuriedUse.bury` (`KIND_ITEM` shows the crack)
 - [x] Daily dig spots: fossils (crack mark, up to 5), a shine spot of bells, and three gyroids after rain (`mMsm_DepositFossil`, `mAGrw_SetDigItem`, `mAGrw_SetHaniwa`) — `BuriedUse`
 - [x] Money spot: the daily shine spot digs up a bag of bells (`mAGrw_SetDigItem`) — `BuriedUse`; bare trees can hold bells when shaken (`TreeUse`). A bag buried back in that hole grows a money tree half the time (more with money power, always with Money Luck), else a plain sapling; grown, it drops three bags of that size once. A spare shovel grows the golden tree (`bIT_common_bury_after`, `PlantGrowth.plant_special`)
@@ -530,8 +530,8 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 
 ## 29. First job / new-player onboarding
 
-- [~] Nook gives a job in exchange for the house: change into the uniform, plant a tree/flowers, deliver furniture & a letter, meet a villager, write on the bulletin board, then the shop opens; get an axe; final notice (`ac_npc_rcn_guide2`, `mQst_SetFirstJob*`) — `first_job.gd`, `tom_nook.tscn`
-- [~] Uniform shirt (`shirt_016`) worn during the job — `first_job.gd`
+- [~] Nook gives a job in exchange for the house (planting kit: 7 random seed bags and 3 saplings, ten free pockets — `aNRG2_set_possession`): change into the uniform, plant a tree/flowers, deliver furniture & a letter, meet a villager, write on the bulletin board, then the shop opens; get an axe; final notice (`ac_npc_rcn_guide2`, `mQst_SetFirstJob*`) — `first_job.gd`, `tom_nook.tscn`
+- [~] Uniform shirt (`shirt_016`) worn during the job — `first_job.gd`. Missing: the one-time scolding for changing out of it (0x0832); the start of the game rolls one of eight starting shirts by gender (`mPr_SetNowPrivateCloth`)
 - [~] Post-job: Nook explains the loan; see §21's house business
 - [x] Starting letters — mom's (`MotherMail`) and the museum's intro (`TravelBook`)
 - [x] Mom (and once a year Dad) write (`mPr_SendMailFromMother`): on the birthday with a cake, on 1/1 … 12/12, April Fools', Mother's / Father's Day and Christmas Eve; otherwise a 1-in-5 chance a day of one of 56 everyday letters, some with a present, and a seasonal letter once those run out — on the month's own paper — `MotherMail`

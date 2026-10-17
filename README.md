@@ -22,7 +22,7 @@ This project is original work. It is **not affiliated with, endorsed by, or conn
 ## Run
 
 1. Open this folder in Godot 4.6+.
-2. Press Play. Title → **New Game** runs the full opening (K.K. player select → Rover's train → station arrival with Porter and Nook → house pick → first job), like the original. Dev shortcuts: **Town Seed 12345** drops straight into a deterministic town, **Intro Sequence** re-enters the K.K.→train chain, **Station Arrival** runs just the station demo. WASD to walk, Shift to run, **E** to interact (pick up, talk, shake, sit, read, …), **Esc** to save and return to title. **Continue** reloads that save. Debug: **T** +1 hour, **Y** +1 day (crosses the 06:00 daily renew), **U** save. Shop is open 9:00–22:00. Filbert is off the acre while asleep or indoors.
+2. Press Play. Title → **New Game** runs the full opening (K.K. player select → Rover's train → station arrival with Porter and Nook → house pick → first job), like the original. Dev shortcuts: **Town Seed 12345** drops straight into a deterministic town, **Intro Sequence** re-enters the K.K.→train chain, **Station Arrival** runs just the station demo. WASD to walk, Shift to run, **E** / Space for A (talk, shake, sit, read, use a tool, …), **F** for B (pick up items, weeds, signboards and furniture), **Esc** to save and return to title. **Continue** reloads that save. Debug: **T** +1 hour, **Y** +1 day (crosses the 06:00 daily renew), **U** save. Shop is open 9:00–22:00. Filbert is off the acre while asleep or indoors.
 
 From a terminal, if the Godot binary is on your `PATH`:
 

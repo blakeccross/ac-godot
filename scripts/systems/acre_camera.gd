@@ -95,6 +95,11 @@ static func follow(center: Vector3, target: Vector3, delta: float) -> Vector3:
 	)
 
 
+## `delta` seconds of `Camera2_MoveDistancePosAndSpeed` (the same `add_calc` as the centre).
+static func follow_distance(distance: float, target: float, delta: float) -> float:
+	return Motion.approach(distance, target, HALF_LIFE, MAX_SPEED, MIN_SPEED, delta)
+
+
 static func add_calc(value: float, target: float, fraction: float = FRACTION, max_step: float = MAX_STEP, min_step: float = MIN_STEP) -> float:
 	if value == target:
 		return value

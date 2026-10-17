@@ -14,6 +14,15 @@ const DEFAULT_OFFSET := Vector3(0.0, FOLLOW_DISTANCE * ISO, FOLLOW_DISTANCE * IS
 ## Extra distance so the near wall stays inside the 20° frustum. 1.2 left that
 ## edge under the look-at (the 45° camera sits closer to +Z than to the far wall).
 const FRAME_PADDING := 1.6
+## Pinned rooms look this far over the floor. Not the decomp's 73 GX: its rooms sit in a
+## block whose extent we do not model, and 73 here pushes the door row off the screen.
+const ROOM_LOOK_HEIGHT := 0.85
+## `Camera2_Door_SetEyePos`: 350 GX out at `-0x7194` (3692 short angles, about 20.3°, above
+## the horizontal), toward the south.
+const DOOR_DISTANCE := 350.0 * PlayerLocomotion.UNIT_METERS
+const DOOR_ELEVATION := 3692.0 * MathUtil.S16
+## `Camera2_setup_main_Door`: going in (`flags & 1`) morphs over 140 ticks; coming out snaps.
+const DOOR_MORPH_SECONDS := 140.0 / 60.0
 
 @export var target_path: NodePath
 @export var offset := DEFAULT_OFFSET
@@ -28,7 +37,13 @@ var _talk_active: bool = false
 var _talk_speaker: Node3D
 var _talk_listener: Node3D
 var _door_active: bool = false
-var _door_look := Vector3.ZERO
+## The player's eye when the door was requested, and the seconds of morph left.
+var _door_center := Vector3.ZERO
+var _door_left: float = 0.0
+## The door eye as distance (m), elevation and yaw (radians, 0 = due south of the centre).
+var _door_distance: float = DOOR_DISTANCE
+var _door_elevation: float = DOOR_ELEVATION
+var _door_yaw: float = 0.0
 var _look_current := Vector3.ZERO
 var _has_look: bool = false
 ## Intro / cutscene owns the eye; skip `_follow` until `resume`.
@@ -38,6 +53,10 @@ var _acre_active: bool = false
 var _acre_center := Vector3.ZERO
 ## `Camera2` `direction.x` relative to the 45° base: the rail-row swing, eased.
 var _acre_pitch: float = 0.0
+## `focus_distance` (GX) and `direction.y` (radians off due south). 620 and 0 in plain
+## following; another camera (a talk, a door) hands them back off-target, and they ease home.
+var _acre_distance: float = ORIG_DISTANCE
+var _acre_yaw: float = 0.0
 ## `Camera2_main_Wade`: `{start, goal, t}` (GX, seconds) while the player wades.
 var _acre_wade: Dictionary = {}
 
@@ -120,14 +139,24 @@ func end_talk() -> void:
 	## Ease back to follow / lock; do not snap.
 
 
-## `CAMERA2_PROCESS_DOOR` — morph look-at to the door stand at distance 620.
-func begin_door(look_at: Vector3) -> void:
+## `CAMERA2_PROCESS_DOOR`: frame `center` (the player's eye at the request) from 350 GX at
+## 20.3°. `morph` eases there over `DOOR_MORPH_SECONDS` (going in); otherwise it snaps.
+func begin_door(center: Vector3, morph: bool = true) -> void:
 	_door_active = true
 	_talk_active = false
-	_door_look = look_at
-	if not _has_look:
-		_look_current = look_at + Vector3(0.0, 0.85, 0.0)
-		_has_look = true
+	_door_center = center
+	_door_left = DOOR_MORPH_SECONDS if morph and _has_look else 0.0
+	if _door_left > 0.0:
+		var arm: Vector3 = global_position - _look_current
+		_door_distance = arm.length()
+		_door_elevation = atan2(arm.y, Vector2(arm.x, arm.z).length())
+		_door_yaw = atan2(arm.x, arm.z)
+	else:
+		_look_current = center
+		_door_distance = DOOR_DISTANCE
+		_door_elevation = DOOR_ELEVATION
+		_door_yaw = 0.0
+	_has_look = true
 
 
 func end_door() -> void:
@@ -172,16 +201,12 @@ func _follow(snap: bool, delta: float = 0.0) -> void:
 		return
 	if _door_active:
 		_acre_active = false
-		var look := _door_look + Vector3(0.0, 0.85, 0.0)
-		## Same 620 eye offset as normal follow; center is the door stand.
-		var destination := _door_look + offset
-		_move_camera(destination, look, snap, delta, follow_rate)
+		_follow_door(snap, delta)
 		return
 	if _locked:
 		_acre_active = false
-		var look := _lock_point + Vector3(0.0, 0.85, 0.0)
-		var destination := _lock_point + offset
-		_move_camera(destination, look, snap, delta, follow_rate)
+		var look := _lock_point + Vector3(0.0, ROOM_LOOK_HEIGHT, 0.0)
+		_move_camera(_lock_point + offset, look, snap, delta, follow_rate)
 		return
 	if _target == null:
 		return
@@ -205,8 +230,16 @@ func _follow_acre(snap: bool, delta: float) -> void:
 		if snap or not _has_look:
 			_acre_center = AcreCamera.goal(eye_gx, player_gx)
 			_acre_pitch = AcreCamera.swing(eye_gx, player_gx)
+			_acre_distance = ORIG_DISTANCE
+			_acre_yaw = 0.0
 		else:
+			## Take over from wherever the last camera left the eye and ease home from
+			## there (`Camera2_MoveDistancePosAndSpeed`, `MoveDirectionAngleXYZ`).
 			_acre_center = TownSpace.world_to_gx(_look_current)
+			var arm: Vector3 = global_position - _look_current
+			_acre_distance = arm.length() / PlayerLocomotion.UNIT_METERS
+			_acre_pitch = atan2(arm.y, Vector2(arm.x, arm.z).length()) - atan2(offset.y, offset.z)
+			_acre_yaw = atan2(arm.x, arm.z)
 	var wade: Dictionary = _target.call("wade_state") as Dictionary
 	if not wade.is_empty() and _acre_wade.is_empty():
 		## `Camera2_request_main_wade(end eye, 9, 36)` with the acre still being left.
@@ -219,7 +252,7 @@ func _follow_acre(snap: bool, delta: float) -> void:
 	if not snap:
 		_acre_step(eye_gx, player_gx, delta)
 	var center_w: Vector3 = TownSpace.gx_to_world(_acre_center)
-	global_position = center_w + _swung_offset(_acre_pitch)
+	global_position = center_w + _arm(_acre_distance * PlayerLocomotion.UNIT_METERS, atan2(offset.y, offset.z) + _acre_pitch, _acre_yaw)
 	_look_current = center_w
 	_has_look = true
 	look_at(center_w, Vector3.UP)
@@ -227,6 +260,8 @@ func _follow_acre(snap: bool, delta: float) -> void:
 
 func _acre_step(eye_gx: Vector3, player_gx: Vector3, delta: float) -> void:
 	var pitch_goal: float = AcreCamera.swing(eye_gx, player_gx)
+	_acre_distance = AcreCamera.follow_distance(_acre_distance, ORIG_DISTANCE, delta)
+	_acre_yaw = AcreCamera.follow_pitch(_acre_yaw, 0.0, delta)
 	if _acre_wade.is_empty():
 		_acre_center = AcreCamera.follow(_acre_center, AcreCamera.goal(eye_gx, player_gx), delta)
 		_acre_pitch = AcreCamera.follow_pitch(_acre_pitch, pitch_goal, delta)
@@ -242,13 +277,34 @@ func _acre_step(eye_gx: Vector3, player_gx: Vector3, delta: float) -> void:
 		_acre_wade = {}
 
 
-## `offset` tilted by the `Camera2_Normal_Swing` pitch.
-func _swung_offset(pitch: float) -> Vector3:
-	if is_zero_approx(pitch):
-		return offset
-	var dist: float = Vector2(offset.y, offset.z).length()
-	var elevation: float = atan2(offset.y, offset.z) + pitch
-	return Vector3(offset.x, dist * sin(elevation), dist * cos(elevation))
+## `Camera2_PolaPosCalc`: the eye `distance` from the centre at `elevation` above the
+## horizontal, `yaw` round from due south.
+static func _arm(distance: float, elevation: float, yaw: float) -> Vector3:
+	var flat: float = distance * cos(elevation)
+	return Vector3(flat * sin(yaw), distance * sin(elevation), flat * cos(yaw))
+
+
+## `Camera2_SetPos_Door`: `inter_float` closes `delta / time_left` of the centre and distance
+## gap, `subRotInterpolation(1.5 / step)` half again as much of the angles, so everything
+## lands as the morph runs out.
+func _follow_door(snap: bool, delta: float) -> void:
+	if snap or _door_left <= delta:
+		_door_left = 0.0
+		_look_current = _door_center
+		_door_distance = DOOR_DISTANCE
+		_door_elevation = DOOR_ELEVATION
+		_door_yaw = 0.0
+	else:
+		var f: float = delta / _door_left
+		var turn: float = minf(1.5 * f, 1.0)
+		_look_current = _look_current.lerp(_door_center, f)
+		_door_distance = lerpf(_door_distance, DOOR_DISTANCE, f)
+		_door_elevation = lerp_angle(_door_elevation, DOOR_ELEVATION, turn)
+		_door_yaw = lerp_angle(_door_yaw, 0.0, turn)
+		_door_left -= delta
+	_has_look = true
+	global_position = _look_current + _arm(_door_distance, _door_elevation, _door_yaw)
+	look_at(_look_current, Vector3.UP)
 
 
 func _follow_talk(snap: bool, delta: float) -> void:
@@ -275,4 +331,4 @@ func _move_camera(eye: Vector3, look: Vector3, snap: bool, delta: float, rate: f
 func _look_point() -> Vector3:
 	if _target.has_method("camera_look_position"):
 		return _target.call("camera_look_position") as Vector3
-	return _target.global_position + Vector3(0.0, 0.85, 0.0)
+	return _target.global_position + Vector3(0.0, Player.LOOK_HEIGHT, 0.0)

@@ -28,7 +28,7 @@ static func flat_transform(pos: Vector3, yaw: float = 0.0) -> Transform3D:
 
 
 static func precip_alpha(base: float) -> float:
-	## `mEnv` dims shadow energy by 0.75 while raining / snowing.
+	## `mEnv_MakeShadowInfo` dims shadow alpha by 0.75 while raining / snowing.
 	if Weather.is_precip(Weather.kind_from_name(Game.town.weather)):
-		return base * Weather.PRECIP_LIGHT_SCALE
+		return base * Weather.PRECIP_SHADOW_SCALE
 	return base
