@@ -1554,6 +1554,35 @@ def effect_dl_frame_formats(model_sources: dict[str, str]) -> dict[str, tuple[in
     return out
 
 
+_GFX_BLOCK_RE = re.compile(r"\bGfx\s+(\w+)\s*\[\]\s*=\s*\{(.*?)\};", re.S)
+_LOADTLUT_RE = re.compile(r"gsDPLoadTLUT_Dolphin\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(\w+)\s*\)")
+
+
+def effect_dl_frame_tluts(model_sources: dict[str, str]) -> dict[str, str]:
+    """Frame-bank prefix → the TLUT its model's DL loads before the `anime_N_txt` CI load.
+
+    A frame bank swapped onto `anime_N_txt` gets its palette from the TLUT the drawing DL
+    loads just before (`ef_anahori02_00_modelT`: `obj_hole_pal`, then `anime_1_txt`). The
+    prefix is the DL's stem less its trailing `_NN`, the same key `effect_dl_frame_dims`
+    uses; palettes the game swaps in at run time (`*_dummy`) are skipped."""
+    out: dict[str, str] = {}
+    for text in model_sources.values():
+        for block_name, body in _GFX_BLOCK_RE.findall(text):
+            stem = re.sub(r"_model\w*$", "", block_name)
+            prefix = stem.rsplit("_", 1)[0] + "_"
+            tlut = ""
+            for line in body.splitlines():
+                load = _LOADTLUT_RE.search(line)
+                if load:
+                    tlut = load.group(1)
+                    continue
+                img = _SETTIMG_RE.search(line)
+                if img and img.group(1) == "G_IM_FMT_CI" and img.group(3).startswith("anime_"):
+                    if tlut and "dummy" not in tlut:
+                        out.setdefault(prefix, tlut)
+    return out
+
+
 def effect_dl_frame_dims(model_sources: dict[str, str]) -> dict[str, list[tuple[int, int]]]:
     """Texture prefix → the (width, height) loads of the `ef_*` model files it belongs to.
 
@@ -1611,6 +1640,8 @@ def _convert_effect_frames(cfg: PipelineConfig, rel: RelData, symbols: list) -> 
     sources = _effect_model_sources(cfg)
     dl_formats = effect_dl_frame_formats(sources)
     dl_dims = effect_dl_frame_dims(sources)
+    dl_tluts = effect_dl_frame_tluts(sources)
+    by_name = {s.name: s for s in symbols}
     for symbol in symbols:
         name = symbol.name
         fmt_siz = dl_formats.get(name)
@@ -1628,9 +1659,15 @@ def _convert_effect_frames(cfg: PipelineConfig, rel: RelData, symbols: list) -> 
         if size is None:
             continue
         data = rel.slice_at(symbol.address, symbol.size)
+        pal = b""
+        if fmt == G_IM_FMT_CI:
+            prefixes = [p for p in dl_tluts if name.startswith(p)]
+            pal_sym = by_name.get(dl_tluts[max(prefixes, key=len)]) if prefixes else None
+            if pal_sym is not None:
+                pal = rel.slice_at(pal_sym.address, pal_sym.size)
         results.append(
             _png_record(
-                cfg, f"textures/rel/{name}.png", name, data, size[0], size[1], b"", fmt=fmt, siz=siz,
+                cfg, f"textures/rel/{name}.png", name, data, size[0], size[1], pal, fmt=fmt, siz=siz,
                 allow_achd=False,
             )
         )

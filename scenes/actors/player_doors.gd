@@ -88,6 +88,19 @@ func begin_door_enter(target: Vector3, face_yaw: float, walk_in: bool = false) -
 	)
 
 
+## `mPlayer_INDEX_KNOCK_DOOR`: step onto the door stand (`AnimationMove`, counter 5) and
+## knock; the door request it was holding runs once the clip ends.
+func knock(target: Vector3, face_yaw: float) -> void:
+	var clip := _player._resolve_clip(Player.ANIM_KNOCK1)
+	var res: Animation = _player._anim.get_animation(clip) if _player._anim != null and not clip.is_empty() else null
+	var length: float = res.length if res != null else 0.0
+	if length <= 0.0:
+		return
+	res.loop_mode = Animation.LOOP_NONE
+	_begin_animation_move(target, face_yaw, Player.ANIM_KNOCK1, StructureDoor.KNOCK_MOVE_COUNTER, length)
+	await _player.get_tree().create_timer(length).timeout
+
+
 ## `mPlayer_INDEX_DEMO_GETOFF_TRAIN`: OUTTRAIN1 with AnimationMove. Decomp passes the
 ## current ride pose as correctpos — root motion alone steps onto the platform.
 func begin_demo_getoff_train(stand: Vector3, face_yaw: float) -> void:

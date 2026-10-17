@@ -60,7 +60,7 @@ func try_grip() -> bool:
 func _grip_stick() -> Vector2:
 	if _player._menu_open():
 		return Vector2.ZERO
-	var input_dir: Vector2 = _player._read_stick()
+	var input_dir: Vector2 = _player.stick_input()
 	var wish: Vector3 = _player._camera_wish(input_dir)
 	return Vector2(wish.x, wish.z) * clampf(input_dir.length(), 0.0, 1.0)
 
@@ -69,7 +69,7 @@ func tick_grip(delta: float) -> void:
 	if Game.interior_session == null:
 		_end_grip()
 		return
-	var held: bool = Input.is_action_pressed("interact") and not _player._menu_open()
+	var held: bool = _player.a_held() and not _player._menu_open()
 	var events: Array[Dictionary] = _grip.advance(
 		delta, Game.interior_session, held, _grip_stick(), _player.global_position
 	)
@@ -112,8 +112,8 @@ func _on_grip_event(event: Dictionary) -> void:
 			_player._play_grip_clip(Player.ANIM_LTURN1 if bool(event.get("ccw", true)) else Player.ANIM_RTURN1, false)
 			_sync_furniture(FURNITURE_TURN_SEC)
 		"bubu":
-			## `aMR_SetBubu`: the puff of a piece that will not budge. Just the held pose for now.
-			pass
+			## `aMR_SetBubu`: the cross over the player when the piece will not budge.
+			FieldEffects.spawn(_effects_host(), FieldEffects.Kind.BUBU, _player.global_position, 0.0)
 
 
 func _notify_moved(event: Dictionary) -> void:
@@ -370,3 +370,12 @@ func poll_furniture_pickup() -> void:
 	await _player._finish_action(tail)
 	_player._busy = false
 	_player._gait = PlayerLocomotion.Gait.WAIT
+
+
+## The room's `Effects` node, or the room itself.
+func _effects_host() -> Node:
+	var room: Node = Interior.find(get_tree())
+	if room == null:
+		return _player.get_parent()
+	var effects: Node = room.get_node_or_null("Effects")
+	return effects if effects != null else room

@@ -3,6 +3,7 @@ extends StaticBody3D
 ## Outdoor tree. Shake / chop / stump rules live in TreeUse; this scene presents them.
 ## Shake timing matches `mPlayer_ANIM_SHAKE1` frame 10; sway matches EffectBG shakeL/S.
 
+const WASP_NEST := preload("res://scenes/world/wasp_nest.tscn")
 const STUMP_VISUAL := &"TREE_STUMP004"
 ## `mCoBG_MakeOneColumnCollisionData`: a grown stump (`TREE_STUMP004`) is an 18 GX column
 ## (the `*_STUMP001` saplings' stumps would be 10). Trees are 19 (`HostCollision`).
@@ -37,6 +38,8 @@ var _use: TreeUse
 var _motion: Tween
 var _felling: bool = false
 var _pending_bees: BeeSwarm = null
+## Where the last nest came down, once it has (the swarm gathers over it).
+var _nest_landed_at: Variant = null
 
 
 func _ready() -> void:
@@ -113,15 +116,13 @@ func _on_shake(use: TreeUse, ctx: InteractionContext) -> bool:
 	PlayerSe.tree_yurasu(self)
 	shaken.emit(true)
 	_stress_bugs_at(ctx)
-	var had_drops: bool = not out.drops.is_empty() or out.dropped_fruit > 0
+	var had_drops: bool = not out.drops.is_empty() or out.dropped_fruit > 0 or out.spawn_bees
 	_emit_drops(out, ctx)
 	if had_drops:
 		if out.dropped_fruit > 0:
 			PlantGrowth.take_fruit(_persist())
 		PlantGrowth.clear_shake_content(_persist())
 		apply_growth()
-	else:
-		Game.post_notice("The tree rustles.")
 	_play_shake(true)
 	if out.spawn_bees:
 		_arm_bees(ctx)
@@ -138,6 +139,11 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 	if not out.shook and not out.felled:
 		return false
 	PlayerSe.axe_cut(self)
+	## `Player_actor_SetEffectHit_axe_common` frame 15: chips fly off the trunk.
+	var chopper := ctx.actor as Node3D if ctx != null else null
+	if chopper != null:
+		var yaw: float = chopper.call("facing_yaw") if chopper.has_method("facing_yaw") else chopper.rotation.y
+		FootstepEffects.axe_chips(FootstepEffects.bg_of(ctx), chopper.global_position, yaw)
 	ToolUse.wear_axe(ctx, false)
 	_emit_drops(out, ctx)
 	if out.dropped_fruit > 0:
@@ -148,6 +154,8 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 		apply_growth()
 	elif not out.drops.is_empty() and not out.felled:
 		apply_growth()
+	if out.spawn_bees and not out.felled:
+		PlantGrowth.clear_shake_content(_persist())
 	if out.spawn_bees:
 		_arm_bees(ctx)
 	if out.felled:
@@ -351,6 +359,8 @@ func _cell() -> Vector2i:
 
 
 func _emit_drops(out: TreeUse.Outcome, ctx: InteractionContext) -> void:
+	if out.spawn_bees:
+		_drop_nest(ctx)
 	var items: Array[ItemData] = out.drops.duplicate()
 	if items.is_empty() and out.dropped_fruit > 0 and plant != null and plant.fruit != null:
 		for _i: int in out.dropped_fruit:
@@ -374,26 +384,40 @@ func _emit_drops(out: TreeUse.Outcome, ctx: InteractionContext) -> void:
 		if data == null:
 			continue
 		var cell: Vector2i = cells[i] if i < cells.size() else origin
-		var is_honey: bool = data.id == &"honeycomb"
 		var is_ftr: bool = data is FurnitureData
 		## What lands stays on the field (`FieldItems`); no free unit, nothing lands.
 		var pickup: Node3D = FieldItems.put(ctx.world, cell, data.id)
 		if pickup == null:
 			continue
 		var land: Vector3 = pickup.global_position
-		var crown: Vector3 = global_position + TreeUse.crown_offset(i, is_honey, is_palm)
-		var duration: float = TreeUse.drop_duration(i, is_honey, is_ftr)
+		var crown: Vector3 = global_position + TreeUse.crown_offset(i, false, is_palm)
+		var duration: float = TreeUse.drop_duration(i, false, is_ftr)
 		if pickup.has_method("begin_fall"):
 			pickup.call("begin_fall", crown, land, duration, is_ftr)
-			if is_honey and _pending_bees != null:
-				pickup.landed.connect(
-					func() -> void:
-						if is_instance_valid(_pending_bees):
-							_pending_bees.global_position = land + Vector3(0.0, 0.4, 0.0),
-					CONNECT_ONE_SHOT
-				)
 		else:
 			pickup.global_position = land
+
+
+## The nest falls from the crown onto a free unit beside the tree and fades there; the
+## swarm hangs over where it lands.
+func _drop_nest(ctx: InteractionContext) -> void:
+	var grid: WorldGrid = _grid(ctx)
+	var objects: Node = ctx.world.get_node_or_null("Objects") if ctx != null and ctx.world != null else null
+	if grid == null or objects == null:
+		return
+	var origin: Vector2i = grid.world_to_cell(global_position)
+	var cells: Array[Vector2i] = TreeUse.pick_drop_cells(origin, grid, 1)
+	var land: Vector3 = grid.cell_to_world(cells[0] if not cells.is_empty() else origin)
+	land.y = global_position.y
+	var nest: Node3D = WASP_NEST.instantiate() as Node3D
+	objects.add_child(nest)
+	nest.call("drop", global_position + TreeUse.crown_offset(0, true, false), land, TreeUse.drop_duration(0, true, false))
+	_nest_landed_at = null
+	nest.connect(&"landed", func() -> void:
+		_nest_landed_at = land
+		if _pending_bees != null and is_instance_valid(_pending_bees):
+			_pending_bees.global_position = land + Vector3(0.0, 0.4, 0.0),
+		CONNECT_ONE_SHOT)
 
 
 func _arm_bees(ctx: InteractionContext) -> void:
@@ -410,7 +434,8 @@ func _arm_bees(ctx: InteractionContext) -> void:
 			var parent: Node = ctx.world.get_node_or_null("Objects")
 			if parent == null:
 				return
-			_pending_bees = BeeSwarm.spawn(parent, global_position + Vector3(0.0, 2.5, 0.0), ctx.actor)
+			var at: Vector3 = (_nest_landed_at as Vector3) + Vector3(0.0, 0.4, 0.0) if _nest_landed_at != null else global_position + Vector3(0.0, 2.5, 0.0)
+			_pending_bees = BeeSwarm.spawn(parent, at, ctx.actor)
 			_schedule_bee_attackable(BEE_ATTACKABLE_AFTER_EFFECT - BEE_SPAWN_DELAY),
 		CONNECT_ONE_SHOT
 	)

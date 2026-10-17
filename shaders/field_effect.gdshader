@@ -10,6 +10,7 @@ render_mode blend_mix, depth_draw_never, cull_disabled, diffuse_lambert, specula
 //   3 (NOISE − T)·PRIM + ENV    (sunahane)
 //   4 TEXEL rgb                 (hanabira: palette colour)
 //   5 PRIM + ENV                (turi_hamon: `PRIM·SHADE + ENV`)
+//   6 TEXEL rgb × PRIM          (kikuzu: the chip's texture tinted by PRIM)
 // I4 frames decode with α = intensity; IA8 keep their own α.
 
 uniform int mode = 0;
@@ -66,6 +67,8 @@ void fragment() {
 		rgb = t0.rgb;
 	} else if (mode == 5) {
 		add = env_color.rgb;
+	} else if (mode == 6) {
+		rgb = t0.rgb * prim_color.rgb;
 	}
 	ALBEDO = rgb;
 	EMISSION = add;

@@ -1,5 +1,5 @@
 class_name TitleDemoInput
-extends RefCounted
+extends PlayerInput
 
 ## Recorded attract-mode input (`m_titledemo.c` `set_player_demo_keydata` + `mPlib_SetData1_
 ## controller_data_for_title_demo`). Samples were captured at 30 Hz and play back by time:
@@ -21,16 +21,12 @@ const BLEND_LIMIT := 1800
 var keys: PackedInt32Array = PackedInt32Array()
 ## Seconds played so far (`S_tdemo_frame`, in seconds).
 var time: float = 0.0
-## `Input.get_vector` convention: x right, y toward the camera (forward is negative).
-var move: Vector2 = Vector2.ZERO
-var a_held: bool = false
-## Rising edge of A (`trigger_btn_a`). Latched until `consume_a_pressed()`, so a press is not
-## lost if the playback steps twice before the player reads it.
-var a_pressed: bool = false
-var b_held: bool = false
-var b_pressed: bool = false
 ## The last sample whose buttons were read.
 var _sample: int = -1
+
+
+func _init() -> void:
+	demo = true
 
 
 static func stick_x(word: int) -> int:
@@ -63,11 +59,7 @@ func setup(samples: PackedInt32Array) -> void:
 	keys = samples
 	time = 0.0
 	_sample = -1
-	move = Vector2.ZERO
-	a_held = false
-	a_pressed = false
-	b_held = false
-	b_pressed = false
+	clear()
 
 
 ## Reads the input at the playback time, then plays on `delta` seconds (`title_demo_move`).
@@ -92,13 +84,6 @@ func step(delta: float) -> void:
 		b_held = b_bit(word)
 	_sample = maxi(_sample, f0)
 	time += maxf(delta, 0.0)
-
-
-## Take the latched A edge; a second reader cannot fire the action twice.
-func consume_a_pressed() -> bool:
-	var pressed: bool = a_pressed
-	a_pressed = false
-	return pressed
 
 
 func _word(index: int) -> int:

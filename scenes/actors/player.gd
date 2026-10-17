@@ -10,7 +10,9 @@ extends CharacterBody3D
 
 const PLAYER_BOY_GLB := "res://assets/generated/characters/player/boy_1.glb"
 const PLAYER_GIRL_GLB := "res://assets/generated/characters/player/grl_1.glb"
-const LOOK_HEIGHT := 0.85
+## `Player_actor_set_eye_PositionAndAngle`: the eye is 33 GX up (`Actor_world_to_eye`).
+## The outdoor and talk cameras centre on it.
+const LOOK_HEIGHT := 33.0 * PlayerLocomotion.UNIT_METERS
 const INTERACT_REACH := 1.1
 
 ## `notice_rod` chains message 0x1348 onto the fish catch report when pockets are full.
@@ -59,6 +61,8 @@ const GAIT_STATES := {
 const SE_SLIP := &"4129"
 ## `mPlayer_ANIM_OPEN1` — door enter demo (`mPlayer_INDEX_DOOR`, type 0).
 const ANIM_OPEN1 := "ply_1_open1"
+## `mPlayer_ANIM_KNOCK1`: knocking before a door that is not the player's own.
+const ANIM_KNOCK1 := "ply_1_knock1"
 ## `mPlayer_ANIM_INTO_S1` — indoor door / exit walk (`mPlayer_INDEX_DOOR`, type ≠ 0).
 const ANIM_INTO_S1 := "ply_1_into_s1"
 ## `mPlayer_ANIM_GO_OUT_S1` — outdoor emerge demo (`mPlayer_INDEX_OUTDOOR`, is_start_demo).
@@ -116,6 +120,8 @@ const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 @onready var _placeholder: MeshInstance3D = $MeshPivot/PlaceholderMesh
 @onready var _probe: Area3D = $MeshPivot/InteractProbe
 @onready var _look: Marker3D = $CameraLook
+## Glyphs over the player's head: the startle (`ef_shock`) and the like.
+@onready var feel: NpcFeelGlyphs = $Feel
 @onready var _animator: BodyAnimator = $Animator
 
 ## The player's components, child nodes declared in `player.tscn` (set before any child's
@@ -136,7 +142,7 @@ var catch_showing: bool:
 
 ## Title demo: a recorded stick + A replace live input (`mEv_IsTitleDemo` swaps the controller
 ## in `m_player_controller.c_inc`). Null during normal play.
-var scripted_input: TitleDemoInput = null
+var scripted_input: PlayerInput = null
 ## `mPlib_Set_unable_wade`: acre crossings are refused; trying one raises `wade_cancelled`
 ## (`excute_cancel_wade`, which the intro's Nook answers).
 var unable_wade: bool = false
@@ -168,6 +174,11 @@ var in_pitfall: bool = false
 var struggle_assist: float = 0.0
 var _step_time: float = 0.0
 var _right_foot: bool = true
+## `ripple_timer` / `ripple_foot_idx`: standing or wading in the surf rings the water at
+## one foot and then the other, every eight ticks.
+var _ripple_time: float = 0.0
+var _ripple_right: bool = false
+const RIPPLE_SECONDS := 8.0 / DecompTime.TICK_HZ
 ## `Player_actor_Movement_Talk` — ease yaw toward the NPC while the talk demo runs.
 var _talk_face: Node3D = null
 ## `player->shake_tree_*`: trees this player has already shaken (little or button).
@@ -208,6 +219,7 @@ static func visual_id() -> StringName:
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	feel.set_head_lift(LOOK_HEIGHT)
 	_motor.ground_sampler = _motor_ground_y
 	_motor.flat_sampler = _motor_unit_flat
 	_look.position = Vector3(0.0, LOOK_HEIGHT, 0.0)
@@ -384,7 +396,7 @@ func _physics_process(delta: float) -> void:
 		furniture.tick_grip(delta)
 	elif not furniture.rest.is_empty():
 		furniture.tick_rest(delta)
-	elif not _busy and scripted_input == null and not net.is_active():
+	elif not _busy and not _demo_input() and not net.is_active():
 		furniture.poll_furniture_pickup()
 		_poll_pitfall()
 		_poll_radio_exercise(delta)
@@ -417,6 +429,8 @@ func _physics_process(delta: float) -> void:
 		wish = _camera_wish(input_dir)
 		if scripted_input != null and scripted_input.consume_a_pressed():
 			_try_interact()
+		elif scripted_input != null and scripted_input.consume_b_pressed():
+			_try_pick_up()
 
 	## `cast_rod` / `relax_rod` / `vib_rod`: `Movement_Base_Braking_common`, stick ignored.
 	var rod_locked: bool = Fishing.holds(self)
@@ -424,9 +438,7 @@ func _physics_process(delta: float) -> void:
 		wish = Vector3.ZERO
 		stick = 0.0
 		input_dir = Vector2.ZERO
-	var sprint: bool = (
-		scripted_input == null and not doors.is_demo_walking() and Input.is_action_pressed("sprint")
-	)
+	var sprint: bool = not doors.is_demo_walking() and dash_held()
 	move_intent = wish * stick
 	if _snowball != null:
 		snowball.push_snowball(delta, wish, stick, sprint and not menu_open, input_dir, bg)
@@ -435,7 +447,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_motor.position = global_position
 	## `mEv_IsNotTitleDemo() && destiny == BAD_LUCK` gates the dash trip.
-	_motor.bad_luck = scripted_input == null and Game.destiny() == Game.Destiny.BAD_LUCK
+	_motor.bad_luck = not _demo_input() and Game.destiny() == Game.Destiny.BAD_LUCK
 	## Recorded title-demo input and demo walks (`Player_actor_Movement_Demo_walk` steers
 	## without the stick) count as held axes whenever they ask to move.
 	if scripted_input != null or doors.is_demo_walking():
@@ -472,6 +484,7 @@ func _physics_process(delta: float) -> void:
 			return
 	_update_animation(delta)
 	_update_footprints(delta, bg)
+	_update_ripples(delta, bg)
 	_update_focus()
 	_tick_tree_bump(delta)
 	doors.clear_auto_enter_block()
@@ -553,7 +566,7 @@ func _can_land(pos_gx: Vector3, dir: AcreWade.Dir, bg: Array) -> bool:
 		return false
 	if grid.is_occupied(grid.world_to_cell(probe)):
 		return false
-	if scripted_input == null:
+	if not _demo_input():
 		var clear: float = AcreWade.NPC_CLEAR
 		for npc: Node in get_tree().get_nodes_in_group("villagers"):
 			if npc is Node3D and (npc as Node3D).global_position.distance_to(probe) < clear:
@@ -735,6 +748,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		_try_interact()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("pick_up"):
+		_try_pick_up()
+		get_viewport().set_input_as_handled()
 
 
 func _camera_wish(input_dir: Vector2) -> Vector3:
@@ -756,6 +772,37 @@ func _camera_wish(input_dir: Vector2) -> Vector3:
 	if wish.length_squared() > 1.0:
 		wish = wish.normalized()
 	return wish
+
+
+## The attract-mode recording is driving (its own rules: no dash, its own verbs).
+func _demo_input() -> bool:
+	return scripted_input != null and scripted_input.demo
+
+
+## The stick, from the installed input source or the pad / keyboard.
+func stick_input() -> Vector2:
+	return scripted_input.move if scripted_input != null else _read_stick()
+
+
+## A held, from the source or `interact`.
+func a_held() -> bool:
+	if scripted_input != null:
+		return scripted_input.a_held
+	return Input.is_action_pressed("interact") and not _menu_open()
+
+
+## A pressed this tick (taken from the source, so it fires once).
+func a_just_pressed() -> bool:
+	if scripted_input != null:
+		return scripted_input.consume_a_pressed()
+	return Input.is_action_just_pressed("interact")
+
+
+## B / L / R held to dash.
+func dash_held() -> bool:
+	if scripted_input != null:
+		return scripted_input.dash_held and not scripted_input.demo
+	return Input.is_action_pressed("sprint")
 
 
 ## `mCon_calc`: raw stick (no Godot dead-zone remap) → `move_pR` direction × percent.
@@ -810,10 +857,36 @@ func _feed_clip_state() -> void:
 ## Frame marks written into the body's clips: each action's SE (`PlayerSe.CLIP_MARKS`) and
 ## `Player_actor_SetEffect_Tumble`'s rumble at frame 10, landing dust at 15 and body print
 ## at 17, on every tumble clip.
+## `Player_actor_SetEffectHit_Fill_scoop`: clods at frames 13, 19 and 25 and the scoop's
+## dirt at 40 (seven later on `FILL_UP_I1`). The fill clips are only ever a fill.
+const FILL_MARKS: Array = [[13.0, &"fx_fill_3"], [19.0, &"fx_fill_4"], [25.0, &"fx_fill_5"], [40.0, &"fx_fill_scoop"]]
+## `Player_actor_SetEffectStart_axe_common` (frame 12, every swing) and the bounce's stars
+## (`SetEffectHit_Reflect_axe`, frame 15). The axe clips are only ever the axe.
+## `Player_actor_main_Gaaan` → `eEC_EFFECT_SHOCK` at frame 5 of the startle.
+const SHOCK_MARKS: Array = [[5.0, &"fx_shock"]]
+const AXE_MARKS: Dictionary = {
+	&"ply_1_axe_swing1": [[12.0, &"fx_axe_start"]],
+	&"ply_1_axe_suka1": [[12.0, &"fx_axe_start"]],
+	&"ply_1_axe_hane1": [[12.0, &"fx_axe_start"], [15.0, &"fx_axe_bounce"]],
+}
+
+
 func _clip_marks() -> Dictionary:
-	var marks: Dictionary = PlayerSe.CLIP_MARKS.duplicate()
+	var marks: Dictionary = PlayerSe.CLIP_MARKS.duplicate(true)
 	for clip: String in [ToolUse.ANIM_KOKERU, ToolUse.ANIM_KOKERU_A, ToolUse.ANIM_KOKERU_N]:
 		marks[StringName(clip)] = TUMBLE_MARKS
+	var gaaan: Array = (marks.get(&"ply_1_gaaan1", []) as Array).duplicate()
+	gaaan.append_array(SHOCK_MARKS)
+	marks[&"ply_1_gaaan1"] = gaaan
+	for clip: StringName in AXE_MARKS:
+		var axe_list: Array = (marks.get(clip, []) as Array).duplicate()
+		axe_list.append_array(AXE_MARKS[clip])
+		marks[clip] = axe_list
+	for pair: Array in [[&"ply_1_fill_up1", 0.0], [&"ply_1_fill_up_i1", 7.0]]:
+		var list: Array = (marks.get(pair[0], []) as Array).duplicate()
+		for mark: Array in FILL_MARKS:
+			list.append([float(mark[0]) + float(pair[1]), mark[1]])
+		marks[pair[0]] = list
 	return marks
 
 
@@ -821,6 +894,25 @@ func _on_clip_event(_clip: StringName, event: StringName) -> void:
 	match event:
 		&"tumble_rumble":
 			GameConfig.rumble(GameConfig.TUMBLE)
+		&"fx_shock":
+			feel.play(&"shock")
+		&"fx_axe_start":
+			FootstepEffects.axe_start(_bg(), global_position, _motor.facing)
+		&"fx_axe_bounce":
+			FootstepEffects.axe_bounce(_bg(), global_position, _motor.facing)
+		&"fx_fill_3", &"fx_fill_4", &"fx_fill_5", &"fx_fill_scoop":
+			var ctx: InteractionContext = _make_context()
+			var grid: WorldGrid = ctx.world.get("grid") as WorldGrid if ctx.world != null else null
+			if grid == null:
+				return
+			var bg: Array = _bg()
+			var hole: Vector3 = grid.cell_to_world(ToolUse.facing_cell(ctx))
+			hole.y = global_position.y
+			var attr: int = FootstepEffects.attr_at(bg, hole)
+			if event == &"fx_fill_scoop":
+				FootstepEffects.dig_scoop(bg, hole, global_position, _motor.facing, attr, 2)
+			else:
+				FootstepEffects.dig_hole(bg, hole, global_position, _motor.facing, attr, int(String(event).right(1)))
 		&"tumble_dust", &"tumble_print":
 			var bg: Array = _bg()
 			var attr: int = _unit_attr(bg)
@@ -942,6 +1034,24 @@ func _tumble_se(attr: int) -> StringName:
 	return tumble if SeCatalog.stream_for(tumble) != null else &"tumble_soil"
 
 
+## `Player_actor_set_ripple` → `eWait_Asimoto_init`: in the surf or the sea, a small ring
+## (`TURI_HAMON` 3) at alternate feet every eight ticks, moving or not.
+func _update_ripples(delta: float, bg: Array) -> void:
+	if bg.size() != 2 or Game.is_indoors():
+		return
+	_ripple_time += delta
+	if _ripple_time < RIPPLE_SECONDS - 0.0001:
+		return
+	_ripple_time = 0.0
+	_ripple_right = not _ripple_right
+	var attr: int = FieldCollision.unit_attr_at(bg[0] as WorldData, bg[1] as WorldGrid, global_position)
+	if attr != FootstepEffects.ATTR_WAVE and not FieldCatalog.is_sea_attr(attr):
+		return
+	var anchor: Transform3D = _foot_anchor(_ripple_right)
+	var foot: Vector3 = anchor.origin if anchor.basis.determinant() != 0.0 else global_position
+	FootstepEffects.ripple(Vector3(foot.x, global_position.y, foot.z), 3)
+
+
 func _update_footprints(delta: float, bg: Array) -> void:
 	## `Player_actor_Set_FootMark_MarkOnly` + `Player_actor_sound_FootStep2`: one print and
 	## footstep SE per foot on the gait cadence. Clips lack frame tags, so period comes
@@ -970,7 +1080,10 @@ func _update_footprints(delta: float, bg: Array) -> void:
 	var attr: int = FieldCollision.unit_attr_at(data, grid, global_position)
 	var terrain: WorldGrid.Terrain = data.terrain_at(grid.world_to_cell(global_position))
 	var indoors: bool = Game.is_indoors()
-	FootstepSe.play_at(self, attr, terrain, season, gait, indoors)
+	var floor_index: int = -1
+	if indoors and Game.interior_session != null and Game.interior_session.room != null:
+		floor_index = InteriorStyleCatalog.style_index(Game.interior_session.room.floor_id, "floor_")
+	FootstepSe.play_at(self, attr, terrain, season, gait, indoors, floor_index)
 	if indoors:
 		return
 	var foot: Vector3
@@ -999,6 +1112,12 @@ func _update_footprints(delta: float, bg: Array) -> void:
 	if xform.basis.determinant() == 0.0:
 		return
 	marks.spawn(xform, snow)
+	## `eFootPrint_ct` / `_mv`: a print in the surf rings the water as it is made and again
+	## ten ticks later.
+	if attr == FootstepEffects.ATTR_WAVE:
+		var at := Vector3(foot.x, global_position.y, foot.z)
+		FootstepEffects.ripple(at, 2)
+		get_tree().create_timer(10.0 / DecompTime.TICK_HZ).timeout.connect(func() -> void: FootstepEffects.ripple(at, 2))
 
 
 ## `Player_actor_SetEffect_Walk` / `_Dash`: `WALK_ASIMOTO` on walk + run foot plants,
@@ -1086,6 +1205,9 @@ func _resolve_clip(suffix: String) -> String:
 
 func _update_focus() -> void:
 	var hit: InteractionQuery = _resolve_interact()
+	if hit == null or hit.action == null:
+		## Nothing for A: show what B would pick up.
+		hit = _query_focus(true)
 	var next: Node = hit.host if hit else null
 	var prompt := ""
 	if hit != null and hit.action != null:
@@ -1101,13 +1223,14 @@ func _update_focus() -> void:
 	Game.set_interact_prompt(prompt)
 
 
-func _query_focus() -> InteractionQuery:
+func _query_focus(pickup: bool = false) -> InteractionQuery:
 	if _probe == null:
 		return null
 	return InteractionQuery.best_in_areas(
 		_probe.get_overlapping_areas(),
 		_motor.facing_point(global_position, INTERACT_REACH),
-		_make_context()
+		_make_context(),
+		pickup
 	)
 
 
@@ -1200,7 +1323,7 @@ func _try_interact() -> void:
 		if Game.try_place_furniture(self):
 			return
 		return
-	if scripted_input != null and not TitleDemo.allows_verb(hit.action.id):
+	if _demo_input() and not TitleDemo.allows_verb(hit.action.id):
 		return
 	if hit.host == null and hit.action.id == Interaction.SWING_NET:
 		net.begin_net()
@@ -1208,9 +1331,24 @@ func _try_interact() -> void:
 	await _run_interact(hit)
 
 
+## B (`Player_actor_CheckAndRequest_main_pickup_all`): ground items, weeds, signboards and
+## furniture. A never picks anything up.
+func _try_pick_up() -> void:
+	if _motor.gait() in [PlayerLocomotion.Gait.TUMBLE, PlayerLocomotion.Gait.TUMBLE_GETUP]:
+		return
+	if net.net_swing.state != NetSwing.State.NONE or Fishing.holds(self):
+		return
+	var hit: InteractionQuery = _query_focus(true)
+	if hit == null or hit.action == null:
+		return
+	if _demo_input() and not TitleDemo.allows_verb(hit.action.id):
+		return
+	await _run_interact(hit)
+
+
 func _try_auto_enter() -> void:
 	## Museum walk-in (`aMsm_check_player`): no A press while open.
-	if scripted_input != null or _busy or doors.door_entering or _menu_open() or net.is_active():
+	if _demo_input() or _busy or doors.door_entering or _menu_open() or net.is_active():
 		return
 	var hit: InteractionQuery = _resolve_interact()
 	if hit == null or hit.host == null or hit.action == null:
@@ -1456,6 +1594,18 @@ const GOLDEN_FANFARE: Dictionary = {&"golden_net": 0x4B, &"golden_fishing_rod": 
 const GOLDEN_FANFARE_OTHER := 0x4A
 
 
+## `mDemo_TYPE_REPORT` → `Camera2_request_main_item`: while the player's own report is up
+## the camera closes in on them; when it is dismissed the normal camera eases back.
+func report_camera(on: bool) -> void:
+	var cam: FollowCamera = FollowCamera.find(get_tree()) if is_inside_tree() else null
+	if cam == null:
+		return
+	if on:
+		cam.begin_item(self)
+	else:
+		cam.end_item()
+
+
 func get_golden_item(item_id: StringName) -> void:
 	if _busy or not is_inside_tree():
 		return
@@ -1484,8 +1634,10 @@ func get_golden_item(item_id: StringName) -> void:
 		var ctx := DialogueContext.from_game()
 		ctx.speaker_name = ""
 		ctx.window_color = GOLDEN_WINDOW
+		report_camera(true)
 		ui.play(data, ctx)
 		await _net_wait_closed(ui)
+		report_camera(false)
 	Audio.pop_fanfare(jingle)
 	if not is_inside_tree():
 		return
@@ -1529,8 +1681,10 @@ func broken_axe() -> void:
 		var ctx := DialogueContext.from_game()
 		ctx.speaker_name = ""
 		ctx.window_color = AxeWear.BROKEN_WINDOW
+		report_camera(true)
 		ui.play(data, ctx)
 		await _net_wait_closed(ui)
+		report_camera(false)
 	if not is_inside_tree():
 		return
 	_motor.reset(_motor.facing)
@@ -1609,6 +1763,7 @@ func _report_catch(
 	## 0x1349 names the fish (`mMsg_Set_item_str_art(win, mMsg_ITEM_STR0, …)`).
 	var ctx := DialogueContext.from_game()
 	ctx.item0 = fish.display_name if fish != null else ""
+	report_camera(true)
 	if data != null:
 		ui.play(data, ctx)
 	else:
@@ -1635,6 +1790,7 @@ func _report_catch(
 		## "Swap" trades a pocket for the fish (`putaway_rod` → `mSM_IV_OPEN_EXCHANGE`).
 		if await _ask_swap(POCKETS_FULL_MSG) and fish != null:
 			await exchange_into_pockets(fish.id)
+	report_camera(false)
 	Audio.pop_fanfare(jingle)
 
 
@@ -1707,8 +1863,10 @@ func run_complete_payment() -> void:
 		var dctx := DialogueContext.from_game()
 		dctx.speaker_name = ""
 		dctx.window_color = GOLDEN_WINDOW
+		report_camera(true)
 		ui.play(data, dctx)
 		await ui.closed
+		report_camera(false)
 	Audio.pop_fanfare(jingle)
 	_busy = false
 
@@ -1736,8 +1894,10 @@ func run_dig_get(item_id: StringName, banked: bool, cell: Vector2i, ctx: Interac
 		talk.context = dctx
 		talk.prepare()
 		Audio.push_fanfare(jingle)
+		report_camera(true)
 		ui.play(data, dctx, null, Callable(), talk)
 		await ui.closed
+		report_camera(false)
 		Audio.pop_fanfare(jingle)
 	if prop != null and is_instance_valid(prop):
 		prop.finish()
@@ -1957,8 +2117,8 @@ func _struggle() -> void:
 	while presses < STRUGGLE_PRESSES:
 		await get_tree().process_frame
 		var ticks: float = get_process_delta_time() * DecompTime.TICK_HZ
-		var stick: Vector2 = _read_stick() if scripted_input == null else scripted_input.move
-		var add: float = 1.0 if Input.is_action_just_pressed("interact") and not _menu_open() else 0.0
+		var stick: Vector2 = stick_input()
+		var add: float = 1.0 if a_just_pressed() and not _menu_open() else 0.0
 		add += absf(old_stick.length() - stick.length()) * 0.5
 		if old_stick.length() > 0.0 and stick.length() > 0.0:
 			## `s16` move-angle change × 0.00002.

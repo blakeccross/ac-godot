@@ -42,11 +42,27 @@ static func find(tree: SceneTree) -> World:
 const BGM_CHECK_SEC := 0.5
 var _bgm_check: float = 0.0
 var _event_bgm_now: Dictionary = {}
+## `mBGMTime_silent_check`: the field music is off from XX:59:52 to XX:00:16 around the
+## hourly chime.
+var _time_signal_quiet: bool = false
+
+
+## `mBGMTime_silent_check` (`make_ps_time`): 8 seconds before the hour to 16 after it.
+static func time_signal_quiet(minute: int, second: int) -> bool:
+	return (minute == 59 and second >= 52) or (minute == 0 and second < 16)
 
 
 func _process(delta: float) -> void:
 	## Windows fade on at 18:00 and off at 05:00 (`aPBOX_actor_move`'s 320-a-tick chase).
 	VisualWindowLight.step_window_lights(self, delta)
+	if not Game.title_demo_active and not Game.intro_station_active:
+		var quiet: bool = time_signal_quiet(Clock.minute, Clock.second)
+		if quiet != _time_signal_quiet:
+			_time_signal_quiet = quiet
+			if quiet:
+				Audio.stop_bgm()
+			else:
+				_play_outdoor_bgm()
 	## `mBGMFieldSchedEv_move`: event music follows the player from acre to acre.
 	_bgm_check -= delta
 	if _bgm_check <= 0.0:
@@ -210,7 +226,7 @@ func _on_hour_changed(_hour: int) -> void:
 	## `mBGMTime_signal_melody`: the town tune on the hour, outdoors, not in the title
 	## demo or the first arrival.
 	if not Game.title_demo_active and not Game.intro_station_active and Game.current_room_id == &"":
-		Audio.play_melody(Game.town.town_tune)
+		Audio.play_melody(Game.town.town_tune, {}, Audio.CHIME_STEP_SEC)
 
 
 func _on_weather_changed(_weather: StringName) -> void:
@@ -225,6 +241,8 @@ func _play_outdoor_bgm() -> void:
 		Audio.play_bgm(&"title")
 		return
 	if EventManager.demo_bgm != &"":
+		return
+	if _time_signal_quiet:
 		return
 	## Fresh station arrival owns `intro_arrive`; after a house exit we keep field BGM.
 	if Game.intro_station_active and not Game.intro_station_resume_debt:

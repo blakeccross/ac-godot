@@ -1077,6 +1077,8 @@ func open() -> void:
 	_portrait_rest = PortraitAnim.WALK
 	_show_page(SideTab.POCKETS)
 	Audio.play_se(&"menu_pause")
+	## `mBGMPsComp_pause(PAUSE_1)` (`m_inventory_ovl`).
+	Audio.set_music_pause(Audio.PAUSE_POCKETS)
 	_root.visible = true
 	_slide.slide_in(MenuSlide.Dir.IN_RIGHT)
 	if _portrait_viewport != null:
@@ -1116,6 +1118,7 @@ func close() -> void:
 	if not _open:
 		return
 	Audio.play_se(&"menu_exit")
+	Audio.set_music_pause(1.0)
 	_gyroid_house = null
 	_focus_gyroid = false
 	_gyroid_tag_mode = false
@@ -1522,11 +1525,12 @@ func _run_background_tag(tag: String) -> void:
 	_refresh()
 
 
+## Left click only: fingers arrive here too, as the mouse clicks
+## `emulate_mouse_from_touch` makes, so also taking the touch fired twice.
 func _click_event(event: InputEvent) -> bool:
 	return (
-		(event is InputEventMouseButton and (event as InputEventMouseButton).pressed
-			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT)
-		or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
+		event is InputEventMouseButton and (event as InputEventMouseButton).pressed
+		and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT
 	)
 
 
@@ -1734,6 +1738,8 @@ func _run_tag(tag: String) -> void:
 				pass
 			elif slot.item.condition == InventoryItem.Condition.PRESENT:
 				slot.item.condition = InventoryItem.Condition.NORMAL
+				## `mTG_present_open_proc`.
+				Audio.play_se(&"436")
 				inv.changed.emit()
 				Game.post_notice("Opened present")
 			else:
@@ -1813,6 +1819,8 @@ func _run_tag(tag: String) -> void:
 			## `mIV_ANIM_EAT`: eating fruit / food plays EAT1 in the portrait.
 			if tag == "Eat":
 				_set_portrait_anim(PortraitAnim.EAT)
+				## `mIV_ANIM_EAT`: the bite sounds on the clip's frame 17.
+				get_tree().create_timer(17.0 / DecompTime.FRAME_HZ).timeout.connect(func() -> void: Audio.play_se(&"eat"))
 			var msg: String = inv.use_slot(idx)
 			if msg != "":
 				Game.post_notice(msg)
@@ -1830,6 +1838,8 @@ func _run_mail_tag(tag: String) -> void:
 		_pending_mail_discard = -1
 		if tag == "Yes":
 			inv.remove_mail(discard_idx)
+			## `mTG_dump_mail_proc`.
+			Audio.play_se(&"435")
 			Game.post_notice("Discarded letter")
 		_tag_mode = false
 		_refresh()
@@ -1955,6 +1965,9 @@ func _drop_selected() -> void:
 		inv.add(data, removed.count, removed.condition)
 		Game.post_notice("Can't drop here")
 		return
+	## `mTG_common_throw_put_field`: it lands on the unit with `NA_SE_2A`.
+	var dropper := Player.find(get_tree())
+	Audio.play_se(&"2a", dropper if dropper != null else self)
 	Game.post_notice("Dropped %s" % data.display_name)
 
 

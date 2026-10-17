@@ -258,6 +258,7 @@ func _net_pull(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay)
 			shown = true
 		elapsed += delta
 		if elapsed >= Netting.PULL_REPORT_SEC and not reported:
+			_player.report_camera(true)
 			_player._net_say(ui, catch_.report_msg(), catch_.bug)
 			Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
 			reported = true
@@ -280,6 +281,7 @@ func _net_notice(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverla
 		## 0xA4D: "Swap" trades a pocket for it (`mSM_IV_OPEN_EXCHANGE`), else it goes.
 		if await _player._ask_swap(Netting.POCKETS_FULL_MSG) and await _player.exchange_into_pockets(catch_.bug.id):
 			catch_.banked = true
+	_player.report_camera(false)
 
 
 ## `main_Putaway_net`: `PUTAWAY_M1` with `GASAGOSO`; the insect shrinks each tick until

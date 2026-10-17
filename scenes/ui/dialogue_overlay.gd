@@ -252,10 +252,17 @@ func close(immediate: bool = false) -> void:
 		return
 	_phase = Phase.DISAPPEARING
 	_anim_t = 0.0
+	## `mMsg_MainSetup_Disappear`: the long zoom-down when a talk camera has the scene, the
+	## short one otherwise.
+	var cam: FollowCamera = FollowCamera.find(get_tree()) if is_inside_tree() else null
+	Audio.play_se(&"zoomdown_long" if cam != null and cam.is_talking() else &"zoomdown_short")
 	_chrome.set_continue_visible(false)
 
 
 func _begin_open(speaker: String, sex: MessageWindowChrome.SpeakerSex) -> void:
+	## `mMsg_Main_Appear_wait`: the window zooms up with its sound.
+	if not _open:
+		Audio.play_se(&"zoomup")
 	_open = true
 	_just = false
 	_phase = Phase.APPEARING
@@ -686,6 +693,8 @@ func _on_choices(options: Array) -> void:
 	_choice_anim_t = 0.0
 	_chrome.set_choice_scale(0.0)
 	_highlight()
+	## `mChoice_Main_Appear`.
+	Audio.play_se(&"sentaku_open")
 
 
 func _on_finished() -> void:
@@ -702,6 +711,12 @@ func _pick(index: int) -> void:
 	_pending_choice = index
 	_choice_phase = ChoicePhase.DISAPPEARING
 	_choice_anim_t = 0.0
+	## `mChoice_MainSetup_Disappear`: backing out on the B option zooms down; any other pick
+	## is the decide sound.
+	if _runner != null and _runner.choice_b_last and index == _buttons.size() - 1:
+		Audio.play_se(&"zoomdown_short")
+	else:
+		Audio.play_se(&"sentaku_kettei")
 
 
 func _highlight() -> void:

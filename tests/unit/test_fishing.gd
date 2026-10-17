@@ -95,9 +95,41 @@ func test_cast_needs_water_and_arcs_before_it_floats() -> void:
 	assert_float(Fishing.cast_progress()).is_less(1.0)
 	## `cast_rod` says nothing; the splash is the whole announcement.
 	assert_array(_heard).is_empty()
-	_tick(ctx, Fishing.CAST_SECONDS + STEP)
+	_tick(ctx, Fishing.LAUNCH_DELAY_SECONDS + Fishing.CAST_SECONDS + STEP)
 	assert_that(Fishing.state()).is_equal(Fishing.State.FLOAT)
 	assert_float(Fishing.cast_progress()).is_equal_approx(1.0, 0.001)
+
+
+func test_the_line_leaves_the_rod_after_its_backswing() -> void:
+	## `aUKI_carry` + `aUKI_set_proc_ready`: about 36 ticks after the press, against frame
+	## 10's 18, so the float is still on the rod when the session starts.
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	assert_bool(Fishing.is_launched()).is_false()
+	var actor: Node3D = ctx.actor as Node3D
+	var held: Vector3 = Fishing.cast_position()
+	var out: Vector3 = Fishing.anchor() - actor.global_position
+	## Behind the player, up on the rod.
+	assert_float((held - actor.global_position).dot(out)).is_less(0.0)
+	assert_float(held.y).is_greater(actor.global_position.y)
+	_tick(ctx, Fishing.LAUNCH_DELAY_SECONDS + STEP)
+	assert_bool(Fishing.is_launched()).is_true()
+	assert_that(Fishing.state()).is_equal(Fishing.State.CAST)
+
+
+func test_the_cast_arc_shoots_out_and_peaks_above_the_rod() -> void:
+	## `aUKI_parabola_init` type 1: horizontal speed falls from twice the average to zero.
+	var from := Vector3(0.0, 2.0, 0.0)
+	var to := Vector3(0.0, 0.0, 7.0)
+	var half: Vector3 = Fishing.arc_point(from, to, Fishing.CAST_SECONDS * 0.5)
+	assert_float(half.z).is_equal_approx(7.0 * 0.75, 0.001)
+	var end: Vector3 = Fishing.arc_point(from, to, Fishing.CAST_SECONDS)
+	assert_vector(end).is_equal_approx(to, Vector3.ONE * 0.001)
+	## 40 GX above the water it climbs about 43 GX over the release before dropping.
+	var peak: float = -INF
+	for i in 51:
+		peak = maxf(peak, Fishing.arc_point(from, to, Fishing.CAST_SECONDS * i / 50.0).y)
+	assert_float((peak - from.y) / FieldCatalog.GX_TO_METERS).is_between(38.0, 48.0)
 
 
 func test_cast_reaches_the_original_hundred_units() -> void:
@@ -189,16 +221,12 @@ func test_show_off_pose_waits_for_the_catch_report() -> void:
 	assert_bool(overlay.is_open()).is_true()
 	assert_float(motor.facing).is_not_equal(entry)
 
+	## `putaway_rod` never turns the player: they put the rod away still facing the camera.
+	var shown: float = motor.facing
 	overlay.close()
-	var restored: bool = false
 	for _i in 60:
 		await get_tree().process_frame
-		if is_equal_approx(motor.facing, entry):
-			restored = true
-			break
-	assert_bool(restored).override_failure_message(
-		"dismissing the report left the player at %f instead of %f" % [motor.facing, entry]
-	).is_true()
+		assert_float(motor.facing).is_equal_approx(shown, 0.0001)
 
 
 func test_cast_is_refused_away_from_water() -> void:
@@ -435,18 +463,13 @@ func test_player_turns_to_the_camera_for_the_show_off_pose() -> void:
 	if anim != null and not anim.get_animation_list().is_empty():
 		assert_str(anim.current_animation).contains(String(Fishing.REEL_SHOW))
 
-	## And once the pose is over the facing comes back: the original threads the pre-catch
-	## angle through `notice_rod` into `putaway_rod`, so you end up looking at the water again
-	## rather than stuck square-on to the camera.
-	var restored: bool = false
+	## And once the pose is over the player stays square-on to the camera: `putaway_rod`
+	## keeps the old `angle_y` only for the exchange pockets and never turns them back.
 	for _i in 240:
 		await get_tree().process_frame
-		if is_equal_approx(motor.facing, entry):
-			restored = true
-			break
-	assert_bool(restored).override_failure_message(
-		"the show-off pose left the player facing %f instead of %f" % [motor.facing, entry]
-	).is_true()
+		assert_float(absf(angle_difference(motor.facing, entry))).override_failure_message(
+			"the putaway turned the player back to %f" % motor.facing
+		).is_greater(0.001)
 
 
 ## Every `aGYO_TYPE_*` up to `aGYO_TYPE_NUM` should be on the shelf. The five non-fish
@@ -801,7 +824,7 @@ func test_casting_on_top_of_a_fish_scares_it_off() -> void:
 	)
 	assert_that(shadow).is_not_null()
 	_cast(ctx)
-	_tick(ctx, Fishing.CAST_SECONDS + STEP * 3.0)
+	_tick(ctx, Fishing.LAUNCH_DELAY_SECONDS + Fishing.CAST_SECONDS + STEP * 3.0)
 	assert_that(shadow.action).is_equal(FishShadow.Action.ESCAPE)
 
 
@@ -853,7 +876,7 @@ func test_the_player_cannot_walk_off_and_turns_to_the_bobber() -> void:
 	## Bobber off to the player's right (+X); the player faces +Z.
 	player.apply_facing(0.0)
 	assert_bool(Fishing.cast(ctx, start + Vector3(5.0, 0.0, 0.0))).is_true()
-	Fishing.tick(Fishing.CAST_SECONDS + 0.1)
+	Fishing.tick(Fishing.LAUNCH_DELAY_SECONDS + Fishing.CAST_SECONDS + 0.1)
 	assert_bool(Fishing.faces_bobber(player)).is_true()
 	Input.action_press(&"move_back")
 	var yaws: Array[float] = []
@@ -963,8 +986,8 @@ func test_bobber_tilt_eases_to_each_proc_target() -> void:
 		b = script.tilt_toward(b, 0.0, script.SETTLE_HALF_LIFE, script.SETTLE_MAX_RATE, 1.0 / 10.0)
 	assert_float(a).is_equal_approx(0.0, 0.0001)
 	assert_float(b).is_equal_approx(0.0, 0.0001)
-	## From upright to yanked-under is a quarter turn down, not three quarters up.
-	var first: float = script.tilt_toward(0.0, script.PITCH_PULLED, script.CAST_HALF_LIFE, script.CAST_MAX_RATE, 1.0 / 60.0)
+	## A quarter turn down is taken the short way, not three quarters up.
+	var first: float = script.tilt_toward(0.0, -PI * 0.5, script.CAST_HALF_LIFE, script.CAST_MAX_RATE, 1.0 / 60.0)
 	assert_float(first).is_less(0.0)
 	## The rate cap bounds how fast the cast can flatten it.
 	var capped: float = script.tilt_toward(0.0, PI * 0.9, script.CAST_HALF_LIFE, script.CAST_MAX_RATE, 0.1)
@@ -1032,7 +1055,7 @@ func test_fish_only_see_the_bobber_once_it_settles() -> void:
 	while Fishing.state() == Fishing.State.CAST:
 		_tick(ctx, STEP)
 		ticks += 1
-	assert_int(ticks).is_equal(roundi(Fishing.CAST_SECONDS * 60.0))
+	assert_int(ticks).is_equal(roundi((Fishing.LAUNCH_DELAY_SECONDS + Fishing.CAST_SECONDS) * 60.0))
 	var sense := FishShadow.Sense.new()
 	Fishing.fill_sense(sense)
 	## The landing tick splashes and nothing can see it yet.
@@ -1317,7 +1340,7 @@ func _cast(ctx: InteractionContext) -> void:
 
 ## Run the bobber out of its arc so fish can start reacting to it.
 func _settle(ctx: InteractionContext) -> void:
-	_tick(ctx, Fishing.CAST_SECONDS + STEP * 2.0)
+	_tick(ctx, Fishing.LAUNCH_DELAY_SECONDS + Fishing.CAST_SECONDS + STEP * 2.0)
 	assert_that(Fishing.state()).is_equal(Fishing.State.FLOAT)
 
 

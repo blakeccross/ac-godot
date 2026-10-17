@@ -65,14 +65,37 @@ func test_bells_tree_drops_one_money_bag() -> void:
 	assert_int(use.shake().drops.size()).is_equal(0)
 
 
-func test_bee_tree_drops_honeycomb_and_flags_swarm() -> void:
+func test_bee_tree_flags_the_swarm_and_drops_no_item() -> void:
+	## `bIT_actor_drop_wait_bee`: the nest is a prop that falls and fades, never an item.
 	var plant: PlantData = load("res://data/plants/hardwood_tree.tres")
 	var use := TreeUse.new()
 	use.configure(plant, &"TREE", false, TreeUse.Size.FULL, false, TreeUse.Content.BEES)
 	var out: TreeUse.Outcome = use.shake()
 	assert_bool(out.spawn_bees).is_true()
-	assert_int(out.drops.size()).is_equal(1)
-	assert_that(out.drops[0].id).is_equal(&"honeycomb")
+	assert_int(out.drops.size()).is_equal(0)
+
+
+func test_money_luck_turns_a_bell_tree_into_1000_bells() -> void:
+	## `drop_fruit`: `TREE_BELLS` drops `ITM_MONEY_1000` on a money-luck day.
+	var plant: PlantData = load("res://data/plants/hardwood_tree.tres")
+	Game.resident.destiny_type = PlayerState.Destiny.MONEY_LUCK
+	Game.resident.destiny_date = Vector3i(Clock.year, Clock.month, Clock.day)
+	var use := TreeUse.new()
+	use.configure(plant, &"TREE", false, TreeUse.Size.FULL, false, TreeUse.Content.BELLS)
+	var out: TreeUse.Outcome = use.shake()
+	Game.resident.destiny_type = PlayerState.Destiny.NORMAL
+	assert_int(out.drops.size()).is_greater(0)
+	assert_that(out.drops[0].id).is_equal(&"money_1000")
+
+
+func test_the_nest_lies_then_fades_away() -> void:
+	var nest: Node3D = load("res://scenes/world/wasp_nest.tscn").instantiate()
+	add_child(nest)
+	nest.call("drop", Vector3(0, 3, 0), Vector3.ZERO, 0.1)
+	await await_millis(int((0.1 + 2.0) * 1000.0) - 200)
+	assert_bool(is_instance_valid(nest)).is_true()
+	await await_millis(1300)
+	assert_bool(is_instance_valid(nest)).is_false()
 
 
 func test_planted_money_tree_drops_three_bags() -> void:

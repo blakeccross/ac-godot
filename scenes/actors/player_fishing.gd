@@ -83,13 +83,12 @@ func _wait_for_line() -> void:
 
 
 ## `m_player_main_notice_rod`: hold the catch up and turn square-on to the camera, then put
-## the catch report on screen and keep the pose until the player dismisses it. The facing is
-## restored afterwards because the original threads it through `notice_rod` into
-## `putaway_rod`, which turns the player back the way they were fishing.
+## the catch report on screen and keep the pose until the player dismisses it. The player
+## stays turned to the camera: `putaway_rod` keeps the old `angle_y` only to hand to the
+## exchange pockets and never turns them back to the water.
 func _play_show(beat: Fishing.ReelBeat) -> void:
 	if beat.player_anim == &"":
 		return
-	var entry_yaw: float = _player._motor.facing
 	var clip := _player._resolve_clip(String(beat.player_anim))
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_player._mesh)
 	HeldTool.play(skeleton, beat.tool_anim, false)
@@ -119,7 +118,6 @@ func _play_show(beat: Fishing.ReelBeat) -> void:
 			await get_tree().create_timer(length - held).timeout
 	else:
 		await _player._report_catch(beat.catch_msg, beat.pockets_full, beat.fish, beat.completes_record)
-	_player._motor.facing = entry_yaw
 	await _play_putaway(skeleton)
 
 

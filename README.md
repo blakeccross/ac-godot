@@ -61,7 +61,7 @@ The town's acres are built by the asset pipeline. Run it once before the first p
    /Applications/Godot.app/Contents/MacOS/Godot --path .
    ```
 
-Title → **New Game** runs the full opening (K.K. player select → Rover's train → station arrival with Porter and Nook → house pick → first job), like the original. Dev shortcuts: **Town Seed 12345** drops straight into a deterministic town, **Intro Sequence** re-enters the K.K.→train chain, **Station Arrival** runs just the station demo. WASD to walk, Shift to run, **E** to interact (pick up, talk, shake, sit, read, …), **Esc** to save and return to title. **Continue** reloads that save. Debug: **T** +1 hour, **Y** +1 day (crosses the 06:00 daily renew), **U** save. Shop is open 9:00–22:00. Filbert is off the acre while asleep or indoors.
+Title → **New Game** runs the full opening (K.K. player select → Rover's train → station arrival with Porter and Nook → house pick → first job), like the original. Dev shortcuts: **Town Seed 12345** drops straight into a deterministic town, **Intro Sequence** re-enters the K.K.→train chain, **Station Arrival** runs just the station demo. WASD to walk, Shift to run, **E** / Space for A (talk, shake, sit, read, use a tool, …), **F** for B (pick up items, weeds, signboards and furniture), **Esc** to save and return to title. **Continue** reloads that save. Debug: **T** +1 hour, **Y** +1 day (crosses the 06:00 daily renew), **U** save. Shop is open 9:00–22:00. Filbert is off the acre while asleep or indoors.
 
 ## Tests
 

@@ -1,13 +1,14 @@
 class_name DoorCamera
 extends RefCounted
 
-## `CAMERA2_PROCESS_DOOR` helpers — look at the door stand at Camera2 distance 620.
+## `CAMERA2_PROCESS_DOOR` helpers: frame the player's eye from 350 GX at 20.3°.
 
 
-static func begin(look_at: Vector3, tree: SceneTree = null) -> void:
+## `morph` for going in (`flags & 1`, 140 ticks); coming out snaps.
+static func begin(center: Vector3, tree: SceneTree = null, morph: bool = true) -> void:
 	var cam: Node = _camera(tree)
 	if cam != null and cam.has_method("begin_door"):
-		cam.call("begin_door", look_at)
+		cam.call("begin_door", center, morph)
 
 
 static func end(tree: SceneTree = null) -> void:

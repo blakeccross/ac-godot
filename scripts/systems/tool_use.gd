@@ -167,6 +167,7 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 		if outcome == Scoop.AIR or not HoleUse.dig(ctx, cell):
 			PlayerSe.karaburi(actor)
 			return false
+		dig_effects(ctx, cell, false)
 		if tool.id == &"golden_shovel":
 			_golden_bells(ctx, cell)
 	if tool.field_notice != "":
@@ -207,6 +208,18 @@ static func _apply_rod(tool: ToolData, action: Interaction, ctx: InteractionCont
 	if tool.field_notice != "":
 		Game.post_notice(tool.field_notice)
 	return true
+
+
+## The clods and dirt of a dig at `cell` (`get` when something comes up with it).
+static func dig_effects(ctx: InteractionContext, cell: Vector2i, get: bool) -> void:
+	var grid: WorldGrid = _grid(ctx)
+	var who := ctx.actor as Node3D if ctx != null else null
+	if grid == null or who == null:
+		return
+	var bg: Array = FootstepEffects.bg_of(ctx)
+	var hole: Vector3 = grid.cell_to_world(cell)
+	hole.y = who.global_position.y
+	FootstepEffects.dig_sequence(bg, hole, who, FootstepEffects.attr_at(bg, hole), get)
 
 
 static func facing_cell(ctx: InteractionContext) -> Vector2i:

@@ -99,3 +99,57 @@ func test_umbrella_twirl_sprays_only_in_rain() -> void:
 	assert_int(host.get_child_count()).is_equal(before)
 	Game.town.weather = was
 	host.queue_free()
+
+
+func test_a_dig_clod_grows_tips_and_is_thrown_up() -> void:
+	## `eDig_Hole_ct` / `_mv`, arg1 0: 36 ticks, grows for six to 0.0065, launched at tick 8
+	## (1 GX up, falling 0.1), fading over the last ten.
+	var host := Node3D.new()
+	add_child(host)
+	var clod: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.DIG_CLOD, Vector3.ZERO, 0.0, 0, 0)
+	assert_object(clod).is_not_null()
+	assert_float(clod.lifetime).is_equal_approx(36.0 / 60.0, 0.0001)
+	assert_float(clod.track_scale[6]).is_equal_approx(6.0 * FieldEffects.CLOD_GROW, 0.00001)
+	## Still before the launch, then rising, then back down below where it started.
+	assert_float(clod.track_pos[8].y).is_equal_approx(clod.track_pos[0].y, 0.0001)
+	assert_float(clod.track_pos[14].y).is_greater(clod.track_pos[8].y)
+	assert_float(clod.track_pos[36].y).is_less(clod.track_pos[8].y)
+	assert_float(clod.track_alpha[36]).is_equal(0.0)
+	assert_float(clod.track_rot[30].x).is_greater(clod.track_rot[8].x)
+	## A fill clod (arg1 3) stops moving after 30 ticks and shrinks away.
+	var fill: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.DIG_CLOD, Vector3.ZERO, 0.0, 0, 3)
+	assert_float(fill.lifetime).is_equal_approx(58.0 / 60.0, 0.0001)
+	assert_vector(fill.track_pos[40]).is_equal_approx(fill.track_pos[31], Vector3.ONE * 0.0001)
+	assert_float(fill.track_scale[58]).is_less(fill.track_scale[40])
+	host.queue_free()
+
+
+func test_wood_chips_fly_back_over_the_shoulder_and_bounce() -> void:
+	## `eKikuzu_ct`: thrown back (facing + 180° + up to 80°), 60–78 ticks; on flat ground at
+	## the start height they land and stay above it.
+	var host := Node3D.new()
+	add_child(host)
+	var chip: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.KIKUZU, Vector3.ZERO, 0.0, 0, 0,
+		func(_p: Vector3) -> float: return -0.5)
+	assert_object(chip).is_not_null()
+	assert_float(chip.lifetime * 60.0).is_between(59.9, 78.1)
+	var last: Vector3 = chip.track_pos[chip.track_pos.size() - 1] - chip.track_pos[0]
+	## Facing +Z: it ends up behind (−Z).
+	assert_float(last.z).is_less(0.0)
+	var floor_y: float = -0.5 + 3.0 * FieldCatalog.GX_TO_METERS
+	assert_float(chip.track_pos[chip.track_pos.size() - 1].y).is_greater_equal(floor_y - 0.3)
+	host.queue_free()
+
+
+func test_mud_and_fishing_drops_are_particles() -> void:
+	var at: Array[Vector3] = [Vector3.ZERO]
+	## `eDig_Mud_ct`: arg1 0 lives 32 ticks and steps through four frames.
+	var mud: FieldParticle.Style = FieldParticle.style_for(FieldEffects.Kind.DIG_MUD, 0.0, 0, 0, at)
+	assert_float(mud.lifetime).is_equal_approx(32.0 / 60.0, 0.0001)
+	assert_int(mud.tile0[0]).is_equal(0)
+	assert_int(mud.tile0[mud.tile0.size() - 1]).is_equal(3)
+	## A drop off a hooked fish comes back down to the water it left.
+	var drop: FieldParticle.Style = FieldParticle.style_for(FieldEffects.Kind.TURI_SUITEKI, 0.0, 0, 4, at)
+	var end: Vector3 = FieldParticle.offset_at(drop, drop.lifetime)
+	assert_float(end.y).is_equal_approx(0.0, 0.002)
+	assert_float(FieldParticle.offset_at(drop, drop.lifetime * 0.5).y).is_greater(0.0)

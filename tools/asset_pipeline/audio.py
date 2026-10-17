@@ -104,6 +104,26 @@ EXTRA_SE_NUMS: dict[str, int] = {
     "18": 0x18,
     "12a": 0x12A,
     "12c": 0x12C,
+    ## Villager feel effects' one-shots: the heart (`ef_lovelove2`, 0x118), the anger vein
+    ## (`ef_muka`, 0x137), heartbreak (`ef_situren`, 0x13D) and the exclamation mark
+    ## (`ef_kantanhu`, 0x14B).
+    "118": 0x118,
+    "137": 0x137,
+    "13d": 0x13D,
+    "14b": 0x14B,
+    ## The toss-the-ball game's throw and score (`ef_tamaire`, 0x152 / 0x153) and the wishing
+    ## well's coin (`ef_coin`, 0x466 / 0x467).
+    "152": 0x152,
+    "153": 0x153,
+    "466": 0x466,
+    "467": 0x467,
+    ## `SNDTRGSYS` message codes 1, 2, 5 and 6 (`mMsg_sound_sound_trg_sys`).
+    "12e": 0x12E,
+    "12f": 0x12F,
+    "427": 0x427,
+    "428": 0x428,
+    ## `Na_PlyWalkSeRoom`: indoor floor footsteps, `SE_FLOOR_DATA[floor] + 0x42E6`.
+    **{"%x" % n: n for n in range(0x4301, 0x430B)},
 }
 
 ## Level (looping, positional) SEs, played by level id rather than SE number
@@ -146,6 +166,16 @@ LEV_SE_NUMS: dict[str, int] = {
     ## pond's water (0x16) and its frogs on summer evenings and mornings (0xA1).
     "lev_b": 0x0B,
     "lev_1c": 0x1C,
+    ## Actors that hum while they are out: a waterfall (`aFLS_actor_move`, 0x0C, 40 GX up),
+    ## the wishing well (`ac_shrine_move`, 0x5A), a bee swarm (`ac_bee`, 0xB0), a rolling
+    ## snowball (`ac_snowman`, 0x34, while it moves), a glowing dig spot
+    ## (`bIT_actor_shin_effect_move`, 0x2C) and the carp streamer (0x35).
+    "lev_c": 0x0C,
+    "lev_5a": 0x5A,
+    "lev_b0": 0xB0,
+    "lev_34": 0x34,
+    "lev_2c": 0x2C,
+    "lev_35": 0x35,
     "lev_16": 0x16,
     "lev_a1": 0xA1,
     ## Villager feel effects held while their clip plays: the happy glow (14,
@@ -225,11 +255,14 @@ def parse_bgm_ids(src: str) -> dict[str, int]:
         return {}
     out: dict[str, int] = {}
     index = 0
-    for raw in match.group(1).split(","):
+    ## Comments go before the split: `// 128\n BGM_MD1` must still count as an entry, or
+    ## every later id slides down by one (songs 53 and 54 went unrendered that way).
+    body = re.sub(r"/\*.*?\*/", "", match.group(1), flags=re.S)
+    body = re.sub(r"//[^\n]*", "", body)
+    for raw in body.split(","):
         line = raw.strip()
-        if not line or line.startswith("/*"):
+        if not line:
             continue
-        line = re.sub(r"/\*.*?\*/", "", line).strip()
         if not line.startswith("BGM_"):
             continue
         if "=" in line:

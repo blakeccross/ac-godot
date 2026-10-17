@@ -85,11 +85,41 @@ func owned_ids() -> Array[StringName]:
 	return out
 
 
-## `aNSC_msg_win_open_wait2`: a catalog page with no order slot is "not for sale".
+## `mCL_*_init`: a catalog page has a price, and so can be ordered, only when the item is on
+## one of the shop's lists — rare ones included. Furniture also counts the train, Redd's,
+## raffle and mail-order present lists; umbrellas, stationery and diaries are always priced;
+## records, gyroids and fossils never are. Anything else is "not for sale"
+## (`aNSC_msg_win_open_wait2`).
+const ORDER_LISTS := {
+	"ftr": ["A", "B", "C", "Train", "Event", "Lottery", "EventPresentChumon"],
+	"cloth": ["A", "B", "C"],
+	"wall": ["A", "B", "C"],
+	"carpet": ["A", "B", "C"],
+}
+
+
 static func is_orderable(data: ItemData) -> bool:
-	## Records are never for sale (`mCL_music_init` price 0).
-	return (is_catalog_item(data) and ShopBook.buy_price(data) > 0 and not data.shop_rare
-		and not MinidiskCatalog.is_disc(data.id))
+	if not is_catalog_item(data) or ShopBook.buy_price(data) <= 0 or MinidiskCatalog.is_disc(data.id):
+		return false
+	if data is ToolData or data.id == ShopGoods.PAPER:
+		return true
+	if data is FurnitureData and FurnitureUse.is_diary(data as FurnitureData):
+		return true
+	## Authored stand-ins are on no disc list; they keep the plain rule.
+	if not ShopGoods.has_disc_lists() or (data is FurnitureData and not (data as FurnitureData).from_disc):
+		return not data.shop_rare
+	var kind: String = "ftr"
+	match data.category:
+		ItemData.Category.CLOTH:
+			kind = "cloth"
+		ItemData.Category.WALL:
+			kind = "wall"
+		ItemData.Category.FLOOR:
+			kind = "carpet"
+	for label: String in ORDER_LISTS[kind]:
+		if FurnitureCatalog.named_list(kind, label).has(data.id):
+			return true
+	return false
 
 
 func orders() -> Array[Dictionary]:

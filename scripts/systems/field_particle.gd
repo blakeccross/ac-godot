@@ -8,7 +8,9 @@ extends GPUParticles3D
 ## - splashes kicked up underfoot: sand, water and snow (`ef_sandsplash`, `ef_sibuki`,
 ##   `ef_yukihane`);
 ## - drops: water and snow flicked up that splat where they land (`ef_mizutama`,
-##   `ef_yukidama`), and the spray off a twirled umbrella (`ef_kasamizutama`).
+##   `ef_yukidama`), and the spray off a twirled umbrella (`ef_kasamizutama`);
+## - a shovel's dirt (`ef_dig_mud`), and the bobber's splash card and the drops a hooked
+##   fish throws up (`ef_turi_hane0` / `1`, `ef_turi_suiteki`).
 ## `field_particle_motion.gdshader` moves it in closed form and `field_particle.gdshader`
 ## draws its frames; a `Style` holds the numbers, converted from the decomp's GX-per-tick
 ## values where they are written.
@@ -23,11 +25,21 @@ const KINDS: Array[FieldEffects.Kind] = [
 	FieldEffects.Kind.DUST, FieldEffects.Kind.TUMBLE_DUST, FieldEffects.Kind.STEAM, FieldEffects.Kind.SOBA_YUGE,
 	FieldEffects.Kind.KISHA_KEMURI, FieldEffects.Kind.SAND, FieldEffects.Kind.SIBUKI, FieldEffects.Kind.YUKIHANE,
 	FieldEffects.Kind.MIZUTAMA, FieldEffects.Kind.YUKIDAMA, FieldEffects.Kind.KASAMIZUTAMA,
+	FieldEffects.Kind.DIG_MUD, FieldEffects.Kind.TURI_HANE, FieldEffects.Kind.TURI_SUITEKI,
 ]
+## `eDig_Mud_*_tex_tbl`: earth, sand and the mole cricket's (`arg1 | 0x8000`) frames.
+const MUD_FRAMES: Array[String] = ["ef_anahori02_01_tex", "ef_anahori02_02_tex", "ef_anahori02_03_tex", "ef_anahori02_04_tex"]
+const MUD_SAND_FRAMES: Array[String] = ["ef_anahori03_01_tex", "ef_anahori03_02_tex", "ef_anahori03_03_tex", "ef_anahori03_04_tex"]
+const MUD_MOLE_FRAMES: Array[String] = ["ef_mogura01_02_tex", "ef_mogura01_03_tex", "ef_mogura01_01_tex", "ef_mogura01_04_tex"]
+## `eTH0_ct`: the splash card's scale by arg0.
+const HANE_SCALE: Array[float] = [0.01, 0.013, 0.014, 0.009, 0.007]
+## `ef_turi_suiteki`: launched at 74.53° from level, 5 GX a tick along it, falling 0.75.
+const SUITEKI_ANGLE := 74.53125 * PI / 180.0
 ## A drop lies where it lands for 14 ticks, playing its splat.
 const SPLAT_TIME := 14.0 / 60.0
 
 var kind: FieldEffects.Kind = FieldEffects.Kind.DUST
+var _style: Style = null
 
 ## Atlas of frames per frame list, built once.
 static var _atlases: Dictionary = {}
@@ -119,6 +131,12 @@ static func style_for(
 			_drop(s, kind, yaw, a1, at, ground)
 		FieldEffects.Kind.KASAMIZUTAMA:
 			_spray(s, yaw)
+		FieldEffects.Kind.DIG_MUD:
+			_mud(s, yaw, a0, a1)
+		FieldEffects.Kind.TURI_HANE:
+			_hane(s, a0, a1)
+		FieldEffects.Kind.TURI_SUITEKI:
+			_suiteki(s, a0, a1)
 	_even(s)
 	return s
 
@@ -152,8 +170,14 @@ static func _axis(v0: float, a0: float, k: float, ka: float, t: float) -> float:
 	return (v0 - a) * _reach(k, t) + a * _reach(ka, t)
 
 
+## Where it ends up relative to where it started (a fishing drop's fall back to the water).
+func landed_offset() -> Vector3:
+	return offset_at(_style, _style.lifetime) if _style != null else Vector3.ZERO
+
+
 ## Hands `style` to the shaders and starts the puff.
 func apply(style: Style) -> void:
+	_style = style
 	lifetime = style.lifetime + style.hold
 	var motion := (process_material as ShaderMaterial).duplicate() as ShaderMaterial
 	var scale_k: float = GX / FieldCatalog.PIPELINE_SCALE
@@ -561,6 +585,95 @@ static func _spray(s: Style, yaw: float) -> void:
 	s.size_from_to = Vector2(0.005, 0.005)
 	s.mode = 0
 	s.tint = Color8(200, 255, 255, 200)
+
+
+## `eDig_Mud_ct` / `_mv` / `_dw`: a clot of dirt (arg0 the ground attribute). arg1 0–2:
+## flung back 3.5 GX a tick (±1.1) at 50–70° below level, 20–40° off the facing; 3–5: out
+## 0.4 at 120°·arg1, up 1.75–2.75; 6 and 7: out 1 along the facing, up 2–3; 8 (a weed):
+## straight up 2–3. All fall 0.175. 32 / 30 / 28 ticks; four frames by what is left
+## (over 18, 14, 10). `| 0x4000` is half size, `| 0x8000` the mole cricket's dirt.
+static func _mud(s: Style, yaw: float, arg0: int, arg1: int) -> void:
+	var mole: bool = (arg1 & 0x8000) != 0
+	var small: bool = (arg1 & 0x4000) != 0
+	var which: int = arg1 & 0x3FFF
+	var life: int = 28
+	if which == 0 or which == 3:
+		life = 32
+	elif which == 1 or which == 4:
+		life = 30
+	var v := Vector3.ZERO
+	if which < 3:
+		var pitch: float = deg_to_rad(-60.0 + (randf() * 20.0 - 10.0))
+		var speed: float = -3.5 + (randf() * 4.5 - 2.25) * 0.5
+		var heading: float = yaw + deg_to_rad(30.0 + (randf() * 20.0 - 10.0))
+		v = Vector3(speed * cos(pitch) * sin(heading), speed * sin(pitch), speed * cos(pitch) * cos(heading))
+	elif which < 6:
+		var heading: float = yaw + deg_to_rad(120.0 * which)
+		v = Vector3(0.4 * sin(heading), 1.75 + randf(), 0.4 * cos(heading))
+	elif which != 8:
+		v = Vector3(sin(yaw), 2.0 + randf(), cos(yaw))
+	else:
+		v = Vector3(0.0, 2.0 + randf(), 0.0)
+	var a := Vector3(0.0, -0.175, 0.0)
+	s.lifetime = _ticks(life)
+	## `v += a; p += v` a tick is the continuous path launched half a step faster.
+	s.launch = _speed(v + a * 0.5)
+	s.accel = _accel(a)
+	var size: float = 0.005 if small else 0.01
+	s.size_from_to = Vector2(size, size)
+	s.model = "ef_mogura01_00" if mole else ("ef_anahori03_00" if arg0 == FootstepEffects.ATTR_SAND or arg0 == FootstepEffects.ATTR_WAVE else "ef_anahori02_00")
+	s.frames = MUD_MOLE_FRAMES if mole else (MUD_SAND_FRAMES if s.model == "ef_anahori03_00" else MUD_FRAMES)
+	s.tile0 = PackedInt32Array()
+	for step: int in life / 2:
+		var left: int = life - step * 2
+		s.tile0.append(0 if left > 18 else (1 if left > 14 else (2 if left > 10 else 3)))
+	s.tile1 = s.tile0
+	s.lods = PackedFloat32Array([0.0])
+	s.mode = 4
+	s.intensity_alpha = false
+
+
+## `eTH0_*` / `eTH1_*`: the bobber's splash, standing up out of the water, 16 ticks, each
+## of its four frames held four. arg1 0 is `ef_turi_hane01` (scale by arg0), 1 is
+## `ef_turi_hane02`.
+static func _hane(s: Style, arg0: int, arg1: int) -> void:
+	s.lifetime = _ticks(16)
+	s.billboard = false
+	var big: bool = arg1 == 1
+	s.model = "ef_turi_hane02_00" if big else "ef_turi_hane01_00"
+	s.frames = _numbered("ef_turi_hane02_%d_int_i4", 0, 3) if big else _numbered("ef_turi_hane01_%d_int_i4", 0, 3)
+	s.tile0 = PackedInt32Array([0, 0, 1, 1, 2, 2, 3, 3])
+	s.tile1 = s.tile0
+	s.lods = PackedFloat32Array([0.0])
+	var size: float = 0.01 if big else HANE_SCALE[clampi(arg0, 0, HANE_SCALE.size() - 1)]
+	s.size_from_to = Vector2(size, size)
+	s.mode = 0
+	s.tint = Color.WHITE
+
+
+## `eTS_ct` / `_dw`: one of `arg1` drops thrown up round a circle (this is drop `arg0`),
+## 0–5 GX a tick out; it ends when it is back down at the water (a ring there is the
+## router's job, `FootstepEffects.bobber_splash`).
+static func _suiteki(s: Style, arg0: int, arg1: int) -> void:
+	var heading: float = deg_to_rad(float(arg0) * 360.0 / float(arg1)) if arg1 != 0 else 0.0
+	var reach: float = randf() * 5.0
+	var flat: float = reach * cos(SUITEKI_ANGLE)
+	s.launch = _speed(Vector3(flat * sin(heading), 5.0 * sin(SUITEKI_ANGLE), flat * cos(heading)))
+	s.accel = _accel(Vector3(0.0, -0.75, 0.0))
+	s.lifetime = suiteki_flight()
+	s.model = "ef_turi_suiteki01_00"
+	s.frames = ["ef_turi_suiteki01_0"]
+	s.tile0 = PackedInt32Array([0])
+	s.tile1 = s.tile0
+	s.lods = PackedFloat32Array([0.0])
+	s.size_from_to = Vector2(0.0015, 0.0015)
+	s.mode = 4
+	s.intensity_alpha = false
+
+
+## Seconds a fishing drop is up before it falls back to the water it left.
+static func suiteki_flight() -> float:
+	return _ticks(2.0 * 5.0 * sin(SUITEKI_ANGLE) / 0.75)
 
 
 # --- art ---------------------------------------------------------------------------------

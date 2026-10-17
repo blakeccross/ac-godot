@@ -39,12 +39,12 @@ func apply_growth() -> void:
 	GeneratedVisual.attach(self, visual_id)
 
 
+## Flowers are FG ids in the ENV range, which `Player_actor_CheckItem_fromPosition` never
+## accepts: there is no picking one by hand, only digging it up with the shovel.
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 	var actions: Array[Interaction] = []
 	if ToolUse.has(ctx, ToolData.Kind.SHOVEL):
 		actions.append(Interaction.of(Interaction.DIG, "Dig up", 12, &"ply_1_dig1", 15.0))
-	if _can_pick():
-		actions.append(Interaction.of(Interaction.PICK_UP, "Pick flower", 10, &"ply_1_pickup1", 20.0))
 	if ToolUse.has(ctx, ToolData.Kind.WATERING_CAN) and _needs_water():
 		actions.append(Interaction.of(Interaction.WATER, "Water flower", 16, &"ply_1_water1"))
 	return actions
@@ -58,7 +58,11 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 			return false
 		if ctx != null and ctx.actor != null:
 			PlayerSe.scoop_dig(ctx.actor)
-		return PlantGrowth.dig_up_flower(ctx, _cell())
+		var cell: Vector2i = _cell()
+		if not PlantGrowth.dig_up_flower(ctx, cell):
+			return false
+		ToolUse.dig_effects(ctx, cell, true)
+		return true
 	if action.id == Interaction.WATER:
 		if not ToolUse.has(ctx, ToolData.Kind.WATERING_CAN):
 			return false
@@ -67,33 +71,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 			apply_growth()
 		Game.post_notice("You water the flower.")
 		return true
-	if action.id != Interaction.PICK_UP:
-		return false
-	if not _can_pick():
-		return false
-	var item: ItemData = ItemCatalog.get_item(&"flower")
-	if item != null and Game.inventory != null:
-		if Game.inventory.add(item, 1) != 0:
-			Game.post_notice("Pockets are full.")
-			return false
-	Game.post_notice("Picked a flower.")
-	var pid: StringName = persist_id if persist_id != &"" else occupant_id
-	if pid != &"":
-		PlantGrowth.clear(pid)
-		Game.mark_interactable_removed(pid)
-	if ctx != null:
-		ctx.release_occupant(pid)
-	## Same shrink-into-hand as ground items (`Player_actor_Set_Item_Pickup`).
-	await PocketPull.run(self, PocketPull.hand_from_context(ctx, global_position))
-	queue_free()
-	return true
-
-
-func _can_pick() -> bool:
-	if plant == null or persist_id == &"":
-		return true
-	var rec: Dictionary = PlantGrowth.record(persist_id)
-	return PlantGrowth.pipeline(rec, plant) == PlantGrowth.Pipeline.HARVESTABLE
+	return false
 
 
 func _needs_water() -> bool:
