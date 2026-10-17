@@ -6,6 +6,9 @@ shader_type spatial;
 //   PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT,  1, 0, TEXEL0, TEXEL1,
 //   COMBINED, 0, SHADE, TEXEL0,  COMBINED, 0, PRIM_LOD_FRAC, PRIMITIVE
 // Prim (0, 50, 255,255,255, 50); Env (0, 100, 255, 255).
+// emu64 runs this as two TEV stages, not the RDP cycles: stage 0 is
+// mix(env, prim, t0); stage 1 samples TEXMAP1, so the add is water2:
+//   rgb = mix(env, prim, t0) * shade + t1,  a = prim_a + (t0 + t1) * lod.
 //
 // Scroll: {+1,-1}/{−1,-2} → evw flips T → dolphin (x,y)=(frame,frame)/(-frame,2frame).
 // emu64 UV: (s - sl/16)/w with sl = x<<1 → texel scroll = x/8 per game_frame @ 60 Hz.
@@ -28,10 +31,20 @@ uniform vec4 env_color : source_color = vec4(0.0, 0.39215687, 1.0, 1.0);
 // `play->game_frame` (evw_anime.c) increments once per rendered frame; the
 // texel-conversion chain below it (two_tex_scroll_dolphin -> emu64 SETTILESIZE,
 // verified against src/static/libforest/emu64/emu64.c) is exact — tune this
-// constant, not the /8 or /4 below. Bisecting against in-game feel: 60 too slow,
-// 120 closer but still slow. 180 is the current test point, not a verified value.
-uniform float game_fps = 180.0;
+// constant, not the /8 below. Scroll is in native texels (water_1/2 are 32²);
+// 45 keeps the rate previously tuned as 180 against 4× repaints.
+uniform float game_fps = 45.0;
 uniform float ground_lift = 0.02;
+
+// Outdoor kankyo light (`l_mEnv_kcolor_*`), set by World. 0–1 palette values.
+global uniform vec3 field_ambient;
+global uniform vec3 field_sun_color;
+global uniform vec3 field_sun_dir;
+global uniform vec3 field_moon_color;
+global uniform vec3 field_moon_dir;
+
+// G_LIGHTING + G_SHADING_SMOOTH: lit per vertex, then interpolated.
+varying vec3 vertex_shade;
 
 // Godot uploads Color uniforms already linearized. The combiner works on 8-bit
 // gamma values and TEXEL0/1 arrive raw, so PRIM/ENV go back to sRGB for the
@@ -52,6 +65,10 @@ vec3 linear_to_srgb(vec3 c) {
 }
 
 void vertex() {
+	vec3 n = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	float sun = max(dot(n, normalize(field_sun_dir)), 0.0);
+	float moon = max(dot(n, normalize(field_moon_dir)), 0.0);
+	vertex_shade = clamp(field_ambient + field_sun_color * sun + field_moon_color * moon, 0.0, 1.0);
 	vec4 world = MODEL_MATRIX * vec4(VERTEX, 1.0);
 	world.y += ground_lift;
 	POSITION = PROJECTION_MATRIX * VIEW_MATRIX * world;
@@ -60,22 +77,17 @@ void vertex() {
 void fragment() {
 	float frame = TIME * game_fps;
 	float texels = frame / 8.0;
-	vec2 s0 = max(vec2(textureSize(water1, 0)), vec2(1.0));
-	vec2 s1 = max(vec2(textureSize(water2, 0)), vec2(1.0));
-	vec2 uv0 = UV - vec2(1.0, 1.0) * texels / s0;
-	vec2 uv1 = UV - vec2(-1.0, 2.0) * texels / s1;
+	vec2 native = vec2(32.0);
+	vec2 uv0 = UV - vec2(1.0, 1.0) * texels / native;
+	vec2 uv1 = UV - vec2(-1.0, 2.0) * texels / native;
 	float t0 = texture(water1, uv0).r;
 	float t1 = texture(water2, uv1).r;
 
-	// Cycle1 RGB: (PRIM - ENV) * TEXEL0 + ENV
+	// Stage 0: mix(env, prim, t0). Stage 1: CPREV * shade + t1.
 	vec3 combined = mix(linear_to_srgb(env_color.rgb), linear_to_srgb(prim_color.rgb), t0);
-	// G_LIGHTING shade from world-space normal (outdoor key ≈ AC sun).
-	vec3 n = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	float shade = mix(0.45, 1.0, clamp(dot(n, normalize(vec3(0.35, 0.9, 0.2))), 0.0, 1.0));
-	// Cycle2 RGB: COMBINED * SHADE + TEXEL0
-	vec3 rgb_srgb = clamp(combined * shade + vec3(t0), vec3(0.0), vec3(1.0));
-	// Cycle2 A: COMBINED * PRIM_LOD_FRAC + PRIM  (LOD=50, A=50)
-	float a = clamp(clamp(t0 + t1, 0.0, 1.0) * 0.19607843 + 0.19607843, 0.0, 1.0);
+	vec3 rgb_srgb = clamp(combined * vertex_shade + vec3(t1), vec3(0.0), vec3(1.0));
+	// Stage 0 A: prim_a + t0 * lod. Stage 1 A: APREV + t1 * lod.  (LOD = A = 50)
+	float a = clamp(0.19607843 + (t0 + t1) * 0.19607843, 0.0, 1.0);
 
 	vec3 back_srgb = linear_to_srgb(textureLod(screen_texture, SCREEN_UV, 0.0).rgb);
 	ALBEDO = srgb_to_linear(mix(back_srgb, rgb_srgb, a));

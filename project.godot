@@ -142,3 +142,26 @@ textures/canvas_textures/default_texture_filter=0
 anti_aliasing/quality/msaa_3d=1
 environment/defaults/default_clear_color=Color(0, 0, 0, 1)
 textures/default_texture_filter=0
+
+[shader_globals]
+
+field_ambient={
+"type": "vec3",
+"value": Vector3(0.3137, 0.3137, 0.5882)
+}
+field_sun_color={
+"type": "vec3",
+"value": Vector3(0.7843, 0.9412, 0.9412)
+}
+field_sun_dir={
+"type": "vec3",
+"value": Vector3(0, 90, 80)
+}
+field_moon_color={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+field_moon_dir={
+"type": "vec3",
+"value": Vector3(0, -30, -40)
+}

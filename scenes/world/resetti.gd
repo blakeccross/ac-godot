@@ -8,6 +8,7 @@ extends EventNpc
 
 enum Think { START_WAIT, CALL, WAIT, EXIT }
 
+const GROUP := "resetti"
 const APPEAR := "npc_1_appear1"
 const WAIT_R := "npc_1_wait_r1"
 const GO_UG := "npc_1_go_ug1"
@@ -30,6 +31,7 @@ class Lecture extends BankTalk:
 
 
 func setup() -> void:
+	add_to_group(GROUP)
 	display_name = "Resetti" if species == ResettiVisit.RESETTI else "Don"
 	visible = false
 	collision_layer = 0
@@ -83,6 +85,31 @@ func talk_ended(_script: BankTalk) -> void:
 func _leave() -> void:
 	think_state = Think.EXIT
 	play_clip(GO_UG, false)
+
+
+## Drop him at once (debug `resetti off`): close the lecture and skip the dig-down.
+func dismiss() -> void:
+	if talking:
+		var ui := DialogueOverlay.find(get_tree())
+		if ui != null and ui.closed.is_connected(_on_talk_closed):
+			ui.closed.disconnect(_on_talk_closed)
+		if ui != null and ui.event_fired.is_connected(_on_talk_event):
+			ui.event_fired.disconnect(_on_talk_event)
+		talking = false
+		talk = null
+		if ui != null and ui.is_open():
+			ui.close(true)
+		TalkCamera.end(get_tree())
+	_finish()
+
+
+## Send every lecture mole home (`resetti off`).
+static func dismiss_all(tree: SceneTree) -> void:
+	if tree == null:
+		return
+	for node: Node in tree.get_nodes_in_group(GROUP):
+		if node.has_method("dismiss"):
+			node.call("dismiss")
 
 
 ## `aRSD_retire_npc_wait`: he is gone, so the session is forgiven.

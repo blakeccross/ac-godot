@@ -3,31 +3,31 @@
 [ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_680wb"]
 [ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_r2_1.tres" id="2_brtd1"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_r2_1/grd_s_r2_12.res" id="3_3ttne"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/764198791dcf.tres" id="4_1s686"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/a8e242a06c53.tres" id="5_6lulm"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/91dfa96a0253.tres" id="6_nuy00"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/75e3ef804b23.tres" id="7_lsv3f"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/b9aef45eb859.tres" id="4_1s686"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/efd7a48c653e.tres" id="5_6lulm"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/9a4ca8c36e8b.tres" id="6_nuy00"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/a0f69bacaa06.tres" id="7_lsv3f"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_r2_1/grd_s_r2_1_mask.res" id="8_d3vvm"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/d5e80a254dcf.tres" id="9_f8kgl"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/202a112f0287.tres" id="9_f8kgl"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_r2_1/grd_s_r2_1_blend.res" id="10_286h7"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/river_dcc355df5fa1.tres" id="11_5ki7a"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/river_6c1924ebe8e3.tres" id="11_5ki7a"]
 
-[node name="grd_s_r2_1" type="Node3D" unique_id=1119091173]
+[node name="grd_s_r2_1" type="Node3D" unique_id=1871454929]
 script = ExtResource("1_680wb")
 visual_id = &"grd_s_r2_1"
 grid = ExtResource("2_brtd1")
 
-[node name="grd_s_r2_12" type="MeshInstance3D" parent="." unique_id=827946252]
+[node name="grd_s_r2_12" type="MeshInstance3D" parent="." unique_id=161484984]
 mesh = ExtResource("3_3ttne")
 surface_material_override/0 = ExtResource("4_1s686")
 surface_material_override/1 = ExtResource("5_6lulm")
 surface_material_override/2 = ExtResource("6_nuy00")
 surface_material_override/3 = ExtResource("7_lsv3f")
 
-[node name="grd_s_r2_1_mask" type="MeshInstance3D" parent="." unique_id=1875005018]
+[node name="grd_s_r2_1_mask" type="MeshInstance3D" parent="." unique_id=1631236152]
 mesh = ExtResource("8_d3vvm")
 surface_material_override/0 = ExtResource("9_f8kgl")
 
-[node name="grd_s_r2_1_blend" type="MeshInstance3D" parent="." unique_id=1858060027]
+[node name="grd_s_r2_1_blend" type="MeshInstance3D" parent="." unique_id=1986155141]
 mesh = ExtResource("10_286h7")
 surface_material_override/0 = ExtResource("11_5ki7a")

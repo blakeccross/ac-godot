@@ -51,6 +51,42 @@ func test_an_open_session_counts_as_a_reset() -> void:
 	assert_int(Game.resident.reset_count).is_equal(2)
 
 
+## `resetti off` is written into the save, so the next unsaved quit does not summon him
+## or raise the count. `resetti on` counts that still-open session.
+func test_disable_skips_the_visit_until_turned_back_on() -> void:
+	assert_int(SaveService.save_game(PATH)).is_equal(OK)
+	SaveService.mark_session_open(0, PATH)
+	assert_int(SaveService.set_resetti_disabled(true, PATH)).is_equal(OK)
+	Game.reset_session()
+	assert_int(SaveService.load_game(PATH)).is_equal(OK)
+	var count: int = Game.resident.reset_count
+	Game.note_reset(SaveService.last_reset_code)
+	assert_bool(Game.resetti_disabled).is_true()
+	assert_bool(Game.reset_flag).is_false()
+	assert_int(Game.resident.reset_count).is_equal(count)
+	## The next load's open-session stamp must not drop the disable.
+	SaveService.mark_session_open(Game.resident.reset_count, PATH)
+	Game.reset_session()
+	assert_int(SaveService.load_game(PATH)).is_equal(OK)
+	assert_bool(Game.resetti_disabled).is_true()
+	Game.note_reset(SaveService.last_reset_code)
+	assert_bool(Game.reset_flag).is_false()
+	## A later full save keeps it too.
+	assert_int(SaveService.save_game(PATH)).is_equal(OK)
+	Game.reset_session()
+	assert_int(SaveService.load_game(PATH)).is_equal(OK)
+	assert_bool(Game.resetti_disabled).is_true()
+	## Turn him back on, then quit without saving: that open session counts again.
+	assert_int(SaveService.set_resetti_disabled(false, PATH)).is_equal(OK)
+	SaveService.mark_session_open(Game.resident.reset_count, PATH)
+	Game.reset_session()
+	assert_int(SaveService.load_game(PATH)).is_equal(OK)
+	assert_bool(Game.resetti_disabled).is_false()
+	Game.note_reset(SaveService.last_reset_code)
+	assert_bool(Game.reset_flag).is_true()
+	assert_int(Game.resident.reset_count).is_equal(1)
+
+
 ## The RTC ran while the game was off (`lbRTC_GetTime` at start); a clock behind the last save
 ## marks `cheated_flag` (`aNPS2_game_start_wait`).
 func test_time_passes_while_away() -> void:

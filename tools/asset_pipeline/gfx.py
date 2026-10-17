@@ -793,7 +793,7 @@ def _classic_pair(state: TextureState) -> bool:
 
 
 def _decode_snap(
-    bank: TextureBank, state: TextureState, snap: dict, *, skip_prim: bool
+    bank: TextureBank, state: TextureState, snap: dict, *, skip_prim: bool, allow_achd: bool = True
 ) -> tuple[bytes | None, str, str]:
     tmp = replace(
         state,
@@ -807,7 +807,7 @@ def _decode_snap(
         prim=(255, 255, 255, 255) if skip_prim else state.prim,
         n64_linear=bool(snap.get("n64_linear", state.n64_linear)),
     )
-    return bank.decode_current(tmp)
+    return bank.decode_current(tmp, allow_achd=allow_achd)
 
 
 def _apply_settilesize(w0: int, w1: int, state: TextureState) -> None:
@@ -1008,8 +1008,17 @@ def parse_gfx(
             skip_prim = bool(water_kind)
             bank.water_surface = bool(water_kind)
             if water_kind in ("river", "ocean", "splash", "waterfall") and tex_state.tile0 and tex_state.tile1:
-                png, tex_name, _alpha = _decode_snap(bank, tex_state, tex_state.tile0, skip_prim=True)
-                layer1_png, layer1_name, _a1 = _decode_snap(bank, tex_state, tex_state.tile1, skip_prim=True)
+                ## Falls and river combiners add and multiply the raw I/IA levels.
+                ## An ACHD repaint turns the mist mask into a solid sheet, the
+                ## crest into a white bar, and the river's thin ripple web into
+                ## dark cells. Ocean stays on the HD cap.
+                native_texels = water_kind in ("waterfall", "river")
+                png, tex_name, _alpha = _decode_snap(
+                    bank, tex_state, tex_state.tile0, skip_prim=True, allow_achd=not native_texels
+                )
+                layer1_png, layer1_name, _a1 = _decode_snap(
+                    bank, tex_state, tex_state.tile1, skip_prim=True, allow_achd=not native_texels
+                )
                 texel_mode = "BLEND"
                 wrap_s = int(tex_state.tile0["wrap_s"])
                 wrap_t = int(tex_state.tile0["wrap_t"])

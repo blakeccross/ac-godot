@@ -8,33 +8,60 @@ place of the original textures. Behaviour, numbers, schedules, and content shoul
 match the GameCube game. Systems are still built with Godot-native architecture
 rather than translated from C.
 
-**[→ Full feature checklist](docs/feature-checklist.md)** — every feature, big and
-small, tracked to completion.
+**[→ Roadmap](docs/feature-checklist.md)** — the feature checklist of every system,
+tracked to completion.
 
 This project is original work. It is **not affiliated with, endorsed by, or connected to Nintendo**. Do not add Nintendo assets, music, trademarks, or source from the original game. Villager names in data (Filbert, Rosie, …) are fine.
 
 ## Requirements
 
 - [Godot 4.6](https://godotengine.org/download) or newer
+- Python 3.9+
 - Forward+ capable GPU (Vulkan, Metal, or Direct3D 12)
 - Desktop: macOS, Windows, or Linux
+- A GameCube disc image you already own (`GAFE01`, USA). Do not put it inside this repository
 
 ## Run
 
-1. Open this folder in Godot 4.6+.
-2. Press Play. Title → **New Game** runs the full opening (K.K. player select → Rover's train → station arrival with Porter and Nook → house pick → first job), like the original. Dev shortcuts: **Town Seed 12345** drops straight into a deterministic town, **Intro Sequence** re-enters the K.K.→train chain, **Station Arrival** runs just the station demo. WASD to walk, Shift to run, **E** to interact (pick up, talk, shake, sit, read, …), **Esc** to save and return to title. **Continue** reloads that save. Debug: **T** +1 hour, **Y** +1 day (crosses the 06:00 daily renew), **U** save. Shop is open 9:00–22:00. Filbert is off the acre while asleep or indoors.
+The town's acres are built by the asset pipeline. Run it once before the first play. Full options are in [docs/asset_pipeline.md](docs/asset_pipeline.md).
 
-From a terminal, if the Godot binary is on your `PATH`:
+1. Install the pipeline's Python packages:
 
-```sh
-godot --path .
-```
+   ```sh
+   pip3 install -r tools/requirements.txt
+   ```
 
-On macOS with the official app bundle:
+2. Copy the config and edit `tools/config.local.json` (gitignored):
 
-```sh
-/Applications/Godot.app/Contents/MacOS/Godot --path .
-```
+   ```sh
+   cp tools/config.example.json tools/config.local.json
+   ```
+
+   - `game_files` — absolute path to the disc image (`.iso`, `.gcm`, `.rvz`) or a Dolphin dump that contains `files/`
+   - `work_root` — absolute path **outside** this repo, where extracted files are written
+   - `godot_bin` — the Godot executable. On macOS: `/Applications/Godot.app/Contents/MacOS/Godot`
+   - `achd_enabled` — set to `false` unless you have an ACHD texture pack at `achd_root`
+   - `decomp_root` — optional. A local [ac-decomp](https://github.com/ACreTeam/ac-decomp) checkout, used for villager tables, furniture layouts, and music. Leave it `""` if you do not have one
+
+3. Build the assets. This extracts the disc, converts models and textures, and bakes the acre scenes. The first run downloads `dtk` into `tools/.cache/dtk`.
+
+   ```sh
+   python3 tools/build_assets.py
+   ```
+
+4. Start the game. Open this folder in Godot 4.6+ and press Play, or from a terminal:
+
+   ```sh
+   godot --path .
+   ```
+
+   On macOS with the official app bundle:
+
+   ```sh
+   /Applications/Godot.app/Contents/MacOS/Godot --path .
+   ```
+
+Title → **New Game** runs the full opening (K.K. player select → Rover's train → station arrival with Porter and Nook → house pick → first job), like the original. Dev shortcuts: **Town Seed 12345** drops straight into a deterministic town, **Intro Sequence** re-enters the K.K.→train chain, **Station Arrival** runs just the station demo. WASD to walk, Shift to run, **E** to interact (pick up, talk, shake, sit, read, …), **Esc** to save and return to title. **Continue** reloads that save. Debug: **T** +1 hour, **Y** +1 day (crosses the 06:00 daily renew), **U** save. Shop is open 9:00–22:00. Filbert is off the acre while asleep or indoors.
 
 ## Tests
 
@@ -68,7 +95,7 @@ See [docs/testing.md](docs/testing.md).
 
 Behavior may be studied from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Clone that repository **outside** this project. Do not copy C into GDScript, and do not commit the decomp, disc images, or original assets here.
 
-Asset extraction from a disc you already own is documented in [docs/asset_pipeline.md](docs/asset_pipeline.md). Converted files land in `assets/generated/` and are gitignored. Run the pipeline before opening the project: the town's field acres load only from scenes the `bake` step builds (`scenes/world/acres/`), and there is no fallback without them.
+Asset extraction from a disc you already own is documented in [docs/asset_pipeline.md](docs/asset_pipeline.md). Converted files land in `assets/generated/` and are gitignored. The steps to build them and start the game are in [Run](#run).
 
 See [docs/decomp-mapping.md](docs/decomp-mapping.md) and [docs/architecture.md](docs/architecture.md).
 

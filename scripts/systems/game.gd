@@ -133,6 +133,8 @@ var bee_chase: bool = false
 var bee_greeted: Dictionary = {}
 ## `Common_Get(reset_flag)`: this session follows one of those — Mr. Resetti is waiting.
 var reset_flag: bool = false
+## Debug console `resetti off`: he stays home, and unsaved quits do not raise the count.
+var resetti_disabled: bool = false
 ## False until `sync_events` has adopted the clock for this session.
 var _events_ready: bool = false
 
@@ -1042,8 +1044,11 @@ func take_weed_days() -> int:
 
 
 ## `mCD_SetResetInfo`: the save was still marked open, so the last session ended without
-## saving.
+## saving. A debug disable skips the visit and does not count it.
 func note_reset(reset_code: int) -> void:
+	if resetti_disabled:
+		reset_flag = false
+		return
 	reset_flag = reset_code != 0
 	if reset_flag:
 		resident.reset_count += 1
@@ -1149,6 +1154,7 @@ func reset_session() -> void:
 	money_power = 0
 	goods_power = 0
 	reset_flag = false
+	resetti_disabled = false
 	goki_shocked = false
 	bee_swell = false
 	bee_chase = false

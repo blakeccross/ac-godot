@@ -103,3 +103,20 @@ func test_unknown_command() -> void:
 	var console := DebugConsole.new()
 	var msg: String = console.execute("fly")
 	assert_str(msg).contains("Unknown command")
+
+
+func test_resetti_off_disables_him() -> void:
+	var console := DebugConsole.new()
+	Game.reset_flag = true
+	Game.resident.reset_count = 3
+	var msg: String = console.execute("resetti off")
+	assert_str(msg).is_equal("Resetti disabled.")
+	assert_bool(Game.resetti_disabled).is_true()
+	assert_bool(Game.reset_flag).is_false()
+	assert_int(Game.resident.reset_count).is_equal(3)
+	assert_str(console.execute("resetti disable")).is_equal("Resetti disabled.")
+	assert_str(console.execute("resetti on")).is_equal("Resetti enabled.")
+	assert_bool(Game.resetti_disabled).is_false()
+	assert_str(console.execute("/resetti enable")).is_equal("Resetti enabled.")
+	var matches: PackedStringArray = console.suggestions("resetti of")
+	assert_that(matches).contains("off")

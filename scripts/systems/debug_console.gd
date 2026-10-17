@@ -15,6 +15,7 @@ const HOUSE_SIZES: PackedStringArray = ["small", "medium", "large", "upper"]
 const WEATHER_KINDS: PackedStringArray = ["clear", "rain", "snow", "sakura"]
 const INTENSITY_NAMES: PackedStringArray = ["none", "light", "normal", "heavy"]
 const LIGHTHOUSE_ARGS: PackedStringArray = ["status", "start", "lit", "clear"]
+const RESETTI_ARGS: PackedStringArray = ["off", "on", "disable", "enable", "1", "2", "3", "4", "5", "6", "7", "8"]
 const SEASON_ARGS: PackedStringArray = ["spring", "summer", "autumn", "fall", "winter", "next"]
 
 var history: PackedStringArray = []
@@ -684,16 +685,7 @@ func execute(raw: String) -> String:
 			var grown: int = WeedUse.grow(wd_world, wd_world.grid, wd_world.layout, wd_n, wd_rng)
 			return "%d weeds sown (%d in town)." % [grown, WeedUse.count()]
 		"resetti":
-			## Mr. Resetti now, as after reset number N (1-8; default the next one).
-			var rs_tree := Engine.get_main_loop() as SceneTree
-			var rs_player := rs_tree.get_first_node_in_group(Player.GROUP) as Node3D if rs_tree != null else null
-			var rs_world := World.find(rs_tree) if rs_tree != null else null
-			if rs_player == null or rs_world == null:
-				return "Resetti needs the outdoor field."
-			Game.resident.reset_count = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else Game.resident.reset_count + 1
-			Game.reset_flag = true
-			load("res://scenes/world/resetti.gd").spawn(rs_world.get_node("Characters"), rs_player)
-			return "Reset #%d." % Game.resident.reset_count
+			return _cmd_resetti(args)
 		"exercise":
 			## Play radio exercise move 0-17 (`mPlayer_RADIO_EXERCISE_CMD*`).
 			var ex_tree := Engine.get_main_loop() as SceneTree
@@ -793,6 +785,9 @@ func suggestions(line: String) -> PackedStringArray:
 		"lighthouse":
 			if index == 1:
 				return _filter_prefix(LIGHTHOUSE_ARGS, token)
+		"resetti":
+			if index == 1:
+				return _filter_prefix(RESETTI_ARGS, token)
 		"house":
 			if index == 1:
 				return _filter_prefix(HOUSE_ARGS, token)
@@ -870,12 +865,35 @@ func _cmd_help() -> String:
 		"  sting [on|off|mosquito]  (bee sting, set the swollen face, or a mosquito bite)",
 		"  town [perfect]  (rate the town now)",
 		"  weeds [n|clear]  (sow weeds now, or clear them all)",
-		"  resetti [1-8]  (Mr. Resetti, as after that many resets)",
+		"  resetti [1-8|off|on]  (summon him, or keep him from appearing after a reset)",
 		"  exercise <0-17>  (a radio exercise move)",
 		"  pitfall [auto|villager]  (bury one under the player, or the nearest villager)",
 		"  clear / help",
 		"Tab completes. Up/Down recall history.",
 	])
+
+
+## `resetti` summons him as after reset number N. `off` / `disable` keeps him from appearing
+## after an unsaved quit (saved immediately); `on` / `enable` brings that back.
+func _cmd_resetti(args: PackedStringArray) -> String:
+	var sub: String = String(args[0]).to_lower() if not args.is_empty() else ""
+	if sub == "off" or sub == "disable":
+		SaveService.set_resetti_disabled(true)
+		load("res://scenes/world/resetti.gd").dismiss_all(Engine.get_main_loop() as SceneTree)
+		return "Resetti disabled."
+	if sub == "on" or sub == "enable":
+		SaveService.set_resetti_disabled(false)
+		return "Resetti enabled."
+	## Mr. Resetti now, as after reset number N (1-8; default the next one).
+	var rs_tree := Engine.get_main_loop() as SceneTree
+	var rs_player := rs_tree.get_first_node_in_group(Player.GROUP) as Node3D if rs_tree != null else null
+	var rs_world := World.find(rs_tree) if rs_tree != null else null
+	if rs_player == null or rs_world == null:
+		return "Resetti needs the outdoor field."
+	Game.resident.reset_count = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else Game.resident.reset_count + 1
+	Game.reset_flag = true
+	load("res://scenes/world/resetti.gd").spawn(rs_world.get_node("Characters"), rs_player)
+	return "Reset #%d." % Game.resident.reset_count
 
 
 ## The lighthouse quest has no Tortimer to hand it out yet (`ac_ev_soncho2`); `start` gives

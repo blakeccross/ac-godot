@@ -119,7 +119,7 @@ func _ready() -> void:
 		present = PresentVisit.decide_now()
 		if present != PresentVisit.Kind.NONE:
 			load("res://scenes/world/present_npc.gd").spawn($Characters, present, _door_stand, _door_yaw)
-	if (present == PresentVisit.Kind.NONE and Game.reset_flag
+	if (present == PresentVisit.Kind.NONE and Game.reset_flag and not Game.resetti_disabled
 			and not Game.intro_station_active and not Game.title_demo_active):
 		load("res://scenes/world/resetti.gd").spawn($Characters, Player.find(get_tree()))
 	if not Game.title_demo_active and not Game.intro_station_active:
@@ -320,6 +320,15 @@ func _apply_time_of_day() -> void:
 	_moon.light_energy = float(pal["moon_energy"])
 	_moon.shadow_enabled = false
 	_moon.visible = _moon.light_energy > 0.02
+	## Unshaded combiner shaders (waterfall) do the `G_LIGHTING` vertex sum
+	## themselves in the 8-bit palette space, not Godot's linear light energy.
+	for pair: Array in [
+		[&"field_ambient", pal["ambient"]], [&"field_sun_color", pal["sun"]], [&"field_moon_color", pal["moon"]],
+	]:
+		var c: Color = pair[1] as Color
+		RenderingServer.global_shader_parameter_set(pair[0], Vector3(c.r, c.g, c.b))
+	RenderingServer.global_shader_parameter_set(&"field_sun_dir", pal["sun_dir"] as Vector3)
+	RenderingServer.global_shader_parameter_set(&"field_moon_dir", pal["moon_dir"] as Vector3)
 	var env: Environment = _world_env.environment
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = pal["ambient"] as Color

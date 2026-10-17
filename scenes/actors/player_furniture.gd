@@ -37,7 +37,7 @@ var _player: Player:
 ## `aMR_ManageMoveBottun`: A against a piece in your own house grips it. Anything else —
 ## nothing there, a piece in the pockets to place, another room — falls through to the normal verb.
 func try_grip() -> bool:
-	if _player._busy or gripping or _player._door_entering or not Game.is_decorating() or Game.held_furniture() != null:
+	if _player._busy or gripping or _player.doors.is_door_entering() or not Game.is_decorating() or Game.held_furniture() != null:
 		return false
 	var session: IndoorSession = Game.interior_session
 	if session == null:
@@ -355,7 +355,7 @@ func play_storage_close(storage_type: int) -> void:
 
 ## `Player_actor_CheckAndRequest_main_pickup_all`: B facing a piece in your own house picks it up.
 func poll_furniture_pickup() -> void:
-	if not Input.is_action_just_pressed("sprint") or _player._menu_open() or _player._door_entering:
+	if not Input.is_action_just_pressed("sprint") or _player._menu_open() or _player.doors.is_door_entering():
 		return
 	if not Game.is_decorating() or Game.interior_session == null:
 		return

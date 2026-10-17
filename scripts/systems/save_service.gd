@@ -60,6 +60,9 @@ func save_game(path: String = "") -> Error:
 		"world": world,
 		## `mCD_ClearResetCode`: a proper save closes the session.
 		"reset_code": 0,
+		## Debug console `resetti off`. Kept beside the reset stamp so a later save
+		## does not drop it.
+		"resetti_disabled": Game.resetti_disabled if Game != null else false,
 	}
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
@@ -76,6 +79,8 @@ func load_game(path: String = "", slot: int = -1) -> Error:
 	if data.is_empty():
 		return ERR_FILE_NOT_FOUND if not FileAccess.file_exists(path) else ERR_INVALID_DATA
 	last_reset_code = int(data.get("reset_code", 0))
+	if Game != null:
+		Game.resetti_disabled = bool(data.get("resetti_disabled", false))
 	Clock.apply_snapshot(data.get("clock", {}))
 	last_elapsed = 0
 	if data.has("os_time"):
@@ -218,6 +223,27 @@ func write_roster(roster: PlayerRoster, path: String = "") -> Error:
 	data["world"] = town
 	data["version"] = SAVE_VERSION
 	data.erase("inventory")
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return FileAccess.get_open_error()
+	file.store_string(JSON.stringify(data, "\t"))
+	return OK
+
+
+## Debug console `resetti off` / `resetti on`. Written immediately, so quitting without
+## saving keeps him disabled. Memory updates even when there is no save file yet.
+func set_resetti_disabled(disabled: bool, path: String = "") -> Error:
+	if Game != null:
+		Game.resetti_disabled = disabled
+		if disabled:
+			Game.reset_flag = false
+	path = _path(path)
+	if path == "" or not FileAccess.file_exists(path):
+		return ERR_FILE_NOT_FOUND
+	var data: Dictionary = _read(path)
+	if data.is_empty():
+		return ERR_INVALID_DATA
+	data["resetti_disabled"] = disabled
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return FileAccess.get_open_error()

@@ -160,4 +160,3 @@ func offer_wish(ui: DialogueOverlay, player: Player) -> bool:
 		await player.shrine_visit(at, float(stand[1]), toss, global_position.y)
 	_visiting = false
 	return true
-

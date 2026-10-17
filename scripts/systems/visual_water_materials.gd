@@ -216,7 +216,8 @@ static func make_river_water_material(std: StandardMaterial3D, mouth: bool = fal
 	sh.set_shader_parameter("water2", water2)
 	sh.set_shader_parameter("env_color", _RIVER_ENV_MOUTH if mouth else _RIVER_ENV_INLAND)
 	sh.set_shader_parameter("prim_color", Color(1.0, 1.0, 1.0, 50.0 / 255.0))
-	sh.set_shader_parameter("game_fps", 180.0)
+	## Native 32² water_1/2; 45 keeps the old 180 tune against 4× repaints.
+	sh.set_shader_parameter("game_fps", 45.0)
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
 	sh.set_meta("river_water", true)
 	return sh
@@ -266,7 +267,8 @@ static func make_waterfall_water_material(
 	## Decomp obj_fallS grpAT/BT/CT/DT — dual-scroll EVW_ANIME SCROLL2.
 	var sh := ShaderMaterial.new()
 	sh.shader = _WATERFALL_WATER_SHADER
-	sh.render_priority = 2
+	## Draw AT → DT so each sheet composites over the one before it.
+	sh.render_priority = 2 + _waterfall_layer_index(src, surface)
 	var tile0: Texture2D = std.albedo_texture
 	var tile1: Texture2D = _layer1_texture(std)
 	if tile1 == null or tile1 == tile0:
@@ -274,7 +276,9 @@ static func make_waterfall_water_material(
 	sh.set_shader_parameter("tile0", tile0)
 	sh.set_shader_parameter("tile1", tile1)
 	sh.set_shader_parameter("waterfall_layer", _waterfall_layer_index(src, surface))
-	sh.set_shader_parameter("game_fps", 180.0)
+	## Native 32² tiles. 45 matches the old 180 Hz tune, which was compensating
+	## for 4× upscaled sheets (180/128 = 45/32).
+	sh.set_shader_parameter("game_fps", 45.0)
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
 	var extras := VisualSurface.gltf_extras(src)
 	sh.set_shader_parameter("tile0_mirror_s", 1.0 if bool(extras.get("tile0_mirror_s", false)) else 0.0)
