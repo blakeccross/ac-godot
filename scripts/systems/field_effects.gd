@@ -18,7 +18,7 @@ extends Node3D
 enum Kind {
 	DUST, TUMBLE_DUST, SAND, MIZUTAMA, YUKIDAMA, YUKIHANE, SIBUKI, PETAL, TURN_PRINT, BODY_PRINT,
 	KISHA_KEMURI, STEAM, HAMON, KASAMIZU, KASAMIZUTAMA, SOBA_YUGE,
-	DIG_CLOD, DIG_MUD, KIKUZU, AMI_MIZU, TURI_HANE, TURI_SUITEKI,
+	DIG_CLOD, DIG_MUD, KIKUZU, AMI_MIZU, TURI_HANE, TURI_SUITEKI, BUBU,
 }
 
 const GX := FieldCatalog.GX_TO_METERS
@@ -238,6 +238,12 @@ func _construct() -> bool:
 			_ct_kikuzu()
 		Kind.AMI_MIZU:
 			_ct_ami_mizu()
+		Kind.BUBU:
+			## `eBubu_init` / `_ct`: the cross 70 GX over the player, for the effect
+			## controller's default 10 ticks, with its buzzer.
+			origin.y += 70.0 * GX
+			lifetime = _ticks(10)
+			Audio.play_se(&"100a", null)
 		_:
 			return false
 	return true
@@ -491,6 +497,8 @@ func _model_id() -> String:
 			return "ef_kikuzu01_00"
 		Kind.AMI_MIZU:
 			return "ef_amimizu01_00"
+		Kind.BUBU:
+			return "ef_peke01_00"
 	return ""
 
 
@@ -531,7 +539,7 @@ func _attach() -> void:
 		_frames.append(glb_tex)
 	_mat.set_shader_parameter(&"tex0", _frames[0])
 	_mat.set_shader_parameter(&"tex1", _frames[0])
-	_mat.set_shader_parameter(&"intensity_alpha", not (kind in [Kind.PETAL, Kind.DIG_CLOD, Kind.KIKUZU]))
+	_mat.set_shader_parameter(&"intensity_alpha", not (kind in [Kind.PETAL, Kind.DIG_CLOD, Kind.KIKUZU, Kind.BUBU]))
 	_mat.set_shader_parameter(&"mirror_uv", kind == Kind.HAMON)
 
 
@@ -594,6 +602,9 @@ func _redraw() -> void:
 				basis = Basis(Vector3.RIGHT, r.x) * Basis(Vector3.BACK, r.z)
 				prim = Color(KIKUZU_PRIM, track_alpha[i])
 				mode = 6
+		Kind.BUBU:
+			s = Vector3.ONE * 0.015
+			mode = 4
 		Kind.AMI_MIZU:
 			var timer: float = maxf(lifetime * 60.0 - ticks, 0.0)
 			var wide: float = ring_size if ticks < 1.0 else calc_adjust(timer, 0, 8, 1.3 * ring_size, 1.1 * ring_size)
@@ -602,7 +613,7 @@ func _redraw() -> void:
 			prim = Color(AMI_ENV, calc_adjust(timer, 0, 6, 50.0, 155.0) / 255.0)
 	_holder.basis = basis * Basis.from_scale(s * GX / FieldCatalog.PIPELINE_SCALE)
 	_mat.set_shader_parameter(&"mode", mode)
-	_mat.set_shader_parameter(&"billboard", false)
+	_mat.set_shader_parameter(&"billboard", kind == Kind.BUBU)
 	_mat.set_shader_parameter(&"prim_color", prim)
 	_mat.set_shader_parameter(&"env_color", env)
 	_mat.set_shader_parameter(&"lod_frac", 0.0)

@@ -258,6 +258,41 @@ static func _scoop_point(hole: Vector3, player: Vector3, yaw: float) -> Vector3:
 	return Vector3((hole.x + ahead.x) * 0.5, hole.y, (hole.z + ahead.z) * 0.5)
 
 
+## `Player_actor_SetEffectStart_axe_common` at frame 12 of every axe swing
+## (`eSwing_Axe_init` arg1 1): standing in a bush throws five leaves (and five snow puffs in
+## winter), and a grown flower underfoot loses two petals.
+static func axe_start(bg: Array, player: Vector3, yaw: float) -> void:
+	var host := _bind(bg)
+	if host == null:
+		return
+	if attr_at(bg, player) == ATTR_BUSH:
+		_bush(host, player, 5, 1, Clock.season() == Clock.Season.WINTER)
+	_axe_petals(host, player)
+
+
+## `Player_actor_SetEffectHit_Reflect_axe` at frame 15 (arg1 2): two impact stars off the
+## axe head as it bounces, and petals off a flower there.
+static func axe_bounce(bg: Array, player: Vector3, yaw: float) -> void:
+	var host := _bind(bg)
+	if host == null:
+		return
+	var at: Vector3 = player + FieldEffects.rot_y(Vector3(-7.0, 20.0, 24.0), yaw) * GX
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for i: int in 2:
+		ImpactStar.spawn(host, at, yaw + deg_to_rad(22.5), i, rng)
+	_axe_petals(host, at)
+
+
+## `eSwing_Axe_Hanabira_Make`: two petals (arg1 3) off a grown flower on the unit at `pos`.
+static func _axe_petals(host: Node, pos: Vector3) -> void:
+	var flower: int = flower_index(pos)
+	if flower < 0:
+		return
+	for _i: int in 2:
+		_fx(host, FieldEffects.Kind.PETAL, pos, 0.0, flower, 3)
+
+
 ## `eSwing_Axe_init` arg1 0 on a tree hit: four wood chips from the axe head (the player
 ## +(−7, 20, 24) GX, turned by the facing).
 static func axe_chips(bg: Array, player: Vector3, yaw: float) -> void:

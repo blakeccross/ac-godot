@@ -112,8 +112,8 @@ func _on_grip_event(event: Dictionary) -> void:
 			_player._play_grip_clip(Player.ANIM_LTURN1 if bool(event.get("ccw", true)) else Player.ANIM_RTURN1, false)
 			_sync_furniture(FURNITURE_TURN_SEC)
 		"bubu":
-			## `aMR_SetBubu`: the puff of a piece that will not budge. Just the held pose for now.
-			pass
+			## `aMR_SetBubu`: the cross over the player when the piece will not budge.
+			FieldEffects.spawn(_effects_host(), FieldEffects.Kind.BUBU, _player.global_position, 0.0)
 
 
 func _notify_moved(event: Dictionary) -> void:
@@ -370,3 +370,12 @@ func poll_furniture_pickup() -> void:
 	await _player._finish_action(tail)
 	_player._busy = false
 	_player._gait = PlayerLocomotion.Gait.WAIT
+
+
+## The room's `Effects` node, or the room itself.
+func _effects_host() -> Node:
+	var room: Node = Interior.find(get_tree())
+	if room == null:
+		return _player.get_parent()
+	var effects: Node = room.get_node_or_null("Effects")
+	return effects if effects != null else room
