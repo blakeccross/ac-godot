@@ -23,3 +23,10 @@ func test_indoor_and_volume() -> void:
 	assert_that(FootstepSe.volume_db(PlayerLocomotion.Gait.WALK)).is_equal(linear_to_db(0.6))
 	assert_that(FootstepSe.volume_db(PlayerLocomotion.Gait.DASH)).is_equal(0.0)
 	assert_that(FootstepSe.volume_db(PlayerLocomotion.Gait.WAIT)).is_less(-40.0)
+
+
+func test_room_floors_pick_their_own_step() -> void:
+	## `Na_PlyWalkSeRoom`: `SE_FLOOR_DATA[floor] + 0x42E6`; floor 0 is 27 → 0x4301.
+	assert_that(FootstepSe.id_indoors(0)).is_equal(&"4301")
+	assert_that(FootstepSe.id_indoors(-1)).is_equal(&"footstep_wood")
+	assert_that(FootstepSe.id_indoors(9999)).is_equal(&"footstep_wood")

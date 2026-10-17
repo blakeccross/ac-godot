@@ -123,6 +123,8 @@ func open() -> void:
 	_pulse = 0.0
 	_open = true
 	_root.visible = true
+	## `PAUSE_MSCORE`: the music stops so the tune can be heard.
+	Audio.set_music_pause(Audio.PAUSE_TUNE_BOARD)
 	_prompt.close()
 	set_process(true)
 	set_process_unhandled_input(true)
@@ -136,6 +138,7 @@ func close(saved: bool = false) -> void:
 	_open = false
 	set_process_unhandled_input(false)
 	Audio.stop_melody()
+	Audio.set_music_pause(1.0)
 	_slide.slide_out(MenuSlide.Dir.OUT_TOP, _on_slid_out)
 	closed.emit(saved)
 

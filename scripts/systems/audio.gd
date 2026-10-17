@@ -25,9 +25,15 @@ var _arm_fade: Tween
 ## Level ids are their own table: rain 7 / 8 / 9 are not the door trigger SEs 7 / 8 / 9.
 var _syslev_player: AudioStreamPlayer
 var _syslev_id: int = 0
-## `sAdo_Inst`: a 16-step town tune on the note SEs, one step per `MELODY_STEP_SEC`.
-## The step length is an estimate (the instrument sequence is not decoded).
-const MELODY_STEP_SEC := 0.25
+## `sAdo_Inst`: a 16-step town tune on the note SEs. The step is byte 0 of the melody
+## voice's header in seq 248, counted in tatums of the SE sequence (120 BPM, 48 a beat:
+## 96 a second): the tune board's voice 0 is 24 (0.25 s a step), the hourly chime's voice
+## 0xFF is 64 (0.667 s).
+const MELODY_STEP_SEC := 24.0 / 96.0
+const CHIME_STEP_SEC := 64.0 / 96.0
+## `sou_chime_volume`: the chime at full volume on the field, 0.45 in rooms.
+const CHIME_INDOOR_DB := -6.94
+var _melody_step_sec: float = MELODY_STEP_SEC
 var _melody: PackedByteArray = PackedByteArray()
 var _melody_step: int = -1
 var _melody_t: float = 0.0
@@ -43,6 +49,17 @@ var _melody_voice: Dictionary = {}
 var _fanfare_player: AudioStreamPlayer
 var _fanfare_id: StringName = &""
 var _fanfare_base: StringName = &""
+## `Na_VoiceSe` / `sou_voice_se_toguru`: Animalese runs on two voice subtracks taken in turn,
+## so at most two phonemes overlap and each new one cuts the one from two glyphs back.
+var _voice_players: Array[AudioStreamPlayer] = []
+var _voice_next: int = 0
+## `mBGMPsComp_pause` (`pause_volume`): the music turned down under a menu — half under
+## the pockets and the notice board, silent under the tune board. 1 is full.
+const PAUSE_POCKETS := 0.5
+const PAUSE_TUNE_BOARD := 0.0
+const PAUSE_FADE_SEC := 0.2
+var _pause_level: float = 1.0
+var _pause_fade: Tween
 
 
 func _ready() -> void:
@@ -59,15 +76,22 @@ func _ready() -> void:
 	_melody_player = AudioStreamPlayer.new()
 	_melody_player.bus = SFX_BUS
 	add_child(_melody_player)
+	for _i: int in 2:
+		var voice := AudioStreamPlayer.new()
+		voice.bus = SFX_BUS
+		add_child(voice)
+		_voice_players.append(voice)
 	set_process(false)
 
 
 ## `sAdo_Inst`: play a town tune (`TownTune` values). Restarts one already playing.
-func play_melody(notes: PackedByteArray, voice: Dictionary = {}) -> void:
+func play_melody(notes: PackedByteArray, voice: Dictionary = {}, step_sec: float = MELODY_STEP_SEC, volume_db: float = 0.0) -> void:
 	_melody_voice = voice
 	_melody = TownTune.sanitize(notes)
 	_melody_step = -1
-	_melody_t = MELODY_STEP_SEC
+	_melody_step_sec = maxf(step_sec, 0.01)
+	_melody_t = _melody_step_sec
+	_melody_player.volume_db = volume_db
 	set_process(true)
 
 
@@ -84,8 +108,8 @@ func stop_melody() -> void:
 
 func _process(delta: float) -> void:
 	_melody_t += delta
-	while _melody_t >= MELODY_STEP_SEC:
-		_melody_t -= MELODY_STEP_SEC
+	while _melody_t >= _melody_step_sec:
+		_melody_t -= _melody_step_sec
 		_melody_step += 1
 		if _melody_step >= TownTune.LENGTH:
 			_melody_step = -1
@@ -114,17 +138,67 @@ func _sound_step(note: int) -> void:
 		_melody_player.play()
 
 
+## `sAdo_OngenTrgStart`: a one-shot from something on the field is heard from the mic
+## (`SoundEmitter`): quieter with distance (`distance2vol`), gone past 540 GX, and panned by
+## its bearing (`angle2pan`) through one of `PAN_STEPS` panned buses. Anything not on the
+## field (a menu, a room, the Audio node itself) plays flat.
+const PAN_STEPS := 9
+
+
 func play_sfx(stream: AudioStream, at: Node = self, pitch_scale: float = 1.0, volume_db: float = 0.0) -> void:
 	if stream == null or at == null:
 		return
+	var bus: String = SFX_BUS
+	var placed: Vector2 = field_placement(at)
+	if placed.x <= 0.0:
+		return
+	if placed != Vector2(1.0, 0.0):
+		volume_db += linear_to_db(placed.x)
+		bus = pan_bus(placed.y)
 	var player := AudioStreamPlayer.new()
 	player.stream = stream
-	player.bus = SFX_BUS
+	player.bus = bus
 	player.pitch_scale = maxf(0.01, pitch_scale)
 	player.volume_db = volume_db
 	at.add_child(player)
 	player.finished.connect(player.queue_free)
 	player.play()
+
+
+## `(volume, pan)` for a one-shot from `at`: `(1, 0)` off the field, `(0, …)` out of earshot.
+func field_placement(at: Node) -> Vector2:
+	var node := at as Node3D
+	if node == null or not node.is_inside_tree():
+		return Vector2(1.0, 0.0)
+	return field_placement_at(node.get_tree(), node.global_position)
+
+
+## `(volume, pan)` for a sound at world `pos`.
+func field_placement_at(tree: SceneTree, pos: Vector3) -> Vector2:
+	if tree == null or Game.is_indoors() or not TownSpace.is_outdoor_town():
+		return Vector2(1.0, 0.0)
+	var mic: Vector3 = SoundEmitter.field_mic_gx(tree)
+	if mic == Vector3.INF:
+		return Vector2(1.0, 0.0)
+	var source: Vector3 = TownSpace.world_to_gx(pos)
+	return Vector2(SoundEmitter.volume(mic.distance_to(source)), SoundEmitter.pan(mic, source))
+
+
+## The SFX sub-bus panned nearest `pan` (−1 left … 1 right), made on first use.
+func pan_bus(pan: float) -> String:
+	var step: int = clampi(roundi((pan + 1.0) * 0.5 * float(PAN_STEPS - 1)), 0, PAN_STEPS - 1)
+	if step == (PAN_STEPS - 1) / 2:
+		return SFX_BUS
+	var name: String = "%s_pan%d" % [SFX_BUS, step]
+	if AudioServer.get_bus_index(name) == -1:
+		var index: int = AudioServer.bus_count
+		AudioServer.add_bus()
+		AudioServer.set_bus_name(index, name)
+		AudioServer.set_bus_send(index, SFX_BUS)
+		var panner := AudioEffectPanner.new()
+		panner.pan = float(step) / float(PAN_STEPS - 1) * 2.0 - 1.0
+		AudioServer.add_bus_effect(index, panner)
+	return name
 
 
 ## Play a catalog SE id (`cursol`, `bebe`, …). No-op if the stream is missing.
@@ -134,15 +208,55 @@ func play_se(id: StringName, at: Node = self, pitch_scale: float = 1.0, volume_d
 	play_sfx(SeCatalog.stream_for(id), at, pitch_scale, volume_db)
 
 
-## Play an animalese phoneme clip for voice seq spec 1–3.
+## Play an animalese phoneme clip for voice seq spec 1–3, on the next of the two voice
+## subtracks (cutting whatever it was still saying).
 func play_voice(
 	spec: int,
 	phoneme: int,
 	pitch_scale: float = 1.0,
 	volume_db: float = 0.0,
-	at: Node = self
+	_at: Node = self
 ) -> void:
-	play_sfx(VoiceCatalog.stream_for(spec, phoneme), at, pitch_scale, volume_db)
+	var stream: AudioStream = VoiceCatalog.stream_for(spec, phoneme)
+	if stream == null or _voice_players.is_empty():
+		return
+	var voice: AudioStreamPlayer = _voice_players[_voice_next]
+	_voice_next = (_voice_next + 1) % _voice_players.size()
+	voice.stop()
+	voice.stream = stream
+	voice.pitch_scale = maxf(0.01, pitch_scale)
+	voice.volume_db = volume_db
+	voice.play()
+
+
+## How many phonemes are sounding (tests: never more than the two subtracks).
+func voices_playing() -> int:
+	var n: int = 0
+	for voice: AudioStreamPlayer in _voice_players:
+		if voice.playing:
+			n += 1
+	return n
+
+
+## Turn the music bus to `level` of full (1 restores it) for a menu over the field.
+func set_music_pause(level: float) -> void:
+	level = clampf(level, 0.0, 1.0)
+	if is_equal_approx(level, _pause_level):
+		return
+	_pause_level = level
+	var bus: int = AudioServer.get_bus_index(MUSIC_BUS)
+	if bus < 0:
+		return
+	if _pause_fade != null:
+		_pause_fade.kill()
+	_pause_fade = create_tween()
+	_pause_fade.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_pause_fade.tween_method(func(db: float) -> void: AudioServer.set_bus_volume_db(bus, db),
+		AudioServer.get_bus_volume_db(bus), linear_to_db(maxf(level, 0.0001)), PAUSE_FADE_SEC)
+
+
+func music_pause_level() -> float:
+	return _pause_level
 
 
 ## `Na_SysLevStart`: loop level SE `id` (rain ambient uses 7 / 8 / 9 by level).

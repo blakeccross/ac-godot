@@ -1,6 +1,11 @@
 [gd_scene format=3 uid="uid://ctsja64dhu1vt"]
 
 [ext_resource type="Script" path="res://scenes/world/waterfall.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/world/level_sound.tscn" id="2"]
 
 [node name="Waterfall" type="Node3D" unique_id=1611549893]
 script = ExtResource("1")
+
+[node name="Rush" parent="." instance=ExtResource("2")]
+level_id = 12
+offset_gx = Vector3(0, 40, 0)

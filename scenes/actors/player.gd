@@ -1051,7 +1051,10 @@ func _update_footprints(delta: float, bg: Array) -> void:
 	var attr: int = FieldCollision.unit_attr_at(data, grid, global_position)
 	var terrain: WorldGrid.Terrain = data.terrain_at(grid.world_to_cell(global_position))
 	var indoors: bool = Game.is_indoors()
-	FootstepSe.play_at(self, attr, terrain, season, gait, indoors)
+	var floor_index: int = -1
+	if indoors and Game.interior_session != null and Game.interior_session.room != null:
+		floor_index = InteriorStyleCatalog.style_index(Game.interior_session.room.floor_id, "floor_")
+	FootstepSe.play_at(self, attr, terrain, season, gait, indoors, floor_index)
 	if indoors:
 		return
 	var foot: Vector3
