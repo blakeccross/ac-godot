@@ -326,6 +326,12 @@ class ClassicGbiTests(unittest.TestCase):
         self.assertTrue(skips_achd_texture("obj_train1_t4_tex_txt"))
         self.assertFalse(skips_achd_texture("obj_s_station1_a_tex_txt"))
 
+    def test_lotus_structure_palette_is_obj_01(self) -> None:
+        ## `aSTR_PAL_01_LOTUS` / `ac_lotus_draw` seg 8 — not `obj_s_lotus_pal`.
+        names = structure_palette_names("obj_s_lotus")
+        self.assertIn("obj_01_lotus_pal", names)
+        self.assertIn("aLOT_obj_01_lotus_pal", names)
+
     def test_museum_clock_linear_rgba5551_is_wood_not_neon(self) -> None:
         from asset_pipeline.bti import decode_linear_rgba5551, decode_gx_image, RGB5A3
 

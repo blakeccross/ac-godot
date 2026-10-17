@@ -14,28 +14,6 @@ extends Node3D
 const CLIP_SPEED := 0.5
 const FLOWER_MESH := "obj_s_lotus"
 
-## PLACEHOLDER COLOR. The CI4 lotus textures take their palette at draw time from
-## `aLOT_obj_0N_lotus_pal` (`paltbl[aLOT_getPalNo()]`), which the pipeline does not bake yet, so the
-## GLBs carry a debug palette. Recolor those exact debug colors (RGBA8 → RGBA8) to lily green and
-## pink until a per-term palette bake replaces this.
-const LEAF_REMAP := {
-	0xFFFFFFFF: 0x58A848FF,
-	0x83A4FFFF: 0x00000000,
-	0xFFEE00FF: 0x70B840FF,
-	0xFF0000FF: 0x348034FF,
-	0xFF3131FF: 0x348034FF,
-	0x0041FFFF: 0x24602CFF,
-}
-const FLOWER_REMAP := {
-	0x183139FF: 0x00000000,
-	0x730000FF: 0xC83C78FF,
-	0xB40000FF: 0xE65A96FF,
-	0xFFB400FF: 0xFA96BEFF,
-	0x62DE20FF: 0xFFD7E6FF,
-	0x20BD00FF: 0xFFF5FAFF,
-}
-static var _recolored: Dictionary = {} ## remap dict id → ImageTexture
-
 var _anim: AnimationPlayer
 
 
@@ -69,49 +47,7 @@ func _attach_done() -> void:
 			_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 			_anim.speed_scale = CLIP_SPEED
 			_anim.play(clip)
-	_recolor_placeholder()
 	_sync_flower()
-
-
-func _recolor_placeholder() -> void:
-	for mi: MeshInstance3D in _mesh_instances(self):
-		var remap: Dictionary = FLOWER_REMAP if mi.name == FLOWER_MESH else LEAF_REMAP
-		for surface: int in mi.mesh.get_surface_count():
-			var mat := mi.get_active_material(surface) as StandardMaterial3D
-			if mat == null or mat.albedo_texture == null:
-				continue
-			var tinted := mat.duplicate() as StandardMaterial3D
-			tinted.albedo_texture = _remapped(remap, mat.albedo_texture)
-			tinted.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-			tinted.alpha_scissor_threshold = 0.5
-			mi.set_surface_override_material(surface, tinted)
-
-
-static func _remapped(remap: Dictionary, source: Texture2D) -> Texture2D:
-	var key: int = remap.hash()
-	if _recolored.has(key):
-		return _recolored[key] as Texture2D
-	var img: Image = source.get_image()
-	if img.is_compressed():
-		img.decompress()
-	img.convert(Image.FORMAT_RGBA8)
-	for y: int in img.get_height():
-		for x: int in img.get_width():
-			var rgba: int = img.get_pixel(x, y).to_rgba32()
-			if remap.has(rgba):
-				img.set_pixel(x, y, Color.hex(int(remap[rgba])))
-	var tex: ImageTexture = ImageTexture.create_from_image(img)
-	_recolored[key] = tex
-	return tex
-
-
-func _mesh_instances(node: Node) -> Array[MeshInstance3D]:
-	var out: Array[MeshInstance3D] = []
-	if node is MeshInstance3D:
-		out.append(node as MeshInstance3D)
-	for child in node.get_children():
-		out.append_array(_mesh_instances(child))
-	return out
 
 
 func _sync_flower() -> void:

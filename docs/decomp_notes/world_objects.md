@@ -85,7 +85,7 @@ Port: `GyroidTalk` (rules, ROM message ids, one merged conversation over every g
 
 Two-unit pieces are drawn by `bg_item` at `pos_table2` (**left edge** of the `*0` unit, unit-center Z), so the 8 m mesh is centered on the seam between the `*1`/`*0` pair. The `*0` item therefore carries a 2×1 footprint with `cell_shift (-1, 0)` and the `*1` half places nothing. `obj_hight_table_item0_nogrow` raises the whole unit (fences / notice 4 counts, map / tune 7), so the Godot hull is the full footprint box.
 
-Lotus (`ac_lotus`): 129-frame loop at 0.5 speed; joint `0x12` (flower) draws May 26 – Aug 25 (`aLOT_actor_draw_before`); palette index per term (`aLOT_getPalNo`, 18 terms) is **not** baked, so `lotus.gd` recolors the debug palette to green / pink (placeholder). `season_role_for_label` skips `lotus` so the pad texture is not swapped for the hardwood leaf.
+Lotus (`ac_lotus`): 129-frame loop at 0.5 speed; joint `0x12` (flower) draws May 26 – Aug 25 (`aLOT_actor_draw_before`). Convert bakes `obj_01_lotus_pal` / `aLOT_obj_01_lotus_pal` onto seg 8 (the draw-time `paltbl[aLOT_getPalNo()]` term swap is still a single mid-year bake). `season_role_for_label` skips `lotus` so the pad texture is not swapped for the hardwood leaf.
 
 Not placed yet: `DUMP` (replaced by Nook's), `BRIDGE_A*`, `MIKANBOX` and other event structures, island (`FLAG` / `BOAT` / `COTTAGE_*`), `KAMAKURA`, `TENT`, `HTABLE*`. Blob shadows for notice / fence / melody / sight-map are not converted (`obj_notice_shadow` etc. absent).
 

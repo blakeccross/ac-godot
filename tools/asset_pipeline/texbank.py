@@ -790,6 +790,10 @@ def structure_palette_names(prefix: str, letter: str | None = None) -> list[str]
     if pal_letter in STRUCTURE_PAL_LETTERS:
         add(f"obj_{rest}_{pal_letter}_pal", f"obj_{season}_{rest}_{pal_letter}_pal")
     add(f"obj_{rest}_pal", f"obj_{rest}_a_pal")
+    ## `aSTR_PAL_01_LOTUS` / `ac_lotus_draw` seg 8: `obj_01_lotus_pal` (and the
+    ## term-0 aLOT twin). Prefix search alone only yields `obj_s_lotus_pal`.
+    if rest == "lotus":
+        add("obj_01_lotus_pal", "aLOT_obj_01_lotus_pal")
     destaged = re.sub(r"\d+$", "", rest)
     if destaged and destaged != rest:
         if pal_letter in STRUCTURE_PAL_LETTERS:
@@ -980,9 +984,15 @@ ACTOR_TLUT_TABLES: dict[str, tuple[int, str, str, int, tuple[int, int]]] = {
 
 ## Actors that `gSPSegment` a seasonal FG TLUT (`field_palette.*`) for their own DLs.
 ## `ac_shrine_draw`: seg 9 = `cedar_tree_pal` for the shrine tree leaves.
+## `eBushHappa_dw`: seg 8 = hardwood / cedar / palm FG pals for falling-leaf cards
+## (`ef_s_tree01_00_modelT`, `ef_f_tree01_00_modelT`, `ef_s_cedar_modelT`, `ef_s_palm_modelT`).
 ACTOR_FG_TLUT_SEGMENTS: dict[str, tuple[int, str]] = {
     "obj_s_shrine": (0x09, "tree"),
     "obj_w_shrine": (0x09, "tree"),
+    "ef_s_tree01_00": (0x08, "tree"),
+    "ef_f_tree01_00": (0x08, "tree"),
+    "ef_s_cedar": (0x08, "tree"),
+    "ef_s_palm": (0x08, "palm"),
 }
 
 
@@ -1333,8 +1343,11 @@ class TextureBank:
         self.current_prefix = prefix
         self._apply_seasonal_fg_pals(prefix)
         fg_seg = ACTOR_FG_TLUT_SEGMENTS.get(prefix)
-        if fg_seg is not None and fg_seg[1] == "tree" and self._cedar_pal:
-            self.segment_palettes[fg_seg[0]] = self._cedar_pal
+        if fg_seg is not None:
+            seg, kind = fg_seg
+            pal = self._palm_pal if kind == "palm" else (self._cedar_pal or self._tree_fg_pal)
+            if pal:
+                self.segment_palettes[seg] = pal
         actor_tlut = ACTOR_TLUT_TABLES.get(prefix)
         if actor_tlut is not None:
             seg, table, _tex, row, _dims = actor_tlut
@@ -2092,6 +2105,14 @@ class TextureBank:
             return None
         symbol = self.addr_to_sym.get(img_addr)
         name = symbol.name.lower() if symbol else ""
+        ## Falling-leaf effect cards (`ef_s_tree01_0`, `ef_s_palm_tex`, …) also take
+        ## the FG tree/palm pals that `eBushHappa_dw` binds on seg 8.
+        if name.startswith("ef_") and "palm" in name and self._palm_pal:
+            return self._palm_pal
+        if name.startswith("ef_") and (
+            "tree" in name or "cedar" in name or "yabu" in name
+        ):
+            return self._cedar_pal or self._tree_fg_pal or self._tree_pal
         if not name.startswith("obj_"):
             return None
         if "palm" in name and self._palm_pal:

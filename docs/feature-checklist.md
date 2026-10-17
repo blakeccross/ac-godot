@@ -272,7 +272,7 @@ data tables before a category is called done.
 - [x] Pull-all-weeds: weeds are plucked for nothing (`WeedUse`); the Wisp's wish clears them
 - [x] Mushrooms (Oct 15–25): up to five set at 8:00–9:15 beside grown trees, away from the player's acre row and column, then one goes every quarter hour; sell for 5,000 (`m_mushroom`, `mEv_EVENT_MUSHROOM_SEASON`) — `MushroomUse`. The GameCube has the one mushroom item, no rare kinds
 - [x] ~~Jacob's ladder / lily of the valley~~ — not in the GameCube game (`FLOWER_NUM` 9)
-- [~] Lotus / water lilies in ponds (`ac_lotus`) — FG `LOTUS` places `lotus.tscn`: leaf sway on the baked clip, flower drawn May 26 – Aug 25. Pad / flower colours are placeholders (palette is `aLOT_obj_0N_lotus_pal` per term, not baked); no bobber shake. Lotus as an item still missing
+- [~] Lotus / water lilies in ponds (`ac_lotus`) — FG `LOTUS` places `lotus.tscn`: leaf sway on the baked clip, flower drawn May 26 – Aug 25. Pad / flower bake `obj_01_lotus_pal` (term-varying `aLOT_obj_0N` swap still a single bake); no bobber shake. Lotus as an item still missing
 - [x] Coconut palms on the beach — acre templates and `TreeUse`
 - [x] ~~Other decorative trees~~ — GCN has hardwoods, cedars and palms only
 
