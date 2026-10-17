@@ -11,6 +11,7 @@ render_mode blend_mix, depth_draw_never, cull_disabled, diffuse_lambert, specula
 //   1 PRIM, α = lerp(T0,T1,LOD) (dust, steam, smoke: two-tile cross-fade)
 //   2 mix(PRIM, 1, T) + ENV     (koke_yuki / yukihane)
 //   3 (NOISE − T)·PRIM + ENV    (sunahane)
+//   4 TEXEL rgb × PRIM          (dig mud, fishing drops: textured cards)
 // I4 frames carry their intensity in red; IA8 frames keep their own alpha.
 
 uniform sampler2D frames : source_color, filter_linear, repeat_disable;
@@ -76,6 +77,8 @@ void fragment() {
 	} else if (mode == 3) {
 		float noise = hash(floor(UV * 16.0) + vec2(floor(TIME * 60.0)));
 		rgb = clamp((vec3(noise) - t0.rgb) * tint.rgb + env, 0.0, 1.0);
+	} else if (mode == 4) {
+		rgb = t0.rgb * tint.rgb;
 	}
 	ALBEDO = rgb;
 	EMISSION = add;

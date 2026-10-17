@@ -91,6 +91,10 @@ const BANK_RANGE_RATE_GX := 0.05 * DecompTime.TICK_HZ
 const BITE_DEPTH_GX := 7.5
 const GX_FRAME := DecompTime.FRAME_HZ
 const GX_TICK := DecompTime.FRAME_HZ * DecompTime.TICK_HZ
+## `aGTT_bite` `eff_arg`: the splash a struck fish of each size class throws (`eTM_CallEffect`
+## 4–8), on a coin flip every three ticks of the fight.
+const THRASH_SPLASH: Array[int] = [8, 7, 4, 4, 5, 6, 6, 6]
+const THRASH_SECONDS := 3.0 / DecompTime.TICK_HZ
 const BITE_SINK_SPEED_GX := 1.5 * GX_FRAME
 const BITE_SINK_ACCEL_GX := 0.5 * GX_TICK
 const STRUCK_RISE_SPEED_GX := 2.0 * GX_FRAME
@@ -219,6 +223,8 @@ static var _reeling: bool = false
 static var _reel_time: float = 0.0
 ## The shadow that has the bobber (`uki->child_actor`) and how long it fights once struck.
 static var _hooked: FishShadow = null
+## Seconds to the struck fish's next chance to thrash the water (`aGTT_bite` `swork0`).
+static var _thrash_time: float = 0.0
 static var _fight_time: float = 0.0
 ## m/s.
 static var _drift_speed: float = 0.0
@@ -524,7 +530,9 @@ static func _land() -> void:
 	_state = State.FLOAT
 	_splash_pending = true
 	_bank_range = BANK_RANGE_START_GX
+	## `aUKI_cast` → `aUKI_effect_sibuki(3)`: a ring and the tall splash, then
 	## `aUKI_effect_hamon(…, 1)` as it settles on the surface.
+	FootstepEffects.bobber_splash(_anchor, 3)
 	FootstepEffects.ripple(_anchor, 1)
 	if _bobber != null and is_instance_valid(_bobber):
 		PlayerSe.bobber_splash(_bobber)
@@ -558,6 +566,9 @@ static func _float(delta: float, school: FishSchool) -> void:
 		## `gyo_command == 2`: `aUKI_set_proc_bite`.
 		_state = State.BITE
 		_hooked = biter
+		## `aUKI_set_proc_bite` → `aUKI_effect_sibuki(0)`.
+		FootstepEffects.bobber_splash(_anchor, 0)
+		_thrash_time = THRASH_SECONDS
 		GameConfig.fish_bite(biter.size)
 		_rise_gx = 0.0
 		_rise_speed = 0.0
@@ -605,6 +616,11 @@ static func _bite(delta: float, school: FishSchool) -> void:
 		return
 	if _struck:
 		_circle(delta)
+		_thrash_time -= delta
+		if _thrash_time <= 0.0001:
+			_thrash_time += THRASH_SECONDS
+			if randf() < 0.5:
+				FootstepEffects.bobber_splash(_anchor, THRASH_SPLASH[clampi(int(_hooked.size), 0, THRASH_SPLASH.size() - 1)])
 
 
 ## The vertical spring under a hooked bobber: down to 7.5 GX under while the fish has it,
@@ -664,6 +680,8 @@ static func _drift(delta: float, school: FishSchool, nibbling: bool) -> void:
 
 
 static func _reel_empty(school: FishSchool) -> void:
+	## `aUKI_force_command` 7: the empty line comes back with `aUKI_effect_sibuki(1)`.
+	FootstepEffects.bobber_splash(_anchor, 1)
 	var out := Outcome.new()
 	out.too_early = true
 	_finish(out, school)
@@ -674,6 +692,9 @@ static func _reel_catch(school: FishSchool) -> void:
 	var out := Outcome.new()
 	var shadow: FishShadow = _hooked
 	var fish: FishData = shadow.fish if shadow != null else null
+	## `aUKI_set_proc_hit`: the fish breaks the surface with its size's splash.
+	if shadow != null:
+		FootstepEffects.bobber_splash(_anchor, THRASH_SPLASH[clampi(int(shadow.size), 0, THRASH_SPLASH.size() - 1)])
 	if fish == null:
 		out.escaped = true
 		_finish(out, school)

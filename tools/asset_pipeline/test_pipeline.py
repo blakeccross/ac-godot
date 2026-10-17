@@ -2264,6 +2264,27 @@ class EffectFrameFormatTests(unittest.TestCase):
         self.assertEqual(effect_frame_size("ef_dust01_0", 256, dims), (16, 16))
         self.assertIsNone(effect_frame_size("ef_other_0", 512, dims))
 
+    def test_ci_frame_banks_take_the_tlut_their_dl_loads(self) -> None:
+        from asset_pipeline.convert import effect_dl_frame_tluts
+
+        src = (
+            "Gfx ef_anahori01_00_model[] = {\n"
+            "    gsDPLoadTLUT_Dolphin(15, 16, 1, earth_pal_dummy),\n"
+            "    gsDPSetTextureImage_Dolphin(G_IM_FMT_CI, G_IM_SIZ_4b, 16, 16, ef_anahori01_00_tex),\n"
+            "};\n"
+            "Gfx ef_anahori02_00_modelT[] = {\n"
+            "    gsDPLoadTLUT_Dolphin(15, 16, 1, obj_hole_pal),\n"
+            "    gsDPSetTextureImage_Dolphin(G_IM_FMT_CI, G_IM_SIZ_4b, 16, 16, anime_1_txt),\n"
+            "};\n"
+            "Gfx ef_dust01_00_modelT[] = {\n"
+            "    gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 16, 16, anime_1_txt),\n"
+            "};\n"
+        )
+        tluts = effect_dl_frame_tluts({"ef_anahori01_00.c": src})
+        ## Only the CI frame bank, keyed by its DL's stem; directly loaded textures and
+        ## run-time palettes (`*_dummy`) are not frame banks.
+        self.assertEqual(tluts, {"ef_anahori02_": "obj_hole_pal"})
+
 
 
 class PlayerFacePaletteTests(unittest.TestCase):

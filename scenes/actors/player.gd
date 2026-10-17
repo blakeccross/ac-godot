@@ -120,6 +120,8 @@ const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 @onready var _placeholder: MeshInstance3D = $MeshPivot/PlaceholderMesh
 @onready var _probe: Area3D = $MeshPivot/InteractProbe
 @onready var _look: Marker3D = $CameraLook
+## Glyphs over the player's head: the startle (`ef_shock`) and the like.
+@onready var feel: NpcFeelGlyphs = $Feel
 @onready var _animator: BodyAnimator = $Animator
 
 ## The player's components, child nodes declared in `player.tscn` (set before any child's
@@ -172,6 +174,11 @@ var in_pitfall: bool = false
 var struggle_assist: float = 0.0
 var _step_time: float = 0.0
 var _right_foot: bool = true
+## `ripple_timer` / `ripple_foot_idx`: standing or wading in the surf rings the water at
+## one foot and then the other, every eight ticks.
+var _ripple_time: float = 0.0
+var _ripple_right: bool = false
+const RIPPLE_SECONDS := 8.0 / DecompTime.TICK_HZ
 ## `Player_actor_Movement_Talk` — ease yaw toward the NPC while the talk demo runs.
 var _talk_face: Node3D = null
 ## `player->shake_tree_*`: trees this player has already shaken (little or button).
@@ -212,6 +219,7 @@ static func visual_id() -> StringName:
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	feel.set_head_lift(LOOK_HEIGHT)
 	_motor.ground_sampler = _motor_ground_y
 	_motor.flat_sampler = _motor_unit_flat
 	_look.position = Vector3(0.0, LOOK_HEIGHT, 0.0)
@@ -478,6 +486,7 @@ func _physics_process(delta: float) -> void:
 			return
 	_update_animation(delta)
 	_update_footprints(delta, bg)
+	_update_ripples(delta, bg)
 	_update_focus()
 	_tick_tree_bump(delta)
 	doors.clear_auto_enter_block()
@@ -819,10 +828,36 @@ func _feed_clip_state() -> void:
 ## Frame marks written into the body's clips: each action's SE (`PlayerSe.CLIP_MARKS`) and
 ## `Player_actor_SetEffect_Tumble`'s rumble at frame 10, landing dust at 15 and body print
 ## at 17, on every tumble clip.
+## `Player_actor_SetEffectHit_Fill_scoop`: clods at frames 13, 19 and 25 and the scoop's
+## dirt at 40 (seven later on `FILL_UP_I1`). The fill clips are only ever a fill.
+const FILL_MARKS: Array = [[13.0, &"fx_fill_3"], [19.0, &"fx_fill_4"], [25.0, &"fx_fill_5"], [40.0, &"fx_fill_scoop"]]
+## `Player_actor_SetEffectStart_axe_common` (frame 12, every swing) and the bounce's stars
+## (`SetEffectHit_Reflect_axe`, frame 15). The axe clips are only ever the axe.
+## `Player_actor_main_Gaaan` → `eEC_EFFECT_SHOCK` at frame 5 of the startle.
+const SHOCK_MARKS: Array = [[5.0, &"fx_shock"]]
+const AXE_MARKS: Dictionary = {
+	&"ply_1_axe_swing1": [[12.0, &"fx_axe_start"]],
+	&"ply_1_axe_suka1": [[12.0, &"fx_axe_start"]],
+	&"ply_1_axe_hane1": [[12.0, &"fx_axe_start"], [15.0, &"fx_axe_bounce"]],
+}
+
+
 func _clip_marks() -> Dictionary:
-	var marks: Dictionary = PlayerSe.CLIP_MARKS.duplicate()
+	var marks: Dictionary = PlayerSe.CLIP_MARKS.duplicate(true)
 	for clip: String in [ToolUse.ANIM_KOKERU, ToolUse.ANIM_KOKERU_A, ToolUse.ANIM_KOKERU_N]:
 		marks[StringName(clip)] = TUMBLE_MARKS
+	var gaaan: Array = (marks.get(&"ply_1_gaaan1", []) as Array).duplicate()
+	gaaan.append_array(SHOCK_MARKS)
+	marks[&"ply_1_gaaan1"] = gaaan
+	for clip: StringName in AXE_MARKS:
+		var axe_list: Array = (marks.get(clip, []) as Array).duplicate()
+		axe_list.append_array(AXE_MARKS[clip])
+		marks[clip] = axe_list
+	for pair: Array in [[&"ply_1_fill_up1", 0.0], [&"ply_1_fill_up_i1", 7.0]]:
+		var list: Array = (marks.get(pair[0], []) as Array).duplicate()
+		for mark: Array in FILL_MARKS:
+			list.append([float(mark[0]) + float(pair[1]), mark[1]])
+		marks[pair[0]] = list
 	return marks
 
 
@@ -830,6 +865,25 @@ func _on_clip_event(_clip: StringName, event: StringName) -> void:
 	match event:
 		&"tumble_rumble":
 			GameConfig.rumble(GameConfig.TUMBLE)
+		&"fx_shock":
+			feel.play(&"shock")
+		&"fx_axe_start":
+			FootstepEffects.axe_start(_bg(), global_position, _motor.facing)
+		&"fx_axe_bounce":
+			FootstepEffects.axe_bounce(_bg(), global_position, _motor.facing)
+		&"fx_fill_3", &"fx_fill_4", &"fx_fill_5", &"fx_fill_scoop":
+			var ctx: InteractionContext = _make_context()
+			var grid: WorldGrid = ctx.world.get("grid") as WorldGrid if ctx.world != null else null
+			if grid == null:
+				return
+			var bg: Array = _bg()
+			var hole: Vector3 = grid.cell_to_world(ToolUse.facing_cell(ctx))
+			hole.y = global_position.y
+			var attr: int = FootstepEffects.attr_at(bg, hole)
+			if event == &"fx_fill_scoop":
+				FootstepEffects.dig_scoop(bg, hole, global_position, _motor.facing, attr, 2)
+			else:
+				FootstepEffects.dig_hole(bg, hole, global_position, _motor.facing, attr, int(String(event).right(1)))
 		&"tumble_dust", &"tumble_print":
 			var bg: Array = _bg()
 			var attr: int = _unit_attr(bg)
@@ -951,6 +1005,24 @@ func _tumble_se(attr: int) -> StringName:
 	return tumble if SeCatalog.stream_for(tumble) != null else &"tumble_soil"
 
 
+## `Player_actor_set_ripple` → `eWait_Asimoto_init`: in the surf or the sea, a small ring
+## (`TURI_HAMON` 3) at alternate feet every eight ticks, moving or not.
+func _update_ripples(delta: float, bg: Array) -> void:
+	if bg.size() != 2 or Game.is_indoors():
+		return
+	_ripple_time += delta
+	if _ripple_time < RIPPLE_SECONDS - 0.0001:
+		return
+	_ripple_time = 0.0
+	_ripple_right = not _ripple_right
+	var attr: int = FieldCollision.unit_attr_at(bg[0] as WorldData, bg[1] as WorldGrid, global_position)
+	if attr != FootstepEffects.ATTR_WAVE and not FieldCatalog.is_sea_attr(attr):
+		return
+	var anchor: Transform3D = _foot_anchor(_ripple_right)
+	var foot: Vector3 = anchor.origin if anchor.basis.determinant() != 0.0 else global_position
+	FootstepEffects.ripple(Vector3(foot.x, global_position.y, foot.z), 3)
+
+
 func _update_footprints(delta: float, bg: Array) -> void:
 	## `Player_actor_Set_FootMark_MarkOnly` + `Player_actor_sound_FootStep2`: one print and
 	## footstep SE per foot on the gait cadence. Clips lack frame tags, so period comes
@@ -1008,6 +1080,12 @@ func _update_footprints(delta: float, bg: Array) -> void:
 	if xform.basis.determinant() == 0.0:
 		return
 	marks.spawn(xform, snow)
+	## `eFootPrint_ct` / `_mv`: a print in the surf rings the water as it is made and again
+	## ten ticks later.
+	if attr == FootstepEffects.ATTR_WAVE:
+		var at := Vector3(foot.x, global_position.y, foot.z)
+		FootstepEffects.ripple(at, 2)
+		get_tree().create_timer(10.0 / DecompTime.TICK_HZ).timeout.connect(func() -> void: FootstepEffects.ripple(at, 2))
 
 
 ## `Player_actor_SetEffect_Walk` / `_Dash`: `WALK_ASIMOTO` on walk + run foot plants,
