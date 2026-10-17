@@ -29,12 +29,13 @@ Gameplay still reads input directly in two places, outside the player:
 
 ---
 
-## Phase 2: drag-to-move, tap-to-act, HUD buttons
+## Phase 2: hold-to-follow, tap-to-act, HUD buttons
 
-*Playable:* walk with one thumb, A by tapping yourself, B / pockets / map / pause from buttons.
+*Playable:* hold a finger on the ground and the player walks after it; tap yourself for A; B / pockets / map / pause from buttons. There is no on-screen joystick or d-pad, and nothing is drawn under the finger.
 
 ### Files
 - `scenes/actors/touch_driver.gd` (new): a `Node`, child of the player in `player.tscn`.
+- `scripts/systems/touch_pick.gd` (new, static): screen to ground (moved here from phase 3, because following the finger needs the ground point under it). See *TouchPick.ground* in phase 3.
 - `scenes/ui/touch_hud.tscn` + `touch_hud.gd` (new): a `CanvasLayer` instanced in `world.tscn` beside `ClockHud`, and in the interior scene roots that carry a HUD.
 - `scenes/world/events/gracie.gd`: read A through the player.
 - `project.godot`: nothing new.
@@ -46,12 +47,12 @@ Gameplay still reads input directly in two places, outside the player:
 - `_unhandled_input(event)`: only `InputEventScreenTouch` / `InputEventScreenDrag`, and only one finger (index 0; ignore the rest).
   - **Press:** remember the start position and time. Work out the player's screen point with `cam.unproject_position(player.global_position + Vector3.UP * 0.8)`.
     - If the press is within `SELF_RADIUS_PX` (64 px, scaled by the viewport's `content_scale_factor`) of the player, start a **self press**.
-    - Otherwise start a **drag**.
-  - **Drag:** `move = (finger - player_screen) / DRAG_FULL_PX` (120 px), clamped to length 1, with `y` already in the `get_vector` convention (screen down is toward the camera). `dash_held = offset > DASH_PX` (160 px).
+    - Otherwise start a **follow** once the finger has been down `HOLD_SEC` (0.2 s) or moved past `TAP_SLOP_PX`. A shorter, still touch is a tap; phase 3 makes ground taps walk there.
+  - **Follow:** each physics tick, `TouchPick.ground` the finger's current screen point. Steer straight toward that point. `move` is the camera-relative direction, the inverse of `_camera_wish` as in phase 3's steering, at full magnitude. `dash_held = distance > RUN_DIST` (4 m). Within `FOLLOW_STOP` (0.3 m), `move = ZERO` and the player waits facing the same way. No path is planned: a wall or cliff stops the player as a held stick would.
   - **Release:**
-    - From a drag: `move = ZERO`, `dash_held = false`.
+    - From a follow: `move = ZERO`, `dash_held = false`.
     - From a self press shorter than `TAP_SEC` (0.25 s) and moved less than `TAP_SLOP_PX` (16 px): `source.tap_a()`.
-- The drag is relative to the player, not to where the finger first landed. That matches Pocket Camp, and the camera keeps the player near the middle of the screen.
+- The finger always names a place in the world, never an offset from a fixed point, so there's no virtual stick to draw or keep track of. The camera follows the player, so the point under a still finger moves as the player walks, and the player keeps going while the finger is held ahead of it. That matches Pocket Camp.
 - Screen points come from the viewport (`get_viewport().get_visible_rect()`), so stretch and `expand` are handled.
 - All the thresholds are `const` at the top of the script and in pixels at the 720 p base.
 
@@ -67,7 +68,9 @@ Gameplay still reads input directly in two places, outside the player:
 
 ### Tests
 - `tests/unit/test_touch_driver.gd`. Feed synthetic `InputEventScreenTouch` / `ScreenDrag` events to a driver on a test player, with a fixed `Camera3D`.
-  - A drag 60 px right gives `move.x ≈ 0.5`. Past 160 px it gives `dash_held`.
+  - Holding the finger on a ground point 2 m east gives a `move` that `_camera_wish` turns back into east, at walk speed. 6 m away gives `dash_held`. Within 0.3 m gives `move = ZERO`.
+  - The real player, followed for 2 s toward a held point, ends within 0.3 m of it.
+  - The HUD scene has no joystick or d-pad node, and nothing is drawn under the finger.
   - A short tap on the player latches exactly one A, and the player's `_try_interact` runs once.
   - A key event after touch removes the source, so `scripted_input == null` and `_unhandled_input` reads keys again.
   - It never replaces a `TitleDemoInput`.
@@ -75,7 +78,7 @@ Gameplay still reads input directly in two places, outside the player:
 - Capture: add `touch=x,y[,hold]` to `tools/capture.sh` / the capture runner. It injects a press and release at that screen point, so captures can show the HUD.
 
 ### Done when
-You can walk around the town, shake a tree (tap yourself in front of it), pick up fruit (B), open the pockets and map and pause, all with the mouse in a debug build. The pad and keys take back control on the first press. The full suite shows no new failures.
+With no joystick on screen, you can walk around the town by holding a finger where you want to go, shake a tree (tap yourself in front of it), pick up fruit (B), open the pockets and map and pause, all with the mouse in a debug build. The pad and keys take back control on the first press. The full suite shows no new failures.
 
 ---
 
@@ -84,7 +87,6 @@ You can walk around the town, shake a tree (tap yourself in front of it), pick u
 *Playable:* tap the ground anywhere on screen to walk there.
 
 ### Files
-- `scripts/systems/touch_pick.gd` (new, static): screen to ground.
 - `scripts/systems/touch_path.gd` (new, static): A* on the grid.
 - `scripts/systems/field_collision.gd`: make `_edge_is_wall` and `_forbids_enter` public (`edge_is_wall`, `forbids_enter`), keeping the old names as thin wrappers until their callers move.
 - `scenes/actors/touch_driver.gd`: the walk-to steering.
@@ -113,8 +115,8 @@ You can walk around the town, shake a tree (tap yourself in front of it), pick u
   - Turn the world direction into a stick with the inverse of `_camera_wish`. Use the camera's flat `look` / `right` basis: `move = Vector2(dir.dot(right), -dir.dot(look))`. Use magnitude 1 until the last 1 m, then `clamp(dist / 1.0, 0.35, 1)`, so the walk eases in without stopping short.
   - Stop when the player is within `ARRIVE` (0.25 m) of the end.
   - **Stall check:** if the player has moved less than 0.05 m in 0.3 s, re-path once. If it's still stuck, stop. A villager in the way, or a tree that's been planted since, both end the walk.
-  - Any drag, a new tap, the menu opening, or `player._busy` clears the path and sets `move = ZERO`.
-- **Long-press** (0.35 s without moving) on the ground walks there at a dash (`dash_held` while the path is active). Phase 4 overrides this when the net is equipped.
+  - A finger held to follow, a new tap, the menu opening, or `player._busy` clears the path and sets `move = ZERO`.
+- **Double-tap** (a second tap within 0.3 s and 40 px) on the ground runs there: `dash_held` while the path is active. A press that's held instead is phase 2's follow.
 - The ground marker spawns at the tap and stays until arrival.
 
 ### Tests
@@ -129,7 +131,7 @@ You can walk around the town, shake a tree (tap yourself in front of it), pick u
 - `tests/unit/test_touch_driver.gd` (add to it): the real player follows a three-point path in a test acre and arrives within 0.3 m in under the expected time. It moves at walk speed, using the same motor as the stick.
 
 ### Done when
-Tapping anywhere walks there along a sensible path, round ponds and up ramps, at the normal walk speed, with footsteps and turns as usual. A long-press dashes. Captures with `touch=` show the marker.
+Tapping anywhere walks there along a sensible path, round ponds and up ramps, at the normal walk speed, with footsteps and turns as usual. A double-tap runs. Captures with `touch=` show the marker.
 
 ---
 
@@ -180,7 +182,7 @@ Tapping anywhere walks there along a sensible path, round ponds and up ramps, at
 - **Net:**
   - Holding the finger anywhere sets `a_held`, and `move` points toward the finger (the creep).
   - Releasing swings, just like holding and letting go of A.
-  - Long-press dash is off while the net is equipped.
+  - While the net is equipped, a hold is the net hold, not a follow.
 
 ### Tests
 - `tests/unit/test_touch_interact.gd`, through the real player on the test town:
@@ -235,8 +237,8 @@ The rule: no overlay grows its own touch logic. Each one gets tap regions that c
 
 | PR | Phase | Rough size |
 |---|---|---|
-| 1 | 2: driver (drag, self-tap), HUD buttons, Gracie | ~400 lines + tests |
-| 2 | 3: TouchPick ground, TouchPath, steering, marker | ~600 lines + tests |
+| 1 | 2: driver (hold-to-follow, self-tap), TouchPick ground, HUD buttons, Gracie | ~450 lines + tests |
+| 2 | 3: TouchPath, tap-to-walk steering, marker | ~550 lines + tests |
 | 3 | 4a: object pick, approach and act, B-only hosts | ~400 lines + tests |
 | 4 | 4b: tools (shovel/axe target, rod, net), chips | ~400 lines + tests |
 | 5–8 | 5a–5f: menus, one or two overlays per PR | ~150–300 lines each |
@@ -246,4 +248,4 @@ The rule: no overlay grows its own touch logic. Each one gets tap regions that c
 
 - **Camera:** it stays fixed, as now. If a phone's portrait aspect shows too little ground, the fix belongs in `FollowCamera` (distance by aspect), not in touch code.
 - **Tap-on-player vs. tap-in-front:** both mean A. If testing shows people tap the tree in front rather than themselves, phase 4 covers that. Phase 2's self-tap stays as the fallback for verbs with no host, such as digging, the net and shaking a bare spot.
-- **Furniture push / pull** (drag from the furniture piece) is left out of phase 4. Indoors, tap a piece to grip it (A held); a drag then pushes or pulls it, through the same `_grip_stick` the stick uses. Add it if it's wanted after phase 5.
+- **Furniture push / pull** (drag from the furniture piece) is left out of phase 4. Indoors, hold on a piece to grip it (A held); sliding the finger toward or away from it then pushes or pulls it, through the same `_grip_stick` the stick uses. There's still no stick on screen. Add it if it's wanted after phase 5.
