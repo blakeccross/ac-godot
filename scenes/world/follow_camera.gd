@@ -23,6 +23,20 @@ const DOOR_DISTANCE := 350.0 * PlayerLocomotion.UNIT_METERS
 const DOOR_ELEVATION := 3692.0 * MathUtil.S16
 ## `Camera2_setup_main_Door`: going in (`flags & 1`) morphs over 140 ticks; coming out snaps.
 const DOOR_MORPH_SECONDS := 140.0 / 60.0
+## `Camera2_SetPos_Item` (the player's report demos): the centre a little over and in front of
+## the player, 250 GX closer than the normal 620 and 1400 short angles lower (about 37.3°),
+## all on the normal camera's eases.
+const ITEM_CENTER_GX := Vector3(3.167068, 28.884293 - 15.0, 17.341202)
+const ITEM_DISTANCE_GX := ORIG_DISTANCE - 250.0
+const ITEM_PITCH := -1400.0 * MathUtil.S16
+## `Camera2_request_main_simple_fishing`: asked for again every tick of `relax_rod` /
+## `vib_rod`, so each tick closes 1/40 of the way to a centre 35% of the way from the
+## player's eye to the bobber (45% and 1.15× the distance when the bobber is more than 70 GX
+## below). `simple_fishing_return` then closes 1/30 a tick back for the line coming in.
+const FISHING_STEP := 1.0 / 40.0
+const FISHING_RETURN_STEP := 1.0 / 30.0
+const FISHING_RETURN_SECONDS := 30.0 / 60.0
+const FISHING_DROP_GX := 70.0
 
 @export var target_path: NodePath
 @export var offset := DEFAULT_OFFSET
@@ -59,6 +73,17 @@ var _acre_distance: float = ORIG_DISTANCE
 var _acre_yaw: float = 0.0
 ## `Camera2_main_Wade`: `{start, goal, t}` (GX, seconds) while the player wades.
 var _acre_wade: Dictionary = {}
+## The item (report) camera on `_item_target`, and the eye it eases: centre (m), distance
+## (m), elevation and yaw.
+var _item_active: bool = false
+var _item_target: Node3D = null
+var _shot_center := Vector3.ZERO
+var _shot_distance: float = 0.0
+var _shot_elevation: float = 0.0
+var _shot_yaw: float = 0.0
+## The fishing camera: on while the line is out, then easing back for `_fishing_return`.
+var _fishing_active: bool = false
+var _fishing_return: float = 0.0
 
 
 ## The one in `tree`, or null.
@@ -159,6 +184,36 @@ func begin_door(center: Vector3, morph: bool = true) -> void:
 	_has_look = true
 
 
+## `Camera2_request_main_item`: frame `target`'s report (a catch, a find, the loan paid off).
+func begin_item(target: Node3D) -> void:
+	if target == null:
+		return
+	_take_shot()
+	_item_active = true
+	_item_target = target
+
+
+func end_item() -> void:
+	_item_active = false
+	_item_target = null
+
+
+func is_item() -> bool:
+	return _item_active
+
+
+## Start a shot from wherever the camera is now.
+func _take_shot() -> void:
+	if not _has_look:
+		_look_current = global_position - basis.z * FOLLOW_DISTANCE
+		_has_look = true
+	var arm: Vector3 = global_position - _look_current
+	_shot_center = _look_current
+	_shot_distance = arm.length()
+	_shot_elevation = atan2(arm.y, Vector2(arm.x, arm.z).length())
+	_shot_yaw = atan2(arm.x, arm.z)
+
+
 func end_door() -> void:
 	if not _door_active:
 		return
@@ -202,6 +257,13 @@ func _follow(snap: bool, delta: float = 0.0) -> void:
 	if _door_active:
 		_acre_active = false
 		_follow_door(snap, delta)
+		return
+	if _item_active and is_instance_valid(_item_target):
+		_acre_active = false
+		_follow_item(delta)
+		return
+	if _target != null and _follow_fishing(delta):
+		_acre_active = false
 		return
 	if _locked:
 		_acre_active = false
@@ -275,6 +337,70 @@ func _acre_step(eye_gx: Vector3, player_gx: Vector3, delta: float) -> void:
 	_acre_wade["t"] = t
 	if t >= AcreWade.DURATION:
 		_acre_wade = {}
+
+
+## `Camera2_SetPos_Item`: centre, distance and angles each on the normal camera's ease.
+func _follow_item(delta: float) -> void:
+	var u: float = PlayerLocomotion.UNIT_METERS
+	var goal: Vector3 = _item_target.global_position + ITEM_CENTER_GX * u
+	_shot_center = AcreCamera.follow(_shot_center / u, goal / u, delta) * u
+	_shot_distance = AcreCamera.follow_distance(_shot_distance / u, ITEM_DISTANCE_GX, delta) * u
+	_shot_elevation = AcreCamera.follow_pitch(_shot_elevation, atan2(offset.y, offset.z) + ITEM_PITCH, delta)
+	_shot_yaw = AcreCamera.follow_pitch(_shot_yaw, 0.0, delta)
+	_place_shot()
+
+
+## The fishing camera while `Fishing` holds the target (and briefly after). False when it is
+## not in play.
+func _follow_fishing(delta: float) -> bool:
+	var fishing: bool = Fishing.faces_bobber(_target)
+	if fishing and not _fishing_active:
+		_take_shot()
+		_fishing_active = true
+	elif not fishing and _fishing_active:
+		_fishing_active = false
+		_fishing_return = FISHING_RETURN_SECONDS
+	elif not fishing and _fishing_return <= 0.0:
+		return false
+	var step: float = FISHING_STEP
+	var center: Vector3
+	var distance: float = FOLLOW_DISTANCE
+	if fishing:
+		var eye: Vector3 = _look_point()
+		var bobber: Vector3 = Fishing.anchor()
+		var share: float = 0.35
+		if (eye.y - bobber.y) / PlayerLocomotion.UNIT_METERS > FISHING_DROP_GX:
+			share = 0.45
+			distance *= 1.15
+		center = eye.lerp(bobber, share)
+	else:
+		step = FISHING_RETURN_STEP
+		_fishing_return -= delta
+		center = _normal_center()
+	var f: float = 1.0 - pow(1.0 - step, delta * 60.0)
+	_shot_center = _shot_center.lerp(center, f)
+	_shot_distance = lerpf(_shot_distance, distance, f)
+	_shot_elevation = lerp_angle(_shot_elevation, atan2(offset.y, offset.z), f)
+	_shot_yaw = lerp_angle(_shot_yaw, 0.0, f)
+	_place_shot()
+	return true
+
+
+## Where the normal camera would centre now (`Camera2_main_Normal_SetEndCenterPos_fromPlayer`).
+func _normal_center() -> Vector3:
+	if _locked:
+		return _lock_point + Vector3(0.0, ROOM_LOOK_HEIGHT, 0.0)
+	var look_w: Vector3 = _look_point()
+	if TownSpace.is_outdoor_town():
+		return TownSpace.gx_to_world(AcreCamera.goal(TownSpace.world_to_gx(look_w), TownSpace.world_to_gx(_target.global_position)))
+	return look_w
+
+
+func _place_shot() -> void:
+	_look_current = _shot_center
+	_has_look = true
+	global_position = _shot_center + _arm(_shot_distance, _shot_elevation, _shot_yaw)
+	look_at(_shot_center, Vector3.UP)
 
 
 ## `Camera2_PolaPosCalc`: the eye `distance` from the centre at `elevation` above the
