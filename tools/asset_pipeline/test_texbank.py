@@ -160,7 +160,7 @@ class ClassicGbiTests(unittest.TestCase):
         self.assertTrue(is_indoor_mado_texture("rom_museum1_mado2_tex"))
         self.assertTrue(is_house_clock_texture("obj_clock_museum1_front_tex_txt"))
         self.assertTrue(skips_achd_texture("rom_museum1_mado1_tex"))
-        self.assertTrue(skips_achd_texture("obj_clock_museum1_dai_tex_txt"))
+        self.assertFalse(skips_achd_texture("obj_clock_museum1_dai_tex_txt"))
         self.assertTrue(skips_achd_texture("obj_art01_name_tex"))
         self.assertFalse(skips_achd_texture("obj_art01_art_tex"))
         self.assertFalse(skips_achd_texture("rom_open_spot_tex"))
@@ -370,6 +370,28 @@ class ClassicGbiTests(unittest.TestCase):
         ia = decode_n64_linear(bytes([0xF0]), 2, 1, 3, 0)
         self.assertEqual(ia.getpixel((0, 0)), (255, 255, 255, 255))
         self.assertEqual(ia.getpixel((1, 0))[3], 0)
+
+    def test_n64_linear_to_gx_round_trips_through_gx_decode(self) -> None:
+        from asset_pipeline.bti import RGB5A3, decode_gx_image, decode_n64_linear, n64_linear_to_gx
+
+        ## 8x4 RGBA16: two 4x4 GX blocks, each texel a distinct opaque or clear colour.
+        w, h = 8, 4
+        words = [((x * 3) << 11) | ((y * 5) << 6) | ((x + y) << 1) | (x % 2) for y in range(h) for x in range(w)]
+        blob = b"".join(v.to_bytes(2, "big") for v in words)
+        gx = n64_linear_to_gx(blob, w, h, 0, 2)
+        self.assertEqual(len(gx), len(blob))
+        linear = decode_n64_linear(blob, w, h, 0, 2)
+        tiled = decode_gx_image(gx, w, h, RGB5A3, None)
+        for y in range(h):
+            for x in range(w):
+                lr, lg, lb, la = linear.getpixel((x, y))
+                tr, tg, tb, ta = tiled.getpixel((x, y))
+                self.assertEqual(la > 0, ta > 0)
+                if la:
+                    self.assertEqual((lr, lg, lb), (tr, tg, tb))
+        ## Opaque red 5551 → RGB5A3 with the opaque bit set.
+        self.assertEqual(n64_linear_to_gx((0xF801).to_bytes(2, "big") * 16, 4, 4, 0, 2)[:2], b"\xfc\x00")
+        self.assertIsNone(n64_linear_to_gx(bytes(64), 4, 4, 0, 3))
 
     def test_shop_clock_tlut_is_n64_rgba5551_not_rgb5a3(self) -> None:
         from asset_pipeline.texbank import palette_from_rgb5a3, palette_from_rgba5551

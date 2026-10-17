@@ -38,8 +38,8 @@ from io import BytesIO
 MSG_BODY_PRIM = (235, 255, 235, 255)
 MSG_NAME_PRIM = (160, 215, 30, 255)
 ## `mChoice` window body (`m_choice_draw.c_inc` `con_sentaku2_modelT`): I4 mask
-## `con_waku_swaku3_tex` drawn white at PRIM alpha 155 over XLU. Keep it white +
-## intensity-alpha so `MessageWindowChrome` can PRIM-tint it to the AC cream.
+## `con_waku_swaku3_tex` drawn in PRIM (255,255,155) at texel alpha. Keep it white +
+## intensity-alpha so `MessageWindowChrome` can PRIM-tint it to that pale yellow.
 MSG_CHOICE_PRIM = (255, 255, 255, 255)
 
 ## Composited GC frame body tint for the talk cloud (`MessageWindowChrome`).

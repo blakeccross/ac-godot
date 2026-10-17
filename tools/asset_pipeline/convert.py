@@ -1783,6 +1783,7 @@ def _png_record(
             allow_achd
             and pack is not None
             and not skips_achd_texture(source)
+            and not (is_house_clock_texture(source) and fmt == G_IM_FMT_CI)
             and not is_room_bank_texture(source)
         ):
             ## Single-tile bank PNGs (shirts, faces) are not wrap-baked — use CLAMP

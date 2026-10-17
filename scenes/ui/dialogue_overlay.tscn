@@ -11,7 +11,7 @@
 
 [sub_resource type="StyleBoxTexture" id="ChoiceWindowStyle"]
 texture = ExtResource("7")
-modulate_color = Color(1, 1, 1, 0.607843)
+modulate_color = Color(1, 1, 0.607843, 1)
 
 [node name="DialogueOverlay" type="CanvasLayer"]
 process_mode = 3

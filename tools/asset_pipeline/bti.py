@@ -122,6 +122,44 @@ def decode_n64_linear(
     return img
 
 
+def _n64_rgba5551_to_rgb5a3(v: int) -> int:
+    if v & 1:
+        return 0x8000 | (v >> 1)
+    return ((v >> 4) & 0xFF00) | ((v >> 3) & 0xF0) | ((v >> 2) & 0x0F)
+
+
+def n64_linear_to_gx(data: bytes, width: int, height: int, fmt: int, siz: int) -> bytes | None:
+    """Row-major N64 texels re-encoded the way `emu64::texconv_tile` hands them to GX
+    (block-tiled; RGBA16 → RGB5A3, IA16 byte-swapped, IA8 nibble-swapped). Dolphin
+    hashes these converted bytes, so ACHD lookups for classic `gsDPLoadTextureBlock`
+    loads need them. `gsDPLoadTextureBlock` sets dxt, so there is no TMEM line swap.
+    32-bit texels are unsupported by emu64 and return None."""
+    if siz > 2:
+        return None
+    blk_w, blk_h = ((8, 8), (8, 4), (4, 4))[siz]
+    row_bytes = 4 if siz == 0 else 8
+    bits = 4 << siz
+    padded = data + bytes(row_bytes)
+    out = bytearray()
+    for by in range(0, height, blk_h):
+        for bx in range(0, width, blk_w):
+            for y in range(blk_h):
+                off = ((bx + (by + y) * width) * bits) // 8
+                row = padded[off : off + row_bytes].ljust(row_bytes, b"\0")
+                if siz == 2 and fmt == 0:  ## RGBA16
+                    for k in range(0, 8, 2):
+                        v = _n64_rgba5551_to_rgb5a3(int.from_bytes(row[k : k + 2], "big"))
+                        out += v.to_bytes(2, "big")
+                elif siz == 2 and fmt == 3:  ## IA16
+                    for k in range(0, 8, 2):
+                        out += bytes((row[k + 1], row[k]))
+                elif siz == 1 and fmt == 3:  ## IA8
+                    out += bytes(((b << 4) & 0xF0) | (b >> 4) for b in row)
+                else:
+                    out += row
+    return bytes(out)
+
+
 def decode_gx_image(data: bytes, width: int, height: int, fmt: int, palette: list[tuple[int, int, int, int]] | None = None) -> Image.Image:
     bw, bh, bpp = _BLOCK[fmt]
     img = Image.new("RGBA", (width, height))

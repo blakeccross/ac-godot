@@ -24,6 +24,7 @@ from .bti import (
 	decode_gx_image,
 	decode_linear_rgba5551,
 	decode_n64_linear,
+	n64_linear_to_gx,
 )
 from .mapfile import MapSymbol, index_by_name
 from .rel import RelData
@@ -697,7 +698,8 @@ def is_indoor_mado_texture(tex_name: str) -> bool:
 
 
 def is_house_clock_texture(tex_name: str) -> bool:
-    """`HOUSE_CLOCK` RGBA16 sheets. ACHD swaps wrong sizes and breaks wrap/UVs."""
+    """`HOUSE_CLOCK` / shop clock sheets, loaded with classic N64 commands. The CI ones
+    carry N64 RGBA16 TLUTs whose Dolphin hash is not reproduced, so they skip ACHD."""
     return tex_name.startswith("obj_clock_")
 
 
@@ -728,7 +730,6 @@ def skips_achd_texture(tex_name: str) -> bool:
     return (
         is_museum_plate_texture(tex_name)
         or is_indoor_mado_texture(tex_name)
-        or is_house_clock_texture(tex_name)
         or is_train_structure_texture(tex_name)
         or is_museum_tank_texture(tex_name)
     )
@@ -1869,12 +1870,17 @@ class TextureBank:
                 maybe_hd_png,
             )
 
-            ## Hash-collision sheets (museum plates / mado / clocks / train CI) stay
+            ## Hash-collision sheets (museum plates / mado / CI clocks / train CI) stay
             ## on ``skips_achd_texture``. Room banks + player body stay native.
             ## Field/tree use ACHD: CLAMP leaf/trunk keep full HD; REPEAT grass/earth
             ## are capped in ``maybe_hd_png`` so wrap-bake + seasons stay aligned.
+            ## Classic N64 loads hash as the GX texels emu64 converts them to.
+            hash_data = n64_linear_to_gx(data, state.width, state.height, state.fmt, state.siz) \
+                if state.n64_linear else data
             if (
-                not skips_achd_texture(name)
+                hash_data is not None
+                and not skips_achd_texture(name)
+                and not (is_house_clock_texture(name) and state.fmt == G_IM_FMT_CI)
                 and not is_room_bank_texture(name)
                 and not is_player_model_texture(name, self.current_prefix)
             ):
@@ -1885,7 +1891,7 @@ class TextureBank:
                 else:
                     hd = maybe_hd_png(
                         self.achd,
-                        data,
+                        hash_data,
                         state.width,
                         state.height,
                         gx,

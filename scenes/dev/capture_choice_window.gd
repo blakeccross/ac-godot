@@ -30,9 +30,13 @@ func _ready() -> void:
 
 	## advance past the greeting line → choices appear
 	var runner = overlay.runner()
-	if runner != null:
-		runner.advance()
-	for _i in 90:
+	for _i in 600:
+		if runner == null or (runner.waiting_choice and overlay.is_awaiting_input()):
+			break
+		if _i % 30 == 0 and not runner.waiting_choice:
+			overlay.fast_advance()
+		await get_tree().process_frame
+	for _i in 60:
 		await get_tree().process_frame
 	_shot(OUT_MENU)
 	var panel: Panel = overlay.get_node("%ChoicePanel")
