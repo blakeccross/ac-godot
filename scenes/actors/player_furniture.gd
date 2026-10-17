@@ -60,7 +60,7 @@ func try_grip() -> bool:
 func _grip_stick() -> Vector2:
 	if _player._menu_open():
 		return Vector2.ZERO
-	var input_dir: Vector2 = _player._read_stick()
+	var input_dir: Vector2 = _player.stick_input()
 	var wish: Vector3 = _player._camera_wish(input_dir)
 	return Vector2(wish.x, wish.z) * clampf(input_dir.length(), 0.0, 1.0)
 
@@ -69,7 +69,7 @@ func tick_grip(delta: float) -> void:
 	if Game.interior_session == null:
 		_end_grip()
 		return
-	var held: bool = Input.is_action_pressed("interact") and not _player._menu_open()
+	var held: bool = _player.a_held() and not _player._menu_open()
 	var events: Array[Dictionary] = _grip.advance(
 		delta, Game.interior_session, held, _grip_stick(), _player.global_position
 	)

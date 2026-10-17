@@ -24,6 +24,7 @@ SaveService="*res://scripts/systems/save_service.gd"
 Audio="*res://scripts/systems/audio.gd"
 Game="*res://scripts/systems/game.gd"
 SceneTransition="*res://scripts/systems/scene_transition.gd"
+InputDeviceTracker="*res://scripts/systems/input_device_tracker.gd"
 
 [display]
 
@@ -39,6 +40,10 @@ enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
 [gui]
 
 theme/custom="res://assets/ui/default_theme.tres"
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse.debug=true
 
 [importer_defaults]
 

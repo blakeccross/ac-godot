@@ -1525,11 +1525,12 @@ func _run_background_tag(tag: String) -> void:
 	_refresh()
 
 
+## Left click only: fingers arrive here too, as the mouse clicks
+## `emulate_mouse_from_touch` makes, so also taking the touch fired twice.
 func _click_event(event: InputEvent) -> bool:
 	return (
-		(event is InputEventMouseButton and (event as InputEventMouseButton).pressed
-			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT)
-		or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
+		event is InputEventMouseButton and (event as InputEventMouseButton).pressed
+		and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT
 	)
 
 

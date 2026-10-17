@@ -142,7 +142,7 @@ var catch_showing: bool:
 
 ## Title demo: a recorded stick + A replace live input (`mEv_IsTitleDemo` swaps the controller
 ## in `m_player_controller.c_inc`). Null during normal play.
-var scripted_input: TitleDemoInput = null
+var scripted_input: PlayerInput = null
 ## `mPlib_Set_unable_wade`: acre crossings are refused; trying one raises `wade_cancelled`
 ## (`excute_cancel_wade`, which the intro's Nook answers).
 var unable_wade: bool = false
@@ -396,7 +396,7 @@ func _physics_process(delta: float) -> void:
 		furniture.tick_grip(delta)
 	elif not furniture.rest.is_empty():
 		furniture.tick_rest(delta)
-	elif not _busy and scripted_input == null and not net.is_active():
+	elif not _busy and not _demo_input() and not net.is_active():
 		furniture.poll_furniture_pickup()
 		_poll_pitfall()
 		_poll_radio_exercise(delta)
@@ -438,9 +438,7 @@ func _physics_process(delta: float) -> void:
 		wish = Vector3.ZERO
 		stick = 0.0
 		input_dir = Vector2.ZERO
-	var sprint: bool = (
-		scripted_input == null and not doors.is_demo_walking() and Input.is_action_pressed("sprint")
-	)
+	var sprint: bool = not doors.is_demo_walking() and dash_held()
 	move_intent = wish * stick
 	if _snowball != null:
 		snowball.push_snowball(delta, wish, stick, sprint and not menu_open, input_dir, bg)
@@ -449,7 +447,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_motor.position = global_position
 	## `mEv_IsNotTitleDemo() && destiny == BAD_LUCK` gates the dash trip.
-	_motor.bad_luck = scripted_input == null and Game.destiny() == Game.Destiny.BAD_LUCK
+	_motor.bad_luck = not _demo_input() and Game.destiny() == Game.Destiny.BAD_LUCK
 	## Recorded title-demo input and demo walks (`Player_actor_Movement_Demo_walk` steers
 	## without the stick) count as held axes whenever they ask to move.
 	if scripted_input != null or doors.is_demo_walking():
@@ -568,7 +566,7 @@ func _can_land(pos_gx: Vector3, dir: AcreWade.Dir, bg: Array) -> bool:
 		return false
 	if grid.is_occupied(grid.world_to_cell(probe)):
 		return false
-	if scripted_input == null:
+	if not _demo_input():
 		var clear: float = AcreWade.NPC_CLEAR
 		for npc: Node in get_tree().get_nodes_in_group("villagers"):
 			if npc is Node3D and (npc as Node3D).global_position.distance_to(probe) < clear:
@@ -774,6 +772,37 @@ func _camera_wish(input_dir: Vector2) -> Vector3:
 	if wish.length_squared() > 1.0:
 		wish = wish.normalized()
 	return wish
+
+
+## The attract-mode recording is driving (its own rules: no dash, its own verbs).
+func _demo_input() -> bool:
+	return scripted_input != null and scripted_input.demo
+
+
+## The stick, from the installed input source or the pad / keyboard.
+func stick_input() -> Vector2:
+	return scripted_input.move if scripted_input != null else _read_stick()
+
+
+## A held, from the source or `interact`.
+func a_held() -> bool:
+	if scripted_input != null:
+		return scripted_input.a_held
+	return Input.is_action_pressed("interact") and not _menu_open()
+
+
+## A pressed this tick (taken from the source, so it fires once).
+func a_just_pressed() -> bool:
+	if scripted_input != null:
+		return scripted_input.consume_a_pressed()
+	return Input.is_action_just_pressed("interact")
+
+
+## B / L / R held to dash.
+func dash_held() -> bool:
+	if scripted_input != null:
+		return scripted_input.dash_held and not scripted_input.demo
+	return Input.is_action_pressed("sprint")
 
 
 ## `mCon_calc`: raw stick (no Godot dead-zone remap) → `move_pR` direction × percent.
@@ -1294,7 +1323,7 @@ func _try_interact() -> void:
 		if Game.try_place_furniture(self):
 			return
 		return
-	if scripted_input != null and not TitleDemo.allows_verb(hit.action.id):
+	if _demo_input() and not TitleDemo.allows_verb(hit.action.id):
 		return
 	if hit.host == null and hit.action.id == Interaction.SWING_NET:
 		net.begin_net()
@@ -1312,14 +1341,14 @@ func _try_pick_up() -> void:
 	var hit: InteractionQuery = _query_focus(true)
 	if hit == null or hit.action == null:
 		return
-	if scripted_input != null and not TitleDemo.allows_verb(hit.action.id):
+	if _demo_input() and not TitleDemo.allows_verb(hit.action.id):
 		return
 	await _run_interact(hit)
 
 
 func _try_auto_enter() -> void:
 	## Museum walk-in (`aMsm_check_player`): no A press while open.
-	if scripted_input != null or _busy or doors.door_entering or _menu_open() or net.is_active():
+	if _demo_input() or _busy or doors.door_entering or _menu_open() or net.is_active():
 		return
 	var hit: InteractionQuery = _resolve_interact()
 	if hit == null or hit.host == null or hit.action == null:
@@ -2088,8 +2117,8 @@ func _struggle() -> void:
 	while presses < STRUGGLE_PRESSES:
 		await get_tree().process_frame
 		var ticks: float = get_process_delta_time() * DecompTime.TICK_HZ
-		var stick: Vector2 = _read_stick() if scripted_input == null else scripted_input.move
-		var add: float = 1.0 if Input.is_action_just_pressed("interact") and not _menu_open() else 0.0
+		var stick: Vector2 = stick_input()
+		var add: float = 1.0 if a_just_pressed() and not _menu_open() else 0.0
 		add += absf(old_stick.length() - stick.length()) * 0.5
 		if old_stick.length() > 0.0 and stick.length() > 0.0:
 			## `s16` move-angle change × 0.00002.
