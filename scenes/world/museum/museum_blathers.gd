@@ -336,6 +336,8 @@ func _play_clip(suffix: String, loop: bool) -> void:
 	if clip == _clip and _body_anim.is_playing():
 		return
 	_clip = clip
+	var sleeping: bool = clip == _resolve_clip(ANIM_SLEEP)
+	_face.set_emote(NpcFaceAnim.Emote.SLEEPY if sleeping else NpcFaceAnim.Emote.NORMAL)
 	var animation: Animation = _body_anim.get_animation(clip)
 	if animation != null:
 		animation.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE

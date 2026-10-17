@@ -109,7 +109,8 @@ func back_visible() -> bool:
 	return action >= Action.BACK_FADE_IN
 
 
-## The copyright line and the TM mark (`action >= aAL_ACTION_START_KEY_CHK_START`).
+## When the TM mark (and originally the copyright line) would show
+## (`action >= aAL_ACTION_START_KEY_CHK_START`). Presentation skips the copyright text.
 func copyright_visible() -> bool:
 	return action >= Action.START_KEY_CHK_START
 

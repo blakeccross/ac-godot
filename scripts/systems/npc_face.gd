@@ -23,6 +23,7 @@ var _mouth_frames: Array[Texture2D] = []
 var _eye_shown: int = -1
 var _mouth_shown: int = -1
 var _target_size := Vector2i.ZERO
+var _mouth_flap: MouthFlap
 
 
 ## Face PNGs are keyed by disc prefix (`flg`, `rbt`, …), while villager data uses
@@ -38,37 +39,46 @@ static func has_frames(species: StringName) -> bool:
 	return ResourceLoader.exists(frame_path(species, "eye", 0))
 
 
-## Returns true when both quads were found and frames are available to swap. `texture_set`
-## (`bul_2`) picks that draw entry's own eye / mouth frames over the species default.
+## Returns true when at least one face quad was found with frames to swap. Some heads
+## carry only one: beaks and snouts are skeletal (`MouthFlap`, attached here too), so the
+## owl has an eye quad and no mouth. `texture_set` (`bul_2`) picks that draw entry's own
+## eye / mouth frames over the species default.
 func bind(visual: Node3D, species: StringName, texture_set: StringName = &"") -> bool:
 	_eye_mats.clear()
 	_mouth_mats.clear()
 	_eye_frames.clear()
 	_mouth_frames.clear()
 	_target_size = Vector2i.ZERO
+	_mouth_flap = null
 	if visual == null:
 		return false
-	_collect_face_quads(visual)
-	if _eye_mats.is_empty() or _mouth_mats.is_empty():
-		return false
-	_target_size = _quad_size(_eye_mats[0].albedo_texture)
 	var code := StringName(FieldCatalog.species_code(species))
 	if String(code).is_empty():
 		code = species
+	_mouth_flap = MouthFlap.attach(visual, code)
+	_collect_face_quads(visual)
+	if _eye_mats.is_empty() and _mouth_mats.is_empty():
+		return false
 	if texture_set != &"" and ResourceLoader.exists(frame_path(texture_set, "eye", 0)):
 		code = texture_set
 	var use_bin_frames: bool = code == &"boy"
-	if use_bin_frames:
-		_eye_frames = _load_frames(code, "eye", NpcFaceAnim.EYE_SHUT + 6)
-		_mouth_frames = _load_frames(code, "mouth", NpcFaceAnim.MOUTH_OPEN + 4)
-	else:
-		_eye_frames = _prepare_villager_frames(code, "eye", NpcFaceAnim.EYE_SHUT + 6)
-		_mouth_frames = _prepare_villager_frames(code, "mouth", NpcFaceAnim.MOUTH_OPEN + 4)
-	if _eye_frames.is_empty():
-		_eye_frames = _synthesize_eye_frames(_eye_mats[0].albedo_texture)
-	if _mouth_frames.is_empty():
-		_mouth_frames = _synthesize_mouth_frames(_mouth_mats[0].albedo_texture)
-	if _eye_frames.is_empty() or _mouth_frames.is_empty():
+	if not _eye_mats.is_empty():
+		_target_size = _quad_size(_eye_mats[0].albedo_texture)
+		if use_bin_frames:
+			_eye_frames = _load_frames(code, "eye", NpcFaceAnim.EYE_SHUT + 6)
+		else:
+			_eye_frames = _prepare_villager_frames(code, "eye", NpcFaceAnim.EYE_SHUT + 6)
+		if _eye_frames.is_empty():
+			_eye_frames = _synthesize_eye_frames(_eye_mats[0].albedo_texture)
+	if not _mouth_mats.is_empty():
+		_target_size = _quad_size(_mouth_mats[0].albedo_texture)
+		if use_bin_frames:
+			_mouth_frames = _load_frames(code, "mouth", NpcFaceAnim.MOUTH_OPEN + 4)
+		else:
+			_mouth_frames = _prepare_villager_frames(code, "mouth", NpcFaceAnim.MOUTH_OPEN + 4)
+		if _mouth_frames.is_empty():
+			_mouth_frames = _synthesize_mouth_frames(_mouth_mats[0].albedo_texture)
+	if _eye_frames.is_empty() and _mouth_frames.is_empty():
 		return false
 	_eye_shown = -1
 	_mouth_shown = -1
@@ -77,6 +87,8 @@ func bind(visual: Node3D, species: StringName, texture_set: StringName = &"") ->
 
 
 func tick(delta: float, uttering: bool) -> void:
+	if _mouth_flap != null and is_instance_valid(_mouth_flap):
+		_mouth_flap.tick(delta, uttering)
 	if _eye_mats.is_empty() and _mouth_mats.is_empty():
 		return
 	if _anim.tick(delta, uttering):

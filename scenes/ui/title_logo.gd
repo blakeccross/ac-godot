@@ -2,9 +2,10 @@ extends CanvasLayer
 
 ## Title logo overlay: the presentation half of `ac_animal_logo`. All timing and state live in
 ## `TitleLogoState`; this node updates it every frame, scrubs the three baked skeleton clips to its
-## `anim_seconds()`, and mirrors its opacities onto the backdrop, copyright line and
-## "PRESS START". Layout is authored in `title_logo.tscn` in the original 320x240 space
+## `anim_seconds()`, and mirrors its opacities onto the backdrop, TM mark and "PRESS START".
+## Layout is authored in `title_logo.tscn` in the original 320x240 space
 ## (`mFont_SetMatrix`: ortho +-160x120 px, y up); generated art is attached here when present.
+## The original copyright line is omitted on purpose.
 
 signal start_selected
 signal start_chime
@@ -46,7 +47,6 @@ var _has_models: bool = false
 @onready var _cros_slot: Node3D = %Cros
 @onready var _sing_slot: Node3D = %Sing
 @onready var _tm_slot: Node3D = %Tm
-@onready var _copyright: Control = %Copyright
 @onready var _press_start: Control = %PressStart
 @onready var _fallback: Label = %FallbackTitle
 
@@ -84,8 +84,7 @@ func _refresh() -> void:
 	_back_root.visible = state.back_visible() and _has_models
 	for mat: ShaderMaterial in _back_materials:
 		mat.set_shader_parameter("opacity", state.back_opacity)
-	_copyright.visible = state.copyright_visible()
-	_copyright.modulate.a = state.copyright_opacity
+	## TM appears with the copyright stage in the original; we only show the mark.
 	_tm_slot.visible = state.copyright_visible() and _has_models
 	_press_start.visible = state.press_start_visible()
 	_press_start.modulate.a = state.press_start_opacity
@@ -177,8 +176,6 @@ func set_demo_index(index: int) -> void:
 
 
 func _attach_textures() -> void:
-	for i: int in 3:
-		_set_texture(_copyright.get_node("Line%d" % i) as TextureRect, "copyright_%d" % i)
 	_attach_press_start()
 
 
