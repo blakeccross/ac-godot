@@ -819,10 +819,20 @@ func _feed_clip_state() -> void:
 ## Frame marks written into the body's clips: each action's SE (`PlayerSe.CLIP_MARKS`) and
 ## `Player_actor_SetEffect_Tumble`'s rumble at frame 10, landing dust at 15 and body print
 ## at 17, on every tumble clip.
+## `Player_actor_SetEffectHit_Fill_scoop`: clods at frames 13, 19 and 25 and the scoop's
+## dirt at 40 (seven later on `FILL_UP_I1`). The fill clips are only ever a fill.
+const FILL_MARKS: Array = [[13.0, &"fx_fill_3"], [19.0, &"fx_fill_4"], [25.0, &"fx_fill_5"], [40.0, &"fx_fill_scoop"]]
+
+
 func _clip_marks() -> Dictionary:
-	var marks: Dictionary = PlayerSe.CLIP_MARKS.duplicate()
+	var marks: Dictionary = PlayerSe.CLIP_MARKS.duplicate(true)
 	for clip: String in [ToolUse.ANIM_KOKERU, ToolUse.ANIM_KOKERU_A, ToolUse.ANIM_KOKERU_N]:
 		marks[StringName(clip)] = TUMBLE_MARKS
+	for pair: Array in [[&"ply_1_fill_up1", 0.0], [&"ply_1_fill_up_i1", 7.0]]:
+		var list: Array = (marks.get(pair[0], []) as Array).duplicate()
+		for mark: Array in FILL_MARKS:
+			list.append([float(mark[0]) + float(pair[1]), mark[1]])
+		marks[pair[0]] = list
 	return marks
 
 
@@ -830,6 +840,19 @@ func _on_clip_event(_clip: StringName, event: StringName) -> void:
 	match event:
 		&"tumble_rumble":
 			GameConfig.rumble(GameConfig.TUMBLE)
+		&"fx_fill_3", &"fx_fill_4", &"fx_fill_5", &"fx_fill_scoop":
+			var ctx: InteractionContext = _make_context()
+			var grid: WorldGrid = ctx.world.get("grid") as WorldGrid if ctx.world != null else null
+			if grid == null:
+				return
+			var bg: Array = _bg()
+			var hole: Vector3 = grid.cell_to_world(ToolUse.facing_cell(ctx))
+			hole.y = global_position.y
+			var attr: int = FootstepEffects.attr_at(bg, hole)
+			if event == &"fx_fill_scoop":
+				FootstepEffects.dig_scoop(bg, hole, global_position, _motor.facing, attr, 2)
+			else:
+				FootstepEffects.dig_hole(bg, hole, global_position, _motor.facing, attr, int(String(event).right(1)))
 		&"tumble_dust", &"tumble_print":
 			var bg: Array = _bg()
 			var attr: int = _unit_attr(bg)

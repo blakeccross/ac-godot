@@ -58,7 +58,11 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 			return false
 		if ctx != null and ctx.actor != null:
 			PlayerSe.scoop_dig(ctx.actor)
-		return PlantGrowth.dig_up_flower(ctx, _cell())
+		var cell: Vector2i = _cell()
+		if not PlantGrowth.dig_up_flower(ctx, cell):
+			return false
+		ToolUse.dig_effects(ctx, cell, true)
+		return true
 	if action.id == Interaction.WATER:
 		if not ToolUse.has(ctx, ToolData.Kind.WATERING_CAN):
 			return false

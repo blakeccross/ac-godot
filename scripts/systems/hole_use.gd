@@ -10,6 +10,9 @@ const SCENE := "res://scenes/world/hole.tscn"
 const GROUND_DIST := FieldCollision.FG_GROUND_DIST
 
 
+## `Put_Hole_Dig_scoop` (frame 20) after `SetSound_Dig_scoop` (frame 15).
+const HOLE_SHOWS_AFTER := 5.0 / DecompTime.FRAME_HZ
+
 static func persist_id(cell: Vector2i) -> StringName:
 	return StringName("hole_%d_%d" % [cell.x, cell.y])
 
@@ -48,7 +51,14 @@ static func dig(ctx: InteractionContext, cell: Vector2i, play_scoop_se: bool = t
 	if not grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT):
 		Game.clear_hole(pid)
 		return false
-	_instance(ctx.world if ctx != null else null, grid, cell, pid)
+	var hole: Node3D = _instance(ctx.world if ctx != null else null, grid, cell, pid)
+	## `Put_Hole_Dig_scoop`: the unit is a hole from the dig's frame 15, but the hole itself
+	## shows at frame 20, once the clods are up.
+	if hole != null and hole.is_inside_tree():
+		hole.visible = false
+		hole.get_tree().create_timer(HOLE_SHOWS_AFTER).timeout.connect(func() -> void:
+			if is_instance_valid(hole):
+				hole.visible = true)
 	_notify_bugs(ctx, cell)
 	if play_scoop_se and ctx != null and ctx.actor != null:
 		PlayerSe.scoop_dig(ctx.actor)

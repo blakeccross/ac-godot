@@ -189,6 +189,32 @@ func execute(raw: String) -> String:
 					mb_box.call("interact", Interaction.of(Interaction.READ, "Check mailbox"), mb_ctx)
 					return "Checking the mailbox."
 			return "No mailbox."
+		"fx":
+			## Tool effects in front of the player: `fx dig`, `fx fill`, `fx chips`, `fx splash 3`
+			## (an `eTM_CallEffect` arg), `fx net`.
+			var fx_player := Player.find(Engine.get_main_loop() as SceneTree)
+			if fx_player == null:
+				return "No player."
+			var fx_bg: Array = fx_player._bg()
+			var fx_yaw: float = fx_player.facing_yaw()
+			var fx_at: Vector3 = fx_player.global_position + Vector3(sin(fx_yaw), 0.0, cos(fx_yaw)) * 2.0
+			var fx_attr: int = FootstepEffects.attr_at(fx_bg, fx_at)
+			match String(args[0]) if not args.is_empty() else "dig":
+				"dig":
+					FootstepEffects.dig_sequence(fx_bg, fx_at, fx_player, fx_attr, false)
+				"fill":
+					for i: int in range(3, 6):
+						FootstepEffects.dig_hole(fx_bg, fx_at, fx_player.global_position, fx_yaw, fx_attr, i)
+					FootstepEffects.dig_scoop(fx_bg, fx_at, fx_player.global_position, fx_yaw, fx_attr, 2)
+				"chips":
+					FootstepEffects.axe_chips(fx_bg, fx_player.global_position, fx_yaw)
+				"splash":
+					FootstepEffects.bobber_splash(fx_at, int(args[1]) if args.size() > 1 else 3)
+				"net":
+					FootstepEffects.net_splash(fx_bg, fx_at, fx_yaw)
+				_:
+					return "fx dig | fill | chips | splash N | net"
+			return "Spawned."
 		"twirl":
 			## The umbrella twirl's spray at the player (`ef_kasamizu`; drops only in rain).
 			var tw_player := Player.find(Engine.get_main_loop() as SceneTree)

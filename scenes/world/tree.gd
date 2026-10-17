@@ -139,6 +139,11 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 	if not out.shook and not out.felled:
 		return false
 	PlayerSe.axe_cut(self)
+	## `Player_actor_SetEffectHit_axe_common` frame 15: chips fly off the trunk.
+	var chopper := ctx.actor as Node3D if ctx != null else null
+	if chopper != null:
+		var yaw: float = chopper.call("facing_yaw") if chopper.has_method("facing_yaw") else chopper.rotation.y
+		FootstepEffects.axe_chips(FootstepEffects.bg_of(ctx), chopper.global_position, yaw)
 	ToolUse.wear_axe(ctx, false)
 	_emit_drops(out, ctx)
 	if out.dropped_fruit > 0:

@@ -33,8 +33,11 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	var grid: WorldGrid = world.grid if world != null else null
 	if grid == null:
 		return false
-	if not BuriedUse.dig(ctx, grid.world_to_cell(global_position)):
+	var cell: Vector2i = grid.world_to_cell(global_position)
+	if not BuriedUse.dig(ctx, cell):
 		return false
+	## `GET_SCOOP`: the dirt comes up with the find.
+	ToolUse.dig_effects(ctx, cell, true)
 	await BuriedUse.report(ctx)
 	return true
 
