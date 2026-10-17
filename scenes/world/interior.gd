@@ -46,6 +46,8 @@ func _ready() -> void:
 		Clock.time_changed.connect(_on_shop_clock)
 	if not Clock.time_changed.is_connected(_refresh_light):
 		Clock.time_changed.connect(_refresh_light)
+	if not Clock.hour_changed.is_connected(_on_hour_chime):
+		Clock.hour_changed.connect(_on_hour_chime)
 	_sync_rain_se()
 	_build_room(room)
 	_apply_indoor_light(room)
@@ -143,7 +145,16 @@ func _on_weather_changed(_weather: StringName) -> void:
 	_refresh_light()
 
 
+## `Na_SceneMode`: the hourly chime plays in rooms too, at `sou_chime_volume` 0.45.
+func _on_hour_chime(_hour: int) -> void:
+	if Game.title_demo_active or Game.intro_station_active:
+		return
+	Audio.play_melody(Game.town.town_tune, {}, Audio.CHIME_STEP_SEC, Audio.CHIME_INDOOR_DB)
+
+
 func _exit_tree() -> void:
+	if Clock.hour_changed.is_connected(_on_hour_chime):
+		Clock.hour_changed.disconnect(_on_hour_chime)
 	if Game.weather_changed.is_connected(_on_weather_changed):
 		Game.weather_changed.disconnect(_on_weather_changed)
 	if Clock.time_changed.is_connected(_on_shop_clock):

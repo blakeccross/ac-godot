@@ -10,11 +10,17 @@ const CATALOG_PATH := GENERATED_DIR + "/catalog.json"
 static var _loaded: bool = false
 static var _entries: Dictionary = {}
 static var _streams: Dictionary = {}
+## Catalog id by sound number (`se_num`), for hex ids the game names by number.
+static var _by_num: Dictionary = {}
+## `SE_SINGLETON` (0x8000) and `SE_MONO` (0x1000) are flags on the number, not other sounds:
+## `8026` is SINGLETON(0x26), `1050` MONO(`register`).
+const FLAG_BITS: Array[int] = [0x8000, 0x1000, 0x9000]
 
 
 static func reset() -> void:
 	_entries.clear()
 	_streams.clear()
+	_by_num.clear()
 	_loaded = false
 
 
@@ -22,8 +28,27 @@ static func ensure_loaded() -> void:
 	if _loaded:
 		return
 	_entries.clear()
+	_by_num.clear()
 	_load_catalog()
 	_loaded = true
+
+
+## The catalog id a hex sound id stands for: itself, the row with that number (`54` is
+## `kokoro_toguru`), or the same number without its play flags. `id` when nothing matches.
+static func resolve(id: StringName) -> StringName:
+	ensure_loaded()
+	if _entries.has(id) or _streams.has(id):
+		return id
+	var raw := String(id)
+	if not raw.is_valid_hex_number():
+		return id
+	var num: int = raw.hex_to_int()
+	if _by_num.has(num):
+		return _by_num[num]
+	for bits: int in FLAG_BITS:
+		if num & bits and _by_num.has(num & ~bits):
+			return _by_num[num & ~bits]
+	return id
 
 
 static func register_stream(id: StringName, stream: AudioStream) -> void:
@@ -36,6 +61,7 @@ static func has_id(id: StringName) -> bool:
 	if id == &"":
 		return false
 	ensure_loaded()
+	id = resolve(id)
 	if _streams.has(id):
 		return true
 	if _entries.has(id):
@@ -47,6 +73,7 @@ static func stream_for(id: StringName) -> AudioStream:
 	if id == &"":
 		return null
 	ensure_loaded()
+	id = resolve(id)
 	if _streams.has(id):
 		return _streams[id] as AudioStream
 	var path := _path_for(id)
@@ -77,6 +104,8 @@ static func _load_catalog() -> void:
 					var key := StringName(str(rec.get("id", "")))
 					if key != &"":
 						_entries[key] = rec
+						if rec.has("se_num") and not _by_num.has(int(rec["se_num"])):
+							_by_num[int(rec["se_num"])] = key
 
 
 static func _path_for(id: StringName) -> String:

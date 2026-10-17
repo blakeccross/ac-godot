@@ -113,6 +113,12 @@ class AudioParseTests(unittest.TestCase):
         table = parse_seq_table(SEQ_TABLE_SNIPPET)
         self.assertEqual(table, [247, 81, 82, 83])
 
+    def test_line_comments_do_not_swallow_entries(self) -> None:
+        src = "typedef enum bgm_e {\n    BGM_A,\n    // TODO: others\n    BGM_MD0, // 128\n    BGM_MD1,\n} BGM_e;"
+        ids = parse_bgm_ids(src)
+        self.assertEqual(ids["md0"], 1)
+        self.assertEqual(ids["md1"], 2)
+
     def test_bgm_ids_and_hour_keys(self) -> None:
         ids = parse_bgm_ids(BGM_SNIPPET)
         self.assertEqual(ids["silence"], 0)

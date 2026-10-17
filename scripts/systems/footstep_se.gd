@@ -61,9 +61,25 @@ static func id_for_terrain(terrain: WorldGrid.Terrain, season: Clock.Season) -> 
 			return &"footstep_soil"
 
 
-static func id_indoors() -> StringName:
-	## `Na_PlyWalkSeRoom(0xFF, …)` → wood.
-	return &"footstep_wood"
+## `SE_FLOOR_DATA`: each floor's footstep, as an offset from `NA_SE_FLOOR_SE_START` (0x42E6).
+const FLOOR_SE: PackedByteArray = [
+	27, 27, 32, 31, 28, 32, 31, 27, 27, 28, 29, 29, 27, 31, 28, 30,
+	33, 27, 30, 27, 32, 32, 31, 28, 32, 27, 35, 32, 32, 32, 27, 29,
+	31, 32, 28, 28, 28, 27, 28, 28, 27, 31, 36, 32, 28, 27, 33, 27,
+	35, 28, 32, 32, 28, 28, 32, 29, 28, 33, 27, 32, 33, 27, 32, 32,
+	28, 32, 32, 34, 32, 32, 27, 32, 28, 27, 29, 27, 28, 28, 27, 31,
+	28, 31, 28, 32, 28, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+]
+const FLOOR_SE_START := 0x42E6
+
+
+## `Player_actor_sound_FootStep2` → `Na_PlyWalkSeRoom`: the room's floor (`floor_idx`) sets
+## the step; a room with no floor of its own, or a floor the sound table lacks, is wood
+## (`0xFF`).
+static func id_indoors(floor_index: int = -1) -> StringName:
+	if floor_index < 0 or floor_index >= FLOOR_SE.size():
+		return &"footstep_wood"
+	return StringName("%x" % (FLOOR_SE_START + FLOOR_SE[floor_index]))
 
 
 static func volume_db(gait: PlayerLocomotion.Gait, indoors: bool = false) -> float:
@@ -86,13 +102,14 @@ static func play_at(
 	terrain: WorldGrid.Terrain,
 	season: Clock.Season,
 	gait: PlayerLocomotion.Gait,
-	indoors: bool
+	indoors: bool,
+	floor_index: int = -1
 ) -> void:
 	if gait == PlayerLocomotion.Gait.WAIT:
 		return
 	var id: StringName
 	if indoors:
-		id = id_indoors()
+		id = id_indoors(floor_index)
 	elif attr >= 0:
 		id = id_for_attr(attr, season)
 	else:

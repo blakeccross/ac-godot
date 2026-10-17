@@ -113,6 +113,8 @@ func open() -> void:
 	set_process(true)
 	set_process_unhandled_input(true)
 	Audio.play_se(&"17c")
+	## `mBGMPsComp_pause(3)`.
+	Audio.set_music_pause(Audio.PAUSE_POCKETS)
 	_slide.slide_in(MenuSlide.Dir.IN_TOP)
 	_canvas.queue_redraw()
 
@@ -123,6 +125,7 @@ func close() -> void:
 	_open = false
 	set_process_unhandled_input(false)
 	Audio.play_se(&"17d")
+	Audio.set_music_pause(1.0)
 	_slide.slide_out(MenuSlide.Dir.OUT_TOP, _on_slid_out)
 	closed.emit(_posted)
 

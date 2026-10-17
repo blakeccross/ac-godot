@@ -3,6 +3,8 @@ extends StaticBody3D
 ## Simple outdoor building shell (museum, Able Sisters, post office, …).
 ## Interaction lives on the child Door — composition, not a special player case.
 
+const LEVEL_SOUND := preload("res://scenes/world/level_sound.tscn")
+
 @export var occupant_id: StringName = &""
 @export var footprint: Vector2i = Vector2i(2, 2)
 @export var grid_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
@@ -16,6 +18,11 @@ extends StaticBody3D
 func _ready() -> void:
 	GeneratedVisual.attach(self, visual_id)
 	HostCollision.apply_building(self, visual_id, footprint, HostCollision.CELL)
+	## `ac_shrine_move`: the wishing well hums (level SE 0x5A) whenever it is out.
+	if String(visual_id).contains("shrine"):
+		var hum := LEVEL_SOUND.instantiate() as LevelSound
+		hum.level_id = 0x5A
+		add_child(hum)
 	## Station is outdoor-only (`ac_station` + acre collision; Porter at ut 5,4). No Door.
 	if HostCollision.is_station(visual_id):
 		return
