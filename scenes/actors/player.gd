@@ -1565,6 +1565,18 @@ const GOLDEN_FANFARE: Dictionary = {&"golden_net": 0x4B, &"golden_fishing_rod": 
 const GOLDEN_FANFARE_OTHER := 0x4A
 
 
+## `mDemo_TYPE_REPORT` → `Camera2_request_main_item`: while the player's own report is up
+## the camera closes in on them; when it is dismissed the normal camera eases back.
+func report_camera(on: bool) -> void:
+	var cam: FollowCamera = FollowCamera.find(get_tree()) if is_inside_tree() else null
+	if cam == null:
+		return
+	if on:
+		cam.begin_item(self)
+	else:
+		cam.end_item()
+
+
 func get_golden_item(item_id: StringName) -> void:
 	if _busy or not is_inside_tree():
 		return
@@ -1593,8 +1605,10 @@ func get_golden_item(item_id: StringName) -> void:
 		var ctx := DialogueContext.from_game()
 		ctx.speaker_name = ""
 		ctx.window_color = GOLDEN_WINDOW
+		report_camera(true)
 		ui.play(data, ctx)
 		await _net_wait_closed(ui)
+		report_camera(false)
 	Audio.pop_fanfare(jingle)
 	if not is_inside_tree():
 		return
@@ -1638,8 +1652,10 @@ func broken_axe() -> void:
 		var ctx := DialogueContext.from_game()
 		ctx.speaker_name = ""
 		ctx.window_color = AxeWear.BROKEN_WINDOW
+		report_camera(true)
 		ui.play(data, ctx)
 		await _net_wait_closed(ui)
+		report_camera(false)
 	if not is_inside_tree():
 		return
 	_motor.reset(_motor.facing)
@@ -1718,6 +1734,7 @@ func _report_catch(
 	## 0x1349 names the fish (`mMsg_Set_item_str_art(win, mMsg_ITEM_STR0, …)`).
 	var ctx := DialogueContext.from_game()
 	ctx.item0 = fish.display_name if fish != null else ""
+	report_camera(true)
 	if data != null:
 		ui.play(data, ctx)
 	else:
@@ -1744,6 +1761,7 @@ func _report_catch(
 		## "Swap" trades a pocket for the fish (`putaway_rod` → `mSM_IV_OPEN_EXCHANGE`).
 		if await _ask_swap(POCKETS_FULL_MSG) and fish != null:
 			await exchange_into_pockets(fish.id)
+	report_camera(false)
 	Audio.pop_fanfare(jingle)
 
 
@@ -1816,8 +1834,10 @@ func run_complete_payment() -> void:
 		var dctx := DialogueContext.from_game()
 		dctx.speaker_name = ""
 		dctx.window_color = GOLDEN_WINDOW
+		report_camera(true)
 		ui.play(data, dctx)
 		await ui.closed
+		report_camera(false)
 	Audio.pop_fanfare(jingle)
 	_busy = false
 
@@ -1845,8 +1865,10 @@ func run_dig_get(item_id: StringName, banked: bool, cell: Vector2i, ctx: Interac
 		talk.context = dctx
 		talk.prepare()
 		Audio.push_fanfare(jingle)
+		report_camera(true)
 		ui.play(data, dctx, null, Callable(), talk)
 		await ui.closed
+		report_camera(false)
 		Audio.pop_fanfare(jingle)
 	if prop != null and is_instance_valid(prop):
 		prop.finish()
