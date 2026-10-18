@@ -75,7 +75,10 @@ The title screen's **Import GameCube Save** brings a USA (`GAFE`) town over from
   - Weeds, items lying out and buried things (`deposit` bits) go into `TownState`'s own records.
   - Villagers keep their homes: `home_info` is one unit south of the SIGN unit, with 1-based blocks.
   - Each resident's name, gender, face, shirt, pockets, wallet, savings, loan and house (plot from `house_arrangement`, size, basement, statue, roof).
-- Not carried yet: furniture and rooms, friendships and memories, letters, designs, the museum, the island, shop and stalk market state, stumps. Items or villagers this game does not have are left behind and counted in the notice.
+  - House rooms: wallpaper, carpet and placed furniture (main / upper / basement), facing kept; layers 1–3 at a furniture cell become storage (`st`), and `ftr_switch` bits become `on`.
+  - Villager friendships: each animal's `Anmmem_c` for that resident (friendship, last-spoke day, letter flags).
+  - Letters (pocket + house mailbox + post office desk), player and Able Sisters designs, catalog bitfields and mail orders, fish/insect species log, museum display nibbles, Nook's goods/level/sales and the stalk market, police lost-and-found, notice board posts, lighthouse quest, rainbow reservation, second bridge, snowmen, fish tourney records, house gyroid stock/message, music box and cockroach count.
+- Not carried: the island FG, event schedule blobs, and anything this game has no system for. Items or villagers this game does not have are left behind and counted in the notice.
 
 ## Godot mapping reminder
 

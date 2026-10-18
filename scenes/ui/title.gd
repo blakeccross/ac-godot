@@ -268,6 +268,9 @@ static func _import_message(report: Dictionary, slot_name: String) -> String:
 	var text: String = "%s moved into %s with %d residents and %d villagers." % [
 		town if town != "" else "The town", slot_name, int(report.get("residents", 0)), int(report.get("villagers", 0)),
 	]
+	var friendships: int = int(report.get("friendships", 0))
+	if friendships > 0:
+		text += " %d friendships came along." % friendships
 	var skipped: int = int(report.get("skipped_items", 0)) + int(report.get("skipped_villagers", 0))
 	if skipped > 0:
 		text += " %d things this game doesn't have yet were left behind." % skipped

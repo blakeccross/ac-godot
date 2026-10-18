@@ -56,6 +56,17 @@ const ETC: Array[StringName] = [
 ]
 
 
+## `ITEM_IS_FTR`: furniture item numbers (`NAME_TYPE_FTR0` / `FTR1`).
+static func is_ftr(number: int) -> bool:
+	var kind: int = number >> 12
+	return kind == 1 or kind == 3
+
+
+## `FTR_GET_ROTATION` — low two bits when `is_ftr`, else south.
+static func facing_of(number: int) -> int:
+	return number & 3 if is_ftr(number) else 0
+
+
 ## `mRmTp_FtrIdx2FtrItemNo(idx, SOUTH)`.
 static func ftr_no(index: int) -> int:
 	return FTR0_START + (index << 2) if index < 0x400 else FTR1_START + ((index - 0x400) << 2)
