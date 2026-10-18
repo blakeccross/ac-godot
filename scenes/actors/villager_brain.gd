@@ -62,7 +62,7 @@ func _leave_through_door() -> void:
 			out = away.normalized()
 	var yaw: float = atan2(out.x, out.z)
 	_villager._motor.reset(home, yaw)
-	_villager.global_position = home + out * -ActivityKind.DOOR_THRESHOLD.z
+	_villager.global_position = home + out * ActivityKind.DOOR_THRESHOLD.z
 	if _villager._model != null:
 		_villager._model.rotation.y = yaw
 	if _villager.ai.current != null:

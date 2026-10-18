@@ -17,7 +17,9 @@ const TIMER_HZ := 0.5 * DecompTime.TICK_HZ
 const STEP_KILL := 0.45  ## 9 GX
 ## `aHG_player_check`: a moving player within 60 GX scares it.
 const SCARE := 3.0  ## 60 GX
-const RADIUS := 0.4
+## `mCoBG_WallCheckOnly(…, 15.0f, …)`: a roach keeps 15 GX off walls and furniture. The player
+## keeps 18 GX, so even a cornered roach ends up inside the 9 GX tread range.
+const RADIUS := 0.75  ## 15 GX
 ## `position_speed.y = 17`, `gravity = -2` (rising) / `-7` (falling): the position moves
 ## `0.5 · vy` per frame and `vy` chases by `0.5 · gravity` per frame.
 const JUMP_VY := 17.0 * FieldCatalog.GX_TO_METERS * 0.5 * DecompTime.TICK_HZ
@@ -252,7 +254,7 @@ func _turn_along_wall() -> bool:
 
 func _player() -> Node3D:
 	var tree: SceneTree = get_tree()
-	return Player.find(tree) if tree != null else null
+	return tree.get_first_node_in_group(Player.GROUP) as Node3D if tree != null else null
 
 
 func _player_distance() -> float:
