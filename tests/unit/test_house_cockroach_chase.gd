@@ -22,6 +22,9 @@ func _alive() -> Array[Node3D]:
 
 
 func test_the_player_can_tread_on_every_roach() -> void:
+	## Earlier suites can leak player nodes; the roach looks for the first one in the group.
+	for stale: Node in get_tree().get_nodes_in_group(Player.GROUP):
+		stale.remove_from_group(Player.GROUP)
 	Clock.paused = true
 	Clock.apply_snapshot({"year": 2001, "month": 7, "day": 15, "hour": 12, "minute": 0})
 	Game.reset_session()
