@@ -45,7 +45,6 @@ static func build(root: Node3D, interior: IndoorSession) -> void:
 	furnish_fallback(furniture_root, interior)
 	InteriorDoorBuilder.add_exit_door(doors_root, grid, room)
 	InteriorDoorBuilder.add_linked_doors(doors_root, grid, room)
-	InteriorDoorBuilder.add_stair_doors(doors_root, grid, room)
 	add_player_steps(terrain, grid, room)
 	## Villager homes and the player's floors (`ROOM_SUNSHINE` in their scene actor lists).
 	var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null

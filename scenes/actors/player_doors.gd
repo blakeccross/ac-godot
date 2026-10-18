@@ -53,7 +53,7 @@ var _player: Player:
 func clear_auto_enter_block() -> void:
 	if not Game.block_auto_enter_doors:
 		return
-	## Keep blocked while still on an indoor EXIT_DOOR strip after a room load.
+	## Keep blocked while still on an indoor EXIT_DOOR strip or stair unit after a room load.
 	if _on_indoor_exit_cell():
 		return
 	var hit: InteractionQuery = _player._resolve_interact()
@@ -72,7 +72,8 @@ func _on_indoor_exit_cell() -> bool:
 		return false
 	if session.room.kind == Room.Kind.MUSEUM:
 		return false
-	return session.room.is_exit_cell(session.grid.world_to_cell(_player.global_position))
+	var cell: Vector2i = session.grid.world_to_cell(_player.global_position)
+	return session.room.is_exit_cell(cell) or session.room.stair_at(cell) != null
 
 
 ## `mPlayer_INDEX_DOOR`: OPEN1 / INTO_S1 with `cKF_SkeletonInfo_R_AnimationMove_base`.

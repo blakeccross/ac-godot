@@ -129,6 +129,7 @@ static func _configure_main(room: Room, tier: int, basement: bool) -> void:
 				MAIN_BASEMENT_DOOR[tier],
 				BASEMENT,
 				BASEMENT_ARRIVE_GX,
+				BASEMENT_EXIT_GX[tier],
 				WorldGrid.Facing.WEST,
 				RoomStair.Dir.DOWN,
 				"Basement"
@@ -140,6 +141,7 @@ static func _configure_main(room: Room, tier: int, basement: bool) -> void:
 				UPPER_STAIR_DOOR,
 				UPPER,
 				UPPER_ARRIVE_GX,
+				UPPER_DOWN_ARRIVE_GX,
 				WorldGrid.Facing.EAST,
 				RoomStair.Dir.UP,
 				"Upstairs"
@@ -160,6 +162,7 @@ static func _configure_upper(room: Room, _tier: int) -> void:
 			UPPER_DOWN_DOOR,
 			MAIN,
 			UPPER_DOWN_ARRIVE_GX,
+			UPPER_ARRIVE_GX,
 			WorldGrid.Facing.EAST,
 			RoomStair.Dir.DOWN,
 			"Downstairs"
@@ -179,6 +182,7 @@ static func _configure_basement(room: Room, tier: int) -> void:
 			BASEMENT_UP_DOOR,
 			MAIN,
 			BASEMENT_EXIT_GX[tier],
+			BASEMENT_ARRIVE_GX,
 			WorldGrid.Facing.WEST,
 			RoomStair.Dir.UP,
 			"Upstairs"
@@ -190,6 +194,7 @@ static func _stair(
 	cell: Vector2i,
 	target: StringName,
 	spawn_gx: Vector3,
+	landing_gx: Vector3,
 	facing: WorldGrid.Facing,
 	dir: RoomStair.Dir,
 	label: String
@@ -198,6 +203,7 @@ static func _stair(
 	stair.cell = cell
 	stair.target_room_id = target
 	stair.spawn_gx = spawn_gx
+	stair.landing_gx = landing_gx
 	stair.spawn_facing = facing
 	stair.dir = dir
 	stair.label = label

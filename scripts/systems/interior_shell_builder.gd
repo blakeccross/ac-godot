@@ -405,7 +405,7 @@ static func stair_bay_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
 	for stair: RoomStair in room.stairs:
 		if stair == null:
 			continue
-		var landing: Vector2i = grid.world_to_cell(MuseumDisplay.gx_to_world(grid, stair.spawn_gx))
+		var landing: Vector2i = grid.world_to_cell(MuseumDisplay.gx_to_world(grid, stair.landing_gx))
 		var x0: int = mini(stair.cell.x, landing.x)
 		var x1: int = maxi(stair.cell.x, landing.x) + 1
 		var lo: float = grid.cell_corner(Vector2i(x0, 0)).x

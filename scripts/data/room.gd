@@ -57,6 +57,14 @@ func is_inner(cell: Vector2i) -> bool:
 	)
 
 
+## The staircase whose `DOOR` unit is `cell`, or null.
+func stair_at(cell: Vector2i) -> RoomStair:
+	for stair: RoomStair in stairs:
+		if stair != null and stair.cell == cell and stair.target_room_id != &"":
+			return stair
+	return null
+
+
 ## House / shop EXIT_DOOR is a two-unit south strip (`door_cell`, `door_cell+(1,0)`).
 func is_exit_cell(cell: Vector2i) -> bool:
 	return cell == door_cell or cell == door_cell + Vector2i(1, 0)
