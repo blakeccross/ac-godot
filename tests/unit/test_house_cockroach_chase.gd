@@ -71,7 +71,4 @@ func test_the_player_can_tread_on_every_roach() -> void:
 		dir = dir.normalized()
 		source.move = Vector2(dir.dot(right.normalized()), -dir.dot(look.normalized()))
 	player.scripted_input = null
-	var diag := FileAccess.open("/tmp/claude-0/-home-user-ac-godot/9c0c17eb-ad93-5dca-be94-e07c927b00cc/scratchpad/bugs/chase_diag.txt", FileAccess.WRITE)
-	diag.store_string("alive=%d menu=%s busy=%s pos=%s cam=%s\n" % [_alive().size(), player._menu_open(), player._busy, player.global_position, cam.get_path() if cam else "none"])
-	diag.close()
 	assert_int(_alive().size()).is_equal(0)
