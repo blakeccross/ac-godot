@@ -5,6 +5,10 @@ extends GdUnitTestSuite
 ## (`aHG_check_dead`: 9 GX tread range; roaches keep 15 GX off walls, the player 18 GX).
 
 const INTERIOR := preload("res://scenes/world/interior.tscn")
+const MENU_GROUPS: Array[StringName] = [
+	&"inventory_ui", &"map_ui", &"dialogue_ui", &"shop_ui", &"debug_console_ui",
+	&"design_ui", &"design_list_ui", &"design_album_ui", &"name_entry_ui",
+]
 
 
 func after_test() -> void:
@@ -22,9 +26,11 @@ func _alive() -> Array[Node3D]:
 
 
 func test_the_player_can_tread_on_every_roach() -> void:
-	## Earlier suites can leak player nodes; the roach looks for the first one in the group.
-	for stale: Node in get_tree().get_nodes_in_group(Player.GROUP):
-		stale.remove_from_group(Player.GROUP)
+	## Earlier suites can leak players (the roach looks for the first one in the group) and
+	## open overlays (the player won't walk while a menu reports open).
+	for group: StringName in [Player.GROUP] + MENU_GROUPS:
+		for stale: Node in get_tree().get_nodes_in_group(group):
+			stale.remove_from_group(group)
 	Clock.paused = true
 	Clock.apply_snapshot({"year": 2001, "month": 7, "day": 15, "hour": 12, "minute": 0})
 	Game.reset_session()
@@ -65,4 +71,7 @@ func test_the_player_can_tread_on_every_roach() -> void:
 		dir = dir.normalized()
 		source.move = Vector2(dir.dot(right.normalized()), -dir.dot(look.normalized()))
 	player.scripted_input = null
+	var diag := FileAccess.open("/tmp/claude-0/-home-user-ac-godot/9c0c17eb-ad93-5dca-be94-e07c927b00cc/scratchpad/bugs/chase_diag.txt", FileAccess.WRITE)
+	diag.store_string("alive=%d menu=%s busy=%s pos=%s cam=%s\n" % [_alive().size(), player._menu_open(), player._busy, player.global_position, cam.get_path() if cam else "none"])
+	diag.close()
 	assert_int(_alive().size()).is_equal(0)
