@@ -250,8 +250,9 @@ func test_fossil_cells_are_absolute_ut() -> void:
 	assert_vector(type_c).is_equal(type_a + Vector3(wing.grid.cell_size * 0.5, 0.0, wing.grid.cell_size * 0.5))
 
 
-func test_painting_fossil_shell_covers_floor_rim() -> void:
-	## Wall meshes occupy the outer floor cell; margin-only boxes left a walk-through gap.
+func test_painting_fossil_walls_stand_on_the_floor_edge() -> void:
+	## The BG walks the whole inner rect (x 1–14, z 1–12): no wall box covers the outer
+	## floor units.
 	for wing_id: StringName in [&"museum_painting", &"museum_fossil"]:
 		var room: Room = InteriorCatalog.room_template(wing_id)
 		var wing := IndoorSession.new()
@@ -261,29 +262,14 @@ func test_painting_fossil_shell_covers_floor_rim() -> void:
 		InteriorShellBuilder.add_museum_shell_collision(
 			terrain, room, wing.grid, InteriorShellBuilder.museum_door_gaps(room, wing.grid)
 		)
-		var inner_nw: Vector3 = wing.grid.cell_corner(room.inner_origin)
-		var rim_end: float = inner_nw.z + wing.grid.cell_size
-		var covered := false
-		for child: Node in terrain.get_children():
-			if not (child is StaticBody3D):
-				continue
-			var shape_node: CollisionShape3D = child.get_child(0) as CollisionShape3D
-			if shape_node == null or not (shape_node.shape is BoxShape3D):
-				continue
-			var box: BoxShape3D = shape_node.shape as BoxShape3D
-			if box.size.y < 1.0:
-				continue
-			var z0: float = child.position.z - box.size.z * 0.5
-			var z1: float = child.position.z + box.size.z * 0.5
-			## Rim coverage away from the south door gap (center aisle stays open).
-			var x0: float = child.position.x - box.size.x * 0.5
-			var x1: float = child.position.x + box.size.x * 0.5
-			if x1 < 4.0 or x0 > 8.0:
-				continue
-			if z0 <= 0.05 and z1 >= rim_end - 0.05:
-				covered = true
-				break
-		assert_bool(covered).is_true()
+		for cell: Vector2i in [Vector2i(1, 6), Vector2i(14, 6), Vector2i(6, 12), Vector2i(6, 2)]:
+			var at: Vector3 = wing.grid.cell_to_world(cell) + Vector3(0.0, 1.0, 0.0)
+			assert_bool(_point_in_any_box(terrain, at)).override_failure_message(
+				"%s %s" % [wing_id, cell]
+			).is_false()
+		## Just outside the inner rect is wall.
+		var outside: Vector3 = wing.grid.cell_to_world(Vector2i(0, 6)) + Vector3(0.0, 1.0, 0.0)
+		assert_bool(_point_in_any_box(terrain, outside)).is_true()
 
 
 func test_entrance_door_gaps_keep_wing_openings() -> void:
@@ -433,28 +419,23 @@ func test_insect_fish_spawn_clears_exit_sensor() -> void:
 	assert_bool(FieldCatalog.mesh_paths(&"rom_museum1").size() > 0).is_true()
 
 
-func test_art_partitions_block_painting_cells() -> void:
-	## Mid walls at z=5 / z=9 must collide on art cells and leave walk gaps.
+func test_art_partitions_follow_the_painting_bg() -> void:
+	## `rom_museum3`: row 5 opens at x 5–8, row 9 at x 7–10; pillars at (1, 1) / (14, 1)
+	## and a raised strip x 3–12 along row 1.
 	var room: Room = InteriorCatalog.room_template(&"museum_painting")
+	var blocked: Dictionary = MuseumInteriorBuilder.art_blocked_units(room)
+	for x: int in range(1, 15):
+		assert_bool(blocked.has(Vector2i(x, 5))).is_equal(x < 5 or x > 8)
+		assert_bool(blocked.has(Vector2i(x, 9))).is_equal(x < 7 or x > 10)
+		assert_bool(blocked.has(Vector2i(x, 1))).is_equal(x != 2 and x != 13)
+		assert_bool(blocked.has(Vector2i(x, 6))).is_false()
+	assert_float(float(blocked[Vector2i(2, 5)])).is_equal(60.0)
 	var wing := IndoorSession.new()
 	wing.bind(room)
 	var terrain := Node3D.new()
 	auto_free(terrain)
 	MuseumInteriorBuilder.add_museum_art_partitions(terrain, room, wing.grid)
-	assert_int(terrain.get_child_count()).is_greater(0)
-	var occupied: Dictionary = {}
-	for cell: Vector2i in MuseumDisplay.ART_CELLS:
-		occupied[cell] = true
-	## Occupied cell on row 5 should sit inside some wall segment.
-	var art_cell := Vector2i(1, 5)
-	assert_bool(bool(occupied.get(art_cell, false))).is_true()
-	var art_world: Vector3 = wing.grid.cell_to_world(art_cell)
-	assert_bool(_point_in_any_box(terrain, art_world)).is_true()
-	## Gap cell on row 5 (no painting) stays open.
-	var gap_cell := Vector2i(5, 5)
-	assert_bool(bool(occupied.get(gap_cell, false))).is_false()
-	var gap_world: Vector3 = wing.grid.cell_to_world(gap_cell)
-	assert_bool(_point_in_any_box(terrain, gap_world)).is_false()
+	assert_object(terrain.get_node_or_null("MuseumArtCol")).is_not_null()
 
 
 func test_every_museum_room_has_exit_gap() -> void:

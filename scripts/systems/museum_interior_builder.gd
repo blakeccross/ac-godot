@@ -100,26 +100,20 @@ static func add_museum_clock(root: Node3D, interior: IndoorSession) -> void:
 		VisualFit.align_actor_to_height_gx(pivot, 0.0)
 
 
-## Painting-wing E–W mid walls with walk gaps where `ART_CELLS` has no hang.
+## Painting-wing inner walls from `rom_museum3`'s BG: the two partition rows (gaps at
+## x 5–8 and 7–10), the pillars at the north corners and the raised strip between them.
+## Partition units are 6 counts up (60 GX).
 static func add_museum_art_partitions(root: Node3D, room: Room, grid: WorldGrid) -> void:
 	if root == null or room == null or grid == null:
 		return
-	var occupied: Dictionary = {}
-	for cell: Vector2i in MuseumDisplay.ART_CELLS:
-		occupied[cell] = true
-	var x0: int = room.inner_origin.x
-	var x1: int = room.inner_origin.x + room.inner_size.x
-	var thickness: float = grid.cell_size * 0.4
-	for row_z: int in MuseumDisplay.ART_PARTITION_ROWS:
-		var gaps: Array[Dictionary] = []
-		for x: int in range(x0, x1):
-			if bool(occupied.get(Vector2i(x, row_z), false)):
-				continue
-			var world: Vector3 = grid.cell_to_world(Vector2i(x, row_z))
-			gaps.append({"center": world.x, "half": grid.cell_size * 0.5})
-		var span_lo: float = grid.cell_corner(Vector2i(x0, row_z)).x
-		var span_hi: float = grid.cell_corner(Vector2i(x1, row_z)).x
-		var z_center: float = grid.cell_to_world(Vector2i(x0, row_z)).z
-		var full_size := Vector3(span_hi - span_lo, InteriorShellBuilder.WALL_HEIGHT, thickness)
-		var full_pos := Vector3((span_lo + span_hi) * 0.5, InteriorShellBuilder.WALL_HEIGHT * 0.5, z_center)
-		InteriorShellBuilder.add_multi_gapped_wall(root, full_size, full_pos, &"x", span_lo, span_hi, gaps)
+	InteriorUnitCollision.add_hulls(root, grid, "MuseumArtCol", art_blocked_units(room))
+
+
+## Units of the painting wing the BG blocks: `Vector2i` unit → height in GX.
+static func art_blocked_units(room: Room) -> Dictionary:
+	return InteriorUnitCollision.blocked_from_bg(
+		&"rom_museum3",
+		FieldCatalog.LAND_COUNTS,
+		FieldCatalog.HEIGHT_MAX,
+		Rect2i(room.inner_origin, room.inner_size)
+	)
