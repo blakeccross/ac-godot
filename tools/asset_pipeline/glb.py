@@ -65,6 +65,7 @@ def _group_parts(parts: list[MeshPart], split_by_gfx: bool = False) -> list[dict
         # Lit vs vertex-shade (no G_LIGHTING) must not merge — cn[] meaning differs.
         uses_lighting = bool(getattr(part, "uses_lighting", True))
         shade_alpha = bool(getattr(part, "shade_alpha", False))
+        rgb_prim = bool(getattr(part, "rgb_prim", True))
         alpha_mode = part.alpha_mode or "OPAQUE"
         key = (
             part.texture_png or b"",
@@ -81,6 +82,7 @@ def _group_parts(parts: list[MeshPart], split_by_gfx: bool = False) -> list[dict
             base_color,
             uses_lighting,
             shade_alpha,
+            rgb_prim,
             alpha_mode,
             bool(part.runtime_bound),
             _part_gfx(part) if split_by_gfx else "",
@@ -108,6 +110,7 @@ def _group_parts(parts: list[MeshPart], split_by_gfx: bool = False) -> list[dict
                     "beach_prim": beach_prim,
                     "uses_lighting": uses_lighting,
                     "shade_alpha": shade_alpha,
+                    "rgb_prim": rgb_prim,
                     "runtime_bound": bool(part.runtime_bound),
                     "gfx": _part_gfx(part) if split_by_gfx else "",
                     "parts": [],
@@ -293,6 +296,7 @@ def _material(
     base_color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
     beach_prim: tuple[int, int, int, int] | None = None,
     vertex_shade: bool = False,
+    rgb_prim: bool = True,
     runtime_bound: bool = False,
     wrap_tiles: tuple[int, int] | None = None,
 ) -> dict:
@@ -320,6 +324,9 @@ def _material(
         ## Indoor shells: TEXEL0 × SHADE with G_LIGHTING off (ceiling AO in cn[]).
         extras = dict(extras or {})
         extras["vertex_shade"] = True
+        if not rgb_prim:
+            ## Colour combine never reads PRIM (`rom_museum4_wall`): no room-prim tint.
+            extras["rgb_prim"] = False
     if water_kind:
         extras = dict(extras or {})
         extras["water_kind"] = water_kind
@@ -527,6 +534,7 @@ def write_glb(
                 base_color=tuple(group.get("base_color") or (1.0, 1.0, 1.0, 1.0)),
                 beach_prim=group.get("beach_prim"),
                 vertex_shade=vertex_shade,
+                rgb_prim=bool(group.get("rgb_prim", True)),
                 runtime_bound=bool(group.get("runtime_bound")),
                 wrap_tiles=group.get("wrap_tiles"),
             )
