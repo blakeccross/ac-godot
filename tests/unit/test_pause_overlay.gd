@@ -1,7 +1,7 @@
 class_name TestPauseOverlay
 extends GdUnitTestSuite
 
-## Esc confirm overlay hosted by the HUD.
+## Esc pause menu hosted by the HUD.
 
 
 func test_hud_hosts_pause_overlay_and_it_pauses_while_open() -> void:

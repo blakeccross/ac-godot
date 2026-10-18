@@ -83,7 +83,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _other_menu_open() -> bool:
 	if get_tree() == null:
 		return false
-	for group: String in ["inventory_ui", "map_ui", "dialogue_ui", "shop_ui"]:
+	## Dialogue stays allowed so cheats work mid-talk; inventory / map / shop still block.
+	for group: String in ["inventory_ui", "map_ui", "shop_ui"]:
 		var ui: Node = get_tree().get_first_node_in_group(group)
 		if ui != null and ui.has_method("is_open") and bool(ui.call("is_open")):
 			return true

@@ -34,7 +34,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Root/Center"]
-custom_minimum_size = Vector2(440, 0)
+custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 
 [node name="Margin" type="MarginContainer" parent="Root/Center/Panel"]
@@ -46,32 +46,28 @@ theme_override_constants/margin_bottom = 20
 
 [node name="VBox" type="VBoxContainer" parent="Root/Center/Panel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="Root/Center/Panel/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "Exit to the title screen?"
+text = "Paused"
 horizontal_alignment = 1
 
-[node name="Body" type="Label" parent="Root/Center/Panel/Margin/VBox"]
-layout_mode = 2
-text = "Your game will be saved."
-horizontal_alignment = 1
-
-[node name="Buttons" type="HBoxContainer" parent="Root/Center/Panel/Margin/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 16
-alignment = 1
-
-[node name="YesButton" type="Button" parent="Root/Center/Panel/Margin/VBox/Buttons"]
+[node name="ResumeButton" type="Button" parent="Root/Center/Panel/Margin/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(150, 0)
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+text = "Resume"
+
+[node name="SettingsButton" type="Button" parent="Root/Center/Panel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+text = "Settings"
+
+[node name="ExitButton" type="Button" parent="Root/Center/Panel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 0)
 layout_mode = 2
 text = "Save and exit"
-
-[node name="NoButton" type="Button" parent="Root/Center/Panel/Margin/VBox/Buttons"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-text = "Keep playing"

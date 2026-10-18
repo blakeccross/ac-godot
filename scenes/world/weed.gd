@@ -1,8 +1,9 @@
 extends Node3D
 
-## A weed (`GRASS_A`–`GRASS_C`, `obj_zassou_a/b/c`). A pulls it (`m_player_main_remove_grass`):
-## `ZASSOU1`, and on frame 17 the weed flies off over the player's shoulder
-## (`bg_item_clip->fly_entry_proc`, 110° off the facing) with the `zassou_nuku` rustle.
+## A weed (`GRASS_A`–`GRASS_C`, `obj_zassou_a/b/c`). B (or A when nothing else is in range)
+## pulls it (`m_player_main_remove_grass`): `ZASSOU1`, and on frame 17 the weed flies off
+## over the player's shoulder (`bg_item_clip->fly_entry_proc`, 110° off the facing) with the
+## `zassou_nuku` rustle.
 
 const FLY_YAW := deg_to_rad(110.0)
 const FLY_SEC := 0.5

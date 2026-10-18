@@ -28,6 +28,14 @@ var _menu_open: bool = false
 @onready var _new_game: Button = %NewGameButton
 @onready var _continue: Button = %ContinueButton
 @onready var _slot_buttons: Array[Button] = [%SlotAButton, %SlotBButton]
+@onready var _import_slot_buttons: Array[Button] = [%ImportSlotAButton, %ImportSlotBButton]
+@onready var _import_dialog: FileDialog = %ImportFileDialog
+@onready var _import_confirm: ConfirmationDialog = %ImportConfirm
+@onready var _settings_overlay: SettingsOverlay = $SettingsOverlay
+
+## The GameCube save picked for import, and the slot it goes into once confirmed.
+var _import_source: String = ""
+var _import_slot: int = -1
 
 
 func _enter_tree() -> void:
@@ -138,6 +146,13 @@ func _release_player() -> void:
 		player.scripted_input = null
 
 
+func _on_settings_pressed() -> void:
+	if not _menu_open or _leaving:
+		return
+	if _settings_overlay != null:
+		_settings_overlay.open()
+
+
 func _on_new_game_pressed() -> void:
 	## Full opening, like the original: K.K. player select → Rover's train → station arrival.
 	## A new town goes on a card without one; with a town on both, K.K.'s "Build a new town"
@@ -154,6 +169,8 @@ func _on_continue_pressed() -> void:
 	## K.K.'s player select: pick a resident, a newcomer, or the town options (`ac_npc_p_sel2`).
 	## With a town in each slot, which card's town first.
 	var towns: Array[int] = _town_slots()
+	for button: Button in _import_slot_buttons:
+		button.visible = false
 	if towns.size() == 1:
 		SaveService.current_path = SaveService.slot_paths[towns[0]]
 		_choose(Game.start_player_select)
@@ -185,13 +202,76 @@ func _free_slot() -> int:
 	return -1
 
 
-func _on_generated_town_pressed() -> void:
-	## Dev skip: straight into a deterministic generated town, no intro.
-	_choose(func() -> void: Game.start_new_game(WorldData.Mode.GENERATED, WorldGenerator.DEFAULT_SEED))
+## Bring a town over from the original game (`SaveService.import_gamecube`): pick the file,
+## then the slot, and confirm before it replaces a town already there.
+func _on_import_pressed() -> void:
+	if not _menu_open or _leaving:
+		return
+	_import_dialog.popup_centered()
 
 
-func _on_intro_station_pressed() -> void:
-	_choose(Game.start_intro_station)
+func _on_import_file_selected(path: String) -> void:
+	_import_source = path
+	for button: Button in _slot_buttons:
+		button.visible = false
+	for i: int in _import_slot_buttons.size():
+		var slot_path: String = SaveService.slot_paths[i]
+		var town: String = SaveService.read_town_name(slot_path) if SaveService.has_save(slot_path) else "empty"
+		_import_slot_buttons[i].text = "Into %s (%s)" % [Travel.slot_name(slot_path), town]
+		_import_slot_buttons[i].visible = true
+	var free: int = _free_slot()
+	_import_slot_buttons[free if free >= 0 else 0].grab_focus()
+
+
+func _on_import_slot_pressed(slot: int) -> void:
+	if _import_source == "":
+		return
+	_import_slot = slot
+	var path: String = SaveService.slot_paths[slot]
+	if not SaveService.has_save(path):
+		_import_into_slot()
+		return
+	_import_confirm.dialog_text = "%s already holds %s. Replace it with the imported town?" % [
+		Travel.slot_name(path), SaveService.read_town_name(path),
+	]
+	_import_confirm.popup_centered()
+
+
+func _on_import_confirmed() -> void:
+	_import_into_slot()
+
+
+func _import_into_slot() -> void:
+	if _import_source == "" or _import_slot < 0:
+		return
+	var path: String = SaveService.slot_paths[_import_slot]
+	var report: Dictionary = SaveService.import_gamecube(_import_source, path)
+	_import_source = ""
+	_import_slot = -1
+	for button: Button in _import_slot_buttons:
+		button.visible = false
+	match int(report.get("error", FAILED)):
+		OK:
+			Game.post_notice(_import_message(report, Travel.slot_name(path)))
+			_continue.disabled = false
+			_continue.grab_focus()
+		ERR_FILE_UNRECOGNIZED:
+			Game.post_notice("No Animal Crossing town was found in that file.")
+		ERR_FILE_CORRUPT:
+			Game.post_notice("That town file is damaged, so it can't be imported.")
+		_:
+			Game.post_notice("The save couldn't be imported.")
+
+
+static func _import_message(report: Dictionary, slot_name: String) -> String:
+	var town: String = str(report.get("town_name", ""))
+	var text: String = "%s moved into %s with %d residents and %d villagers." % [
+		town if town != "" else "The town", slot_name, int(report.get("residents", 0)), int(report.get("villagers", 0)),
+	]
+	var skipped: int = int(report.get("skipped_items", 0)) + int(report.get("skipped_villagers", 0))
+	if skipped > 0:
+		text += " %d things this game doesn't have yet were left behind." % skipped
+	return text
 
 
 func _choose(action: Callable) -> void:

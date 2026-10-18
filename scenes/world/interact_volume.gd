@@ -19,10 +19,11 @@ signal activated(action: Interaction, ctx: InteractionContext)
 ## The actor this belongs to: the nearest ancestor with `interact`, else the parent.
 var host: Node:
 	get:
-		if host == null:
+		if _host == null:
 			_bind()
-		return host
+		return _host
 
+var _host: Node
 var _offers: Callable
 var _handle: Callable
 
@@ -76,10 +77,10 @@ func _bind() -> void:
 	var cursor: Node = get_parent()
 	while cursor != null:
 		if cursor.has_method(&"interact"):
-			host = cursor
+			_host = cursor
 			_handle = Callable(cursor, &"interact")
 			if cursor.has_method(&"get_interactions"):
 				_offers = Callable(cursor, &"get_interactions")
 			return
 		cursor = cursor.get_parent()
-	host = get_parent()
+	_host = get_parent()

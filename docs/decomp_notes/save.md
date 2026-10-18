@@ -63,6 +63,20 @@ Every system that has durable state: **time, world FG, inventory, villagers, sho
 - Save on an explicit action and/or leaving the session. No checksum beyond "parse failed". No Slot A/B, travel briefcase, or backup file pair.
 - `scene_no` is a Godot scene path or acre id, not an integer table.
 
+## Importing an original save
+
+The title screen's **Import GameCube Save** brings a USA (`GAFE`) town over from the user's own Memory Card dump: a Dolphin `.gci` export of `DobutsunomoriP_MURA`, or a whole `.raw` card image. It writes a normal JSON save into slot A or B, asking before it replaces a town.
+
+- `GameCubeCard` finds the town file: a GCI is a 0x40-byte directory entry then the blocks. A card image keeps two directory copies (blocks 1–2, update counter at 0x1FFA) and two allocation tables (blocks 3–4, counter at 0x04, next-block map at 0x0A indexed by block − 5). The newer copy wins.
+- `GameCubeTown` reads the file's three 0x26000-byte areas (letters/designs, `mCD_FILE_SAVE_MAIN`, its backup). It takes the first copy that passes `mCD_LoadLand`'s check (code `GAFE`, version 5 or 6, every big-endian u16 summing to 0) and decodes only what is carried over. Names use the game's own font table (`ac_msg_codec.json`).
+- `TownImport` maps that onto this game's save:
+  - Town name, id, tune, fruit, grass, statues.
+  - The acre map (`combi_table` words → `FieldObjectCatalog.combi`, from `data_combi.c` via the FG pipeline) and every unit's item, kept as `TownState.imported_field`. `WorldGenerator` copies those in place of the random FG picks and skips the new-town steps that already happened (border-tree pull, fruit/cedar swap, starter beds and villagers).
+  - Weeds, items lying out and buried things (`deposit` bits) go into `TownState`'s own records.
+  - Villagers keep their homes: `home_info` is one unit south of the SIGN unit, with 1-based blocks.
+  - Each resident's name, gender, face, shirt, pockets, wallet, savings, loan and house (plot from `house_arrangement`, size, basement, statue, roof).
+- Not carried yet: furniture and rooms, friendships and memories, letters, designs, the museum, the island, shop and stalk market state, stumps. Items or villagers this game does not have are left behind and counted in the notice.
+
 ## Godot mapping reminder
 
 `SaveService` should keep writing **ids and counts**, not packed C layouts. When a new system earns persistence, add a keyed section and cite the decomp field it corresponds to in that system’s note — do not grow a `CommonData` singleton.

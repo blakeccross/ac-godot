@@ -566,6 +566,11 @@ func _show_continue() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _open or _suspended:
 		return
+	## Debug console (` / /) can open over talk; don't advance pages while it's up.
+	if _debug_console_open():
+		return
+	if _is_console_open_key(event):
+		return
 	if _phase == Phase.APPEARING or _phase == Phase.DISAPPEARING:
 		get_viewport().set_input_as_handled()
 		return
@@ -597,6 +602,21 @@ func _is_b(event: InputEvent) -> bool:
 		or event.is_action_pressed("pause_menu")
 		or event.is_action_pressed("sprint")
 	)
+
+
+func _debug_console_open() -> bool:
+	if get_tree() == null:
+		return false
+	var console: Node = get_tree().get_first_node_in_group("debug_console_ui")
+	return console != null and console.has_method("is_open") and bool(console.call("is_open"))
+
+
+func _is_console_open_key(event: InputEvent) -> bool:
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return false
+	var key := event as InputEventKey
+	return key.keycode == KEY_SLASH or key.physical_keycode == KEY_SLASH \
+			or key.keycode == KEY_QUOTELEFT or key.physical_keycode == KEY_QUOTELEFT
 
 
 func _still_typing() -> bool:

@@ -1,14 +1,15 @@
 class_name PauseOverlay
 extends CanvasLayer
 
-## Esc confirm: "Exit to the title screen?" Saves (via `Game.return_to_title`) on Yes.
-## Pauses the tree while open, like the pockets.
+## Esc pause menu: resume, settings, or save and return to the title. Pauses the tree while
+## open, like the pockets.
 
 const GROUP := &"pause_ui"
 
 @onready var _root: Control = %Root
-@onready var _yes: Button = %YesButton
-@onready var _no: Button = %NoButton
+@onready var _resume: Button = %ResumeButton
+@onready var _settings: Button = %SettingsButton
+@onready var _exit: Button = %ExitButton
 
 var _open: bool = false
 
@@ -22,8 +23,9 @@ func _ready() -> void:
 	layer = 30
 	add_to_group(GROUP)
 	_root.visible = false
-	_yes.pressed.connect(_confirm)
-	_no.pressed.connect(close)
+	_resume.pressed.connect(close)
+	_settings.pressed.connect(_open_settings)
+	_exit.pressed.connect(_confirm_exit)
 
 
 func is_open() -> bool:
@@ -36,8 +38,7 @@ func open() -> void:
 	_open = true
 	_root.visible = true
 	get_tree().paused = true
-	## Default to the safe answer so a stray Enter doesn't leave the game.
-	_no.grab_focus()
+	_resume.grab_focus()
 
 
 func close() -> void:
@@ -45,16 +46,28 @@ func close() -> void:
 		return
 	_open = false
 	_root.visible = false
+	var settings: SettingsOverlay = SettingsOverlay.find(get_tree())
+	if settings != null and settings.is_open():
+		settings.close()
 	get_tree().paused = false
 
 
-func _confirm() -> void:
+func _open_settings() -> void:
+	var settings: SettingsOverlay = SettingsOverlay.find(get_tree())
+	if settings != null:
+		settings.open()
+
+
+func _confirm_exit() -> void:
 	close()
 	Game.return_to_title()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _open:
+		return
+	var settings: SettingsOverlay = SettingsOverlay.find(get_tree())
+	if settings != null and settings.is_open():
 		return
 	if event.is_action_pressed("pause_menu") or event.is_action_pressed("ui_cancel"):
 		close()

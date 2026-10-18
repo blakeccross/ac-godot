@@ -32,6 +32,7 @@ def convert_fgdata(cfg: PipelineConfig, decomp_root: Path | None = None) -> dict
         decomp = _guess_decomp(cfg)
     templates = _parse_templates(src)
     combis = _parse_combis(decomp) if decomp is not None else []
+    combi_table = _parse_combi_table(decomp) if decomp is not None else []
     out_dir = cfg.godot_generated / "environment" / "fg"
     out_dir.mkdir(parents=True, exist_ok=True)
     catalog = {
@@ -39,6 +40,7 @@ def convert_fgdata(cfg: PipelineConfig, decomp_root: Path | None = None) -> dict
         "stride": FG_STRIDE,
         "templates": {str(fid): list(items) for fid, items in sorted(templates.items())},
         "combis": combis,
+        "combi_table": combi_table,
     }
     path = out_dir / "catalog.json"
     path.write_text(json.dumps(catalog, separators=(",", ":")) + "\n")
@@ -114,6 +116,63 @@ def _parse_combis(decomp: Path) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def _parse_combi_table(decomp: Path) -> list[dict[str, Any]]:
+    """Every `data_combi_table` row in index order (the save's `combi_table` holds these indices)."""
+    text = (decomp / "src" / "data" / "combi" / "data_combi.c").read_text()
+    return parse_combi_table(
+        text,
+        _block_type_values((decomp / "include" / "m_field_make.h").read_text()),
+        _explicit_values(decomp / "include" / "m_fg_type.h", "FG_TYPE_"),
+    )
+
+
+def parse_combi_table(
+    data_combi_c: str, block_types: dict[str, int], fg_types: dict[str, int]
+) -> list[dict[str, Any]]:
+    text = _strip_c_comments(data_combi_c)
+    rows: list[dict[str, Any]] = []
+    for m in re.finditer(
+        r"\{\s*(BG_TYPE_\w+)\s*,\s*(FG_TYPE_\w+)\s*,\s*(mFM_BLOCK_TYPE_\w+)\s*\}",
+        text,
+    ):
+        bg_sym, fg_sym, type_sym = m.group(1), m.group(2), m.group(3)
+        rows.append(
+            {
+                "bg": bg_sym.removeprefix("BG_TYPE_").lower(),
+                "fg": fg_types.get(fg_sym, -1),
+                "type": block_types.get(type_sym, -1),
+            }
+        )
+    return rows
+
+
+def _strip_c_comments(text: str) -> str:
+    return re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", "", text, flags=re.S))
+
+
+def _block_type_values(field_make_h: str) -> dict[str, int]:
+    """`mFM_BLOCK_TYPE_*` → value (the enum mixes implicit and explicit values)."""
+    out: dict[str, int] = {}
+    value = -1
+    for match in re.finditer(r"\benum\s*\{(.*?)\}", field_make_h, re.S):
+        body = _strip_c_comments(match.group(1))
+        if "mFM_BLOCK_TYPE_" not in body:
+            continue
+        for part in body.split(","):
+            item = part.strip()
+            if not item.startswith("mFM_BLOCK_TYPE_"):
+                continue
+            if "=" in item:
+                name, raw = (s.strip() for s in item.split("=", 1))
+                value = int(raw, 0)
+            else:
+                name = item
+                value += 1
+            out[name] = value
+        return out
+    raise ValueError("mFM_BLOCK_TYPE enum not found")
 
 
 def _enum_values(path: Path, prefix: str) -> dict[str, int]:

@@ -122,8 +122,16 @@ var _wallet_tag_mode: bool = false
 var _background_tag_mode: bool = false
 var _background_slot: Control = null
 var _background_icon: TextureRect = null
-## `m_tag_ovl` verb window (`sen_itemw_*`): frame + shadow + pointer, verbs stacked.
+## Cream `sen_win` name plate (`draw_no` 0) — floats near the selected slot with a
+## pointer. Stays up while the verb window is open (screenshot: both together).
+var _name_tag: Control = null
+var _name_tag_frame: TextureRect = null
+var _name_tag_shadow: TextureRect = null
+var _name_tag_arrow: TextureRect = null
+var _name_tag_label: Label = null
+## Blue `sen_win` verb window (`draw_no` 1) + kage + magenta `sen_win_cursor`.
 var _tag_popup: Control = null
+var _tag_cursor: TextureRect = null
 ## `mSM_OVL_HANIWA` (`m_haniwa_ovl`): the house gyroid's 4-slot table beside the pockets.
 ## `_gyroid_house` is set while the pockets were opened from the gyroid; `_gyroid_owner` is
 ## entrust mode (`mSM_IV_OPEN_HANIWA_ENTRUST`), else visitor take mode.
@@ -146,10 +154,13 @@ var _price_digit: int = 4
 var _gyroid_interrupt: String = ""
 var _gyroid_interrupt_left: float = 0.0
 var _tag_shadow: TextureRect = null
-var _tag_frame: PanelContainer = null
+var _tag_frame: TextureRect = null
 var _tag_rows: VBoxContainer = null
-var _tag_arrow: TextureRect = null
 var _ui_font: Font = null
+
+## `mTG_select_col_type_on/off[mTG_TAG_COLOR_NORMAL]` + `cursol_color[NORMAL]`.
+const _TAG_TEXT_ON := Color8(120, 35, 255)
+const _TAG_TEXT_OFF := Color8(140, 150, 190)
 
 
 ## The one in `tree`, or null.
@@ -167,6 +178,7 @@ func _ready() -> void:
 	_apply_chrome()
 	_build_encyclopedia_grid()
 	_build_tag_popup()
+	_build_name_tag()
 	_build_background_slot()
 	_setup_player_portrait()
 	_setup_hand_cursor()
@@ -480,7 +492,8 @@ func _setup_hand_cursor() -> void:
 	_hand_root = Control.new()
 	_hand_root.name = "HandCursor"
 	_hand_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hand_root.z_index = 30
+	## Above the verb window (z 40) so the kage shadow never paints over the glove.
+	_hand_root.z_index = 55
 	_hand_root.size = Vector2(HAND_SIZE, HAND_SIZE)
 	_hand_root.clip_contents = false
 	_hand_root.visible = false
@@ -712,42 +725,22 @@ func _populate_encyclopedia(kind: StringName) -> void:
 		pic.modulate = Color.WHITE if caught else Color(0.05, 0.06, 0.09, 0.32)
 
 
-## `mTG_TABLE_BG`: a small clickable slot next to the wallet showing the current pockets
-## backdrop (blank when none is set). Built procedurally, same as `_build_tag_popup` below
-## and the encyclopedia grid — this file already treats supplementary chrome this way
-## rather than hand-authoring every node in the .tscn.
+## `mTG_TABLE_BG` is navigable in decomp, but the GC pockets screen does **not** draw a
+## square chip beside the wallet — the backdrop is only the scrolling paper
+## (`backgound_texture`). Keep a hidden hit target so "Remove" still works when a
+## custom paper is set; never show invented chrome next to Bells.
 func _build_background_slot() -> void:
 	if _background_slot != null or _shell_stack == null:
 		return
-	var bells_pill: Control = _wallet.get_parent() as Control if _wallet != null else null
-	var anchor_pos: Vector2 = bells_pill.position if bells_pill != null else Vector2(452.0, 226.0)
-	var anchor_size: Vector2 = bells_pill.size if bells_pill != null else Vector2(158.6, 47.0)
 	var slot := Panel.new()
 	slot.name = "BackgroundSlot"
-	slot.position = Vector2(anchor_pos.x + anchor_size.x + 10.0, anchor_pos.y + 1.5)
-	slot.size = Vector2(44.0, 44.0)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.85, 0.78, 0.6, 1.0)
-	style.set_corner_radius_all(6)
-	style.set_border_width_all(2)
-	style.border_color = Color(0.55, 0.45, 0.3, 1.0)
-	slot.add_theme_stylebox_override("panel", style)
-	slot.mouse_filter = Control.MOUSE_FILTER_STOP
-	slot.gui_input.connect(_on_background_slot_gui)
+	slot.visible = false
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.position = Vector2(452.0, 226.0)
+	slot.size = Vector2(1.0, 1.0)
 	_shell_stack.add_child(slot)
 	_background_slot = slot
-	var icon := TextureRect.new()
-	icon.name = "Icon"
-	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	icon.offset_left = 6
-	icon.offset_top = 6
-	icon.offset_right = -6
-	icon.offset_bottom = -6
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	slot.add_child(icon)
-	_background_icon = icon
+	_background_icon = null
 
 
 ## Decomp `backgound_texture`: swaps the shader's scrolling paper for the chosen
@@ -762,19 +755,115 @@ func _refresh_background() -> void:
 		if path != "":
 			paper_tex = load(path) as Texture2D
 	_apply_paper_scroll_shader(paper_tex)
-	if _background_icon != null:
-		var icon: Texture2D = InventoryChrome.icon_for_item(data, InventoryItem.Condition.NORMAL) if data != null else null
-		_background_icon.texture = icon
-		_background_icon.visible = icon != null
-		if _background_icon.get_parent() is CanvasItem:
-			(_background_icon.get_parent() as CanvasItem).modulate = data.icon_color if (data != null and icon == null) else Color.WHITE
 
 
-## `m_tag_ovl` verb window (`sen_itemw.c`, one GX_MIRROR quad per piece — no 9-slice
-## geometry needed): `sen_itemw_kage` shadow + `sen_itemw_wakuT` frame (both baked by
-## `tools/asset_pipeline/inventory_ui.py`'s `_bake_tag_popup_frame`/`tag_shadow` chrome
-## entry) + `sen_itemw_yajirushi` pointer, verb strings stacked 16 px apart with a row
-## cursor.
+## Cream name plate (`sen_win` NORMAL + cream `p_col`/`e_col`). Built once;
+## `_refresh_name_tag` repositions it each selection change.
+func _build_name_tag() -> void:
+	if _name_tag != null or _shell_stack == null:
+		return
+	_name_tag = Control.new()
+	_name_tag.name = "NameTag"
+	_name_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_name_tag.z_index = 35
+	_name_tag.visible = false
+	_shell_stack.add_child(_name_tag)
+
+	_name_tag_shadow = TextureRect.new()
+	_name_tag_shadow.texture = InventoryChrome.load_tex("tag_shadow")
+	_name_tag_shadow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_name_tag_shadow.stretch_mode = TextureRect.STRETCH_SCALE
+	_name_tag_shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_name_tag_shadow.self_modulate = Color(1, 1, 1, 0.5)
+	_name_tag.add_child(_name_tag_shadow)
+
+	## Uniform stretch: wide short plate turns the figure-8 into the cream pill
+	## with a soft waist (screenshot), not a 9-sliced peanut.
+	_name_tag_frame = TextureRect.new()
+	_name_tag_frame.texture = InventoryChrome.load_tex("tag_name_frame")
+	_name_tag_frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_name_tag_frame.stretch_mode = TextureRect.STRETCH_SCALE
+	_name_tag_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_name_tag.add_child(_name_tag_frame)
+
+	_name_tag_arrow = TextureRect.new()
+	_name_tag_arrow.texture = InventoryChrome.load_tex("tag_arrow")
+	_name_tag_arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_name_tag_arrow.stretch_mode = TextureRect.STRETCH_SCALE
+	_name_tag_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_name_tag_arrow.size = Vector2(18, 20)
+	_name_tag.add_child(_name_tag_arrow)
+
+	_name_tag_label = Label.new()
+	_name_tag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_name_tag_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_name_tag_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_name_tag_label.add_theme_color_override("font_color", Color(0.22, 0.18, 0.10, 1.0))
+	_name_tag_label.add_theme_font_size_override("font_size", 18)
+	if _ui_font != null:
+		_name_tag_label.add_theme_font_override("font", _ui_font)
+	_name_tag.add_child(_name_tag_label)
+
+
+func _refresh_name_tag(inv: Inventory) -> void:
+	if _name_tag == null:
+		return
+	## Name plate stays visible in tag mode (GC draws both `mTG_WIN_SELECT` tags).
+	if not _open or _side_tab != SideTab.POCKETS or _focus_player or _focus_gyroid:
+		_name_tag.visible = false
+		return
+	var text := ""
+	var anchor: Control = null
+	if _focus_mail:
+		var mail: MailData = inv.mail_at(inv.selected_mail_index)
+		if mail == null or mail.is_empty():
+			_name_tag.visible = false
+			return
+		text = mail.label()
+		if inv.selected_mail_index >= 0 and inv.selected_mail_index < _mail_buttons.size():
+			anchor = _mail_buttons[inv.selected_mail_index]
+	else:
+		var slot: InventorySlot = inv.selected_slot()
+		if slot == null or slot.is_empty():
+			_name_tag.visible = false
+			return
+		var data: ItemData = ItemCatalog.get_item(slot.item.item_id)
+		if slot.item.condition == InventoryItem.Condition.PRESENT:
+			text = "present"
+		elif data != null:
+			text = data.display_name.to_lower()
+		else:
+			text = String(slot.item.item_id)
+		if inv.selected_index >= 0 and inv.selected_index < _slot_buttons.size():
+			anchor = _slot_buttons[inv.selected_index]
+	if anchor == null or text.is_empty():
+		_name_tag.visible = false
+		return
+	_name_tag_label.text = text
+	_name_tag_label.reset_size()
+	var label_sz: Vector2 = _name_tag_label.get_combined_minimum_size()
+	## Wide cream pill (screenshot: elongated oval, soft waist from stretched sen_win).
+	var plate := Vector2(maxf(label_sz.x + 56.0, 170.0), maxf(label_sz.y + 22.0, 40.0))
+	var mid: Vector2 = anchor.position + anchor.size * 0.5
+	## Tag mode screenshot: plate sits just under the hand / above the slot, pointer
+	## on the top-left aiming up at the item.
+	var px: float = mid.x - plate.x * 0.45
+	var py: float = anchor.position.y - plate.y * 0.35
+	_name_tag_frame.position = Vector2(px, py)
+	_name_tag_frame.size = plate
+	_name_tag_shadow.position = Vector2(px, py) + Vector2(5, 6)
+	_name_tag_shadow.size = plate
+	_name_tag_label.position = Vector2(px, py)
+	_name_tag_label.size = plate
+	## `tag_arrow` points left; +90° (clockwise) → up toward the hand/item.
+	_name_tag_arrow.rotation_degrees = 90.0
+	_name_tag_arrow.pivot_offset = _name_tag_arrow.size * 0.5
+	_name_tag_arrow.position = Vector2(px + 20.0, py - _name_tag_arrow.size.y * 0.55)
+	_name_tag.visible = true
+
+
+## Blue `sen_win` verb window (`m_tag_ovl` tags[1]): figure-8 frame + kage shadow +
+## magenta triangle cursor. Baked by `inventory_ui._bake_tag_chrome`.
 func _build_tag_popup() -> void:
 	if _tag_popup != null or _shell_stack == null:
 		return
@@ -785,43 +874,34 @@ func _build_tag_popup() -> void:
 	_tag_popup.visible = false
 	_shell_stack.add_child(_tag_popup)
 
+	## Uniform scale keeps the figure-8 waist (NinePatch would flatten the pinch).
 	_tag_shadow = TextureRect.new()
 	_tag_shadow.texture = InventoryChrome.load_tex("tag_shadow")
 	_tag_shadow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_tag_shadow.stretch_mode = TextureRect.STRETCH_SCALE
 	_tag_shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tag_shadow.self_modulate = Color(1, 1, 1, 0.55)
 	_tag_popup.add_child(_tag_shadow)
 
-	## Base at x=0 (flush to the frame edge), apex points toward the slot. `flip_h`
-	## mirrors it when the window sits on the left instead of `Polygon2D.scale.x`.
-	_tag_arrow = TextureRect.new()
-	_tag_arrow.texture = InventoryChrome.load_tex("tag_arrow")
-	_tag_arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_tag_arrow.stretch_mode = TextureRect.STRETCH_SCALE
-	_tag_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_tag_arrow.size = Vector2(22, 24)
-	_tag_popup.add_child(_tag_arrow)
-
-	_tag_frame = PanelContainer.new()
+	_tag_frame = TextureRect.new()
+	_tag_frame.texture = InventoryChrome.load_tex("tag_frame")
+	_tag_frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_tag_frame.stretch_mode = TextureRect.STRETCH_SCALE
 	_tag_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var box := StyleBoxTexture.new()
-	box.texture = InventoryChrome.load_tex("tag_frame")
-	## Preserve the rounded corners (9-slice); only the straight edges/middle stretch,
-	## so the popup keeps its pill shape at any verb-count height instead of squashing.
-	box.texture_margin_left = 32
-	box.texture_margin_right = 32
-	box.texture_margin_top = 16
-	box.texture_margin_bottom = 16
-	box.content_margin_left = 20
-	box.content_margin_right = 16
-	box.content_margin_top = 10
-	box.content_margin_bottom = 10
-	_tag_frame.add_theme_stylebox_override("panel", box)
 	_tag_popup.add_child(_tag_frame)
 
 	_tag_rows = VBoxContainer.new()
-	_tag_rows.add_theme_constant_override("separation", 3)
-	_tag_frame.add_child(_tag_rows)
+	_tag_rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tag_rows.add_theme_constant_override("separation", 2)
+	_tag_popup.add_child(_tag_rows)
+
+	_tag_cursor = TextureRect.new()
+	_tag_cursor.texture = InventoryChrome.load_tex("tag_cursor")
+	_tag_cursor.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_tag_cursor.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_tag_cursor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tag_cursor.size = Vector2(18, 18)
+	_tag_popup.add_child(_tag_cursor)
 
 
 func _hide_tag_popup() -> void:
@@ -829,8 +909,8 @@ func _hide_tag_popup() -> void:
 		_tag_popup.visible = false
 
 
-## Verb list beside the selected slot. `mTG_set_tag_win`: the window sits to the item's
-## right with a left-pointing arrow, flipping left when it would run off the paper.
+## Verb list beside the selected slot. `mTG_set_tag_win` / screenshot: blue cloud to
+## the right of the item, magenta ▶ on the selected row, purple/muted verb text.
 func _show_tag_popup() -> void:
 	if _tag_popup == null or _tag_choices.is_empty():
 		_hide_tag_popup()
@@ -841,44 +921,55 @@ func _show_tag_popup() -> void:
 		return
 	for child: Node in _tag_rows.get_children():
 		child.queue_free()
-	var cursor := StyleBoxFlat.new()
-	cursor.bg_color = Color(0.90, 0.55, 0.20, 0.30)
-	cursor.set_corner_radius_all(5)
-	cursor.content_margin_left = 6
-	cursor.content_margin_right = 10
-	cursor.content_margin_top = 1
-	cursor.content_margin_bottom = 1
+	## Indent leaves room for the magenta triangle on the left of each row.
 	var blank := StyleBoxEmpty.new()
-	blank.content_margin_left = 6
-	blank.content_margin_right = 10
+	blank.content_margin_left = 22
+	blank.content_margin_right = 16
+	blank.content_margin_top = 1
+	blank.content_margin_bottom = 1
 	for i: int in _tag_choices.size():
 		var row := Label.new()
 		row.text = _tag_choices[i]
 		var on: bool = i == _tag_index
-		_font_label(row, 17, Color(0.12, 0.09, 0.05) if on else Color(0.46, 0.40, 0.32))
-		row.add_theme_stylebox_override("normal", cursor if on else blank)
+		_font_label(row, 18, _TAG_TEXT_ON if on else _TAG_TEXT_OFF)
+		row.add_theme_stylebox_override("normal", blank)
 		_tag_rows.add_child(row)
-	_tag_frame.reset_size()
+	_tag_rows.reset_size()
 	await get_tree().process_frame
 	if _tag_popup == null or not _tag_mode:
 		return
-	var fsize: Vector2 = _tag_frame.get_combined_minimum_size()
+	var content: Vector2 = _tag_rows.get_combined_minimum_size()
+	## Size from content, then bump to native figure-8 aspect (~552×458).
+	var inner := Vector2(maxf(content.x + 48.0, 110.0), maxf(content.y + 40.0, 72.0))
+	var aspect: float = 552.0 / 458.0
+	var fsize: Vector2
+	if inner.x / inner.y > aspect:
+		fsize = Vector2(inner.x, inner.x / aspect)
+	else:
+		fsize = Vector2(inner.y * aspect, inner.y)
 	var slot_c: Vector2 = btn.position + btn.size * 0.5
-	var gap: float = btn.size.x * 0.5 + 20.0
+	## Keep the cloud clear of the slot (screenshot: sits to the right of the item).
+	var gap: float = btn.size.x * 0.5 + 22.0
 	var right: bool = slot_c.x + gap + fsize.x < _shell_stack.custom_minimum_size.x - 8.0
 	var fx: float = (slot_c.x + gap) if right else (slot_c.x - gap - fsize.x)
 	var fy: float = clampf(
-		slot_c.y - fsize.y * 0.5, 12.0, _shell_stack.custom_minimum_size.y - fsize.y - 12.0
+		slot_c.y - fsize.y * 0.45, 12.0, _shell_stack.custom_minimum_size.y - fsize.y - 12.0
 	)
 	_tag_frame.position = Vector2(fx, fy)
 	_tag_frame.size = fsize
 	_tag_shadow.position = Vector2(fx, fy) + Vector2(5, 6)
 	_tag_shadow.size = fsize
-	## `tag_arrow.png` points left natively; `flip_h` mirrors it to point right when the
-	## frame sits on the left of the slot instead.
-	_tag_arrow.flip_h = not right
-	_tag_arrow.position = Vector2(
-		(fx - _tag_arrow.size.x) if right else (fx + fsize.x), slot_c.y - _tag_arrow.size.y * 0.5
+	_tag_rows.position = Vector2(
+		fx + (fsize.x - content.x) * 0.5 + 6.0,
+		fy + (fsize.y - content.y) * 0.5,
+	)
+	_tag_rows.size = content
+	## Magenta triangle sits left of the selected verb (`sen_win_cursor`).
+	var row_h: float = content.y / float(maxi(_tag_choices.size(), 1))
+	_tag_cursor.visible = true
+	_tag_cursor.position = Vector2(
+		_tag_rows.position.x - _tag_cursor.size.x - 2.0,
+		_tag_rows.position.y + row_h * float(_tag_index) + row_h * 0.5 - _tag_cursor.size.y * 0.5,
 	)
 	_tag_popup.visible = true
 
@@ -901,8 +992,7 @@ func _show_page(page: SideTab) -> void:
 		pc.visible = pockets
 	if _wallet != null and _wallet.get_parent() is CanvasItem:
 		(_wallet.get_parent() as CanvasItem).visible = pockets
-	if _background_slot != null:
-		_background_slot.visible = pockets
+	## Background chip stays hidden (no GC equivalent beside Bells).
 	if _hand_root != null:
 		_hand_root.visible = pockets and _hand_root.visible
 	if _collect_root != null:
@@ -2081,10 +2171,11 @@ func _field_context() -> InteractionContext:
 
 func _refresh() -> void:
 	var inv: Inventory = Game.inventory
+	## GC `mIV_SetLineStrings` draws land/player names in lowercase on the sen bars.
 	if _player_name != null:
-		_player_name.text = Game.resident.player_name
+		_player_name.text = Game.resident.player_name.to_lower()
 	if _town_name != null:
-		_town_name.text = Game.town.town_name
+		_town_name.text = Game.town.town_name.to_lower()
 	_wallet.text = _format_bells(inv.wallet)
 	var eq: ItemData = ItemCatalog.get_item(inv.equipment_id)
 	_equip.text = "Held: %s" % (eq.display_name if eq != null else "—")
@@ -2102,6 +2193,7 @@ func _refresh() -> void:
 		_show_tag_popup()
 	else:
 		_hide_tag_popup()
+	_refresh_name_tag(inv)
 	if _open:
 		_update_hand_cursor(false)
 

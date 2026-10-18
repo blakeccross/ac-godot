@@ -1,10 +1,9 @@
 extends CanvasLayer
 
-## Play HUD host: overlays, interaction prompt, event notices. Hidden debug keys: T +1 hour,
-## Y +1 day, U next season, I cycle weather (the console's `time` / `season` do the same).
-## Esc asks to exit to the title (`PauseOverlay`). X opens pockets. `/` or ` opens the console.
+## Play HUD host: overlays and event notices. Hidden debug keys: T +1 hour, Y +1 day,
+## U next season, I cycle weather (the console's `time` / `season` do the same).
+## Esc opens the pause menu. X opens pockets. `/` or ` opens the console.
 
-@onready var _prompt: Label = %PromptLabel
 @onready var _notice: Label = %NoticeLabel
 @onready var _inventory: CanvasLayer = $InventoryOverlay
 @onready var _console: CanvasLayer = $DebugConsole
@@ -13,9 +12,7 @@ var _notice_left: float = 0.0
 
 
 func _ready() -> void:
-	Game.prompt_changed.connect(_on_prompt)
 	Game.notice_posted.connect(_on_notice)
-	_on_prompt(Game.interact_prompt)
 
 
 func inventory_is_open() -> bool:
@@ -63,13 +60,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				Game.cycle_weather_debug()
 				Game.post_notice("Weather: %s" % String(Game.town.weather))
 				get_viewport().set_input_as_handled()
-
-
-func _on_prompt(text: String) -> void:
-	if text == "":
-		_prompt.text = ""
-	else:
-		_prompt.text = "E — %s" % text
 
 
 func _on_notice(text: String) -> void:

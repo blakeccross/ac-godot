@@ -41,10 +41,6 @@ enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
 
 theme/custom="res://assets/ui/default_theme.tres"
 
-[input_devices]
-
-pointing/emulate_touch_from_mouse.debug=true
-
 [importer_defaults]
 
 texture={
@@ -138,6 +134,10 @@ inventory_mark={
 , Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":10,"pressure":0.0,"pressed":false,"script":null)
 ]
 }
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse.debug=true
 
 [layer_names]
 

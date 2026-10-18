@@ -33,6 +33,7 @@ from .texbank import (
     gbi_to_gx,
     image_png_bytes,
 )
+from .ui_gbi import Op, TextureCache, UiWalker, bake_layer
 
 # Prefer the inv_mwin.c dataobject cluster (US GAFE01 map); fall back to any match.
 _CLUSTER_LO = 0x00438000
@@ -261,12 +262,9 @@ CHROME: list[TexSpec] = [
     TexSpec("inv_mwin_potegami_tex", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_otegami_pal", out_name="letter_open_present"),
     TexSpec("inv_mwin_mtegami2_tex", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_mtegami2_pal", out_name="letter_alt"),
     TexSpec("inv_win_mark_tex", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="cursor_mark"),
-    ## `m_tag_ovl` verb popup (`sen_itemw.c`) — shadow blob + arrow pointer. Both are
-    ## flat-PRIMITIVE-color/intensity-as-alpha (`sen_itemw_kage_model`/`_yajirushi_model`),
-    ## same shape as the other `prim_as_color` entries above; the frame (`wakuT`) needs a
-    ## PRIM/ENV lerp instead and is baked separately (`_bake_tag_popup_frame`).
-    TexSpec("sen_itemw_kage_tex", 64, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(30, 20, 20, 160), out_name="tag_shadow"),
-    TexSpec("sen_itemw_yaji_tex", 16, 16, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(35, 26, 15, 255), out_name="tag_arrow"),
+    ## Tag chrome (`sen_win_*`) is rasterised via `ui_gbi` in `_bake_tag_chrome`
+    ## — figure-8 `sen_win_wakuT` with `p_col_table`/`e_col_table` NORMAL colours,
+    ## plus kage / cursor / yajirushi. Do not extract the old `sen_itemw` oval here.
 ]
 
 
@@ -383,8 +381,9 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
     shell = _bake_inventory_window_shell(rel, by_name, stage_dir, out_dir, project_root, achd=achd)
     results.append(shell["record"])
 
-    tag_frame = _bake_tag_popup_frame(rel, by_name, stage_dir, out_dir, project_root)
-    results.append(tag_frame)
+    results.extend(
+        _bake_tag_chrome(rel, symbols, stage_dir, out_dir, project_root, achd=achd)
+    )
 
     results.append(
         _bake_title_banner(
@@ -436,16 +435,18 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
     return out
 
 
-## `sen_itemw_wakuT_model` (`sen_itemw.c:59-68`) — one GX_MIRROR quad, PRIM/ENV lerp
-## same shape as `des_win_shitaT_model`'s border tiles (`_ia_prim_env`). A single quad
-## needs no triangle rasterizer: decode once, colorize, then 2x2-mirror into a sheet
-## that's seamless under plain repetition (`stretch_mode = TILE` in Godot).
-## PRIM = interior fill (intensity 255, where the corner texture is white); ENV = the
-## curve/edge accent (intensity 0, where the corner texture is black) — matches the
-## existing hand-drawn cream/tan look this replaces rather than decomp's per-verb-family
-## `p_col_table`/`e_col_table` (not chased here, see `docs/decomp_notes/inventory.md`).
-_TAG_FRAME_PRIM = (252, 245, 219, 255)
-_TAG_FRAME_ENV = (158, 120, 77, 255)
+## `mTG_set_win_field` (`m_tag_ovl.c`): verb + name plates use `sen_win_wakuT_model`
+## (figure-8 cloud), coloured from `p_col_table`/`e_col_table` NORMAL by tag index
+## (`draw_no`). Index 0 = cream name plate; index 1 = cyan verb window.
+_TAG_NAME_PRIM = (255, 245, 140, 255)
+_TAG_NAME_ENV = (215, 165, 60, 255)
+_TAG_VERB_PRIM = (190, 235, 245, 255)
+_TAG_VERB_ENV = (120, 120, 200, 255)
+## `cursol_color[mTG_TAG_COLOR_NORMAL]` — magenta triangle on the selected verb.
+_TAG_CURSOR_PRIM = (215, 30, 215, 255)
+## Screen-space bounds covering `sen_win_v` (same ballpark as menu_ui MSCORE_SEN).
+_TAG_SEN_BOUNDS = (-80.0, 70.0, 160.0, 140.0)
+_TAG_SEN_SCALE = 4
 
 ## `inv_sakana_daimeiT_model` / `inv_mushi_daimeiT_model` (`inv_sakana.c` / `inv_mushi.c`):
 ## the "Fish"/"Insects" title ribbon at the top of each collection page. Same
@@ -465,32 +466,83 @@ _DESIGN_TAB_PRIM = (255, 205, 70, 255)
 _DESIGN_TAB_ENV = (165, 145, 50, 255)
 
 
-def _bake_tag_popup_frame(
-    rel: RelData, by_name: dict[str, list[MapSymbol]], stage_dir: Path, out_dir: Path, project_root: Path
-) -> dict[str, Any]:
-    record: dict[str, Any] = {
-        "asset_id": "tag_frame",
-        "source": "sen_itemw_wakuT_model",
-        "output_path": "ui/inventory/tag_frame.png",
-        "status": "pending",
-        "error": None,
-    }
-    try:
-        sym = _pick_symbol(by_name, "san_itemw_waku_tex")
-        data = rel.slice_at(sym.address, sym.size)
-        image = decode_gbi_texture(data, 64, 32, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
-        image = _ia_prim_env(image, _TAG_FRAME_PRIM, _TAG_FRAME_ENV)
-        sheet = _mirror_tile(image)
-        png = image_png_bytes(sheet)
-        for folder in (stage_dir, out_dir):
-            (folder / "tag_frame.png").write_bytes(png)
-        write_import_sidecar(out_dir / "tag_frame.png", project_root)
-        record["status"] = "converted"
-        record["meta"] = {"width": sheet.width, "height": sheet.height, "address": f"0x{sym.address:08X}"}
-    except Exception as exc:  # noqa: BLE001
-        record["status"] = "error"
-        record["error"] = f"{type(exc).__name__}: {exc}"
-    return record
+def _bake_tag_chrome(
+    rel: RelData,
+    symbols: list[MapSymbol],
+    stage_dir: Path,
+    out_dir: Path,
+    project_root: Path,
+    *,
+    achd=None,
+) -> list[dict[str, Any]]:
+    """Rasterise `sen_win_*` verb/name chrome via `ui_gbi` (figure-8 + pointer + cursor)."""
+    textures = TextureCache(rel, achd)
+    walker = UiWalker(rel, symbols)
+    jobs: list[tuple[str, list[Op]]] = [
+        (
+            "tag_frame",
+            [
+                Op("sen_item2_DL_mode"),
+                Op("sen_win_wakuT_model", prim=_TAG_VERB_PRIM, env=_TAG_VERB_ENV),
+            ],
+        ),
+        (
+            "tag_name_frame",
+            [
+                Op("sen_item2_DL_mode"),
+                Op("sen_win_wakuT_model", prim=_TAG_NAME_PRIM, env=_TAG_NAME_ENV),
+            ],
+        ),
+        ("tag_shadow", [Op("sen_item2_DL_mode"), Op("sen_win_kageT_model")]),
+        (
+            "tag_cursor",
+            [
+                Op("sen_item2_DL_mode"),
+                Op("sen_win_cursor_model", prim=_TAG_CURSOR_PRIM),
+            ],
+        ),
+        (
+            "tag_arrow",
+            [
+                Op("sen_item2_DL_mode"),
+                Op("sen_win_yajirushiT_model", prim=_TAG_NAME_ENV),
+            ],
+        ),
+    ]
+    results: list[dict[str, Any]] = []
+    for stem, ops in jobs:
+        record: dict[str, Any] = {
+            "asset_id": stem,
+            "source": "sen_win_*",
+            "output_path": f"ui/inventory/{stem}.png",
+            "status": "pending",
+            "error": None,
+        }
+        try:
+            image = bake_layer(walker, textures, ops, _TAG_SEN_BOUNDS, _TAG_SEN_SCALE)
+            bbox = image.split()[-1].getbbox()
+            if bbox is not None:
+                pad = 4
+                x0, y0, x1, y1 = bbox
+                image = image.crop(
+                    (
+                        max(0, x0 - pad),
+                        max(0, y0 - pad),
+                        min(image.width, x1 + pad),
+                        min(image.height, y1 + pad),
+                    )
+                )
+            png = image_png_bytes(image)
+            for folder in (stage_dir, out_dir):
+                (folder / f"{stem}.png").write_bytes(png)
+            write_import_sidecar(out_dir / f"{stem}.png", project_root)
+            record["status"] = "converted"
+            record["meta"] = {"width": image.width, "height": image.height, "raster": "sen_win"}
+        except Exception as exc:  # noqa: BLE001
+            record["status"] = "error"
+            record["error"] = f"{type(exc).__name__}: {exc}"
+        results.append(record)
+    return results
 
 
 def _bake_title_banner(
@@ -814,8 +866,16 @@ def _ia_env_preview(image: Image.Image, env: tuple[int, int, int, int]) -> Image
                         continue
                     if kind[ny][nx] == 0 or kind[ny][nx] == 2:
                         rim_mask[ny][nx] = True
-    fill = (72, 62, 88) if er < 200 else (110, 48, 48)
-    rim = (min(255, er + 55), min(255, eg + 55), min(255, eb + 30))
+    ## Item rings: muted blue-purple disc + bright rim (`gDPSetEnvColor` ~100,100,255).
+    ## Letter rings: peach–coral fill like the GC pockets (solid orange discs, not maroon).
+    if er < 200:
+        fill = (72, 62, 88)
+        rim = (min(255, er + 55), min(255, eg + 55), min(255, eb + 30))
+        fill_a = 240
+    else:
+        fill = (235, 145, 115)
+        rim = (255, min(255, eg + 40), min(255, eb + 30))
+        fill_a = 255
     out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     dst = out.load()
     for y in range(h):
@@ -823,7 +883,7 @@ def _ia_env_preview(image: Image.Image, env: tuple[int, int, int, int]) -> Image
             if rim_mask[y][x]:
                 dst[x, y] = (*rim, 255)
             elif kind[y][x] == 1:
-                dst[x, y] = (*fill, 240)
+                dst[x, y] = (*fill, fill_a)
             elif kind[y][x] == 2:
                 dst[x, y] = (*rim, 255)
     return out

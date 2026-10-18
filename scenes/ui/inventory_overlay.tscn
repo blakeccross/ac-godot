@@ -17,22 +17,16 @@
 [ext_resource type="Texture2D" uid="uid://dep3cpxm7aogs" path="res://assets/generated/ui/inventory/slot_letter.png" id="SlotLetterTex"]
 [ext_resource type="Texture2D" uid="uid://cpahxbqr0rkm8" path="res://assets/generated/ui/inventory/tab_lens_mask_r.png" id="TabLensTexR"]
 
-[sub_resource type="StyleBoxFlat" id="SlotItem"]
+[sub_resource type="StyleBoxTexture" id="SlotItem"]
 content_margin_left = 8.0
 content_margin_top = 8.0
 content_margin_right = 8.0
 content_margin_bottom = 8.0
-bg_color = Color(0.2784314, 0.21960784, 0.3019608, 0.40392157)
-border_width_left = 6
-border_width_top = 6
-border_width_right = 6
-border_width_bottom = 6
-border_color = Color(0.44, 0.75, 1, 1)
-corner_radius_top_left = 999
-corner_radius_top_right = 999
-corner_radius_bottom_right = 999
-corner_radius_bottom_left = 999
-corner_detail = 11
+texture = ExtResource("SlotItemTex")
+texture_margin_left = 1.15
+texture_margin_top = 1.15
+texture_margin_right = 1.15
+texture_margin_bottom = 1.15
 
 [sub_resource type="StyleBoxTexture" id="SlotItemSelected"]
 content_margin_left = 8.0
@@ -44,6 +38,7 @@ texture_margin_left = 1.15
 texture_margin_top = 1.15
 texture_margin_right = 1.15
 texture_margin_bottom = 1.15
+modulate_color = Color(1.18, 1.12, 1.35, 1)
 
 [sub_resource type="StyleBoxTexture" id="SlotItemMarked"]
 content_margin_left = 8.0
@@ -57,21 +52,16 @@ texture_margin_right = 1.1
 texture_margin_bottom = 1.1
 modulate_color = Color(1.5, 1.2, 0.55, 1)
 
-[sub_resource type="StyleBoxFlat" id="SlotMail"]
+[sub_resource type="StyleBoxTexture" id="SlotMail"]
 content_margin_left = 8.0
 content_margin_top = 8.0
 content_margin_right = 8.0
 content_margin_bottom = 8.0
-bg_color = Color(0.9019608, 0.2784314, 0.21960784, 0.5019608)
-border_width_left = 6
-border_width_top = 6
-border_width_right = 6
-border_width_bottom = 6
-border_color = Color(1, 0.25, 0.25, 1)
-corner_radius_top_left = 999
-corner_radius_top_right = 999
-corner_radius_bottom_right = 999
-corner_radius_bottom_left = 999
+texture = ExtResource("SlotLetterTex")
+texture_margin_left = 1.15
+texture_margin_top = 1.15
+texture_margin_right = 1.15
+texture_margin_bottom = 1.15
 
 [sub_resource type="StyleBoxTexture" id="SlotMailSelected"]
 content_margin_left = 8.0
@@ -83,6 +73,7 @@ texture_margin_left = 1.15
 texture_margin_top = 1.15
 texture_margin_right = 1.15
 texture_margin_bottom = 1.15
+modulate_color = Color(1.2, 1.1, 1.05, 1)
 
 [sub_resource type="StyleBoxFlat" id="PortraitClip"]
 bg_color = Color(0.75, 0.88, 1, 1)
@@ -92,7 +83,7 @@ corner_radius_bottom_right = 999
 corner_radius_bottom_left = 999
 
 [sub_resource type="StyleBoxFlat" id="NameBarSB"]
-bg_color = Color(0.24098796, 0.6707507, 0.9999997, 0.827451)
+bg_color = Color(0.55, 0.78, 0.98, 0.72)
 corner_radius_top_left = 999
 corner_radius_top_right = 999
 corner_radius_bottom_right = 999
@@ -104,15 +95,31 @@ content_margin_top = 2.0
 content_margin_right = 16.0
 content_margin_bottom = 2.0
 bg_color = Color(1, 1, 1, 1)
-border_width_left = 5
-border_width_top = 5
-border_width_right = 5
-border_width_bottom = 5
-border_color = Color(0.4, 0.7, 1, 1)
-corner_radius_top_left = 24
-corner_radius_top_right = 24
-corner_radius_bottom_right = 24
-corner_radius_bottom_left = 24
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.45, 0.72, 0.95, 1)
+corner_radius_top_left = 999
+corner_radius_top_right = 999
+corner_radius_bottom_right = 999
+corner_radius_bottom_left = 999
+
+[sub_resource type="StyleBoxFlat" id="NameTagBubble"]
+content_margin_left = 14.0
+content_margin_top = 4.0
+content_margin_right = 14.0
+content_margin_bottom = 4.0
+bg_color = Color(1, 0.96, 0.72, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.45, 0.38, 0.18, 1)
+corner_radius_top_left = 999
+corner_radius_top_right = 999
+corner_radius_bottom_right = 999
+corner_radius_bottom_left = 999
 
 [sub_resource type="StyleBoxTexture" id="TabFishTexBox"]
 content_margin_left = 8.0
@@ -269,48 +276,50 @@ stretch_mode = 5
 [node name="TownBar" type="Panel" parent="Root/Center/ShellStack/ChromeLayer" unique_id=1311663197]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 219.96002
-offset_top = 95.68
+offset_left = 220.0
+offset_top = 78.0
 offset_right = 472.0
-offset_bottom = 111.00001
+offset_bottom = 108.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("NameBarSB")
 
 [node name="TownName" type="Label" parent="Root/Center/ShellStack/ChromeLayer" unique_id=255043393]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 214.0
-offset_top = 66.0
+offset_left = 228.0
+offset_top = 76.0
 offset_right = 464.0
-offset_bottom = 107.0
-theme_override_colors/font_color = Color(0.23, 0.31, 0.43, 1)
+offset_bottom = 110.0
+theme_override_colors/font_color = Color(0.28, 0.3, 0.36, 1)
 theme_override_fonts/font = ExtResource("RomFont")
-theme_override_font_sizes/font_size = 40
+theme_override_font_sizes/font_size = 28
 text = "Town"
-horizontal_alignment = 1
+horizontal_alignment = 0
+vertical_alignment = 1
 
 [node name="PlayerBar" type="Panel" parent="Root/Center/ShellStack/ChromeLayer" unique_id=1310296868]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 219.96002
-offset_top = 139.76001
+offset_left = 220.0
+offset_top = 122.0
 offset_right = 470.0
-offset_bottom = 155.0
+offset_bottom = 152.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("NameBarSB")
 
 [node name="PlayerName" type="Label" parent="Root/Center/ShellStack/ChromeLayer" unique_id=1113615025]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 213.72
-offset_top = 109.600006
-offset_right = 472.0
-offset_bottom = 130.6
-theme_override_colors/font_color = Color(0.27, 0.27, 0.39, 1)
+offset_left = 228.0
+offset_top = 120.0
+offset_right = 462.0
+offset_bottom = 154.0
+theme_override_colors/font_color = Color(0.28, 0.3, 0.36, 1)
 theme_override_fonts/font = ExtResource("RomFont")
-theme_override_font_sizes/font_size = 40
+theme_override_font_sizes/font_size = 28
 text = "Player"
-horizontal_alignment = 1
+horizontal_alignment = 0
+vertical_alignment = 1
 
 [node name="ItemsLabel" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer" unique_id=1754980414]
 unique_name_in_owner = true
@@ -354,18 +363,18 @@ stretch_mode = 5
 [node name="BellsPill" type="PanelContainer" parent="Root/Center/ShellStack/ChromeLayer" unique_id=810969961]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 286.0
-offset_top = 226.0
-offset_right = 444.6
-offset_bottom = 273.0
+offset_left = 284.0
+offset_top = 218.0
+offset_right = 452.0
+offset_bottom = 274.0
 theme_override_styles/panel = SubResource("BellsPill")
 
 [node name="WalletLabel" type="Label" parent="Root/Center/ShellStack/ChromeLayer/BellsPill" unique_id=1760007185]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.22, 0.18, 1)
+theme_override_colors/font_color = Color(0.95, 0.4, 0.15, 1)
 theme_override_fonts/font = ExtResource("RomFont")
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 26
 text = "0"
 horizontal_alignment = 2
 vertical_alignment = 1

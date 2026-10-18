@@ -108,8 +108,13 @@ static func authored_test_town() -> WorldData:
 ## (`l_title_demo_fg`) and the 14 fixed villagers (`mNpc_SetAnimalTitleDemo`), see `TitleDemo`.
 ## Its acre layout is the fixed `data_fdd[SCENE_TITLE_DEMO]` map (`TitleDemo.acres`) when the
 ## extraction carries it; the seed then only drives the leftover random picks.
-static func generate(seed_value: int = DEFAULT_SEED, title_demo: bool = false) -> WorldData:
-	var fixed: Dictionary = TitleDemo.acres() if title_demo else {}
+## `imported`: a town brought from a GameCube save (`TownState.imported_field`). Its acre map
+## and every unit's item are the save's own, so nothing about the field is rolled.
+static func generate(seed_value: int = DEFAULT_SEED, title_demo: bool = false, imported: Dictionary = {}) -> WorldData:
+	var grids: Dictionary = {} if title_demo else _imported_grids(imported)
+	var fixed: Dictionary = TitleDemo.acres() if title_demo else _imported_acres(imported)
+	if fixed.is_empty():
+		grids = {}
 	var blocks: PackedByteArray
 	var heights: PackedByteArray
 	if not fixed.is_empty():
@@ -141,7 +146,10 @@ static func generate(seed_value: int = DEFAULT_SEED, title_demo: bool = false) -
 	_place_tortimer(data, blocks)
 	## Waterfall FG units come from disc templates (`0x580D`–`0x580F`); geometric
 	## fallback only fills waterfall acres that still lack one.
-	_place_fg_props(data, blocks, seed_value, title_demo, not fixed.is_empty())
+	if grids.is_empty():
+		_place_fg_props(data, blocks, seed_value, title_demo, not fixed.is_empty())
+	else:
+		_place_imported_props(data, blocks, grids)
 	_place_waterfall(data, blocks)
 	## After the FG templates, which may move the police station onto its disc unit.
 	_place_copper(data)
@@ -664,20 +672,75 @@ static func _place_fg_props(
 	_remove_objects_under_buildings(data)
 
 
+## A saved town's field as it stood: no border-tree pull, fruit or cedar swap, starter beds or
+## starter villagers, as all of those already happened in the original. Its villagers' houses
+## come from the roster (`apply_residents`); here only the plots are listed.
+static func _place_imported_props(data: WorldData, blocks: PackedByteArray, grids: Dictionary) -> void:
+	var reserves: Array[Vector2i] = _place_from_fg_templates(data, blocks, RandomNumberGenerator.new(), {}, false, grids)
+	data.reserve_cells = []
+	for r: Vector2i in reserves:
+		if _sign_fits_house(r) and not _house_plot_blocked(data, r):
+			data.reserve_cells.append(r)
+	_remove_objects_under_buildings(data)
+
+
+## `Save_Get(combi_table)` words (`combination_type << 2 | height`, 7×10) → the fixed acre map
+## `TitleDemo.acres` also returns. Empty when the save or the FG catalog is missing.
+static func _imported_acres(imported: Dictionary) -> Dictionary:
+	var words: Array = imported.get("acres", []) if typeof(imported.get("acres")) == TYPE_ARRAY else []
+	if words.size() != TownFieldGenerator.BLOCK_TOTAL or not FieldObjectCatalog.has_catalog():
+		return {}
+	var types := PackedByteArray()
+	types.resize(TownFieldGenerator.BLOCK_TOTAL)
+	var heights := PackedByteArray()
+	heights.resize(TownFieldGenerator.BLOCK_TOTAL)
+	var visuals := PackedStringArray()
+	visuals.resize(TownFieldGenerator.BLOCK_TOTAL)
+	for i: int in words.size():
+		var word: int = int(words[i])
+		var combi: Dictionary = FieldObjectCatalog.combi(word >> 2)
+		if combi.is_empty():
+			return {}
+		types[i] = TitleDemo.block_type_from_decomp(int(combi.get("type", TownFieldGenerator.T_NONE)), i / TownFieldGenerator.BLOCK_X)
+		heights[i] = word & 3
+		visuals[i] = String(combi.get("bg", ""))
+	return {"types": types, "heights": heights, "visuals": visuals}
+
+
+## The saved FG (30 acres × 256 item numbers, row-major from A-1) → Vector2i(bx, bz) → items.
+static func _imported_grids(imported: Dictionary) -> Dictionary:
+	var field: Array = imported.get("field", []) if typeof(imported.get("field")) == TYPE_ARRAY else []
+	if field.size() != FG_X * FG_Z:
+		return {}
+	var out: Dictionary = {}
+	for i: int in field.size():
+		var acre: Variant = field[i]
+		if not (acre is Array or acre is PackedInt32Array):
+			return {}
+		var items := PackedInt32Array(acre)
+		if items.size() != FieldObjectCatalog.ITEMS_PER_ACRE:
+			return {}
+		out[Vector2i(i % FG_X + 1, i / FG_X + 1)] = items
+	return out
+
+
 static func _place_from_fg_templates(
 	data: WorldData,
 	blocks: PackedByteArray,
 	rng: RandomNumberGenerator,
 	fg_override: Dictionary = {},
-	override_whole: bool = false
+	override_whole: bool = false,
+	item_grids: Dictionary = {}
 ) -> Array[Vector2i]:
 	## Returns SIGN reserve cells (`mNT_IS_RESERVE`) for villager house assignment.
 	## `fg_override` (Vector2i(bx, bz) → fg id) replaces the combi pick — the title demo's fixed
 	## FG. `override_whole`: the BG is the demo's own fixed map, so the override replaces the
 	## whole template like `mFM_ChangeFGName` does. Otherwise the override lands on a generated
 	## BG it was not authored for: keep the real templates' structures and put its props on
-	## grass cells only.
+	## grass cells only. `item_grids` (Vector2i(bx, bz) → 256 item numbers) is a saved town's
+	## own field, copied whole in place of any template.
 	var reserves: Array[Vector2i] = []
+	var homes_reserve: bool = not fg_override.is_empty() or not item_grids.is_empty()
 	var tree_n := 0
 	var flower_n := 0
 	var rock_n := 0
@@ -686,24 +749,24 @@ static func _place_from_fg_templates(
 			var type: int = _block(blocks, bx, bz)
 			var origin: Vector2i = _fg_origin(bx, bz)
 			var visual := _acre_visual(data, bx, bz)
-			var normal_id: int = FieldObjectCatalog.pick_fg_id(visual, type, int(rng.randi()))
-			## (fg id, mode): 0 = everything, 1 = structures / signs / waterfalls only, 2 = props only. The title demo
+			## [items, mode]: 0 = everything, 1 = structures / signs / waterfalls only, 2 = props only. The title demo
 			## takes its props and homes from the fixed table but must keep the real templates'
 			## structures — they are what position and refine the post office, shop, lighthouse…
-			var passes: Array[Vector2i] = []
-			if fg_override.is_empty():
-				passes.append(Vector2i(normal_id, 0))
-			elif override_whole:
-				passes.append(Vector2i(int(fg_override.get(Vector2i(bx, bz), normal_id)), 0))
+			var passes: Array = []
+			if not item_grids.is_empty():
+				passes.append([item_grids.get(Vector2i(bx, bz), PackedInt32Array()), 0])
 			else:
-				passes.append(Vector2i(normal_id, 1))
-				passes.append(Vector2i(int(fg_override.get(Vector2i(bx, bz), -1)), 2))
-			for pass_entry: Vector2i in passes:
-				var fg_id: int = pass_entry.x
-				var mode: int = pass_entry.y
-				if fg_id < 0:
-					continue
-				var items: PackedInt32Array = FieldObjectCatalog.items(fg_id)
+				var normal_id: int = FieldObjectCatalog.pick_fg_id(visual, type, int(rng.randi()))
+				if fg_override.is_empty():
+					passes.append([FieldObjectCatalog.items(normal_id), 0])
+				elif override_whole:
+					passes.append([FieldObjectCatalog.items(int(fg_override.get(Vector2i(bx, bz), normal_id))), 0])
+				else:
+					passes.append([FieldObjectCatalog.items(normal_id), 1])
+					passes.append([FieldObjectCatalog.items(int(fg_override.get(Vector2i(bx, bz), -1))), 2])
+			for pass_entry: Array in passes:
+				var items: PackedInt32Array = pass_entry[0]
+				var mode: int = pass_entry[1]
 				if items.size() != FieldObjectCatalog.ITEMS_PER_ACRE:
 					continue
 				for uz: int in UT:
@@ -716,7 +779,7 @@ static func _place_from_fg_templates(
 						if (
 							place.is_empty()
 							and mode != 1
-							and not fg_override.is_empty()
+							and homes_reserve
 							and item_id >= DEMO_HOME_ITEM_MIN
 							and item_id <= DEMO_HOME_ITEM_MAX
 						):

@@ -71,6 +71,31 @@ func save_game(path: String = "") -> Error:
 	return OK
 
 
+## Brings a town over from an original GameCube Memory Card (a Dolphin `.gci` export of
+## `DobutsunomoriP_MURA`, or a whole `.raw` card image) and writes it to `path`, replacing
+## whatever town was there. Returns `TownImport.build`'s summary with an `error` key
+## (`OK`, `ERR_FILE_CANT_OPEN`, `ERR_FILE_UNRECOGNIZED` when no town file is in it,
+## `ERR_FILE_CORRUPT` when no copy passes the checksum).
+func import_gamecube(source_path: String, path: String = "") -> Dictionary:
+	path = _path(path)
+	if not FileAccess.file_exists(source_path):
+		return {"error": ERR_FILE_CANT_OPEN}
+	var file: PackedByteArray = GameCubeCard.town_file(FileAccess.get_file_as_bytes(source_path))
+	if file.is_empty():
+		return {"error": ERR_FILE_UNRECOGNIZED}
+	var town: Dictionary = GameCubeTown.decode(file)
+	if town.is_empty():
+		return {"error": ERR_FILE_CORRUPT}
+	var built: Dictionary = TownImport.build(town)
+	var out := FileAccess.open(path, FileAccess.WRITE)
+	if out == null:
+		return {"error": FileAccess.get_open_error()}
+	out.store_string(JSON.stringify(built["payload"], "\t"))
+	var summary: Dictionary = built["summary"]
+	summary["error"] = OK
+	return summary
+
+
 ## Load the town and resident `slot` (-1: the one played last). An empty slot loads the town
 ## with a fresh resident, for a newcomer (`aNPS2_TALK_START_TYPE3`).
 func load_game(path: String = "", slot: int = -1) -> Error:

@@ -142,6 +142,27 @@ func test_picking_up_is_b_and_never_a() -> void:
 	assert_str(String(b.action.id)).is_equal(String(Interaction.PICK_UP))
 
 
+func test_item_pickup_offers_pick_up_through_its_volume() -> void:
+	## Ground items only speak through `get_interactions` — the volume has no authored verbs.
+	## The probe path must still see pick_up (`InteractVolume.offers` → host bind).
+	var pickup: Node3D = auto_free(load("res://scenes/world/item_pickup.tscn").instantiate()) as Node3D
+	add_child(pickup)
+	var volume: InteractVolume = InteractVolume.of(pickup)
+	assert_that(volume).is_not_null()
+	assert_object(volume.host).is_same(pickup)
+	var ctx := InteractionContext.new()
+	ctx.inventory = Inventory.new()
+	var offered: Array[Interaction] = volume.offers(ctx)
+	assert_int(offered.size()).is_equal(1)
+	assert_str(String(offered[0].id)).is_equal(String(Interaction.PICK_UP))
+	var a: InteractionQuery = InteractionQuery.best_in_areas([volume], pickup.global_position, ctx)
+	assert_that(a).is_null()
+	var b: InteractionQuery = InteractionQuery.best_in_areas([volume], pickup.global_position, ctx, true)
+	assert_that(b).is_not_null()
+	assert_object(b.host).is_same(pickup)
+	assert_str(String(b.action.id)).is_equal(String(Interaction.PICK_UP))
+
+
 func test_dummy_hosts_talk_and_pick_up_without_type_checks() -> void:
 	var ctx := InteractionContext.new()
 	ctx.inventory = Inventory.new()

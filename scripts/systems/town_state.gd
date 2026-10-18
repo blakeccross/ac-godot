@@ -57,6 +57,10 @@ var plant_states: Dictionary = {}
 var buried_deposits: Dictionary = {}
 var world_mode: WorldData.Mode = WorldData.Mode.TEST
 var world_seed: int = WorldGenerator.DEFAULT_SEED
+## A town brought over from a GameCube save (`TownImport`): {acres: 70 `combi_table` words,
+## field: 30 acres × 256 item numbers}. When set, `WorldGenerator` builds that map and what
+## stands on it instead of rolling them from `world_seed`. Saved.
+var imported_field: Dictionary = {}
 ## Town grass motif (`bg_tex_idx`): 0 triangle, 1 square, 2 circle.
 var grass_pattern: int = WorldData.GrassPattern.TRIANGLE
 ## `Save_Get(fruit)`: the town's native fruit. Other fruit sells to Nook at the foreign price.
@@ -126,6 +130,8 @@ func write_save(out: Dictionary) -> void:
 	out["buried"] = buried_deposits.duplicate(true)
 	out["world_mode"] = int(world_mode)
 	out["world_seed"] = world_seed
+	if not imported_field.is_empty():
+		out["imported_field"] = imported_field.duplicate(true)
 	out["grass_pattern"] = grass_pattern
 	out["town_fruit"] = String(town_fruit)
 	out["town_name"] = town_name
@@ -234,6 +240,8 @@ func read_save(data: Dictionary) -> void:
 				buried_deposits[str(key)] = (rec as Dictionary).duplicate()
 	world_mode = int(data.get("world_mode", WorldData.Mode.TEST)) as WorldData.Mode
 	world_seed = int(data.get("world_seed", WorldGenerator.DEFAULT_SEED))
+	var saved_field: Variant = data.get("imported_field", {})
+	imported_field = (saved_field as Dictionary).duplicate(true) if typeof(saved_field) == TYPE_DICTIONARY else {}
 	if data.has("grass_pattern"):
 		grass_pattern = WorldData.clamp_grass_pattern(int(data["grass_pattern"]))
 	elif world_mode == WorldData.Mode.GENERATED:
@@ -327,5 +335,6 @@ func reset() -> void:
 	dialogue_vars.clear()
 	world_mode = WorldData.Mode.TEST
 	world_seed = WorldGenerator.DEFAULT_SEED
+	imported_field = {}
 	grass_pattern = WorldData.GrassPattern.TRIANGLE
 	town_fruit = &"apple"

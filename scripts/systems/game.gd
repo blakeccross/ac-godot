@@ -668,7 +668,7 @@ func _apply_identity(identity: Dictionary) -> void:
 func resolve_world_data() -> WorldData:
 	var data: WorldData
 	if town.world_mode == WorldData.Mode.GENERATED:
-		data = WorldGenerator.generate(town.world_seed, title_demo_active)
+		data = WorldGenerator.generate(town.world_seed, title_demo_active, town.imported_field)
 		if not title_demo_active:
 			_resolve_residents(data)
 	else:
@@ -2163,7 +2163,7 @@ func _return_placement_contents(entry: FurniturePlacement) -> bool:
 
 const _ESC_BLOCKING_UI: Array[String] = [
 	"inventory_ui", "dialogue_ui", "shop_ui", "map_ui", "debug_console_ui", "design_ui",
-	"design_list_ui", "name_entry_ui", "pause_ui",
+	"design_list_ui", "name_entry_ui", "pause_ui", "settings_ui",
 ]
 
 

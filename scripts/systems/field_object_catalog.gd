@@ -74,11 +74,22 @@ const ITEM_WATERFALL_WEST := 0x580F
 static var _loaded := false
 static var _templates: Dictionary = {} ## int fg_id → PackedInt32Array(256)
 static var _combis: Array = [] ## {bg, fg, type}
+## Every `data_combi_table` row in index order, the ids a save's `combi_table` holds.
+static var _combi_table: Array = [] ## {bg, fg, type}
 
 
 static func has_catalog() -> bool:
 	_ensure()
 	return not _templates.is_empty() and not _combis.is_empty()
+
+
+## `data_combi_table[index]`: `{bg, fg, type}` (decomp `mFM_BLOCK_TYPE_*`), or {} when the
+## catalog predates the table or the index is out of range.
+static func combi(index: int) -> Dictionary:
+	_ensure()
+	if index < 0 or index >= _combi_table.size() or typeof(_combi_table[index]) != TYPE_DICTIONARY:
+		return {}
+	return _combi_table[index] as Dictionary
 
 
 static func pick_fg_id(bg_name: StringName, block_type: int, variant: int) -> int:
@@ -308,20 +319,22 @@ static func _tree_place(item_id: int) -> Dictionary:
 	return {}
 
 
+## Building id of player house plot `HOUSE0`…`HOUSE3`.
+static func player_plot_id(house_idx: int) -> StringName:
+	return &"player_house" if house_idx == 0 else StringName("player_house_%d" % house_idx)
+
+
 static func _player_house_place(house_idx: int) -> Dictionary:
 	## FG_TYPE_0069 / GRD_S_F_MH_*: HOUSE0 (3,3), HOUSE1 (12,3), HOUSE2 (3,10), HOUSE3 (12,10).
 	## `aMHS_posX_table`: west plots +20 X, east plots −20 X; both +20 Z. `angle_table` is
 	## +90° Y on west plots — Godot `WEST` (`+PI/2`), not `EAST` (`−PI/2`).
 	var west: bool = (house_idx & 1) == 0
-	var id: StringName = &"player_house"
-	if house_idx != 0:
-		id = StringName("player_house_%d" % house_idx)
 	return {
 		"kind": &"structure",
 		"building": &"house",
 		"visual": &"obj_s_myhome1",
 		"label": "House",
-		"id": id,
+		"id": player_plot_id(house_idx),
 		"foot": Vector2i(2, 2),
 		"nw_off": Vector2i(0, 0) if west else Vector2i(-1, 0),
 		"mesh_facing": WorldGrid.Facing.WEST if west else WorldGrid.Facing.SOUTH,
@@ -343,6 +356,7 @@ static func _ensure() -> void:
 	_loaded = true
 	_templates.clear()
 	_combis.clear()
+	_combi_table.clear()
 	if not FileAccess.file_exists(CATALOG_PATH):
 		return
 	var f := FileAccess.open(CATALOG_PATH, FileAccess.READ)
@@ -368,3 +382,6 @@ static func _ensure() -> void:
 	var c: Variant = root.get("combis", [])
 	if typeof(c) == TYPE_ARRAY:
 		_combis = c
+	var table: Variant = root.get("combi_table", [])
+	if typeof(table) == TYPE_ARRAY:
+		_combi_table = table

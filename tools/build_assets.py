@@ -338,6 +338,7 @@ def main() -> int:
                         "obj_w_cstump",
                         "obj_w_pstump",
                         "obj_hole",
+                        "obj_zassou",
                     ],
                 )
                 label = "plant assets"

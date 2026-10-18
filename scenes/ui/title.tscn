@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" path="res://scenes/world/world.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/title_logo.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/world/station_porter.tscn" id="4_porter"]
+[ext_resource type="PackedScene" path="res://scenes/ui/settings_overlay.tscn" id="5"]
 
 [node name="Title" type="Node"]
 script = ExtResource("1")
@@ -73,35 +74,61 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "Slot B"
 
-[node name="DevLabel" type="Label" parent="Menu/Center/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "dev shortcuts"
-horizontal_alignment = 1
-
-[node name="GeneratedTownButton" type="Button" parent="Menu/Center/VBox"]
+[node name="SettingsButton" type="Button" parent="Menu/Center/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 36)
+custom_minimum_size = Vector2(280, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "Town Seed 12345"
+theme_override_font_sizes/font_size = 22
+text = "Settings"
 
-[node name="IntroStationButton" type="Button" parent="Menu/Center/VBox"]
+[node name="ImportButton" type="Button" parent="Menu/Center/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 36)
+custom_minimum_size = Vector2(280, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "Station Arrival"
+theme_override_font_sizes/font_size = 22
+text = "Import GameCube Save"
 
-[node name="Hints" type="Label" parent="Menu/Center/VBox"]
+[node name="ImportSlotAButton" type="Button" parent="Menu/Center/VBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(280, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "WASD move · E pick up · Esc save & title"
-horizontal_alignment = 1
+theme_override_font_sizes/font_size = 20
+text = "Into Slot A"
+
+[node name="ImportSlotBButton" type="Button" parent="Menu/Center/VBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(280, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Into Slot B"
+
+[node name="ImportFileDialog" type="FileDialog" parent="Menu"]
+unique_name_in_owner = true
+title = "Import a GameCube Save"
+size = Vector2i(760, 500)
+ok_button_text = "Open"
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.gci ; Dolphin save export", "*.raw ; Memory Card image")
+use_native_dialog = true
+
+[node name="ImportConfirm" type="ConfirmationDialog" parent="Menu"]
+unique_name_in_owner = true
+title = "Replace Town?"
+ok_button_text = "Replace"
+dialog_autowrap = true
+
+[node name="SettingsOverlay" parent="." instance=ExtResource("5")]
 
 [connection signal="pressed" from="Menu/Center/VBox/NewGameButton" to="." method="_on_new_game_pressed"]
 [connection signal="pressed" from="Menu/Center/VBox/ContinueButton" to="." method="_on_continue_pressed"]
+[connection signal="pressed" from="Menu/Center/VBox/SettingsButton" to="." method="_on_settings_pressed"]
 [connection signal="pressed" from="Menu/Center/VBox/SlotAButton" to="." method="_on_slot_pressed" binds= [0]]
 [connection signal="pressed" from="Menu/Center/VBox/SlotBButton" to="." method="_on_slot_pressed" binds= [1]]
-[connection signal="pressed" from="Menu/Center/VBox/GeneratedTownButton" to="." method="_on_generated_town_pressed"]
-[connection signal="pressed" from="Menu/Center/VBox/IntroStationButton" to="." method="_on_intro_station_pressed"]
+[connection signal="pressed" from="Menu/Center/VBox/ImportButton" to="." method="_on_import_pressed"]
+[connection signal="pressed" from="Menu/Center/VBox/ImportSlotAButton" to="." method="_on_import_slot_pressed" binds= [0]]
+[connection signal="pressed" from="Menu/Center/VBox/ImportSlotBButton" to="." method="_on_import_slot_pressed" binds= [1]]
+[connection signal="file_selected" from="Menu/ImportFileDialog" to="." method="_on_import_file_selected"]
+[connection signal="confirmed" from="Menu/ImportConfirm" to="." method="_on_import_confirmed"]

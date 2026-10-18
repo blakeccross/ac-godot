@@ -38,7 +38,7 @@ from typing import Any
 from PIL import Image
 
 from .config import PipelineConfig
-from .fgdata import _guess_decomp
+from .fgdata import _block_type_values, _guess_decomp, _strip_c_comments
 from .godot_import import write_import_sidecar
 from .mapfile import MapSymbol, parse_map
 from .rel import RelData
@@ -200,10 +200,6 @@ def parse_title_demo_fg(source: str) -> dict[str, Any]:
     return {"cols": cols, "rows": len(ids) // cols, "ids": ids}
 
 
-def _strip_c_comments(text: str) -> str:
-    return re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", "", text, flags=re.S))
-
-
 def _enum_names(source: str, enum_tag: str) -> list[str]:
     """Member names of `enum <enum_tag> { ... }` in declaration order (no explicit values)."""
     match = re.search(rf"enum\s+{re.escape(enum_tag)}\s*\{{(.*?)\}}", source, re.S)
@@ -217,29 +213,6 @@ def _enum_names(source: str, enum_tag: str) -> list[str]:
                 raise ValueError(f"enum {enum_tag}: explicit value in {name!r} not supported")
             names.append(name)
     return names
-
-
-def _block_type_values(field_make_h: str) -> dict[str, int]:
-    """`mFM_BLOCK_TYPE_*` → value (the enum mixes implicit and explicit values)."""
-    out: dict[str, int] = {}
-    value = -1
-    for match in re.finditer(r"\benum\s*\{(.*?)\}", field_make_h, re.S):
-        body = _strip_c_comments(match.group(1))
-        if "mFM_BLOCK_TYPE_" not in body:
-            continue
-        for part in body.split(","):
-            item = part.strip()
-            if not item.startswith("mFM_BLOCK_TYPE_"):
-                continue
-            if "=" in item:
-                name, raw = (s.strip() for s in item.split("=", 1))
-                value = int(raw, 0)
-            else:
-                name = item
-                value += 1
-            out[name] = value
-        return out
-    raise ValueError("mFM_BLOCK_TYPE enum not found")
 
 
 def _top_level_entries(body: str) -> list[str]:

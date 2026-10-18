@@ -1206,21 +1206,8 @@ func _resolve_clip(suffix: String) -> String:
 func _update_focus() -> void:
 	var hit: InteractionQuery = _resolve_interact()
 	if hit == null or hit.action == null:
-		## Nothing for A: show what B would pick up.
 		hit = _query_focus(true)
-	var next: Node = hit.host if hit else null
-	var prompt := ""
-	if hit != null and hit.action != null:
-		prompt = hit.action.prompt
-	if next == _focus:
-		if prompt == "" and Game.is_decorating() and Game.held_furniture() != null:
-			prompt = "Place %s" % Game.held_furniture().display_name
-		Game.set_interact_prompt(prompt)
-		return
-	_focus = next
-	if prompt == "" and Game.is_decorating() and Game.held_furniture() != null:
-		prompt = "Place %s" % Game.held_furniture().display_name
-	Game.set_interact_prompt(prompt)
+	_focus = hit.host if hit else null
 
 
 func _query_focus(pickup: bool = false) -> InteractionQuery:
@@ -1322,6 +1309,9 @@ func _try_interact() -> void:
 	if hit == null or hit.action == null:
 		if Game.try_place_furniture(self):
 			return
+		## When A has nothing else in range, pick up (B still always picks up; A still skips
+		## pick-up when another verb — talk, shake, … — is available).
+		_try_pick_up()
 		return
 	if _demo_input() and not TitleDemo.allows_verb(hit.action.id):
 		return
@@ -1332,7 +1322,7 @@ func _try_interact() -> void:
 
 
 ## B (`Player_actor_CheckAndRequest_main_pickup_all`): ground items, weeds, signboards and
-## furniture. A never picks anything up.
+## furniture. A only reaches here when it had no other verb (see `_try_interact`).
 func _try_pick_up() -> void:
 	if _motor.gait() in [PlayerLocomotion.Gait.TUMBLE, PlayerLocomotion.Gait.TUMBLE_GETUP]:
 		return

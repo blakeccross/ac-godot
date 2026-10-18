@@ -43,6 +43,15 @@ static func get_villager(villager_id: StringName) -> VillagerData:
 	return _by_id.get(villager_id) as VillagerData
 
 
+## The villager on decomp NPC table row `npc_index` (`npc_id & 0xFFF`), or null.
+static func by_npc_index(npc_index: int) -> VillagerData:
+	ensure_loaded()
+	for value: Variant in _by_id.values():
+		if value is VillagerData and (value as VillagerData).npc_index == npc_index:
+			return value as VillagerData
+	return null
+
+
 static func all_villagers() -> Array[VillagerData]:
 	ensure_loaded()
 	var out: Array[VillagerData] = []

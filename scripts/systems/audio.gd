@@ -65,8 +65,9 @@ var _pause_fade: Tween
 func _ready() -> void:
 	_ensure_bus(MUSIC_BUS)
 	_ensure_bus(SFX_BUS)
-	## K.K.'s sound option (mono folds the master bus).
+	## K.K.'s sound option (mono folds the master bus) and saved button mappings.
 	GameConfig.ensure_loaded()
+	InputBindings.ensure_loaded()
 	_players = [_make_player(), _make_player()]
 	_arm_player = _make_player()
 	_fanfare_player = _make_player()

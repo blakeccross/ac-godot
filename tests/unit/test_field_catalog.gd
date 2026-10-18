@@ -184,6 +184,8 @@ func test_season_role_for_label_matches_field_and_tree() -> void:
 	assert_str(FieldCatalog.season_role_for_label("obj_s_palm_trunk_tex")).is_equal("")
 	assert_str(FieldCatalog.season_role_for_label("obj_w_cedar_leaf_tex")).is_equal("")
 	assert_str(FieldCatalog.season_role_for_label("obj_s_cedar_trunk_tex")).is_equal("")
+	## The furniture leaf lying on the field keeps its own card.
+	assert_str(FieldCatalog.season_role_for_label("obj_item_leaf_tex obj_item_leaf")).is_equal("")
 	assert_str(FieldCatalog.season_role_for_label("river_water")).is_equal("")
 	## Acre host node names alone do not identify grass — baked material names must.
 	assert_str(FieldCatalog.season_role_for_label("grd_s_f_1")).is_equal("")

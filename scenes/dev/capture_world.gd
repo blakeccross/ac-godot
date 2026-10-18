@@ -14,11 +14,12 @@ extends Node3D
 ##   room=<id>         Mount an interior (`needlework`, `police_box`, `shop0`, …) in
 ##                     `interior.tscn` with its own follow camera and lighting.
 ##   seed=12345        Generated-town seed.
+##   save=user://…     Load that save file's town instead (an imported GameCube town, …).
 ##   date=Y-M-D[,…]    One capture per date (default 2001-07-15). time=HH:MM (12:00).
 ##   target=…          visual:<id or glob> | node:<path under world> | acre:<name> |
 ##                     bug:<id or glob> (a live field insect, e.g. bug:*grasshopper*) |
 ##                     group:<name> (the first node in a group, e.g. group:mushroom) |
-##                     pos:x,y,z | scene (keep the scene's own camera). Default: scene
+##                     pos:x,y,z | cell:x,z (a field unit) | scene (keep the scene's own camera). Default: scene
 ##                     camera for scene=, else the town centre.
 ##   room=shop0..shop3_2  Load that Nook floor at its store level (fresh lineup);
 ##                     `buy=N` buys N goods off the shelf first.
@@ -65,7 +66,11 @@ func _capture_date(date: String) -> void:
 	var hm := str(_args.get("time", "12:00")).split(":")
 	Game.reset_session()
 	var scene_path := str(_args.get("scene", ""))
-	if scene_path.is_empty() and not _args.has("room"):
+	if _args.has("save"):
+		if SaveService.load_game(str(_args["save"])) != OK:
+			_error("cannot load save '%s'" % _args["save"])
+			return
+	elif scene_path.is_empty() and not _args.has("room"):
 		var seed_value := int(_args.get("seed", "12345"))
 		Game.town.world_mode = WorldData.Mode.GENERATED
 		Game.town.world_seed = seed_value
@@ -160,6 +165,12 @@ func _resolve_focus(root: Node, target: String) -> Variant:
 			return box.get_center()
 		"pos":
 			return _vec3(value, Vector3.ZERO)
+		"cell":
+			var grid: WorldGrid = root.get("grid") as WorldGrid
+			var xz: PackedStringArray = value.split(",")
+			if grid == null or xz.size() != 2:
+				return null
+			return grid.cell_to_world(Vector2i(int(xz[0]), int(xz[1])))
 		"node":
 			var node := root.get_node_or_null(value) as Node3D
 			return node.global_position if node != null else null

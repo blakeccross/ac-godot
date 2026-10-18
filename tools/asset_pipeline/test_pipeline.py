@@ -622,6 +622,12 @@ class OverlayMatTests(unittest.TestCase):
         self.assertEqual(_mat_model_name("obj_w_stoneB_gfx_model", by_name), "obj_w_stoneA_mat_model")
         self.assertIsNone(_mat_model_name("obj_s_stoneB_gfx_model", {}))
 
+    def test_weed_b_c_share_weed_a_mat(self) -> None:
+        by_name = {"obj_zassou_aT_mat_model": _sym("obj_zassou_aT_mat_model")}
+        self.assertEqual(_mat_model_name("obj_zassou_aT_gfx_model", by_name), "obj_zassou_aT_mat_model")
+        self.assertEqual(_mat_model_name("obj_zassou_bT_gfx_model", by_name), "obj_zassou_aT_mat_model")
+        self.assertEqual(_mat_model_name("obj_zassou_cT_gfx_model", by_name), "obj_zassou_aT_mat_model")
+
     def test_hole_gfx_shares_hole0_g_mat(self) -> None:
         by_name = {
             "obj_hole0T_g_mat_model": _sym("obj_hole0T_g_mat_model"),
