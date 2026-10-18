@@ -1,6 +1,6 @@
 extends StaticBody3D
 
-## Police box outdoor shell. Enter loads `police_box`.
+## Police box outdoor shell. Walking into the doorway loads `police_box`; there's no A press.
 
 @export var occupant_id: StringName = &"police"
 @export var footprint: Vector2i = Vector2i(3, 3)
@@ -23,6 +23,9 @@ func _ready() -> void:
 			door.set("verb", door_verb)
 		if "closed_notice" in door:
 			door.set("closed_notice", "The %s is locked." % label)
+		## Walk-in enter: `aPBOX_check_player` has no A button, like `aMsm_check_player`.
+		if "auto_enter" in door:
+			door.set("auto_enter", true)
 
 
 func apply_grid_yaw(facing: WorldGrid.Facing) -> void:

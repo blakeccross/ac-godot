@@ -13,7 +13,7 @@ extends Node3D
 @export var closed_notice: String = "The door is locked."
 @export var linked_room_id: StringName = &""
 @export var exits_interior: bool = false
-## Walk into the sensor to enter (museum). No A prompt while open.
+## Walk into the sensor to enter (museum, police box, lighthouse). No A prompt while open.
 @export var auto_enter: bool = false
 ## Optional decomp spawn when following `linked_room_id`.
 @export var has_linked_spawn: bool = false
@@ -26,7 +26,7 @@ func _ready() -> void:
 
 
 func should_auto_enter() -> bool:
-	## Outdoor museum / indoor wing links / museum outdoor exit: walk in, no A prompt.
+	## Outdoor walk-ins (museum, police box, lighthouse), indoor wing links and the museum exit: no A prompt.
 	if not auto_enter:
 		return false
 	## Just spawned on/near a door — wait until the player walks clear.

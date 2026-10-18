@@ -725,6 +725,22 @@ func test_museum_door_auto_enters_when_open() -> void:
 	Clock.hour = 12
 
 
+func test_police_box_is_a_walk_in() -> void:
+	## `aPBOX_check_player` has no A button: walking into the doorway enters.
+	Game.block_auto_enter_doors = false
+	Game.current_room_id = &""
+	var police: Node = auto_free(load("res://scenes/world/buildings/police_station.tscn").instantiate())
+	add_child(police)
+	var door: Node = police.get_node("Door")
+	assert_bool(bool(door.get("auto_enter"))).is_true()
+	assert_bool(door.call("should_auto_enter")).is_true()
+	var actions: Array = door.get_interactions(InteractionContext.new())
+	assert_int(actions.size()).is_equal(1)
+	assert_str((actions[0] as Interaction).prompt).is_equal("")
+	Game.block_auto_enter_doors = true
+	assert_bool(door.call("should_auto_enter")).is_false()
+
+
 func test_museum_wing_door_auto_enters_indoors() -> void:
 	## Wing links walk in with INTO_S1 — no E prompt while indoors.
 	Game.block_auto_enter_doors = false
