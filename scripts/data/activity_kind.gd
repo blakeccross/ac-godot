@@ -30,10 +30,14 @@ const TALK_SECONDS := 6.0
 ## `aNPC_THINK_WANDER` keeps running for the whole FIELD window.
 const STAY_SECONDS := 28.0
 const AT_DOOR_SECONDS := 0.4
-## Leave-house yard stand (`house + (20, 40)` GX → meters).
-const YARD_OFFSET := Vector3(1.0, 0.0, 2.0)
-## Go-home door approach (`house + (20, 60)` GX).
-const DOOR_APPROACH := Vector3(1.0, 0.0, 3.0)
+## `home` is the yard unit's centre, `house_position + (20, 60)` GX. The leave-house walk
+## starts on the door threshold, `house + (20, 40)`, one metre back toward the house, and
+## ends at `house + (20, 80)`, one metre out (`aNPC_think_leave_house_init_proc`). Offsets
+## are for a house facing south; the brain turns them toward the house's real front.
+const YARD_OFFSET := Vector3(0.0, 0.0, 1.0)
+const DOOR_THRESHOLD := Vector3(0.0, 0.0, -1.0)
+## Go-home stand is the yard centre itself (`house + (20, 60)` GX).
+const DOOR_APPROACH := Vector3.ZERO
 
 
 static func is_known(kind: StringName) -> bool:
@@ -45,7 +49,13 @@ static func hides_actor(kind: StringName) -> bool:
 
 
 static func is_talkable(kind: StringName) -> bool:
-	return not hides_actor(kind)
+	## `aNPC_COND_DEMO_SKIP_TALK_CHECK` while walking out of the door.
+	return not hides_actor(kind) and kind != LEAVE_HOME
+
+
+## `demo_flg` skips head-look, talk and items while walking in or out of the door.
+static func is_door_demo(kind: StringName) -> bool:
+	return kind == LEAVE_HOME or kind == AT_DOOR
 
 
 static func wants_move(kind: StringName) -> bool:

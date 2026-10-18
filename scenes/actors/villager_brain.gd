@@ -28,15 +28,7 @@ func on_action_changed(kind: StringName) -> void:
 	if kind == ActivityKind.LEAVE_HOME:
 		_villager._set_is_home(false)
 		if not _villager.visible:
-			## Appear at the door and let `_steer_ai`/`wants_move` walk the short
-			## `YARD_OFFSET` leg (`aNPC_act_leave_house_out_of_door`), instead of
-			## popping straight to the yard target. `reset()` re-anchors
-			## `_motor.home` to whatever position is passed — snapping to the
-			## unshifted `_motor.home` here (not `home + YARD_OFFSET`) also stops
-			## that anchor from drifting a little further from the house every
-			## time a villager leaves it.
-			_villager.global_position = _villager._motor.home
-			_villager._motor.reset(_villager.global_position, _villager._motor.facing)
+			_leave_through_door()
 	if kind == ActivityKind.TALK:
 		_villager._motor.arrive()
 	if kind == ActivityKind.WANDER:
@@ -55,6 +47,30 @@ func on_action_changed(kind: StringName) -> void:
 		or kind == ActivityKind.WAKE
 	) and _villager.data != null:
 		VillagerWalk.release(_villager.data.id)
+
+
+## `aNPC_think_leave_house_init_proc`: stand on the door threshold facing out, open the
+## house door (`aNPC_request_house(…, 2)`), then walk one unit out to the yard. `reset()`
+## keeps `_motor.home` on the yard centre, so the anchor never drifts.
+func _leave_through_door() -> void:
+	var home: Vector3 = _villager._motor.home
+	var house: Node3D = StructureDoor.find_near(_villager, home, 4.0)
+	var out := Vector3(0.0, 0.0, 1.0)
+	if house != null:
+		var away := Vector3(home.x - house.global_position.x, 0.0, home.z - house.global_position.z)
+		if away.length_squared() > 0.0001:
+			out = away.normalized()
+	var yaw: float = atan2(out.x, out.z)
+	_villager._motor.reset(home, yaw)
+	_villager.global_position = home + out * -ActivityKind.DOOR_THRESHOLD.z
+	if _villager._model != null:
+		_villager._model.rotation.y = yaw
+	if _villager.ai.current != null:
+		_villager.ai.current.target = home + out * ActivityKind.YARD_OFFSET.z
+	## The door stand is a fixed spot, not a pocket to lift out of.
+	_villager._spawn_unstuck = true
+	if house != null:
+		StructureDoor.play_leave(house)
 
 
 func on_schedule_changed(previous: StringName, now: StringName) -> void:

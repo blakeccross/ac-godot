@@ -506,7 +506,7 @@ func _tick_head_look(delta: float) -> void:
 	## `aNPC_COND_DEMO_SKIP_HEAD_LOOKAT`: asleep (`ac_npc_think_sleep`) or walking in the door
 	## (`ac_npc_act_into_house`) — no player look; the head eases back to the animation.
 	var kind: StringName = ai.kind()
-	var skip_look: bool = kind == ActivityKind.SLEEP or kind == ActivityKind.AT_DOOR
+	var skip_look: bool = kind == ActivityKind.SLEEP or ActivityKind.is_door_demo(kind)
 	## The tool reaction's jumps set the same skip flag; its stare is a priority-4 request.
 	if _react != React.NONE and _react != React.LOOK_PLAYER:
 		skip_look = true
@@ -956,6 +956,9 @@ func _fortune_call(player: Node3D, looks: int) -> void:
 ## then a clap while the player shows a catch.
 func _start_outdoor_act() -> bool:
 	if Game == null or Game.title_demo_active:
+		return false
+	## `aNPC_COND_DEMO_SKIP_ITEM`: nothing comes out while walking out of the door.
+	if ActivityKind.is_door_demo(ai.kind()):
 		return false
 	## `aNPC_chk_talk_start`: a partner found this frame comes first.
 	if _pal != null:
