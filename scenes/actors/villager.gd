@@ -51,6 +51,9 @@ const ANIM_UMB_OPEN := "npc_1_umb_open1"
 const ANIM_UMB_CLOSE := "npc_1_umb_close1"
 const ANIM_UMBRELLA := "npc_1_umbrella1"
 const ANIM_CLAP := "npc_1_clap1"
+## `aNPC_ACTION_TYPE_GO_OUT`: steps out of the doorway. joint_0 starts 6.8 back inside the
+## house and ends on the actor, so the body stands still while the clip carries the mesh.
+const ANIM_GO_OUT := "npc_1_go_out1"
 ## `aNPC_think_pitfall` → `aNPC_act_pitfall` (totter, drop, struggle) → `aNPC_act_revive`.
 enum Pit { NONE, TOTTER, FALL, STRUGGLE, REVIVE }
 const ANIM_GURATUKU := "npc_1_guratuku1"
@@ -90,6 +93,8 @@ var _avoid_cool: float = 0.0
 var _wall_time: float = 0.0
 ## One-time: lift the villager out of a pocket at its spawn / front door.
 var _spawn_unstuck: bool = false
+## Seconds left of the GO_OUT clip; the villager holds on the door threshold meanwhile.
+var _going_out: float = 0.0
 ## Runtime-only annoyance state (`nactorx->uzai`) — never persisted; only the
 ## `mood` it produces (`Animal_c.mood`) lives on `state`.
 var _uzai_tool: int = 0
@@ -415,6 +420,9 @@ func _physics_process(delta: float) -> void:
 	if _act != Act.NONE:
 		_tick_act(delta)
 		return
+	if _going_out > 0.0:
+		_tick_go_out(delta)
+		return
 	if _start_outdoor_act():
 		return
 	if not _spawn_unstuck:
@@ -636,6 +644,38 @@ func _mood_or(clip: String, plain: String) -> String:
 	return clip if _body_anim.has_animation(clip) or not _resolve_clip(clip).is_empty() else plain
 
 
+## `aNPC_act_leave_house_out_of_door`: play GO_OUT on the threshold and hold until it
+## stops (`aNPC_act_anm_seq`), then the walk to the yard takes over.
+func begin_go_out() -> void:
+	var clip := _resolve_clip(ANIM_GO_OUT)
+	if clip.is_empty() or _body_anim == null:
+		return
+	## No blend: the villager has only just appeared, so there's no pose to blend from.
+	_play_clip(ANIM_GO_OUT, false, 0.0)
+	_going_out = _body_anim.get_animation(clip).length if _body_anim.has_animation(clip) else 0.0
+
+
+## Debug (`leave`): back indoors at once, then out of the door again.
+func replay_leave_home() -> void:
+	if indoor_resident:
+		return
+	_apply_presence(false)
+	_going_out = 0.0
+	ai.leave_home_now(brain.hints())
+	_apply_presence(ai.is_present())
+
+
+func is_going_out() -> bool:
+	return _going_out > 0.0
+
+
+func _tick_go_out(delta: float) -> void:
+	_going_out = maxf(_going_out - delta, 0.0)
+	velocity = Vector3.ZERO
+	if _model != null:
+		_model.rotation.y = _motor.facing
+
+
 func play_wait_anim() -> void:
 	_play_clip(ANIM_WAIT, true)
 
@@ -644,14 +684,14 @@ func animation_player() -> BodyAnimator:
 	return _body_anim
 
 
-func _play_clip(suffix: String, loop: bool) -> void:
+func _play_clip(suffix: String, loop: bool, blend: float = 0.12) -> void:
 	var clip := _resolve_clip(suffix)
 	if clip.is_empty() or _body_anim == null:
 		return
 	_clip = clip
 	_ensure_loop(clip, loop)
 	_body_anim.speed_scale = 1.0
-	_body_anim.play(clip, 0.12)
+	_body_anim.play(clip, blend)
 	if _feel != null:
 		_feel.set_pose(suffix)
 

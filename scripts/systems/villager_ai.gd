@@ -29,6 +29,15 @@ func sync(schedule_type_now: StringName, hints: Dictionary) -> void:
 	_load(queue)
 
 
+## Debug: replan as if the villager had just been home, so it walks out of the door again.
+func leave_home_now(hints: Dictionary) -> void:
+	previous_type = VillagerActivity.IN_HOUSE
+	schedule_type = VillagerActivity.FIELD
+	var from_home: Dictionary = hints.duplicate()
+	from_home["outdoors"] = false
+	_load(VillagerPlan.build(schedule_type, previous_type, from_home))
+
+
 func begin_talk() -> void:
 	if is_talking():
 		return

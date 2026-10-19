@@ -30,7 +30,8 @@ extends Node3D
 ##   cam=dx,dy,dz      Camera offset from the focus in metres (default 0,4,7).
 ##   look=dx,dy,dz     Offset added to the focus point (default 0,1,0).
 ##   fov=50  size=960x540  wait=20 (frames before the grab; also bounds a target search)
-##   after=N (frames between a console command and the grab; defaults to wait)
+##   after=N (frames between a console command and the grab; defaults to wait).
+##                     after=10,40,90 grabs at each count in one run (`name_f10.png` …).
 ##   ui=1              Keep the HUD / dialogue layers visible (hidden by default).
 ##   out=path          Directory or .png path (default res://.tmp_captures/, gitignored).
 ##   name=label        File stem (default from target + date).
@@ -132,15 +133,22 @@ func _capture_date(date: String) -> void:
 			await get_tree().process_frame
 		_run_console()
 	## `after` frames past the console (defaults to `wait`, which also bounds the target search).
-	for _i: int in int(_args.get("after", _args.get("wait", "20"))):
-		await get_tree().process_frame
-	await RenderingServer.frame_post_draw
-	var path := _out_path(target, date)
-	var err := get_viewport().get_texture().get_image().save_png(path)
-	if err != OK:
-		_error("save failed (%d) %s" % [err, path])
-	else:
-		print("CAPTURE ", ProjectSettings.globalize_path(path))
+	## Several counts (`after=10,40,90`) take a shot at each from the one run, named `_fN`.
+	var shots: PackedStringArray = str(_args.get("after", _args.get("wait", "20"))).split(",", false)
+	var waited: int = 0
+	for shot: String in shots:
+		for _i: int in maxi(int(shot) - waited, 0):
+			await get_tree().process_frame
+		waited = maxi(waited, int(shot))
+		await RenderingServer.frame_post_draw
+		var path := _out_path(target, date)
+		if shots.size() > 1:
+			path = path.trim_suffix(".png") + "_f%d.png" % int(shot)
+		var err := get_viewport().get_texture().get_image().save_png(path)
+		if err != OK:
+			_error("save failed (%d) %s" % [err, path])
+		else:
+			print("CAPTURE ", ProjectSettings.globalize_path(path))
 	if cam != null:
 		cam.queue_free()
 	root.queue_free()

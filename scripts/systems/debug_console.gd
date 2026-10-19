@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "lighthouse", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "lighthouse", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -265,6 +265,24 @@ func execute(raw: String) -> String:
 				return "No villager."
 			(fl_best.get("state") as VillagerState).set_feel(fl_names.find(args[0]), 60)
 			return "%s feels %s." % [fl_best.name, args[0]]
+		"leave":
+			## `leave`: the villager nearest the camera pops back indoors and walks out of its
+			## door again (`aNPC_think_leave_house`).
+			var lv_tree := Engine.get_main_loop() as SceneTree
+			var lv_cam: Camera3D = lv_tree.root.get_viewport().get_camera_3d() if lv_tree != null else null
+			if lv_cam == null:
+				return "No camera."
+			var lv_best: Villager = null
+			for v: Node in lv_tree.get_nodes_in_group("villagers"):
+				if not (v is Villager) or (v as Villager).indoor_resident:
+					continue
+				var lv_d: float = (v as Node3D).global_position.distance_to(lv_cam.global_position)
+				if lv_best == null or lv_d < lv_best.global_position.distance_to(lv_cam.global_position):
+					lv_best = v as Villager
+			if lv_best == null:
+				return "No villager."
+			lv_best.replay_leave_home()
+			return "%s leaves home." % lv_best.name
 		"manpu":
 			## `manpu <clip|code>`: the villager nearest the camera reacts as if a talk line
 			## called for it.
