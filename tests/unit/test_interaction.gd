@@ -436,6 +436,12 @@ func test_villager_offers_no_talk_while_sleeping() -> void:
 	assert_int(villager.get_interactions(InteractionContext.new()).size()).is_equal(0)
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
 	assert_str(String(villager.current_activity())).is_equal("field")
+	## Walking out of the door first: no talk (`aNPC_COND_DEMO_SKIP_TALK_CHECK`).
+	var ai: VillagerAI = villager.get("ai") as VillagerAI
+	assert_int(villager.get_interactions(InteractionContext.new()).size()).is_equal(0)
+	assert_that(ai.kind()).is_equal(ActivityKind.LEAVE_HOME)
+	ai.consider_arrive(ai.destination())
+	ai.step(0.0)
 	assert_int(villager.get_interactions(InteractionContext.new()).size()).is_equal(1)
 
 

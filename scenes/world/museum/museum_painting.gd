@@ -1,6 +1,6 @@
 extends "res://scenes/world/museum/museum_room.gd"
 
-## Painting wing — mid-wall colliders + wall art exhibits.
+## Painting wing — inner walls from the BG + wall art exhibits.
 
 
 func present_exhibits(furniture: Node3D, session: IndoorSession) -> void:

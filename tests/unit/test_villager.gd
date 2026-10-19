@@ -492,19 +492,25 @@ func test_at_door_stays_visible_then_hides_on_wake() -> void:
 
 
 func test_leave_home_appears_at_door_and_does_not_drift_home() -> void:
-	## Regression: `_on_action_changed` used to snap straight to `home + YARD_OFFSET`
-	## and re-anchor `_motor.home` there too, drifting the anchor further from the
-	## house every time the villager left it. It should appear at the (unshifted)
-	## door instead and let `_steer_ai` walk the short leg out to the yard.
+	## `aNPC_think_leave_house_init_proc`: stand on the threshold, one metre back toward the
+	## house, facing out, then walk one unit out. `_motor.home` stays on the yard centre.
 	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
 	add_child(villager)
-	var door := Vector3(5, 0, 5)
-	villager.global_position = door
-	villager._motor.reset(door, 0.0)
+	var home := Vector3(5, 0, 5)
+	villager.global_position = home
+	villager._motor.reset(home, PI)
+	villager.ai.sync(
+		VillagerActivity.FIELD,
+		{"home": home, "outdoors": false, "goal": home, "field_actions": [ActivityKind.WANDER]}
+	)
 	villager.visible = false
 	villager.brain.on_action_changed(ActivityKind.LEAVE_HOME)
-	assert_vector(villager.global_position).is_equal(door)
-	assert_vector(villager._motor.home).is_equal(door)
+	assert_vector(villager.global_position).is_equal(home + Vector3(0, 0, -1))
+	assert_vector(villager._motor.home).is_equal(home)
+	assert_float(villager._motor.facing).is_equal_approx(0.0, 0.001)
+	assert_vector(villager.ai.destination()).is_equal(home + Vector3(0, 0, 1))
+	assert_bool(villager._spawn_unstuck).is_true()
+	assert_bool(villager.ai.is_talkable()).is_false()
 
 
 func test_schedule_changed_fires_once_per_real_transition() -> void:

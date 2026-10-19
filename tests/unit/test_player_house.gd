@@ -175,6 +175,66 @@ func test_stair_bays_sit_in_the_wall_row_south_of_the_carpet() -> void:
 			assert_int(stair.cell.y).is_equal(south_row)
 
 
+## The bay is open from where you land in this room to the stair unit, in the wall row.
+func _assert_bay(room: Room, grid: WorldGrid, index: int, x0: int, x1: int) -> void:
+	var gaps: Array[Dictionary] = InteriorShellBuilder.stair_bay_gaps(room, grid)
+	var lo: float = grid.cell_corner(Vector2i(x0, 0)).x
+	var hi: float = grid.cell_corner(Vector2i(x1, 0)).x
+	assert_float(float(gaps[index]["center"])).is_equal_approx((lo + hi) * 0.5, 0.001)
+	assert_float(float(gaps[index]["half"])).is_equal_approx((hi - lo) * 0.5, 0.001)
+
+
+func test_stair_bays_open_from_the_landing_to_the_stair_unit() -> void:
+	var house: House = _house()
+	house.has_basement = true
+	var grid := WorldGrid.new()
+	house.size_tier = House.SizeTier.MEDIUM
+	house.next_size_tier = House.SizeTier.MEDIUM
+	Game.interiors.refresh_player_rooms()
+	## Medium: up from the basement lands at (260, 300), unit (6, 7), beside the stairs (7, 7).
+	_assert_bay(Game.interiors.room(PlayerHouse.MAIN), grid, 0, 6, 8)
+	## Down in the basement you land at (300, 380), unit (7, 9), beside the stairs (8, 9).
+	_assert_bay(Game.interiors.room(PlayerHouse.BASEMENT), grid, 0, 7, 9)
+	house.size_tier = House.SizeTier.UPPER
+	house.next_size_tier = House.SizeTier.UPPER
+	Game.interiors.refresh_player_rooms()
+	var main: Room = Game.interiors.room(PlayerHouse.MAIN)
+	_assert_bay(main, grid, 0, 7, 9)
+	## Down from upstairs lands at (100, 380), unit (2, 9), beside the stairs (1, 9).
+	_assert_bay(main, grid, 1, 1, 3)
+	## Upstairs you land at (60, 300), unit (1, 7), beside the stairs (0, 7).
+	_assert_bay(Game.interiors.room(PlayerHouse.UPPER), grid, 0, 0, 2)
+
+
+func test_each_stair_landing_is_where_the_stairs_back_drop_you() -> void:
+	var house: House = _house()
+	house.size_tier = House.SizeTier.UPPER
+	house.next_size_tier = House.SizeTier.UPPER
+	house.has_basement = true
+	Game.interiors.refresh_player_rooms()
+	for room_id: StringName in [PlayerHouse.MAIN, PlayerHouse.UPPER, PlayerHouse.BASEMENT]:
+		for stair: RoomStair in Game.interiors.room(room_id).stairs:
+			var back: RoomStair = null
+			for other: RoomStair in Game.interiors.room(stair.target_room_id).stairs:
+				if other.target_room_id == room_id:
+					back = other
+			assert_object(back).is_not_null()
+			assert_vector(stair.landing_gx).is_equal(back.spawn_gx)
+
+
+func test_stairs_fire_only_from_the_stair_unit() -> void:
+	var house: House = _house()
+	house.size_tier = House.SizeTier.MEDIUM
+	house.next_size_tier = House.SizeTier.MEDIUM
+	house.has_basement = true
+	Game.interiors.refresh_player_rooms()
+	var main: Room = Game.interiors.room(PlayerHouse.MAIN)
+	assert_object(main.stair_at(Vector2i(7, 7))).is_not_null()
+	## The carpet unit just north of the stairs, and the landing beside them, don't.
+	assert_object(main.stair_at(Vector2i(7, 6))).is_null()
+	assert_object(main.stair_at(Vector2i(6, 7))).is_null()
+
+
 func test_only_the_main_floor_has_an_outdoor_exit() -> void:
 	var house: House = _house()
 	house.size_tier = House.SizeTier.UPPER

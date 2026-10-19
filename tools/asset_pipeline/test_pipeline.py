@@ -2141,6 +2141,25 @@ class VertexShadeTests(unittest.TestCase):
                 _r, _g, _b, alpha = struct.unpack_from("<4f", blob, start + i * 16)
                 self.assertAlmostEqual(alpha, 1.0)
 
+    def test_room_prim_tints_only_combines_that_read_prim(self) -> None:
+        from asset_pipeline.gfx import combine_rgb_uses_prim
+
+        def lerp(c0, a0, c1, a1):
+            ## gsDPSetCombineLERP packing: colour a/b/c/d and alpha a/b/c/d per cycle.
+            w0 = (0xFC << 24) | (c0[0] << 20) | (c0[2] << 15) | (a0[0] << 12) | (a0[2] << 9)
+            w0 |= (c1[0] << 5) | c1[2]
+            w1 = (c0[1] << 28) | (c1[1] << 24) | (a1[0] << 21) | (a1[2] << 18) | (c0[3] << 15)
+            w1 |= (a0[1] << 12) | (a0[3] << 9) | (c1[3] << 6) | (a1[1] << 3) | a1[3]
+            return w0, w1
+
+        ## `rom_museum4_wall`: TEXEL0×SHADE, alpha TEXEL0×PRIM, then COMBINED.
+        wall = lerp((1, 15, 4, 7), (1, 7, 3, 7), (15, 15, 31, 0), (7, 7, 7, 0))
+        self.assertFalse(combine_rgb_uses_prim(*wall))
+        ## `rom_museum4`: TEXEL0×SHADE, then PRIMITIVE×COMBINED.
+        shell = lerp((1, 15, 4, 7), (7, 7, 7, 1), (3, 15, 0, 7), (7, 7, 7, 0))
+        self.assertTrue(combine_rgb_uses_prim(*shell))
+        self.assertTrue(combine_rgb_uses_prim(0, 0))
+
     def test_room_sunshine_shaft_keeps_shade_alpha_untextured(self) -> None:
         ## `light_floor01_mode` (textured floor patch) then `light_shine01_mode` (texture
         ## off, A = SHADE × PRIM) across two DLs: geometry mode and the texture switch carry

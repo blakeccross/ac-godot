@@ -270,6 +270,9 @@ func test_a_fading_in_roach_cannot_be_crushed_until_it_is_solid() -> void:
 
 
 func test_a_moving_player_treads_on_it_but_a_standing_one_does_not() -> void:
+	## Earlier suites can leak player nodes; the roach looks for the first one in the group.
+	for stale: Node in get_tree().get_nodes_in_group(Player.GROUP):
+		stale.remove_from_group(Player.GROUP)
 	var player := CharacterBody3D.new()
 	player.add_to_group("player")
 	add_child(player)
@@ -288,6 +291,9 @@ func test_a_moving_player_treads_on_it_but_a_standing_one_does_not() -> void:
 
 
 func test_a_roach_runs_from_a_player_who_comes_close() -> void:
+	## Earlier suites can leak player nodes; the roach looks for the first one in the group.
+	for stale: Node in get_tree().get_nodes_in_group(Player.GROUP):
+		stale.remove_from_group(Player.GROUP)
 	var player := CharacterBody3D.new()
 	player.add_to_group("player")
 	add_child(player)

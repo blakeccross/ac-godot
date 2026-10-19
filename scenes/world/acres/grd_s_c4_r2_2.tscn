@@ -3,25 +3,25 @@
 [ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_t14a1"]
 [ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_c4_r2_2.tres" id="2_hjhjm"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_c4_r2_2/grd_s_c4_r2_22.res" id="3_ovg4c"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/029d6546d1c7.tres" id="4_560lu"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/efd7a48c653e.tres" id="5_vbecg"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/dafbb87daa11.tres" id="6_6gff6"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/b9aef45eb859.tres" id="7_rgt7b"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/6ce47d460dda.tres" id="4_560lu"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/a8e242a06c53.tres" id="5_vbecg"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/b2fec1152011.tres" id="6_6gff6"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/764198791dcf.tres" id="7_rgt7b"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_c4_r2_2/grd_s_c4_r2_2_blend.res" id="8_ra4ky"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/river_6c1924ebe8e3.tres" id="9_fwtt6"]
 
-[node name="grd_s_c4_r2_2" type="Node3D" unique_id=1220324322]
+[node name="grd_s_c4_r2_2" type="Node3D" unique_id=990312772]
 script = ExtResource("1_t14a1")
 visual_id = &"grd_s_c4_r2_2"
 grid = ExtResource("2_hjhjm")
 
-[node name="grd_s_c4_r2_22" type="MeshInstance3D" parent="." unique_id=1056530550]
+[node name="grd_s_c4_r2_22" type="MeshInstance3D" parent="." unique_id=1414487161]
 mesh = ExtResource("3_ovg4c")
 surface_material_override/0 = ExtResource("4_560lu")
 surface_material_override/1 = ExtResource("5_vbecg")
 surface_material_override/2 = ExtResource("6_6gff6")
 surface_material_override/3 = ExtResource("7_rgt7b")
 
-[node name="grd_s_c4_r2_2_blend" type="MeshInstance3D" parent="." unique_id=896873950]
+[node name="grd_s_c4_r2_2_blend" type="MeshInstance3D" parent="." unique_id=859807062]
 mesh = ExtResource("8_ra4ky")
 surface_material_override/0 = ExtResource("9_fwtt6")

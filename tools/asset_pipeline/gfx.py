@@ -171,6 +171,32 @@ def combine_uses_texel1(combine_w0: int, combine_w1: int) -> bool:
     return 2 in colour or 2 in alpha
 
 
+## `G_CCMUX_PRIMITIVE`: the same code in every colour mux slot (a, b, c, d).
+_G_CCMUX_PRIMITIVE = 3
+
+
+def combine_rgb_uses_prim(combine_w0: int, combine_w1: int) -> bool:
+    """True when either cycle's colour mux reads PRIMITIVE.
+
+    ``rom_museum4_wall`` is ``TEXEL0×SHADE`` then ``COMBINED``: its PRIM only scales alpha
+    (the camera fade), so the room prim must not tint it. Unknown (zero) combines count as
+    using PRIM, which is what the indoor shells assumed before.
+    """
+    if combine_w0 == 0 and combine_w1 == 0:
+        return True
+    colour = (
+        (combine_w0 >> 20) & 0xF,
+        (combine_w0 >> 15) & 0x1F,
+        (combine_w1 >> 28) & 0xF,
+        (combine_w1 >> 15) & 0x7,
+        (combine_w0 >> 5) & 0xF,
+        combine_w0 & 0x1F,
+        (combine_w1 >> 24) & 0xF,
+        (combine_w1 >> 6) & 0x7,
+    )
+    return _G_CCMUX_PRIMITIVE in colour
+
+
 def combine_alpha_uses_shade(combine_w0: int, combine_w1: int) -> bool:
     """True when either cycle's alpha mux reads SHADE (vertex alpha fades a beam out)."""
     if combine_w0 == 0 and combine_w1 == 0:
@@ -525,6 +551,8 @@ class MeshPart:
     ## Unlit, texture off and the alpha combiner reads SHADE: cn[].a is coverage (room
     ## sunshine shafts fade to 0 at the floor), so the GLB keeps it in COLOR_0.
     shade_alpha: bool = False
+    ## Colour combine reads PRIMITIVE (indoor room prim tints it); see ``combine_rgb_uses_prim``.
+    rgb_prim: bool = True
     ## From G_SETOTHERMODE_L: opa / tex_edge / xlu, or None if never set in this DL.
     coverage: str | None = None
     ## Texture is sampled through a segment address the game binds at draw time (acre
@@ -1285,6 +1313,7 @@ def parse_gfx(
                     and not texture_on
                     and combine_alpha_uses_shade(combine_w0, combine_w1)
                 ),
+                rgb_prim=combine_rgb_uses_prim(combine_w0, combine_w1),
                 coverage=coverage,
                 runtime_bound=bool(
                     int((tex_state.tile0 or {}).get("img_addr") or tex_state.img_addr) >> 24

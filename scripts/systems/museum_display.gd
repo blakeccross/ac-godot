@@ -211,10 +211,6 @@ static func sunshine_anchor_gx(actor_gx: Vector3, left: bool, insect: bool) -> V
 ## `aMP_DrawOneArt` hang height (GX).
 const ART_HANG_Y_GX := 40.0
 
-## Painting-wing E–W partition rows (unit Z). Paintings hang on these mid walls;
-## gaps are cells in that row with no `ART_CELLS` entry.
-const ART_PARTITION_ROWS: Array[int] = [5, 9]
-
 ## Museum wall meshes (`obj_art*` / `obj_art_dummy*`), not house `int_sum_art*` FTR.
 const ART_MUSEUM_VISUALS: Array[StringName] = [
 	&"obj_art01",

@@ -74,18 +74,10 @@ static func add_shell_collision(root: Node3D, room: Room, grid: WorldGrid, gaps:
 	var full := Vector3(float(grid.columns) * grid.cell_size, WALL_HEIGHT, float(grid.rows) * grid.cell_size)
 	var inner_nw: Vector3 = grid.cell_corner(room.inner_origin)
 	var inner_se: Vector3 = grid.cell_corner(room.inner_origin + room.inner_size)
-	## Wing shells with thick rim walls (painting/fossil) inset one cell so
-	## collision matches the inner face. Entrance walls are thin on the floor
-	## AABB. Fish/insect exits sit on the south rim (z=560 GX): inset put the
-	## south wall face on the door threshold and blocked the opening.
-	var inset: float = 0.0
-	if room.kind == Room.Kind.MUSEUM and room.id in [&"museum_painting", &"museum_fossil"]:
-		inset = grid.cell_size
-	var wall_nw := Vector3(inner_nw.x + inset, 0.0, inner_nw.z + inset)
-	var wall_se := Vector3(inner_se.x - inset, 0.0, inner_se.z - inset)
-	if wall_se.x <= wall_nw.x + 0.05 or wall_se.z <= wall_nw.z + 0.05:
-		wall_nw = inner_nw
-		wall_se = inner_se
+	## Every wing's walls stand on the floor edge: the BG (`rom_museum2`/`3`.col.json) walks
+	## the whole inner rect, and the shell meshes run 2–30 m.
+	var wall_nw := Vector3(inner_nw.x, 0.0, inner_nw.z)
+	var wall_se := Vector3(inner_se.x, 0.0, inner_se.z)
 	var north_d: float = wall_nw.z - origin.z
 	if north_d > 0.05:
 		add_multi_gapped_wall(
@@ -179,8 +171,6 @@ static func _add_porch_slab(
 
 
 ## Merges overlapping gaps, then emits solid wall segments between them.
-## Public: `MuseumInteriorBuilder.add_museum_art_partitions` reuses this for
-## the painting-wing mid walls, which aren't part of the outer shell.
 static func add_multi_gapped_wall(
 	root: Node3D,
 	full_size: Vector3,
@@ -405,7 +395,7 @@ static func stair_bay_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
 	for stair: RoomStair in room.stairs:
 		if stair == null:
 			continue
-		var landing: Vector2i = grid.world_to_cell(MuseumDisplay.gx_to_world(grid, stair.spawn_gx))
+		var landing: Vector2i = grid.world_to_cell(MuseumDisplay.gx_to_world(grid, stair.landing_gx))
 		var x0: int = mini(stair.cell.x, landing.x)
 		var x1: int = maxi(stair.cell.x, landing.x) + 1
 		var lo: float = grid.cell_corner(Vector2i(x0, 0)).x

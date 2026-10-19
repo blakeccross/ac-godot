@@ -104,6 +104,19 @@ func _physics_process(_delta: float) -> void:
 	if player.is_busy() or player.doors.is_door_entering():
 		return
 	var cell: Vector2i = grid.world_to_cell((player as Node3D).global_position)
+	## House stairs: `Player_actor_check_bg_for_next_goto` looks only a hair ahead, so the
+	## player's own unit has to be the sloped `DOOR` unit.
+	var stair: RoomStair = session.room.stair_at(cell)
+	if stair != null:
+		_exiting = true
+		player.stop_for_door()
+		await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
+		if not Game.try_enter_interior(
+			stair.target_room_id, stair.spawn_gx, WorldGrid.yaw_for_furniture(stair.spawn_facing)
+		):
+			SceneTransition.cancel_wipe()
+			_exiting = false
+		return
 	if not session.room.is_exit_cell(cell):
 		return
 	_exiting = true

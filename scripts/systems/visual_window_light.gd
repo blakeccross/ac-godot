@@ -249,6 +249,9 @@ static func mark_shell_room_prim(node: Node) -> void:
 				continue
 			if not VisualMaterials.is_vertex_shade_surface(mesh_instance, i, mat):
 				continue
+			## The colour combine never reads PRIM (`rom_museum4_wall`: PRIM is alpha only).
+			if not bool(VisualSurface.gltf_extras(mat).get("rgb_prim", true)):
+				continue
 			var std: StandardMaterial3D
 			if mat is StandardMaterial3D:
 				std = (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
