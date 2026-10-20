@@ -1556,3 +1556,24 @@ func test_talk_line_reaction_plays_clip_and_glyph() -> void:
 	assert_bool(villager.animation_player().is_playing()).is_true()
 	villager.conversation.cue_manpu("reset")
 	assert_str(villager._manpu_clip).is_empty()
+
+
+func test_leaving_home_steps_out_of_the_doorway_before_walking() -> void:
+	## `aNPC_act_leave_house_out_of_door`: GO_OUT plays on the threshold (its joint_0 carries
+	## the body out of the house) and the villager holds still until it stops.
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
+	Game.villagers.get_or_create(&"filbert").is_home = false
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	add_child(villager)
+	await get_tree().process_frame
+	assert_object(villager.animation_player()).is_not_null()
+	var door := villager.global_position
+	villager.begin_go_out()
+	assert_bool(villager.is_going_out()).is_true()
+	await get_tree().process_frame
+	assert_str(villager.animation_player().current_animation).contains(Villager.ANIM_GO_OUT)
+	for _i: int in 30:
+		await get_tree().physics_frame
+	assert_vector(villager.global_position).is_equal_approx(door, Vector3(0.01, 0.5, 0.01))
+	villager._tick_go_out(5.0)
+	assert_bool(villager.is_going_out()).is_false()

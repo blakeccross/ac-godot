@@ -54,7 +54,8 @@ func on_action_changed(kind: StringName) -> void:
 ## keeps `_motor.home` on the yard centre, so the anchor never drifts.
 func _leave_through_door() -> void:
 	var home: Vector3 = _villager._motor.home
-	var house: Node3D = StructureDoor.find_near(_villager, home, 4.0)
+	## The house root sits at its 3×3 centre, two units north of the yard centre (~4 m).
+	var house: Node3D = StructureDoor.find_near(_villager, home, 6.0)
 	var out := Vector3(0.0, 0.0, 1.0)
 	if house != null:
 		var away := Vector3(home.x - house.global_position.x, 0.0, home.z - house.global_position.z)
@@ -71,6 +72,7 @@ func _leave_through_door() -> void:
 	_villager._spawn_unstuck = true
 	if house != null:
 		StructureDoor.play_leave(house)
+	_villager.begin_go_out()
 
 
 func on_schedule_changed(previous: StringName, now: StringName) -> void:
