@@ -2141,6 +2141,24 @@ class VertexShadeTests(unittest.TestCase):
                 _r, _g, _b, alpha = struct.unpack_from("<4f", blob, start + i * 16)
                 self.assertAlmostEqual(alpha, 1.0)
 
+    def test_triangle_only_lists_preload_their_vertex_table(self) -> None:
+        import struct as _s
+
+        from asset_pipeline.ckf import _dl_loads_vertices
+        from asset_pipeline.gfx import parse_gfx, parse_vtx_blob
+
+        ## `obj_tree3_shadowT_gfx_model`: two packed triangles, no gsSPVertex.
+        dl = _s.pack(">II", 0x0A020000, 0x62008200) + _s.pack(">II", 0xDF000000, 0)
+        self.assertFalse(_dl_loads_vertices(dl))
+        self.assertTrue(_dl_loads_vertices(_s.pack(">II", 0x01004008, 0) + dl))
+        vtx = b""
+        for x, z, a in ((0, 0, 255), (40, 0, 255), (40, 40, 0), (0, 40, 0)):
+            vtx += _s.pack(">hhhHhhBBBB", x, 0, z, 0, 0, 0, 255, 255, 255, a)
+        verts = parse_vtx_blob(vtx, scale=0.001)
+        self.assertEqual(parse_gfx("shadow", dl, verts), [])
+        parts = parse_gfx("shadow", dl, verts, preload_vertices=True)
+        self.assertEqual(sum(len(p.triangles) for p in parts), 2)
+
     def test_room_prim_tints_only_combines_that_read_prim(self) -> None:
         from asset_pipeline.gfx import combine_rgb_uses_prim
 

@@ -874,9 +874,18 @@ def parse_gfx(
     state: TextureState | None = None,
     vtx_base_addr: int | None = None,
     render: RenderState | None = None,
+    preload_vertices: bool = False,
 ) -> list[MeshPart]:
-    """Walk a Dolphin-GBI display list and emit triangle groups, split on texture changes."""
+    """Walk a Dolphin-GBI display list and emit triangle groups, split on texture changes.
+
+    ``preload_vertices`` fills the vertex cache from ``all_vertices`` first, for display lists
+    that only draw triangles: the caller loads their vertices at run time (the ``bg_item`` prop
+    shadows, ``bIT_ShadowData_c``, whose ``gSPVertex`` comes from ``bIT_copy_vtx``).
+    """
     cache: list[Optional[Vertex]] = [None] * 32
+    if preload_vertices:
+        for i in range(min(32, len(all_vertices))):
+            cache[i] = replace(all_vertices[i], src_index=i)
     vtx_cursor = 0
     triangles: list[tuple[int, int, int]] = []
     unique: list[Vertex] = []

@@ -1062,13 +1062,14 @@ def _is_bit_shadow(parts: list) -> bool:
     Every part is a flat XLU-decal fan whose vertex-colour alpha is exactly the
     binary `bIT_copy_vtx` fix flag — 0 for verts the sun sweep slides along X,
     1 for the fixed footprint. No other mesh carries that {0, 1}-only vertex alpha
-    on a flat decal, so no name check is needed.
+    on a flat decal, so no name check is needed. The small props' lists (trees, stumps,
+    rocks, fences) set no render mode at all: the shadow drawer does, so unset counts too.
     """
     if not parts:
         return False
     alphas: set[float] = set()
     for part in parts:
-        if part.coverage != "xlu" or not part.vertices:
+        if part.coverage not in ("xlu", None) or not part.vertices:
             return False
         ys = [v.y for v in part.vertices]
         if max(ys) - min(ys) > 1e-3:
@@ -1142,6 +1143,43 @@ def _blob_shadow_parts(parts: list) -> list:
     return [part]
 
 
+def _is_single_quad(parts: list) -> bool:
+    """One textured quad per part: the rest pose has no sweep gaps to hide."""
+    return all(part.texture_png and len(part.triangles) <= 2 for part in parts)
+
+
+def _quad_shadow_parts(parts: list) -> list:
+    """Keep a one-quad prop shadow as drawn (trees, stumps, fences): its own soft texture
+    already is the shape. The {0, 1} vertex alpha is the sweep flag, not coverage, so it
+    goes to 1; the decal blends onto the ground like the blob shadows.
+    """
+    from dataclasses import replace
+
+    for part in parts:
+        part.vertices = [replace(v, a=1.0) for v in part.vertices]
+        part.texture_png = _shadow_mask_png(part.texture_png)
+        part.alpha_mode = "BLEND"
+        part.ground_spill = True
+        part.coverage = "xlu"
+    return parts
+
+
+def _shadow_mask_png(png: bytes) -> bytes:
+    """The shadow texture is an intensity mask the drawer tints dark: black, mask as alpha."""
+    import io
+
+    from PIL import Image
+
+    src = Image.open(io.BytesIO(png)).convert("LA")
+    lum, alpha = src.split()
+    mask = Image.composite(lum, Image.new("L", src.size, 0), alpha)
+    out = Image.new("RGBA", src.size, (0, 0, 0, 0))
+    out.putalpha(mask)
+    buf = io.BytesIO()
+    out.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 _RADIAL_SHADOW_PNG_CACHE: bytes | None = None
 
 
@@ -1202,7 +1240,7 @@ def _convert_static(
             classic_two_tile=bool(item.get("classic_two_tile")),
         )
         if _is_bit_shadow(parts):
-            parts = _blob_shadow_parts(parts)
+            parts = _quad_shadow_parts(parts) if _is_single_quad(parts) else _blob_shadow_parts(parts)
         dest = cfg.converted / item["output"]
         write_glb(
             dest,

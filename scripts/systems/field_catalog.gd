@@ -565,6 +565,9 @@ static func blob_shadow_paths(visual_id: StringName) -> PackedStringArray:
 	var paths: PackedStringArray = _existing(["%s/%s_shadow.glb" % [folder, seasonal]])
 	if paths.is_empty() and seasonal != stem:
 		paths = _existing(["%s/%s_shadow.glb" % [folder, stem]])
+	## Small props share one shadow across the seasons (`obj_tree5_shadow`, `obj_stoneA_shadow`).
+	if paths.is_empty() and seasonal.length() > 6 and seasonal[5] == "_":
+		paths = _existing(["%s/obj_%s_shadow.glb" % [folder, seasonal.substr(6)]])
 	return paths
 
 
