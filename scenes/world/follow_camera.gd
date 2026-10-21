@@ -37,6 +37,24 @@ const FISHING_STEP := 1.0 / 40.0
 const FISHING_RETURN_STEP := 1.0 / 30.0
 const FISHING_RETURN_SECONDS := 30.0 / 60.0
 const FISHING_DROP_GX := 70.0
+## `Player_actor_Set_Indoor_Camera_Index` (homes and the museum wings): C-up / C-down step a
+## distance index, C-left / C-right a direction index, each 0..2 from 1. The tables add to
+## the normal 620 GX at 45° (`m_camera2.c` indoor_distance / direction tables); pitch follows
+## the distance index. A change morphs in at the fast eases (distance 0.2 a tick, angles
+## 0.10557), the rest of the time they hold.
+const INDOOR_DISTANCE_ADD: Array[float] = [-280.0 * PlayerLocomotion.UNIT_METERS, 0.0, 300.0 * PlayerLocomotion.UNIT_METERS]
+const INDOOR_PITCH_ADD: Array[float] = [-23.24 * PI / 180.0, 0.0, 19.12 * PI / 180.0]
+const INDOOR_YAW_ADD: Array[float] = [-16.1 * PI / 180.0, 0.0, 16.1 * PI / 180.0]
+## `Camera2_main_Normal_SetEndCenterPos_fromPlayer` indoors: the centre follows the player's
+## eye but keeps 110 GX × scale off the room's edges (40 GX more on the near side); a room
+## narrower than 330 GX × scale (shallower than 250) centres on its middle that way.
+const ROOM_BORDER_GX := 110.0
+const ROOM_NEAR_ALLOWANCE_GX := 40.0
+const ROOM_MIN_WIDTH_GX := 330.0
+const ROOM_MIN_DEPTH_GX := 250.0
+## Per-second rates of the 0.2 / 0.10557 per-tick eases.
+const INDOOR_DISTANCE_RATE := 13.389
+const INDOOR_ANGLE_RATE := 6.698
 
 @export var target_path: NodePath
 @export var offset := DEFAULT_OFFSET
@@ -83,6 +101,14 @@ var _shot_elevation: float = 0.0
 var _shot_yaw: float = 0.0
 ## The fishing camera: on while the line is out, then easing back for `_fishing_return`.
 var _fishing_active: bool = false
+var _indoor_dist_idx: int = 1
+var _indoor_dir_idx: int = 1
+var _indoor_dist_add: float = 0.0
+var _indoor_pitch_add: float = 0.0
+var _indoor_yaw_add: float = 0.0
+## The room the indoor camera's centre is kept inside (`follow_in_room`).
+var _room_box := AABB()
+var _room_clamp: bool = false
 var _fishing_return: float = 0.0
 
 
@@ -129,6 +155,82 @@ func resume(snap: bool = true) -> void:
 	if _target != null and is_instance_valid(_target):
 		_look_current = _look_point()
 		_has_look = true
+
+
+## Step the indoor camera index (`Player_actor_Set_Indoor_Camera_Index`): `distance_step`
+## −1 is C-up (closer), +1 C-down; `direction_step` −1 C-left, +1 C-right. Returns whether an
+## index moved (the player plays `camera_move1/2` then).
+func step_indoor(distance_step: int, direction_step: int) -> bool:
+	var dist: int = clampi(_indoor_dist_idx + distance_step, 0, 2)
+	var dir: int = clampi(_indoor_dir_idx + direction_step, 0, 2)
+	if dist == _indoor_dist_idx and dir == _indoor_dir_idx:
+		return false
+	_indoor_dist_idx = dist
+	_indoor_dir_idx = dir
+	return true
+
+
+func indoor_index() -> Vector2i:
+	return Vector2i(_indoor_dist_idx, _indoor_dir_idx)
+
+
+## The indoor arm with the index added (`Camera2_InDoorCheck` rooms only call this with a
+## non-default index).
+func indoor_offset(base: Vector3) -> Vector3:
+	if is_zero_approx(_indoor_dist_add) and is_zero_approx(_indoor_pitch_add) and is_zero_approx(_indoor_yaw_add):
+		return base
+	var flat: float = Vector2(base.x, base.z).length()
+	var elevation: float = atan2(base.y, flat)
+	var yaw: float = atan2(base.x, base.z)
+	return _arm(base.length() + _indoor_dist_add, elevation + _indoor_pitch_add, yaw + _indoor_yaw_add)
+
+
+func _ease_indoor(delta: float, snap: bool) -> void:
+	var dist_goal: float = INDOOR_DISTANCE_ADD[_indoor_dist_idx]
+	var pitch_goal: float = INDOOR_PITCH_ADD[_indoor_dist_idx]
+	var yaw_goal: float = INDOOR_YAW_ADD[_indoor_dir_idx]
+	if snap or delta <= 0.0:
+		_indoor_dist_add = dist_goal
+		_indoor_pitch_add = pitch_goal
+		_indoor_yaw_add = yaw_goal
+		return
+	var d: float = 1.0 - exp(-INDOOR_DISTANCE_RATE * delta)
+	var a: float = 1.0 - exp(-INDOOR_ANGLE_RATE * delta)
+	_indoor_dist_add = lerpf(_indoor_dist_add, dist_goal, d)
+	_indoor_pitch_add = lerpf(_indoor_pitch_add, pitch_goal, a)
+	_indoor_yaw_add = lerpf(_indoor_yaw_add, yaw_goal, a)
+
+
+## Indoors with the C-stick camera (homes, the museum wings): follow the player inside `box`.
+func follow_in_room(box: AABB) -> void:
+	_room_box = box
+	_room_clamp = true
+
+
+## Where the centre goes for an eye at `eye` in `box`, at the indoor index (see the consts).
+static func room_center(eye: Vector3, box: AABB, distance_index: int, direction_index: int) -> Vector3:
+	var gx: float = PlayerLocomotion.UNIT_METERS
+	var scale: float = (ORIG_DISTANCE + INDOOR_DISTANCE_ADD[distance_index] / gx) / ORIG_DISTANCE
+	if direction_index != 1:
+		scale *= 0.8
+	if distance_index == 2:
+		scale *= 0.88
+	var border: float = ROOM_BORDER_GX * gx * scale
+	var out := eye
+	var mid: Vector3 = box.get_center()
+	var x_lo: float = box.position.x + border
+	var x_hi: float = box.end.x - border
+	if box.size.x < ROOM_MIN_WIDTH_GX * gx * scale or x_lo > x_hi:
+		out.x = mid.x
+	else:
+		out.x = clampf(eye.x, x_lo, x_hi)
+	var z_lo: float = box.position.z + border
+	var z_hi: float = box.end.z - border + ROOM_NEAR_ALLOWANCE_GX * gx
+	if box.size.z < ROOM_MIN_DEPTH_GX * gx * scale or z_lo > z_hi:
+		out.z = mid.z
+	else:
+		out.z = clampf(eye.z, z_lo, z_hi)
+	return out
 
 
 func lock_at(point: Vector3) -> void:
@@ -265,10 +367,11 @@ func _follow(snap: bool, delta: float = 0.0) -> void:
 	if _target != null and _follow_fishing(delta):
 		_acre_active = false
 		return
+	_ease_indoor(delta, snap)
 	if _locked:
 		_acre_active = false
 		var look := _lock_point + Vector3(0.0, ROOM_LOOK_HEIGHT, 0.0)
-		_move_camera(_lock_point + offset, look, snap, delta, follow_rate)
+		_move_camera(_lock_point + indoor_offset(offset), look, snap, delta, follow_rate)
 		return
 	if _target == null:
 		return
@@ -277,7 +380,11 @@ func _follow(snap: bool, delta: float = 0.0) -> void:
 		return
 	_acre_active = false
 	var look_at_point := _look_point()
-	var destination := _target.global_position + offset
+	if _room_clamp:
+		look_at_point = room_center(look_at_point, _room_box, _indoor_dist_idx, _indoor_dir_idx)
+		_move_camera(look_at_point + indoor_offset(offset), look_at_point, snap, delta, follow_rate)
+		return
+	var destination := _target.global_position + indoor_offset(offset)
 	_move_camera(destination, look_at_point, snap, delta, follow_rate)
 
 

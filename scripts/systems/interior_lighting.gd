@@ -10,6 +10,13 @@ static func apply(
 	host: Node3D, world_env: WorldEnvironment, camera: Camera3D, grid: WorldGrid, room: Room
 ) -> void:
 	refresh_light(host, world_env, grid, room)
+	if camera != null and allows_camera_index(room) and camera.has_method("follow_in_room"):
+		## The normal 620 GX camera following the player inside the room
+		## (`Camera2_main_Normal_SetEndCenterPos_fromPlayer`); the floor stands in for the
+		## room's block extent.
+		camera.set("offset", preload("res://scenes/world/follow_camera.gd").DEFAULT_OFFSET)
+		camera.call("follow_in_room", InteriorShellBuilder.shell_bounds(room, grid))
+		return
 	if camera != null and "offset" in camera:
 		## Homes frame the shell (never closer than Camera2 620). Museum / shops /
 		## other public rooms keep outdoor focus distance — `Camera2_InDoorCheck`
@@ -99,8 +106,24 @@ static func _aim(light: DirectionalLight3D, dir: Vector3) -> void:
 
 
 ## Player and villager homes pin the 3/4 camera to the room (`Camera2` border invert).
+## `mPlib_Check_scene_able_change_camera_pos`: villagers' and the player's rooms, and the
+## four museum wings (not the entrance hall or shops), take the indoor C-stick camera.
+static func allows_camera_index(room: Room) -> bool:
+	if room == null:
+		return false
+	if room.kind == Room.Kind.NPC or room.kind == Room.Kind.PLAYER:
+		return true
+	return room.id in [&"museum_fossil", &"museum_painting", &"museum_insect", &"museum_fish"]
+
+
+## Rooms whose camera is pinned to a framed point instead of following the player. Homes
+## follow inside the room now (`allows_camera_index`), so none are.
 static func pins_follow_camera(room: Room) -> bool:
-	return room != null and (room.kind == Room.Kind.NPC or room.kind == Room.Kind.PLAYER)
+	return (
+		room != null
+		and (room.kind == Room.Kind.NPC or room.kind == Room.Kind.PLAYER)
+		and not allows_camera_index(room)
+	)
 
 
 static func inner_look_point(grid: WorldGrid, room: Room) -> Vector3:

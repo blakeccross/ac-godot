@@ -26,11 +26,12 @@ func _alive() -> Array[Node3D]:
 
 
 func test_the_player_can_tread_on_every_roach() -> void:
-	## Earlier suites can leak players (the roach looks for the first one in the group) and
-	## open overlays (the player won't walk while a menu reports open).
-	for group: StringName in [Player.GROUP] + MENU_GROUPS:
-		for stale: Node in get_tree().get_nodes_in_group(group):
-			stale.remove_from_group(group)
+	## Earlier suites can leak players (the roach looks for the first one in the group), a
+	## town (the player walks on the first `World`'s grid) and open overlays (the player
+	## won't walk while a menu reports open).
+	var groups: Array[StringName] = [Player.GROUP, World.GROUP]
+	groups.append_array(MENU_GROUPS)
+	TestIsolation.forget_groups(get_tree(), groups)
 	Clock.paused = true
 	Clock.apply_snapshot({"year": 2001, "month": 7, "day": 15, "hour": 12, "minute": 0})
 	Game.reset_session()

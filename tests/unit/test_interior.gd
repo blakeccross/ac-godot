@@ -118,8 +118,10 @@ func test_npc_room_uses_fg_furniture() -> void:
 	assert_float(small.y).is_equal_approx(floor.y, 0.01)
 	assert_float(small.y).is_greater(cam.call("offset_for_ground_span", 8.0).y)
 	assert_float(framed.y).is_greater(small.y)
-	assert_bool(InteriorLighting.pins_follow_camera(filbert)).is_true()
-	assert_bool(InteriorLighting.pins_follow_camera(InteriorCatalog.room_template(&"player_main"))).is_true()
+	## Homes follow the player inside the room now (`follow_in_room`), not a pinned point.
+	assert_bool(InteriorLighting.pins_follow_camera(filbert)).is_false()
+	assert_bool(InteriorLighting.allows_camera_index(filbert)).is_true()
+	assert_bool(InteriorLighting.pins_follow_camera(InteriorCatalog.room_template(&"player_main"))).is_false()
 	assert_bool(InteriorLighting.pins_follow_camera(InteriorCatalog.room_template(&"shop0"))).is_false()
 	assert_bool(InteriorLighting.pins_follow_camera(InteriorCatalog.room_template(&"museum_fish"))).is_false()
 	assert_bool(InteriorLighting.pins_follow_camera(InteriorCatalog.room_template(&"museum_entrance"))).is_false()
