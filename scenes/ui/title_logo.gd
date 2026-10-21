@@ -40,6 +40,7 @@ var _back_materials: Array[ShaderMaterial] = []
 var _has_models: bool = false
 
 @onready var _viewport_box: SubViewportContainer = %Viewport3D
+@onready var _logo_viewport: SubViewport = %Viewport3D/SubViewport
 @onready var _camera: Camera3D = %Camera
 @onready var _overlay: Control = %Overlay2D
 @onready var _back_root: Node3D = %BackRoot
@@ -52,6 +53,9 @@ var _has_models: bool = false
 
 
 func _ready() -> void:
+	## The project canvas filter is nearest. This texture is a scaled render, so nearest
+	## turns it into blocks.
+	_viewport_box.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	_camera.size = VIRTUAL.y / PX_PER_UNIT
 	_attach_models()
 	_attach_textures()
@@ -90,8 +94,9 @@ func _refresh() -> void:
 	_press_start.modulate.a = state.press_start_opacity
 
 
-## 4:3 stage, centred and scaled to the window height. The 3D logo renders into a viewport of
-## exactly that size (crisp); the 2D lines scale from the same virtual space.
+## 4:3 stage, centred in the logical window. The 2D lines scale in that space. The logo
+## viewport must be the stage's framebuffer size: `stretch` locks it to the control size,
+## which is the 1280×720 canvas, and the canvas then enlarges that image to the window.
 func _layout() -> void:
 	var window: Vector2 = get_viewport().get_visible_rect().size
 	var s: float = minf(window.x / VIRTUAL.x, window.y / VIRTUAL.y)
@@ -101,6 +106,21 @@ func _layout() -> void:
 	_viewport_box.size = size
 	_overlay.position = origin
 	_overlay.scale = Vector2(s, s)
+	_apply_logo_pixels()
+
+
+## `stretch` just set the SubViewport to the logical control size. Render at framebuffer pixels
+## instead, so the canvas scale is 1:1 instead of a nearest enlarge.
+func _apply_logo_pixels() -> void:
+	var logical := get_viewport().get_visible_rect().size
+	if logical.x < 1.0 or logical.y < 1.0:
+		return
+	var fb := Vector2(get_viewport().size)
+	var scale := Vector2(fb.x / logical.x, fb.y / logical.y)
+	var stage := _viewport_box.size
+	var px := Vector2i(ceili(stage.x * scale.x), ceili(stage.y * scale.y)).max(Vector2i.ONE)
+	if _logo_viewport.size != px:
+		_logo_viewport.size = px
 
 
 func _attach_models() -> void:
