@@ -59,22 +59,32 @@ static func withdraw_amount(amount: int) -> String:
 	return "Withdrew %d Bells. Savings: %d." % [take, inv.savings]
 
 
-## `amount < 0` pays as much as wallet / remaining loan allows.
+## The clerk's answers once the loan screen closes (`aPG_repay_menu_close_wait`); Phyllis is
+## each one plus 1.
+const REPAY_STILL_OWE_MSG := 0x8D5
+const REPAY_PAID_OFF_MSG := 0x8D7
+const REPAY_NOT_READY_MSG := 0x8E5
+
+
+## The authored menu's payment, when the loan screen isn't there: `amount < 0` pays as much
+## as the wallet and money bags allow, through the same rules (`RepayCounter.pay`).
 static func repay_amount(amount: int) -> String:
 	if Game == null or Game.inventory == null:
 		return ""
 	var inv: Inventory = Game.inventory
 	if inv.loan <= 0:
 		return "You don't owe anything."
+	var money: int = inv.wallet + RepayCounter.normal_bag_total(inv)
+	if money <= 0:
+		return "Your pockets are empty."
 	if amount < 0:
 		amount = inv.loan
-	if inv.wallet <= 0:
-		return "Your pockets are empty."
-	if amount <= 0:
-		return "Nothing to repay."
-	var paid: int = inv.repay_loan(amount)
+	var paid: int = mini(amount, mini(inv.loan, money))
 	if paid <= 0:
 		return "Nothing to repay."
+	inv.set_wallet(clampi(RepayCounter.pay(inv, paid), 0, Inventory.WALLET_MAX))
+	inv.set_loan(inv.loan - paid)
+	inv.changed.emit()
 	if inv.loan <= 0:
 		## `aPG_ACTION_REPAY_*`: the cheer comes on walking back out (`COMPLETE_PAYMENT_TYPE_HOUSE`).
 		Game.complete_payment = Game.PAYMENT_HOUSE
@@ -241,8 +251,10 @@ static func fill_bank_frees(ctx: DialogueContext) -> void:
 	var loan: int = Game.inventory.loan if Game != null and Game.inventory != null else 0
 	ctx.frees = PackedStringArray(["", "", "", ""])
 	ctx.frees[0] = ""
-	ctx.frees[1] = str(loan)
-	ctx.frees[2] = ""
+	## `aPG_set_loan_balance`: {free1} is the millions and a comma, {free2} the rest.
+	var millions: int = loan / 1000000
+	ctx.frees[1] = "%d," % millions if millions > 0 else ""
+	ctx.frees[2] = BankOverlay.with_commas(loan % 1000000, 6 if millions > 0 else 0)
 	ctx.frees[3] = BankOverlay.with_commas(savings)
 
 

@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "cam", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "lighthouse", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "cam", "repay", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "lighthouse", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -408,6 +408,14 @@ func execute(raw: String) -> String:
 				return "No bank UI in this scene."
 			abd.open()
 			return "Bank terminal open."
+		"repay":
+			## Open the post office's loan screen (`mSM_OVL_REPAY`).
+			var rp_tree := Engine.get_main_loop() as SceneTree
+			var rp: RepayOverlay = RepayOverlay.find(rp_tree)
+			if rp == null:
+				return "No loan screen in this scene."
+			rp.open()
+			return "Loan screen open."
 		"board":
 			## Open the community board's posts (`mSM_OVL_NOTICE`).
 			var tree := Engine.get_main_loop() as SceneTree
