@@ -354,6 +354,9 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		if paths.is_empty() and id.begins_with("int_"):
 			paths = _existing(["furniture/%sB.glb" % id])
 		return paths
+	if id.length() == 6 and id.begins_with("HOLE") and id != "HOLE00" and id.substr(4).is_valid_int():
+		## Slope holes (`HOLE01`–`HOLE24`, `HoleShape`): the slope is built into the mesh.
+		return _existing(["environment/holes/obj_hole%d.glb" % int(id.substr(4))])
 	match visual_id:
 		&"obj_x_tree5_light", &"obj_x_ceder5_light":
 			## December lights (`TREE_LIGHTS` / `CEDAR_TREE_LIGHTS`), drawn over the tree.
@@ -372,7 +375,7 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 				stump = _existing(["environment/trees/obj_s_stump5.glb"])
 			return stump
 		&"obj_hole0", &"HOLE00":
-			## Flat grass hole (`HOLE00` / `obj_hole0`). Slope variants HOLE01–24 wait.
+			## Flat grass hole (`HOLE00` / `obj_hole0`).
 			## Prefer the paletted convert; do not also instance the old untextured GLB.
 			var hole: PackedStringArray = _existing(["environment/holes/obj_hole0.glb"])
 			if hole.is_empty():

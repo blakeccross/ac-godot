@@ -240,7 +240,7 @@ data tables before a category is called done.
 
 ## 14. Digging, buried items, rocks
 
-- [~] Dig a hole on empty ground; fill a hole (`DIG_SCOOP`, `FILL_SCOOP`, `HOLE00`–`HOLE24`) — `hole_use.gd`, `scenes/world/hole.tscn`. Fill timing matches. Missing: the hole appears at frame 20 (not 15); the dirt sprays (`ef_dig_hole`, `DIG_SCOOP`); slope holes pick `HOLE01`–`24` by the unit's corner pattern (`mCoBG_GetHoleNumber`)
+- [x] Dig a hole on empty ground; fill a hole (`DIG_SCOOP`, `FILL_SCOOP`, `HOLE00`–`HOLE24`) — `hole_use.gd`, `scenes/world/hole.tscn`. Fill timing matches; the clods fly at frames 14–16 and the dirt at 22 (`FootstepEffects.dig_sequence`); the hole shows at frame 20 and grows in over 12 frames (`bIT_actor_dig_hole_effect_entry`). On a slope the unit's corner pattern picks `HOLE01`–`24` (`HoleShape`, `mCoBG_GetHoleNumber_ClData`); a shape with no hole mesh digs but leaves no hole
 - [x] Bury an item in a hole; dig it back up (`mTG_TYPE_FIELD_DEFAULT_BURY`, `bIT_common_hole_throw`) — pockets "Bury" → `BuriedUse.bury` (`KIND_ITEM` shows the crack)
 - [x] Daily dig spots: fossils (crack mark, up to 5), a shine spot of bells, and three gyroids after rain (`mMsm_DepositFossil`, `mAGrw_SetDigItem`, `mAGrw_SetHaniwa`) — `BuriedUse`
 - [x] Money spot: the daily shine spot digs up a bag of bells (`mAGrw_SetDigItem`) — `BuriedUse`; bare trees can hold bells when shaken (`TreeUse`). A bag buried back in that hole grows a money tree half the time (more with money power, always with Money Luck), else a plain sapling; grown, it drops three bags of that size once. A spare shovel grows the golden tree (`bIT_common_bury_after`, `PlantGrowth.plant_special`)

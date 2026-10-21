@@ -7,7 +7,7 @@ extends RefCounted
 ## rotated). No match (or a slate unit): no hole entry, though the dig still plays.
 
 ## `{c, nw, sw, se, ne}` in 10 GX counts (`top_left` = nw, `bot_left` = sw, …).
-const PATTERNS: Array[PackedInt32Array] = [
+const PATTERNS: Array = [
 	[0, 0, 0, 0, 0],
 	[1, 2, 0, 0, 2],
 	[1, 0, 2, 2, 0],
@@ -53,9 +53,16 @@ static func number_for_counts(unit: Dictionary) -> int:
 	for i: int in heights.size():
 		heights[i] -= low
 	for n: int in PATTERNS.size():
-		if PATTERNS[n] == heights:
+		if _matches(PATTERNS[n], heights):
 			return n
 	return -1
+
+
+static func _matches(row: Array, heights: PackedInt32Array) -> bool:
+	for i: int in heights.size():
+		if int(row[i]) != heights[i]:
+			return false
+	return true
 
 
 ## Row for the field unit at `cell`. A unit with no collision table (placeholder acres) is flat.
