@@ -135,3 +135,22 @@ class _ActionCatcher extends Node:
 	func _input(event: InputEvent) -> void:
 		if event is InputEventAction and (event as InputEventAction).pressed:
 			seen.append((event as InputEventAction).action)
+
+
+func test_a_tap_on_the_ground_walks_there() -> void:
+	var player: Player = _setup()
+	await get_tree().process_frame
+	var driver: TouchDriver = _driver(player)
+	var goal := Vector3(4, 0, 2)
+	var at: Vector2 = _screen(goal)
+	driver.press(at)
+	driver.lift(at)
+	assert_bool(driver.is_walking()).is_true()
+	for _i: int in 180:
+		await get_tree().physics_frame
+		if not driver.is_walking():
+			break
+	assert_bool(driver.is_walking()).is_false()
+	var off := Vector2(player.global_position.x - goal.x, player.global_position.z - goal.z)
+	assert_float(off.length()).is_less(0.5)
+	assert_bool(driver.source.dash_held).is_false()

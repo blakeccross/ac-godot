@@ -86,6 +86,8 @@ With no joystick on screen, you can walk around the town by holding a finger whe
 
 ## Phase 3: tap-to-walk
 
+**Done.** `TouchPath` (A* over the units, no corner cutting, pulled tight with occupancy and cliff checks; indoors the room's floor), the driver's route steering (eases over the last metre, re-routes once when stuck, double tap runs), `scenes/world/touch_marker.tscn`, and `FieldCollision.edge_is_wall` / `forbids_enter`.
+
 *Playable:* tap the ground anywhere on screen to walk there.
 
 ### Files
