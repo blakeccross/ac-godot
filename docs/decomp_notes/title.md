@@ -92,7 +92,7 @@ Layout (font matrix = ortho ±160×120 px × 16, y up, 320×240 virtual): logo a
 | `decide_next_scene_no` | After the fade, a New Game / Continue menu (plus the two dev shortcuts). New → `Game.start_intro_sequence`; Continue → `Game.continue_game`. |
 | `FADE_TYPE_SELECT_END` | `Title._end_demo`: `SceneTransition` fade, 1.4 s black hold, reload into the next demo. |
 
-Extraction gotcha: `log_win_logo3/4_tex` and `log_win_nintendo1–3_tex` are **linear** `IIIIAAAA` 64×16 (drawn through `gDPLoadTextureTile` + `gSPTextureRectangle`, the N64 path), *not* GX IA4 (8×4-tiled `AAAAIIII`). The generic REL pass decodes them as 64×32 noise; `title_screen.py` decodes them correctly and bakes the tints. The backdrop and TM are I4 whose **alpha is the intensity** (`G_CC_BACK` / `G_CC_TM`); the converted GLB keeps intensity in RGB and a 0/255 cutout in alpha, so the shader takes alpha from `.r`.
+Extraction gotcha: `log_win_logo3/4_tex` and `log_win_nintendo1–3_tex` are **linear** `IIIIAAAA` 64×16 (drawn through `gDPLoadTextureTile` + `gSPTextureRectangle`, the N64 path), *not* GX IA4 (8×4-tiled `AAAAIIII`). The generic REL pass decodes them as 64×32 noise; `title_screen.py` decodes them correctly and bakes the tints. ACHD is keyed on the GX form of those bytes (`tex1_64x16_*_2`, 8× masks); the demo PRIM/ENV tint is applied to that sheet. Without a pack the native mask is Lanczos-upscaled 4×. The backdrop and TM are I4 whose **alpha is the intensity** (`G_CC_BACK` / `G_CC_TM`); the converted GLB keeps intensity in RGB and a 0/255 cutout in alpha, so the shader takes alpha from `.r`.
 
 ```bash
 python3 tools/build_assets.py --kind title --step convert   # logo textures + demos.json

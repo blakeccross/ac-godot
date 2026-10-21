@@ -149,6 +149,10 @@ func _unshade(root: Node) -> void:
 			copy.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			copy.cull_mode = BaseMaterial3D.CULL_DISABLED
 			copy.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+			## Imported as an alpha mask (cutoff 0.5), so the linearly filtered rim is
+			## discarded and the outline stair-steps. The logo viewport is MSAA 4×;
+			## alpha-to-coverage turns that rim into samples.
+			copy.alpha_antialiasing_mode = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE
 			mesh.set_surface_override_material(i, copy)
 
 

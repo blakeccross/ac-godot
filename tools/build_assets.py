@@ -236,7 +236,11 @@ def main() -> int:
                 failed = True
             else:
                 errors = [r for r in ui_report["results"] if r["status"] == "error"]
-                print(f"wrote {ui_report['converted']} title UI textures -> {ui_report['output']}")
+                achd_hits = int(ui_report.get("achd_hits", 0))
+                print(
+                    f"wrote {ui_report['converted']} title UI textures"
+                    f" ({achd_hits} ACHD) -> {ui_report['output']}"
+                )
                 for err in errors[:40]:
                     print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
                 if errors:

@@ -3,22 +3,22 @@
 [ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_no687"]
 [ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_il_1.tres" id="2_r3xmm"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_il_1/grd_s_il_12.res" id="3_76vqn"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/beach_wet_b3a47874544b.tres" id="4_ko815"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/fd5c6376b933.tres" id="5_04u47"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/140843dd53ba.tres" id="6_0q6pl"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/16b4b452b48a.tres" id="7_fj5oi"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/560c2b563b04.tres" id="8_5hdbr"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/beach_wet_0ec338c03bc5.tres" id="9_see7d"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/beach_wet_46fbfbbb4b3f.tres" id="4_ko815"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/ef9f2816e400.tres" id="5_04u47"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/e5a22536d98e.tres" id="6_0q6pl"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/a634dfaf8348.tres" id="7_fj5oi"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/8ba3e4ebde42.tres" id="8_5hdbr"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/beach_wet_0e94f1892cd5.tres" id="9_see7d"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_il_1/grd_s_il_1_blend.res" id="10_fvddk"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/ocean_7674e59271c4.tres" id="11_av04a"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/ocean_e76ade6241fa.tres" id="12_kd0ty"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/ocean_15f4d08720a2.tres" id="11_av04a"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/ocean_bea416965ffa.tres" id="12_kd0ty"]
 
-[node name="grd_s_il_1" type="Node3D" unique_id=1434449128]
+[node name="grd_s_il_1" type="Node3D" unique_id=761202565]
 script = ExtResource("1_no687")
 visual_id = &"grd_s_il_1"
 grid = ExtResource("2_r3xmm")
 
-[node name="grd_s_il_12" type="MeshInstance3D" parent="." unique_id=463558961]
+[node name="grd_s_il_12" type="MeshInstance3D" parent="." unique_id=626654898]
 mesh = ExtResource("3_76vqn")
 surface_material_override/0 = ExtResource("4_ko815")
 surface_material_override/1 = ExtResource("5_04u47")
@@ -27,7 +27,7 @@ surface_material_override/3 = ExtResource("7_fj5oi")
 surface_material_override/4 = ExtResource("8_5hdbr")
 surface_material_override/5 = ExtResource("9_see7d")
 
-[node name="grd_s_il_1_blend" type="MeshInstance3D" parent="." unique_id=318447808]
+[node name="grd_s_il_1_blend" type="MeshInstance3D" parent="." unique_id=606239243]
 mesh = ExtResource("10_fvddk")
 surface_material_override/0 = ExtResource("11_av04a")
 surface_material_override/1 = ExtResource("12_kd0ty")

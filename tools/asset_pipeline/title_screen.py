@@ -20,6 +20,9 @@ Two outputs, both gitignored under `assets/generated/`:
   alpha low). Decoding them as tiled `AAAAIIII` (what `bti.py` / the generic REL pass
   do, at a guessed 64x32) gives noise; linear + swapped nibbles reads "Press" /
   "START" / "(c)20" cleanly. The 1024-byte symbol size confirms 64x16 at 8 bpp.
+  ACHD hashes the GX form `emu64` actually samples (`title_ia8_gx_bytes`): nibble-swapped
+  and 8×4-tiled, `tex1_64x16_*_2`. Those sheets are still intensity masks, so the same
+  PRIM/ENV tint applies at 8× (512×128). With no pack, the native mask is Lanczos-upscaled 4×.
 - `titledemo/demos.json` — per demo: spawn position, angle, tool, and the raw
   30 Hz `u16` input samples; plus the fixed FG block table and the fixed acre (BG)
   layout for the demo town (`data_fdd[SCENE_TITLE_DEMO]` in `field_data.c`).
@@ -32,17 +35,20 @@ from __future__ import annotations
 
 import json
 import re
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 from PIL import Image
 
+from .achd import load_achd_pack, maybe_hd_png
+from .bti import n64_linear_to_gx
 from .config import PipelineConfig
 from .fgdata import _block_type_values, _guess_decomp, _strip_c_comments
 from .godot_import import write_import_sidecar
 from .mapfile import MapSymbol, parse_map
 from .rel import RelData
-from .texbank import image_png_bytes
+from .texbank import G_IM_FMT_IA, G_IM_SIZ_8b, GX_CLAMP, gbi_to_gx, image_png_bytes
 
 RGB = tuple[int, int, int]
 
@@ -80,6 +86,22 @@ def decode_ia8_linear(data: bytes, width: int, height: int) -> Image.Image:
             a = (b & 0x0F) * 17
             px[x, y] = (i, i, i, a)
     return img
+
+
+def title_ia8_gx_bytes(data: bytes) -> bytes:
+    """Linear N64 IA8 as the GX IA4 bytes Dolphin hashes for these loads."""
+    gx = n64_linear_to_gx(data, TEX_W, TEX_H, G_IM_FMT_IA, G_IM_SIZ_8b)
+    if gx is None:
+        raise ValueError(f"title IA8 ({len(data)} bytes) did not convert to GX IA4")
+    return gx
+
+
+def bake_title_glyph(mask: Image.Image, prim: RGB, env: RGB) -> Image.Image:
+    """Tint an intensity mask. Native 64×16 is pre-upscaled; an ACHD sheet stays full size."""
+    tinted = tint_ia4(mask, prim, env)
+    if tinted.size == (TEX_W, TEX_H):
+        return tinted.resize((TEX_W * UPSCALE, TEX_H * UPSCALE), Image.LANCZOS)
+    return tinted
 
 
 def tint_ia4(img: Image.Image, prim: RGB, env: RGB) -> Image.Image:
@@ -129,15 +151,33 @@ def extract_title_ui(cfg: PipelineConfig) -> dict[str, Any]:
     out_dir.mkdir(parents=True, exist_ok=True)
     stage_dir.mkdir(parents=True, exist_ok=True)
 
-    def decode(symbol: str) -> Image.Image:
+    achd = (
+        load_achd_pack(cfg.achd_root, cfg.achd_cache)
+        if cfg.achd_enabled and cfg.achd_root is not None
+        else None
+    )
+    gx_fmt = gbi_to_gx(G_IM_FMT_IA, G_IM_SIZ_8b)
+
+    def load_mask(symbol: str) -> tuple[Image.Image, bool]:
         sym = _pick_symbol(by_name, symbol)
         if sym.size != TEX_W * TEX_H:
             raise ValueError(f"{symbol}: expected {TEX_W * TEX_H} bytes (64x16 IA8), got {sym.size}")
         data = rel.slice_at(sym.address, sym.size)
-        return decode_ia8_linear(data, TEX_W, TEX_H)
-
-    def bake(mask: Image.Image, prim: RGB, env: RGB) -> Image.Image:
-        return tint_ia4(mask, prim, env).resize((TEX_W * UPSCALE, TEX_H * UPSCALE), Image.LANCZOS)
+        hd = maybe_hd_png(
+            achd,
+            title_ia8_gx_bytes(data),
+            TEX_W,
+            TEX_H,
+            gx_fmt,
+            None,
+            wrap_s=GX_CLAMP,
+            wrap_t=GX_CLAMP,
+            label=symbol,
+        )
+        if hd is not None:
+            ## ACHD keeps these as intensity masks (R≈G≈B); tint below, same as the clock badges.
+            return Image.open(BytesIO(hd)).convert("RGBA"), True
+        return decode_ia8_linear(data, TEX_W, TEX_H), False
 
     results: list[dict[str, Any]] = []
     jobs: list[tuple[str, str, RGB, RGB]] = []
@@ -147,21 +187,30 @@ def extract_title_ui(cfg: PipelineConfig) -> dict[str, Any]:
     for i, symbol in enumerate(COPYRIGHT_SYMBOLS):
         jobs.append((f"copyright_{i}", symbol, COPYRIGHT_PRIM, COPYRIGHT_ENV))
 
-    masks: dict[str, Image.Image] = {}
+    masks: dict[str, tuple[Image.Image, bool]] = {}
     for stem, symbol, prim, env in jobs:
         record: dict[str, Any] = {"asset_id": stem, "source": symbol, "output_path": f"ui/title/{stem}.png"}
         try:
             if symbol not in masks:
-                masks[symbol] = decode(symbol)
-            _write_png(bake(masks[symbol], prim, env), stem, out_dir, stage_dir, cfg.project_root)
+                masks[symbol] = load_mask(symbol)
+            mask, used_achd = masks[symbol]
+            image = bake_title_glyph(mask, prim, env)
+            _write_png(image, stem, out_dir, stage_dir, cfg.project_root)
             record["status"] = "converted"
+            record["meta"] = {"width": image.width, "height": image.height, "achd": used_achd}
         except Exception as exc:  # noqa: BLE001
             record["status"] = "error"
             record["error"] = f"{type(exc).__name__}: {exc}"
         results.append(record)
 
     converted = sum(1 for r in results if r["status"] == "converted")
-    return {"results": results, "converted": converted, "output": str(out_dir)}
+    achd_hits = sum(1 for r in results if (r.get("meta") or {}).get("achd"))
+    return {
+        "results": results,
+        "converted": converted,
+        "achd_hits": achd_hits,
+        "output": str(out_dir),
+    }
 
 
 def _u16_words(text: str) -> list[int]:

@@ -9,14 +9,39 @@ into `scenes/world/acres/` and everything those scenes reference into
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
+from pathlib import Path
 from typing import Any
 
 from .config import PipelineConfig
 
+## Same installs `tools/test.sh` and `tools/capture.sh` accept when config omits `godot_bin`.
+_GODOT_FALLBACKS: tuple[str, ...] = (
+    "/Applications/Godot.app/Contents/MacOS/Godot",
+    "/Applications/Godot_4.app/Contents/MacOS/Godot",
+    "/opt/godot/godot",
+)
+
+
+def resolve_godot_bin(cfg: PipelineConfig, extra: tuple[str, ...] | None = None) -> str | None:
+    """Godot for the bake step: `GODOT_BIN`, then config, then the usual app paths."""
+    candidates: list[str] = []
+    env = os.environ.get("GODOT_BIN")
+    if env:
+        candidates.append(env)
+    if cfg.godot_bin:
+        candidates.append(cfg.godot_bin)
+    candidates.extend(_GODOT_FALLBACKS if extra is None else extra)
+    for raw in candidates:
+        path = Path(raw)
+        if path.is_file() and os.access(path, os.X_OK):
+            return str(path)
+    return shutil.which("godot") or shutil.which("godot4")
+
 
 def bake_acre_scenes(cfg: PipelineConfig, acre_ids: list[str] | None = None) -> dict[str, Any]:
-    godot = os.environ.get("GODOT_BIN") or cfg.godot_bin
+    godot = resolve_godot_bin(cfg)
     if not godot:
         return {
             "ok": False,

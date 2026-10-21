@@ -3,21 +3,21 @@
 [ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_o3umr"]
 [ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_player_select.tres" id="2_r54nf"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_player_select/grd_player_select2.res" id="3_xackn"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/f788807f96df.tres" id="4_4kdh1"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/7b2d4ecabd13.tres" id="4_4kdh1"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_player_select/grd_player_select_blend.res" id="5_irpjo"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/8cb89d10e0b4.tres" id="6_auuwo"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/6bf2db09b471.tres" id="7_tpkpc"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/fa5f37bb8ffd.tres" id="6_auuwo"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/1551b8aad7e9.tres" id="7_tpkpc"]
 
-[node name="grd_player_select" type="Node3D" unique_id=1510721255]
+[node name="grd_player_select" type="Node3D" unique_id=868920631]
 script = ExtResource("1_o3umr")
 visual_id = &"grd_player_select"
 grid = ExtResource("2_r54nf")
 
-[node name="grd_player_select2" type="MeshInstance3D" parent="." unique_id=369800705]
+[node name="grd_player_select2" type="MeshInstance3D" parent="." unique_id=714009747]
 mesh = ExtResource("3_xackn")
 surface_material_override/0 = ExtResource("4_4kdh1")
 
-[node name="grd_player_select_blend" type="MeshInstance3D" parent="." unique_id=956907370]
+[node name="grd_player_select_blend" type="MeshInstance3D" parent="." unique_id=1886231260]
 mesh = ExtResource("5_irpjo")
 surface_material_override/0 = ExtResource("6_auuwo")
 surface_material_override/1 = ExtResource("7_tpkpc")

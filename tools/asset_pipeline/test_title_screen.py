@@ -4,15 +4,22 @@ from __future__ import annotations
 
 import unittest
 
+from PIL import Image
+
 from asset_pipeline.audio import EXTRA_SE_NUMS, _sfx_catalog_entries, _with_extra_se
 from asset_pipeline.title_screen import (
     PRESS_START_ENV,
     PRESS_START_PRIM,
+    TEX_H,
+    TEX_W,
+    UPSCALE,
+    bake_title_glyph,
     decode_ia8_linear,
     parse_pact,
     parse_title_demo_acres,
     parse_title_demo_fg,
     tint_ia4,
+    title_ia8_gx_bytes,
 )
 
 PACT_SOURCE = """
@@ -98,6 +105,21 @@ class TintTests(unittest.TestCase):
     def test_five_palettes_one_per_demo(self) -> None:
         self.assertEqual(len(PRESS_START_PRIM), 5)
         self.assertEqual(len(PRESS_START_ENV), 5)
+
+    def test_native_mask_is_upscaled_and_hd_mask_keeps_its_size(self) -> None:
+        prim, env = PRESS_START_PRIM[0], PRESS_START_ENV[0]
+        native = Image.new("RGBA", (TEX_W, TEX_H), (255, 255, 255, 255))
+        hd = Image.new("RGBA", (TEX_W * 8, TEX_H * 8), (255, 255, 255, 128))
+        self.assertEqual(bake_title_glyph(native, prim, env).size, (TEX_W * UPSCALE, TEX_H * UPSCALE))
+        baked = bake_title_glyph(hd, prim, env)
+        self.assertEqual(baked.size, hd.size)
+        self.assertEqual(baked.getpixel((0, 0))[:3], prim)
+        self.assertEqual(baked.getpixel((0, 0))[3], 128)
+
+    def test_gx_hash_bytes_swap_ia_nibbles(self) -> None:
+        ## `0xF3` is I=15 A=3 in the REL. GX IA4 stores alpha in the high nibble.
+        gx = title_ia8_gx_bytes(bytes([0xF3]) * (TEX_W * TEX_H))
+        self.assertEqual(gx, bytes([0x3F]) * (TEX_W * TEX_H))
 
 
 class StartChimeTests(unittest.TestCase):

@@ -313,7 +313,7 @@ Title screen (logo overlay textures + the five recorded attract-mode demos):
 python3 tools/build_assets.py --kind title --step convert
 ```
 
-Writes `assets/generated/ui/title/` (`press_start_{demo}_{half}.png`, `copyright_{n}.png`, PRIM/ENV tints baked) from `foresta.rel`, and `assets/generated/titledemo/demos.json` (spawn, angle, tool and the raw 30 Hz input samples per demo, plus the fixed FG table) from a local `ac-decomp` checkout. The logo skeletons and backdrop come from the normal full convert. These textures are **linear `IIIIAAAA`** 64×16, not the GX IA4 layout above — see [decomp_notes/title.md](decomp_notes/title.md).
+Writes `assets/generated/ui/title/` (`press_start_{demo}_{half}.png`, `copyright_{n}.png`, PRIM/ENV tints baked) from `foresta.rel`, and `assets/generated/titledemo/demos.json` (spawn, angle, tool and the raw 30 Hz input samples per demo, plus the fixed FG table) from a local `ac-decomp` checkout. The logo skeletons and backdrop come from the normal full convert. These glyphs are **linear `IIIIAAAA`** 64×16, not the GX IA4 layout above — see [decomp_notes/title.md](decomp_notes/title.md). With ACHD enabled the masks are the pack's 8× sheets (still tinted); otherwise the native decode is Lanczos-upscaled 4×.
 
 Optional `"decomp_root"` points at an `ac-decomp` checkout for FG combis. `--step all` runs extract + scan + convert + bake + validate. Pass `--export windows|macos|all` to run desktop export afterward (or use `--step export` alone).
 
