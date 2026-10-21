@@ -4,7 +4,7 @@ import re
 import struct
 from dataclasses import dataclass, field
 
-from .gfx import G_LIGHTING, G_SETTIMG, G_VTX, MeshPart, RenderState, apply_texture_commands, parse_gfx, parse_vtx_blob
+from .gfx import G_DL, G_LIGHTING, G_SETTIMG, G_VTX, MeshPart, RenderState, apply_texture_commands, parse_gfx, parse_vtx_blob
 from .mapfile import MapSymbol, find_symbol, index_by_name
 from .math3d import Mat4, ckf_basis, local_softcv3
 from .rel import RelData
@@ -812,6 +812,9 @@ def convert_static_gfx(
     render_state = RenderState(
         geometry_mode=G_LIGHTING if share_geometry_mode else None, classic_two_tile=classic_two_tile
     )
+    ## Triangles with no `gsSPVertex` anywhere: the game loads the table itself at draw time.
+    dl_syms = [find_symbol(symbols, n, by_name) for n in gfx_names]
+    preload = not any(_dl_loads_vertices(rel.slice_at(d.address, d.size)) for d in dl_syms)
     for name in gfx_names:
         if bank is not None:
             bank.current_gfx = name
@@ -831,8 +834,19 @@ def convert_static_gfx(
             state=tex_state,
             vtx_base_addr=vtx_sym.address,
             render=render_state,
+            preload_vertices=preload,
         )
         parts.extend(p for p in decoded if p.triangles)
     if not parts:
         raise ValueError(f"No mesh parts decoded for {vtx_name}")
     return parts
+
+
+def _dl_loads_vertices(blob: bytes) -> bool:
+    """True when a display list has a ``gsSPVertex`` (or calls into another list that may)."""
+    for i in range(0, len(blob) - 7, 8):
+        cmd = blob[i]
+        ## A nested `gsSPDisplayList` loads its own vertices.
+        if cmd == G_VTX or cmd == G_DL:
+            return True
+    return False

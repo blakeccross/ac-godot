@@ -2,9 +2,9 @@ class_name HoleUse
 extends RefCounted
 
 ## Dig / fill hole FG. Original: `DIG_SCOOP` writes `HOLE00`–`HOLE24`; `FILL_SCOOP` restores empty.
-## Not an autoload. The hole scene only presents fill.
+## Not an autoload. The hole scene only presents fill. The mesh follows the unit's slope
+## (`HoleShape`); a shape with no hole mesh digs (clods and all) but leaves no hole.
 
-const VISUAL := &"HOLE00"
 const SCENE := "res://scenes/world/hole.tscn"
 ## Same −1 GX lift as other `bg_item` props (`FieldCollision.FG_GROUND_DIST`).
 const GROUND_DIST := FieldCollision.FG_GROUND_DIST
@@ -12,6 +12,8 @@ const GROUND_DIST := FieldCollision.FG_GROUND_DIST
 
 ## `Put_Hole_Dig_scoop` (frame 20) after `SetSound_Dig_scoop` (frame 15).
 const HOLE_SHOWS_AFTER := 5.0 / DecompTime.FRAME_HZ
+## `bIT_actor_dig_hole_effect_entry(…, 12, …)`: the hole grows in over 12 frames.
+const HOLE_GROW_SECONDS := 12.0 / DecompTime.FRAME_HZ
 
 static func persist_id(cell: Vector2i) -> StringName:
 	return StringName("hole_%d_%d" % [cell.x, cell.y])
@@ -46,6 +48,12 @@ static func dig(ctx: InteractionContext, cell: Vector2i, play_scoop_se: bool = t
 	var grid: WorldGrid = _grid(ctx)
 	if not can_open(grid, cell):
 		return false
+	## No `mCoBG_hole_data` row for this slope: the dig plays, no hole entry is made.
+	if _number(ctx.world if ctx != null else null, cell) < 0:
+		_notify_bugs(ctx, cell)
+		if play_scoop_se and ctx != null and ctx.actor != null:
+			PlayerSe.scoop_dig(ctx.actor)
+		return true
 	var pid: StringName = persist_id(cell)
 	Game.mark_hole(pid)
 	if not grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT):
@@ -53,12 +61,12 @@ static func dig(ctx: InteractionContext, cell: Vector2i, play_scoop_se: bool = t
 		return false
 	var hole: Node3D = _instance(ctx.world if ctx != null else null, grid, cell, pid)
 	## `Put_Hole_Dig_scoop`: the unit is a hole from the dig's frame 15, but the hole itself
-	## shows at frame 20, once the clods are up.
+	## shows at frame 20, once the clods are up, and grows to full size.
 	if hole != null and hole.is_inside_tree():
-		hole.visible = false
-		hole.get_tree().create_timer(HOLE_SHOWS_AFTER).timeout.connect(func() -> void:
-			if is_instance_valid(hole):
-				hole.visible = true)
+		hole.scale = Vector3.ZERO
+		var grow: Tween = hole.create_tween()
+		grow.tween_interval(HOLE_SHOWS_AFTER)
+		grow.tween_property(hole, "scale", Vector3.ONE, HOLE_GROW_SECONDS)
 	_notify_bugs(ctx, cell)
 	if play_scoop_se and ctx != null and ctx.actor != null:
 		PlayerSe.scoop_dig(ctx.actor)
@@ -111,7 +119,7 @@ static func _instance(world: Node, grid: WorldGrid, cell: Vector2i, pid: StringN
 		return null
 	hole.set("persist_id", pid)
 	hole.set("occupant_id", pid)
-	hole.set("visual_id", VISUAL)
+	hole.set("visual_id", HoleShape.visual_for(_number(world, cell)))
 	objects.add_child(hole)
 	var pos: Vector3 = grid.cell_to_world(cell)
 	if "layout" in world and world.layout != null:
@@ -121,6 +129,13 @@ static func _instance(world: Node, grid: WorldGrid, cell: Vector2i, pid: StringN
 	else:
 		hole.position = pos
 	return hole
+
+
+## `HoleShape` row for the unit; 0 where the world has no field layout (tests, rooms).
+static func _number(world: Node, cell: Vector2i) -> int:
+	if world == null or not ("layout" in world) or not (world.layout is WorldData):
+		return 0
+	return HoleShape.number_for(world.layout as WorldData, cell)
 
 
 static func _host_persist(host: Node) -> StringName:

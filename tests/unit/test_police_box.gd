@@ -247,9 +247,10 @@ func test_presenter_places_one_card_per_kept_item() -> void:
 	var room: Room = InteriorCatalog.room_template(&"police_box")
 	var session := IndoorSession.new()
 	session.bind(room)
-	var root := Node3D.new()
-	auto_free(root)
-	add_child(root)
+	## Booker, the clock and the window beams are authored in the room scene's Furniture.
+	var scene: Node3D = auto_free(load("res://scenes/world/interiors/police_box.tscn").instantiate()) as Node3D
+	add_child(scene)
+	var root: Node3D = scene.get_node("Furniture") as Node3D
 	PolicePresenter.new().present(root, session)
 	assert_object(root.get_node_or_null("LostFound_0")).is_not_null()
 	assert_object(root.get_node_or_null("LostFound_1")).is_not_null()
@@ -287,9 +288,9 @@ func test_presenter_adds_shelf_hulls_and_clock() -> void:
 	var room: Room = InteriorCatalog.room_template(&"police_box")
 	var session := IndoorSession.new()
 	session.bind(room)
-	var root := Node3D.new()
-	auto_free(root)
-	add_child(root)
+	var scene: Node3D = auto_free(load("res://scenes/world/interiors/police_box.tscn").instantiate()) as Node3D
+	add_child(scene)
+	var root: Node3D = scene.get_node("Furniture") as Node3D
 	PolicePresenter.new().present(root, session)
 	var col: StaticBody3D = root.get_node_or_null("PoliceFurnitureCol") as StaticBody3D
 	assert_object(col).is_not_null()

@@ -265,6 +265,8 @@ func test_generic_fossil_donation_plays_return_handover() -> void:
 
 func test_play_return_skips_when_item_not_held() -> void:
 	## No animation for an item the player no longer has (defensive, not decomp-driven).
+	TestIsolation.free_leftovers(get_tree(), "HandOverItem")
+	await get_tree().process_frame
 	var blathers: Node = load("res://scenes/world/museum/blathers.tscn").instantiate()
 	auto_free(blathers)
 	add_child(blathers)

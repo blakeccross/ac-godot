@@ -29,3 +29,12 @@ func test_blob_shadow_paths_skip_self_and_empty() -> void:
 	var paths: PackedStringArray = FieldCatalog.blob_shadow_paths(&"obj_s_kouban")
 	for path: String in paths:
 		assert_str(path).contains("_shadow")
+
+
+func test_small_props_find_their_season_free_shadow() -> void:
+	## `obj_tree5_shadow` / `obj_stoneA_shadow` serve every season (`bIT_ShadowData_c`).
+	if not FileAccess.file_exists(FieldCatalog.GENERATED_ROOT + "environment/trees/obj_tree5_shadow.glb"):
+		return
+	for visual: StringName in [&"TREE", &"ROCK_A", &"CEDAR_TREE", &"TREE_PALM", &"SIGNBOARD"]:
+		var paths: PackedStringArray = FieldCatalog.blob_shadow_paths(visual)
+		assert_int(paths.size()).override_failure_message(String(visual)).is_equal(1)
