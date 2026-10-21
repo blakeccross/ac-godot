@@ -190,6 +190,12 @@ static func acre_type_at(data: WorldData, cell: Vector2i) -> int:
 	return _type_at(data, cell)
 
 
+## The unit's raw collision heights `{c, nw, sw, se, ne, s, a}` (10 GX counts), without the
+## plus-offsets; empty where the field has no table (placeholder acres).
+static func unit_counts(data: WorldData, cell: Vector2i) -> Dictionary:
+	return _catalog_unit(data, cell, false)
+
+
 static func unit_is_flat(data: WorldData, cell: Vector2i) -> bool:
 	## Shine spots need equal center + four corners (`mAGrw_SetShineGroundBlock`).
 	var unit: Dictionary = _catalog_unit(data, cell, true)
