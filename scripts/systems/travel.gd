@@ -2,12 +2,12 @@ class_name Travel
 extends RefCounted
 
 ## Travelling between towns (`m_card.c` `mCD_SaveStation_*`, `ac_station_clip.c_inc`). Each town is
-## a save file in a slot (`SaveService.slot_paths`, the two Memory Card slots). Porter takes a
-## resident's own part (`Private_c`, pockets and cash included) into a passport file, leaves
-## them marked away at home, and the train goes. Started from the other town's slot, K.K.
-## finds the passport and the traveller arrives there as a visitor (`mPr_FOREIGNER`): no house,
-## and the only way out is Porter again, who saves that town and the passport (`NEXTLAND`).
-## Started from home, K.K. finds it again and copies the traveller back (`START_TYPE1`).
+## a save file in a title slot (`SaveService.slot_paths`). Porter takes a resident's own part
+## (`Private_c`, pockets and cash included) into a passport file, leaves them marked away at home,
+## and the train goes. Started from another town's slot, K.K. finds the passport and the traveller
+## arrives there as a visitor (`mPr_FOREIGNER`): no house, and the only way out is Porter again,
+## who saves that town and the passport (`NEXTLAND`). Started from home, K.K. finds it again and
+## copies the traveller back (`START_TYPE1`).
 ##
 ## Passport: `{home_path, home_town, home_town_id, resident, player_name, private, visited}`.
 
@@ -51,19 +51,26 @@ static func delete_passport() -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(passport_path))
 
 
-## The other town's file, or "" when this slot has no partner (`mCD_TRANS_ERR_NO_TOWN_DATA`).
+## Another town's file to travel to, or "" when none (`mCD_TRANS_ERR_NO_TOWN_DATA`).
+## With several title slots, the first other save wins (Porter still has one destination).
 static func other_path(path: String) -> String:
 	var i: int = SaveService.slot_of(path)
 	if i < 0:
 		return ""
-	return SaveService.slot_paths[1 - i]
+	for j: int in SaveService.slot_paths.size():
+		if j != i and SaveService.has_save(SaveService.slot_paths[j]):
+			return SaveService.slot_paths[j]
+	return ""
 
 
-## `aSTM_set_slot_name`: "Slot A" / "Slot B" (ROM strings 0x6CD + slot).
+## Label for a town file in talk: the town name, or "Save N" when empty.
 static func slot_name(path: String) -> String:
-	var i: int = maxi(SaveService.slot_of(path), 0)
-	var s: String = DialogueCatalog.rom_string(0x6CD + i)
-	return s if s != "" else ("Slot A" if i == 0 else "Slot B")
+	if path != "" and SaveService.has_save(path):
+		var town: String = SaveService.read_town_name(path)
+		if town != "":
+			return town
+	var i: int = SaveService.slot_of(path)
+	return "Save %d" % (i + 1) if i >= 0 else "Save"
 
 
 ## Who a passport is for, seen from the town in `path`: `HOME` (their own town), `VISIT`

@@ -271,6 +271,73 @@ func substitute(text: String) -> String:
 			search_from = end + 1
 	_report_empty_slots(used)
 	_report_leftover_slots(out)
+	return scrub_card_hardware(out, town_name)
+
+
+## Colour tags and whitespace that may sit between words in imported banks.
+const _TAG_GAP := "(?:\\{[^}]*\\}|\\s)*"
+
+static var _re_insert_card: RegEx
+static var _re_either_slot: RegEx
+static var _re_memory_card: RegEx
+static var _re_slot_ab: RegEx
+static var _re_save_in: RegEx
+static var _re_remove_save: RegEx
+
+
+## Drop GameCube Memory Card / Slot A·B wording from imported banks. Free strings already use
+## town names; this rewrites the surrounding hardware lines so they still read cleanly.
+static func scrub_card_hardware(text: String, town: String = "") -> String:
+	_ensure_scrub_regex()
+	var out: String = text
+	## Longer hardware phrases first so later word swaps do not leave broken English.
+	out = _re_insert_card.sub(out, "try another save", true)
+	out = _re_either_slot.sub(out, "another save", true)
+	out = _re_memory_card.sub(out, "save", true)
+	out = _re_slot_ab.sub(out, "save", true)
+	## "the save in Town" → "Town" (load/copy lines).
+	out = _re_save_in.sub(out, "", true)
+	## "Do not … or remove the save!" → drop the remove clause.
+	out = _re_remove_save.sub(out, "", true)
+	## Greeting used "{slot}'s {town}" — with the town in both places, keep one.
+	if town != "":
+		var re_dup := RegEx.new()
+		re_dup.compile("%s's%s%s" % [_escape_regex(town), _TAG_GAP, _escape_regex(town)])
+		out = re_dup.sub(out, town, true)
+	return out
+
+
+static func _ensure_scrub_regex() -> void:
+	if _re_memory_card != null:
+		return
+	_re_insert_card = RegEx.new()
+	_re_insert_card.compile(
+		(
+			"(?:Please%s)?insert%s(?:a(?:%sdifferent)?%s)?Memory%sCards?%sinto"
+			+ "(?:%seither)?%sSlot [AB](?:%sor%sSlot [AB])?"
+		)
+		% [_TAG_GAP, _TAG_GAP, _TAG_GAP, _TAG_GAP, _TAG_GAP, _TAG_GAP, _TAG_GAP, _TAG_GAP, _TAG_GAP, _TAG_GAP]
+	)
+	_re_either_slot = RegEx.new()
+	_re_either_slot.compile("either%sSlot [AB]%sor%sSlot [AB]" % [_TAG_GAP, _TAG_GAP, _TAG_GAP])
+	_re_memory_card = RegEx.new()
+	_re_memory_card.compile("Memory%sCards?" % _TAG_GAP)
+	_re_slot_ab = RegEx.new()
+	_re_slot_ab.compile("Slot [AB]")
+	_re_save_in = RegEx.new()
+	_re_save_in.compile("(?:the%s)?save%sin%s" % [_TAG_GAP, _TAG_GAP, _TAG_GAP])
+	_re_remove_save = RegEx.new()
+	_re_remove_save.compile("(?:%sor%s)?remove%s(?:the%s)?save!?" % [_TAG_GAP, _TAG_GAP, _TAG_GAP, _TAG_GAP])
+
+
+static func _escape_regex(text: String) -> String:
+	var out: String = ""
+	for i: int in text.length():
+		var ch: String = text[i]
+		if ch in "\\.^$|?*+()[]{}":
+			out += "\\" + ch
+		else:
+			out += ch
 	return out
 
 

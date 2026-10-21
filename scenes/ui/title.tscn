@@ -42,67 +42,53 @@ grow_vertical = 2
 
 [node name="VBox" type="VBoxContainer" parent="Menu/Center"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 12
 
-[node name="NewGameButton" type="Button" parent="Menu/Center/VBox"]
+[node name="Slot0Button" type="Button" parent="Menu/Center/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 44)
+custom_minimum_size = Vector2(360, 64)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "New Game"
+theme_override_font_sizes/font_size = 18
+text = "Empty"
+autowrap_mode = 2
 
-[node name="ContinueButton" type="Button" parent="Menu/Center/VBox"]
+[node name="Slot1Button" type="Button" parent="Menu/Center/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 44)
+custom_minimum_size = Vector2(360, 64)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "Continue"
+theme_override_font_sizes/font_size = 18
+text = "Empty"
+autowrap_mode = 2
 
-[node name="SlotAButton" type="Button" parent="Menu/Center/VBox"]
+[node name="Slot2Button" type="Button" parent="Menu/Center/VBox"]
 unique_name_in_owner = true
-visible = false
-custom_minimum_size = Vector2(280, 44)
+custom_minimum_size = Vector2(360, 64)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "Slot A"
+theme_override_font_sizes/font_size = 18
+text = "Empty"
+autowrap_mode = 2
 
-[node name="SlotBButton" type="Button" parent="Menu/Center/VBox"]
+[node name="Slot3Button" type="Button" parent="Menu/Center/VBox"]
 unique_name_in_owner = true
-visible = false
-custom_minimum_size = Vector2(280, 44)
+custom_minimum_size = Vector2(360, 64)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "Slot B"
-
-[node name="SettingsButton" type="Button" parent="Menu/Center/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 44)
-layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "Settings"
+theme_override_font_sizes/font_size = 18
+text = "Empty"
+autowrap_mode = 2
 
 [node name="ImportButton" type="Button" parent="Menu/Center/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 44)
+custom_minimum_size = Vector2(360, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 20
 text = "Import GameCube Save"
 
-[node name="ImportSlotAButton" type="Button" parent="Menu/Center/VBox"]
+[node name="SettingsButton" type="Button" parent="Menu/Center/VBox"]
 unique_name_in_owner = true
-visible = false
-custom_minimum_size = Vector2(280, 44)
+custom_minimum_size = Vector2(360, 44)
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-text = "Into Slot A"
-
-[node name="ImportSlotBButton" type="Button" parent="Menu/Center/VBox"]
-unique_name_in_owner = true
-visible = false
-custom_minimum_size = Vector2(280, 44)
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "Into Slot B"
+text = "Settings"
 
 [node name="ImportFileDialog" type="FileDialog" parent="Menu"]
 unique_name_in_owner = true
@@ -111,7 +97,7 @@ size = Vector2i(760, 500)
 ok_button_text = "Open"
 file_mode = 0
 access = 2
-filters = PackedStringArray("*.gci ; Dolphin save export", "*.raw ; Memory Card image")
+filters = PackedStringArray("*.gci ; Dolphin save export", "*.raw ; GameCube save image")
 use_native_dialog = true
 
 [node name="ImportConfirm" type="ConfirmationDialog" parent="Menu"]
@@ -122,13 +108,11 @@ dialog_autowrap = true
 
 [node name="SettingsOverlay" parent="." instance=ExtResource("5")]
 
-[connection signal="pressed" from="Menu/Center/VBox/NewGameButton" to="." method="_on_new_game_pressed"]
-[connection signal="pressed" from="Menu/Center/VBox/ContinueButton" to="." method="_on_continue_pressed"]
-[connection signal="pressed" from="Menu/Center/VBox/SettingsButton" to="." method="_on_settings_pressed"]
-[connection signal="pressed" from="Menu/Center/VBox/SlotAButton" to="." method="_on_slot_pressed" binds= [0]]
-[connection signal="pressed" from="Menu/Center/VBox/SlotBButton" to="." method="_on_slot_pressed" binds= [1]]
+[connection signal="pressed" from="Menu/Center/VBox/Slot0Button" to="." method="_on_slot_pressed" binds= [0]]
+[connection signal="pressed" from="Menu/Center/VBox/Slot1Button" to="." method="_on_slot_pressed" binds= [1]]
+[connection signal="pressed" from="Menu/Center/VBox/Slot2Button" to="." method="_on_slot_pressed" binds= [2]]
+[connection signal="pressed" from="Menu/Center/VBox/Slot3Button" to="." method="_on_slot_pressed" binds= [3]]
 [connection signal="pressed" from="Menu/Center/VBox/ImportButton" to="." method="_on_import_pressed"]
-[connection signal="pressed" from="Menu/Center/VBox/ImportSlotAButton" to="." method="_on_import_slot_pressed" binds= [0]]
-[connection signal="pressed" from="Menu/Center/VBox/ImportSlotBButton" to="." method="_on_import_slot_pressed" binds= [1]]
+[connection signal="pressed" from="Menu/Center/VBox/SettingsButton" to="." method="_on_settings_pressed"]
 [connection signal="file_selected" from="Menu/ImportFileDialog" to="." method="_on_import_file_selected"]
 [connection signal="confirmed" from="Menu/ImportConfirm" to="." method="_on_import_confirmed"]

@@ -50,10 +50,10 @@ func start_msg() -> int:
 func prepare() -> void:
 	var here: String = SaveService.current_path
 	var there: String = Travel.other_path(here)
-	## `aSTM_set_slot_name`: FREE3 = the other slot, FREE4 / FREE5 = this one's partner.
+	## Town names for save/load lines (was `aSTM_set_slot_name` Slot A / Slot B).
 	set_free(3, Travel.slot_name(here))
-	set_free(4, Travel.slot_name(there))
-	set_free(5, Travel.slot_name(there))
+	set_free(4, Travel.slot_name(there) if there != "" else Travel.slot_name(here))
+	set_free(5, Travel.slot_name(there) if there != "" else Travel.slot_name(here))
 
 
 func picked(msg_no: int, index: int) -> int:

@@ -1,7 +1,7 @@
 class_name GameCubeTown
 extends RefCounted
 
-## Reads a GameCube town save (`Save_t`, `m_common_data.h`) out of the Memory Card town file
+## Reads a GameCube town save (`Save_t`, `m_common_data.h`) out of the town file
 ## (`GameCubeCard.town_file`) into plain values for `TownImport`. USA release (`GAFE`),
 ## save versions 5 and 6. Island FG and event blobs that this port has no system for are
 ## left unread.

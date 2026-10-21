@@ -17,10 +17,12 @@ const RENAMED_KEYS := {
 	"_kabu": "_stalk_market",
 }
 const DEFAULT_PATH := "user://save.json"
-## The second town (the other Memory Card slot, `mCD` slot B).
+## Extra town files (four title slots; the first two keep the old paths so existing saves stay).
 const SLOT_B_PATH := "user://save_b.json"
-## The two town files (tests point these elsewhere).
-var slot_paths: Array[String] = [DEFAULT_PATH, SLOT_B_PATH]
+const SLOT_C_PATH := "user://save_c.json"
+const SLOT_D_PATH := "user://save_d.json"
+## The four town files (tests point these elsewhere).
+var slot_paths: Array[String] = [DEFAULT_PATH, SLOT_B_PATH, SLOT_C_PATH, SLOT_D_PATH]
 
 ## The town being played (or picked at the title): which file a call without a path uses.
 var current_path: String = ""
@@ -71,7 +73,7 @@ func save_game(path: String = "") -> Error:
 	return OK
 
 
-## Brings a town over from an original GameCube Memory Card (a Dolphin `.gci` export of
+## Brings a town over from an original GameCube save (a Dolphin `.gci` export of
 ## `DobutsunomoriP_MURA`, or a whole `.raw` card image) and writes it to `path`, replacing
 ## whatever town was there. Returns `TownImport.build`'s summary with an `error` key
 ## (`OK`, `ERR_FILE_CANT_OPEN`, `ERR_FILE_UNRECOGNIZED` when no town file is in it,
@@ -199,7 +201,7 @@ func _path(path: String) -> String:
 	return path if path != "" else current_path
 
 
-## Slot index (0 = A, 1 = B) of a town file, or -1.
+## Index of a town file in `slot_paths`, or -1.
 func slot_of(path: String) -> int:
 	return slot_paths.find(path)
 

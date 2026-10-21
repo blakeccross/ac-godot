@@ -1,8 +1,8 @@
 class_name GameCubeCard
 extends RefCounted
 
-## Finds the Animal Crossing town file on a GameCube Memory Card dump. Two shapes are read:
-## a single exported file (`.gci`, Dolphin's GCI folder or its Memory Card Manager export:
+## Finds the Animal Crossing town file in a GameCube save dump. Two shapes are read:
+## a single exported file (`.gci`, Dolphin's GCI folder or its card-manager export:
 ## a 64-byte directory entry and then the file's blocks), and a whole card image (`.raw`,
 ## Dolphin's default card: header, two directory copies, two block-allocation-table copies,
 ## then 8 KiB blocks chained through the table). Everything on the card is big-endian.

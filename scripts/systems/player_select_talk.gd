@@ -51,8 +51,6 @@ const DEMOLISH_OTHER := 34
 ## `select_data` choice strings (`mChoice_Load_ChoseStringFromRom`).
 const SEL_MAYBE_NOT := 0x29
 const SEL_SOMEONE_ELSE := 0x1B9
-## `aNPS2_set_slot_name`: ROM strings "Slot A" / "Slot B".
-const SLOT_NAME_FIRST := 0x6CD
 const NEW_PLAYER := "I'm new"
 
 var roster: PlayerRoster
@@ -89,7 +87,8 @@ func start_msg() -> int:
 
 func prepare() -> void:
 	context.town_name = town_name
-	set_free(4, DialogueCatalog.rom_string(SLOT_NAME_FIRST + clampi(save_slot, 0, 1)))
+	## Was `aNPS2_set_slot_name` ("Slot A" / "Slot B"); the greeting uses the town instead.
+	set_free(4, town_name)
 
 
 func entered(msg_no: int) -> void:
@@ -198,7 +197,10 @@ func _passport_step() -> Dictionary:
 		return {}
 	var traveller: String = str(passport.get("player_name", ""))
 	set_free(2, traveller)
-	set_free(3, DialogueCatalog.rom_string(SLOT_NAME_FIRST + (1 - clampi(save_slot, 0, 1))))
+	## Partner town for copy / load lines (was the other card's "Slot A" / "Slot B").
+	var other: String = Travel.other_path(SaveService.current_path)
+	var other_label: String = Travel.slot_name(other) if other != "" else str(passport.get("home_town", ""))
+	set_free(3, other_label if other_label != "" else "the other town")
 	context.player_name = traveller
 	if kind == Travel.Kind.VISIT:
 		result = Result.VISIT

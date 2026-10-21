@@ -485,6 +485,28 @@ func _line(data: DialogueData, ctx: DialogueContext) -> String:
 	return runner.line
 
 
+func test_scrub_drops_memory_card_and_slot_labels() -> void:
+	var ready: String = DialogueContext.scrub_card_hardware(
+		"{c:195,95,0}Do not turn the power off or{c:50,60,50}\n{c:195,95,0}remove the Memory Card!{se:3}{c:50,60,50}"
+	)
+	assert_bool(ready.contains("Memory Card")).is_false()
+	assert_bool(ready.contains("remove")).is_false()
+	assert_str(
+		DialogueContext.scrub_card_hardware(
+			"I'll load from the {c:25,140,220}Memory{c:50,60,50} {c:25,140,220}Card{c:50,60,50} in {c:25,140,220}Elm."
+		)
+	).is_equal("I'll load from Elm.")
+	assert_str(
+		DialogueContext.scrub_card_hardware("in {c:25,140,220}Pine's{c:50,60,50}\nPine right now.", "Pine")
+	).is_equal("in {c:25,140,220}Pine right now.")
+	var insert: String = DialogueContext.scrub_card_hardware(
+		"Please insert a Memory Card into either Slot A or Slot B."
+	)
+	assert_bool(insert.contains("Memory Card")).is_false()
+	assert_bool(insert.contains("Slot A")).is_false()
+	assert_bool(insert.contains("Slot B")).is_false()
+
+
 ## `mMsg_Main_Cursol_Button`: a mid-page BTN stops with the turn mark; A writes on, and
 ## the page stays the same one.
 func test_mid_page_btn_waits_then_writes_on() -> void:
