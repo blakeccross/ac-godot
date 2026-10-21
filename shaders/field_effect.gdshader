@@ -11,6 +11,7 @@ render_mode blend_mix, depth_draw_never, cull_disabled, diffuse_lambert, specula
 //   4 TEXEL rgb                 (hanabira: palette colour)
 //   5 PRIM + ENV                (turi_hamon: `PRIM·SHADE + ENV`)
 //   6 TEXEL rgb × PRIM          (kikuzu: the chip's texture tinted by PRIM)
+//   7 (PRIM − ENV)·T + ENV      (goki: the roach's soul, white over cyan)
 // I4 frames decode with α = intensity; IA8 keep their own α.
 
 uniform int mode = 0;
@@ -21,6 +22,8 @@ uniform vec4 env_color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float lod_frac = 0.0;
 // `auto_matrix_xlu_proc` multiplies by the camera billboard matrix.
 uniform bool billboard = false;
+// `Matrix_RotateZ` after the billboard matrix (the goki soul rocks as it rises).
+uniform float billboard_roll = 0.0;
 // I4 frames export opaque RGB; the GX I4 texel's alpha *is* its intensity.
 uniform bool intensity_alpha = false;
 // turi_hamon: the texture is one quarter of the ring and `GX_MIRROR` folds it out to the
@@ -30,9 +33,11 @@ uniform bool mirror_uv = false;
 void vertex() {
 	if (billboard) {
 		vec3 s = vec3(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz), length(MODEL_MATRIX[2].xyz));
+		vec3 bx = INV_VIEW_MATRIX[0].xyz * cos(billboard_roll) + INV_VIEW_MATRIX[1].xyz * sin(billboard_roll);
+		vec3 by = INV_VIEW_MATRIX[1].xyz * cos(billboard_roll) - INV_VIEW_MATRIX[0].xyz * sin(billboard_roll);
 		MODELVIEW_MATRIX = VIEW_MATRIX * mat4(
-			vec4(INV_VIEW_MATRIX[0].xyz * s.x, 0.0),
-			vec4(INV_VIEW_MATRIX[1].xyz * s.y, 0.0),
+			vec4(bx * s.x, 0.0),
+			vec4(by * s.y, 0.0),
 			vec4(INV_VIEW_MATRIX[2].xyz * s.z, 0.0),
 			MODEL_MATRIX[3]
 		);
@@ -69,6 +74,8 @@ void fragment() {
 		add = env_color.rgb;
 	} else if (mode == 6) {
 		rgb = t0.rgb * prim_color.rgb;
+	} else if (mode == 7) {
+		rgb = mix(env_color.rgb, prim_color.rgb, t0.r);
 	}
 	ALBEDO = rgb;
 	EMISSION = add;

@@ -192,7 +192,7 @@ func execute(raw: String) -> String:
 			return "No mailbox."
 		"fx":
 			## Tool effects in front of the player: `fx dig`, `fx fill`, `fx chips`, `fx splash 3`
-			## (an `eTM_CallEffect` arg), `fx net`.
+			## (an `eTM_CallEffect` arg), `fx net`, `fx soul`.
 			var fx_player := Player.find(Engine.get_main_loop() as SceneTree)
 			if fx_player == null:
 				return "No player."
@@ -213,8 +213,11 @@ func execute(raw: String) -> String:
 					FootstepEffects.bobber_splash(fx_at, int(args[1]) if args.size() > 1 else 3)
 				"net":
 					FootstepEffects.net_splash(fx_bg, fx_at, fx_yaw)
+				"soul":
+					## A trodden roach's soul (`ef_goki`).
+					FieldEffects.spawn(fx_player.get_parent(), FieldEffects.Kind.GOKI, fx_at, 0.0)
 				_:
-					return "fx dig | fill | chips | splash N | net"
+					return "fx dig | fill | chips | splash N | net | soul"
 			return "Spawned."
 		"twirl":
 			## The umbrella twirl's spray at the player (`ef_kasamizu`; drops only in rain).

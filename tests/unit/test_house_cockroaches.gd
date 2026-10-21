@@ -313,3 +313,24 @@ func test_the_console_can_set_and_age_the_infestation() -> void:
 	Game.interiors.player_house().goki_count = 0
 	assert_bool(console.execute("house neglect 9").contains("3")).is_true()
 	assert_int(_house().goki_count).is_equal(3)
+
+
+func test_a_trodden_roach_leaves_its_soul() -> void:
+	## `aHG_dead_init` → `eEC_EFFECT_GOKI`: 190 ticks, rising and thinning out.
+	var host := Node3D.new()
+	add_child(host)
+	auto_free(host)
+	var soul: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.GOKI, Vector3(1, 0, 2), 0.0)
+	assert_object(soul).is_not_null()
+	assert_float(soul.lifetime).is_equal_approx(190.0 / 60.0, 0.001)
+	var last: int = soul.track_pos.size() - 1
+	## Climbs to about 0.94 m/s and keeps going: well over 2 m by the end.
+	assert_float(soul.track_pos[last].y).is_greater(2.0)
+	assert_float(soul.track_pos[last].y).is_less(4.5)
+	## Grown in over its first 30 ticks (the decomp stops one tick short of 0.005, since
+	## timer 160 is in neither branch); thin and twice as tall at the very end.
+	assert_float(soul.track_scale[30]).is_equal_approx(0.005, 0.0002)
+	assert_float(soul.track_scale[last]).is_equal_approx(0.0, 0.0001)
+	assert_float(soul.track_scale_y[last]).is_equal_approx(0.01, 0.0001)
+	assert_float(soul.track_alpha[100]).is_equal_approx(1.0, 0.001)
+	assert_float(soul.track_alpha[last]).is_equal_approx(100.0 / 255.0, 0.01)

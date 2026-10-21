@@ -341,7 +341,7 @@ data tables before a category is called done.
 - [~] Basement = free storage room once unlocked — orderable at Nook's after the medium loan; decorates like any floor
 - [~] House exterior model changes with size; door mat; roof — `obj_{s,w}_myhome1..4` by size, fish weathervane / insect plaque via `CompleteTalk`; palette recolour not rendered
 - [x] ~~Move house location~~ — not in GCN
-- [~] Cockroaches spawn if you don't play for weeks; house dusty — `HouseCockroaches` / `house_cockroach.gd`: 6-day rule, up to 3 out, furniture flushes, startle, stomp; missing: death puff, cottage, dust
+- [x] Cockroaches spawn if you don't play for weeks — `HouseCockroaches` / `house_cockroach.gd`: 6-day rule, up to 3 out, furniture flushes, startle, stomp, and a trodden roach's soul rising (`ef_goki`, `FieldEffects.Kind.GOKI`). The island cottage's own roaches (`island.cottage.goki`) wait for the island; there is no house dust in the decomp (the town's `dust_flag` is litter)
 - [x] HRA judges the main room, and the upper floor in part (origins, sets, luck, facing, clutter); never the basement (§11)
 - [x] Other residents' houses can be entered (`ac_my_house` has no owner check): their rooms stand in for yours while you are inside (`Game.enter_resident_house`); a notebook on a table there opens the owner's calendar, and their diary to read only (`mSM_OVL_CALENDAR`'s player, `mSM_OVL_DIARY` arg 1)
 

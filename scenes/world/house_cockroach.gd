@@ -118,6 +118,8 @@ func _enter(next: Act) -> void:
 			_timer = 40.0
 			speed_units = 0.0
 			Audio.play_se(&"goki_dead", self)
+			## `aHG_dead_init`: `eEC_EFFECT_GOKI`, its soul rising from where it lay.
+			FieldEffects.spawn(_effects_host(), FieldEffects.Kind.GOKI, global_position, 0.0)
 			died.emit()
 
 
@@ -247,6 +249,14 @@ func _turn_along_wall() -> bool:
 	yaw = best_yaw
 	_timer2 = 5.0 + _rng.randf() * 5.0
 	return true
+
+
+func _effects_host() -> Node:
+	var room: Node = Interior.find(get_tree()) if is_inside_tree() else null
+	if room == null:
+		return get_parent()
+	var effects: Node = room.get_node_or_null("Effects")
+	return effects if effects != null else room
 
 
 ## --- the player ---------------------------------------------------------------------------
