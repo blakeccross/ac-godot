@@ -9,6 +9,7 @@
 export.cfg
 export/
 export_credentials.cfg
+out/
 
 # GdUnit4 reports
 reports/

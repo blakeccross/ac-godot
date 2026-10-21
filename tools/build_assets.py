@@ -31,6 +31,7 @@ from asset_pipeline.furniture_profiles import convert_furniture_profiles  # noqa
 from asset_pipeline.npc_rooms import convert_npc_rooms  # noqa: E402
 from asset_pipeline.audio import convert_audio  # noqa: E402
 from asset_pipeline.bake import bake_acre_scenes  # noqa: E402
+from asset_pipeline.export_build import export_desktop_builds  # noqa: E402
 from asset_pipeline.dialogue import convert_dialogue  # noqa: E402
 from asset_pipeline.villagers import generate_villagers  # noqa: E402
 from asset_pipeline.seasons import export_seasonal_textures  # noqa: E402
@@ -53,7 +54,7 @@ def main() -> int:
     parser.add_argument("--config", type=Path, default=None)
     parser.add_argument(
         "--step",
-        choices=["all", "extract", "scan", "convert", "bake", "validate"],
+        choices=["all", "extract", "scan", "convert", "bake", "validate", "export"],
         default="all",
     )
     parser.add_argument(
@@ -62,10 +63,19 @@ def main() -> int:
         default="all",
         help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory/map UI chrome, dialogue banks, villager roster from decomp tables, per-villager body texture sets, NPC eye/mouth face frames, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
     )
+    parser.add_argument(
+        "--export",
+        choices=["none", "windows", "macos", "all"],
+        default="none",
+        help="Godot --export-release into out/ (windows, macos, or all). Use with --step all (after validate) or --step export alone. Needs export templates installed.",
+    )
     args = parser.parse_args()
     cfg = load_config(ROOT, args.config)
 
     failed = False
+    if args.step == "export" and args.export == "none":
+        print("export: pass --export windows|macos|all")
+        return 1
 
     if args.step in ("all", "extract"):
         extract_disc(cfg)
@@ -407,6 +417,17 @@ def main() -> int:
         summary = validate(cfg)
         print(f"validate {summary['passed']}/{summary['count']} ok={summary['ok']}")
         if not summary.get("ok"):
+            failed = True
+    if args.export != "none" and args.step in ("all", "export"):
+        exported = export_desktop_builds(cfg, args.export)
+        if exported["ok"]:
+            for row in exported["results"]:
+                print(f"exported {row['target']} -> {row['path']}")
+        else:
+            print(f"export: {exported['error']}")
+            for row in exported.get("results") or []:
+                if not row.get("ok"):
+                    print(f"  {row.get('target')}: {row.get('error')}")
             failed = True
     return 1 if failed else 0
 

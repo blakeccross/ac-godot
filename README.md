@@ -63,6 +63,18 @@ The town's acres are built by the asset pipeline. Run it once before the first p
 
 Title → **New Game** runs the full opening (K.K. player select → Rover's train → station arrival with Porter and Nook → house pick → first job), like the original. Dev shortcuts: **Town Seed 12345** drops straight into a deterministic town, **Intro Sequence** re-enters the K.K.→train chain, **Station Arrival** runs just the station demo. WASD to walk, Shift to run, **E** / Space for A (talk, shake, sit, read, use a tool, …), **F** for B (pick up items, weeds, signboards and furniture), **Esc** for the pause menu (Settings remaps buttons; Save and exit returns to title). Remap keys and pad buttons from **Settings** on the title or pause menu. **Continue** reloads that save. **Import GameCube Save** brings over a town from your own original-game Memory Card dump (a Dolphin `.gci` export or a `.raw` card image) into slot A or B. Debug: **T** +1 hour, **Y** +1 day (crosses the 06:00 daily renew), **U** save. Shop is open 9:00–22:00. Filbert is off the acre while asleep or indoors.
 
+### Desktop builds
+
+After assets are baked, package a local Windows or macOS build (needs the matching **export templates** installed in Godot: Editor → Manage Export Templates):
+
+```sh
+python3 tools/build_assets.py --step export --export macos
+python3 tools/build_assets.py --step export --export windows
+python3 tools/build_assets.py --step export --export all
+```
+
+Output lands in `out/` (gitignored). Builds include whatever is already in `assets/generated/`; they never upload or distribute a disc image. See [docs/asset_pipeline.md](docs/asset_pipeline.md) § Desktop export.
+
 ## Tests
 
 Unit tests use [GdUnit4](https://github.com/godot-gdunit-labs/gdUnit4) v6.2.1.

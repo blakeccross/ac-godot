@@ -224,6 +224,27 @@ The bake runs the same material pass a GLB acre used to get at attach time (`Vis
 
 The bake needs two Godot passes with an import between them (new PNGs must be imported before a material can reference them); the script does both. Reconverting a GLB requires a re-bake (delete the affected meshes under `acre_scenes/`, then run the step); the scenes themselves are rewritten every time.
 
+### Desktop export
+
+Package a **local** Windows and/or macOS build with Godot’s `--export-release` (presets in `export_presets.cfg`). Install export templates for your Godot version first (Editor → Manage Export Templates). The ISO and ACHD pack stay on the machine; `out/` is gitignored.
+
+```sh
+# After convert + bake (or a prior --step all):
+python3 tools/build_assets.py --step export --export macos
+python3 tools/build_assets.py --step export --export windows
+python3 tools/build_assets.py --step export --export all
+
+# Or append export to a full pipeline run:
+python3 tools/build_assets.py --export macos
+```
+
+| Flag | Output |
+| --- | --- |
+| `--export windows` | `out/windows/AC Godot.exe` (+ `.pck` beside it unless embedded) |
+| `--export macos` | `out/macos/AC Godot.zip` (`.app` inside; ad-hoc codesign, not notarized) |
+
+Needs `godot_bin` / `GODOT_BIN` the same as bake. macOS Gatekeeper may warn on unsigned personal builds. Universal macOS export also needs both VRAM import flags in `project.godot` (`import_etc2_astc` and `import_s3tc_bptc`); those are already set.
+
 FG acre templates (trees/flowers from `fgdata.bin`; needs decomp headers for `data_combi`):
 
 ```sh
@@ -294,7 +315,7 @@ python3 tools/build_assets.py --kind title --step convert
 
 Writes `assets/generated/ui/title/` (`press_start_{demo}_{half}.png`, `copyright_{n}.png`, PRIM/ENV tints baked) from `foresta.rel`, and `assets/generated/titledemo/demos.json` (spawn, angle, tool and the raw 30 Hz input samples per demo, plus the fixed FG table) from a local `ac-decomp` checkout. The logo skeletons and backdrop come from the normal full convert. These textures are **linear `IIIIAAAA`** 64×16, not the GX IA4 layout above — see [decomp_notes/title.md](decomp_notes/title.md).
 
-Optional `"decomp_root"` points at an `ac-decomp` checkout for FG combis. `--step all` runs extract + scan + convert + validate.
+Optional `"decomp_root"` points at an `ac-decomp` checkout for FG combis. `--step all` runs extract + scan + convert + bake + validate. Pass `--export windows|macos|all` to run desktop export afterward (or use `--step export` alone).
 
 Convert **overwrites** the files it writes and does not delete `assets/generated/` (so a run will not wipe the FG catalog, inventory UI, or other side outputs). It clears work-root `converted/` staging only.
 
