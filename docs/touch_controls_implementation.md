@@ -31,6 +31,8 @@ Gameplay still reads input directly in two places, outside the player:
 
 ## Phase 2: hold-to-follow, tap-to-act, HUD buttons
 
+**Done.** `TouchDriver` (a child of the player), `TouchPick.ground` / `stick_for`, `TouchHud` (in `clock_hud.tscn`), Gracie reads A through the player, and `capture.sh touch=x,y[,hold]`.
+
 *Playable:* hold a finger on the ground and the player walks after it; tap yourself for A; B / pockets / map / pause from buttons. There is no on-screen joystick or d-pad, and nothing is drawn under the finger.
 
 ### Files

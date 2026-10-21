@@ -100,7 +100,8 @@ func think(delta: float) -> void:
 		return
 	## `aEDSN_game_end_wait`, per 60 Hz frame.
 	var frames: float = delta * DecompTime.TICK_HZ
-	if Input.is_action_just_pressed("interact"):
+	## A from the pad or a tap on the player (`Player.a_just_pressed`).
+	if _player != null and _player.a_just_pressed():
 		_presses += 1
 		_speed = minf(_speed + 0.61, 2.25)
 	else:
