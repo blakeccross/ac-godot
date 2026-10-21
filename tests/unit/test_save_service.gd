@@ -5,6 +5,8 @@ const PATH := "user://test_phase1_save.json"
 
 
 func before_test() -> void:
+	## Saving reads the live player's pose; a leftover from another suite would win.
+	TestIsolation.forget_groups(get_tree(), [Player.GROUP])
 	Clock.reset_to_default()
 	Clock.paused = true
 	Game.reset_session()

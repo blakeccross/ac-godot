@@ -23,6 +23,7 @@ var _heard: Array[String] = []
 
 
 func before_test() -> void:
+	TestIsolation.forget_groups(get_tree(), [Bug.GROUP, Player.GROUP])
 	Game.reset_session()
 	ItemCatalog.reload()
 	BugCatalog.reload()
