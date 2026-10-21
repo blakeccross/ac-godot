@@ -418,7 +418,7 @@ func execute(raw: String) -> String:
 			return "%d posts on the board." % Game.notice_board.count()
 		"sting":
 			## Bee sting: `sting` plays it, `sting off` / `sting on` sets the swollen face,
-			## `sting swarm` lets a swarm loose.
+			## `sting swarm` lets a swarm loose, `sting tree` hides a nest in the nearest tree.
 			var sting_tree := Engine.get_main_loop() as SceneTree
 			var mode: String = String(args[0]).to_lower() if not args.is_empty() else ""
 			if mode == "off" or mode == "on":
@@ -435,6 +435,17 @@ func execute(raw: String) -> String:
 			if mode == "mosquito":
 				who.run_stung_mosquito()
 				return "Itchy."
+			if mode == "tree":
+				## The nearest tree hides a nest: shake it for the startle and the chase.
+				var near_tree: Node3D = null
+				for node: Node in sting_tree.get_nodes_in_group("plant"):
+					if node is Node3D and node.has_method("can_bump"):
+						if near_tree == null or (node as Node3D).global_position.distance_to(who.global_position) < near_tree.global_position.distance_to(who.global_position):
+							near_tree = node as Node3D
+				if near_tree == null:
+					return "No tree nearby."
+				PlantGrowth.set_shake_content(near_tree.call("_persist"), TreeUse.Content.BEES)
+				return "%s has a nest. Shake it." % near_tree.name
 			PlayerSe.bee_sting(who)
 			who.run_stung_bee()
 			return "Ouch."

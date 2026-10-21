@@ -94,3 +94,15 @@ func test_tree_scene_bumps_but_stump_does_not() -> void:
 	var stump: Node = auto_free(load("res://scenes/world/tree.tscn").instantiate())
 	stump.set("persist_id", &"tree_bump_stump")
 	assert_bool(stump.can_bump()).is_false()
+
+
+func test_button_shake_is_refused_while_its_entry_is_fresh() -> void:
+	## `CheckAndRequest_main_shake_tree_all`: over 16 frames left on the tree's entry refuses A.
+	var bump := TreeBump.new()
+	var cell := Vector2i(3, 4)
+	assert_bool(bump.allows_button(cell)).is_true()
+	bump._cells[0] = cell
+	bump._timers[0] = TreeBump.BIG_TICKS
+	assert_bool(bump.allows_button(cell)).is_false()
+	bump._timers[0] = TreeBump.LITTLE_TICKS
+	assert_bool(bump.allows_button(cell)).is_true()

@@ -61,6 +61,18 @@ const GAIT_STATES := {
 const SE_SLIP := &"4129"
 ## `mPlayer_ANIM_OPEN1` — door enter demo (`mPlayer_INDEX_DOOR`, type 0).
 const ANIM_OPEN1 := "ply_1_open1"
+## `mPlayer_ANIM_GAAAN1` / `GAAAN2`: the startle, once then held looping.
+const ANIM_GAAAN1 := "ply_1_gaaan1"
+const ANIM_GAAAN2 := "ply_1_gaaan2"
+## `m_player_main_shock`: `GAAAN1` runs 10 frames, the whole startle `start + 44` ticks.
+const SHOCK_GAAAN1_SEC := 10.0 / DecompTime.FRAME_HZ
+const SHOCK_TAIL_SEC := 44.0 / DecompTime.TICK_HZ
+## The turn toward the cause eases most of the way in about a quarter second.
+const SHOCK_TURN_SEC := 0.25
+## `aMR_RequestPlayerBikkuri`: the roach's start beat.
+const ROACH_SHOCK_START_SEC := 20.0 / DecompTime.TICK_HZ
+## `Player_actor_request_main_shock_all(24, …)` from the bee shake (frame 30).
+const BEE_SHOCK_START_SEC := 24.0 / DecompTime.TICK_HZ
 ## `mPlayer_ANIM_KNOCK1`: knocking before a door that is not the player's own.
 const ANIM_KNOCK1 := "ply_1_knock1"
 ## `mPlayer_ANIM_INTO_S1` — indoor door / exit walk (`mPlayer_INDEX_DOOR`, type ≠ 0).
@@ -168,6 +180,8 @@ var _radio := RadioExercise.new()
 var exercising: bool = false
 ## Inside `Stung_bee` / `Notice_bee` (`mPlib_Check_end_stung_bee` is its fall).
 var stung: bool = false
+## `m_player_main_shock` is running (`request_shock`).
+var shocked: bool = false
 ## Between stepping on a pitfall and climbing out of it.
 var in_pitfall: bool = false
 ## Scripted struggle (tests, captures): added to the press count every tick.
@@ -621,18 +635,43 @@ func wade_state() -> Dictionary:
 ## `mPlayer_INDEX_SHOCK` (`aMR_RequestPlayerBikkuri`): the first roach of the session makes the
 ## player jump — a beat, then `gaaan1`, facing north.
 func request_surprise() -> void:
-	if _busy:
-		await get_tree().create_timer(0.3).timeout
+	await request_shock(ROACH_SHOCK_START_SEC, WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH), false)
+
+
+## `request_main_shock_all` / `m_player_main_shock`: stand for `start_sec` turning toward
+## `face_yaw`, then `GAAAN1` once and `GAAAN2` looping until `SHOCK_TAIL_SEC` after the start.
+## A bee nest's startle (`chase_bgm`) starts the chase music as it ends
+## (`mBGMPsComp_make_ps_happening(BGM_BEE_CHASE)`). No sting lands while it runs.
+func request_shock(start_sec: float, face_yaw: float, chase_bgm: bool) -> void:
+	while _busy and is_inside_tree():
+		await get_tree().process_frame
+	if not is_inside_tree():
+		return
 	_busy = true
-	var yaw: float = WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH)
-	_motor.reset(yaw)
-	_mesh.rotation.y = yaw
-	await get_tree().create_timer(20.0 / DecompTime.TICK_HZ).timeout
-	_play_grip_clip("ply_1_gaaan1", false)
-	await get_tree().create_timer(44.0 / DecompTime.TICK_HZ).timeout
+	shocked = true
+	## `add_calc_short_angle2(1 − √0.5, 2500, 50)` toward the nest.
+	var turn: Tween = create_tween()
+	turn.tween_method(func(yaw: float) -> void:
+		_motor.facing = yaw
+		_mesh.rotation.y = yaw, _motor.facing, _motor.facing + angle_difference(_motor.facing, face_yaw), SHOCK_TURN_SEC)
+	await get_tree().create_timer(start_sec).timeout
+	_play_grip_clip(ANIM_GAAAN1, false)
+	await get_tree().create_timer(SHOCK_GAAAN1_SEC).timeout
+	_play_grip_clip(ANIM_GAAAN2, true)
+	await get_tree().create_timer(maxf(SHOCK_TAIL_SEC - SHOCK_GAAAN1_SEC, 0.0)).timeout
+	shocked = false
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	play_wait_idle()
+	if chase_bgm and BeeSwarm.find(get_tree()) != null and EventManager.demo_bgm == &"":
+		EventManager.demo_bgm = BeeSwarm.CHASE_BGM
+		Audio.play_bgm(BeeSwarm.CHASE_BGM)
+
+
+## `Setup_status_for_bee`: a swarm can sting while the player stands, walks or runs, not
+## while startled, shaking, going through a door or already stung.
+func can_be_stung() -> bool:
+	return not _busy and not shocked and not stung and not doors.door_entering
 
 
 func _play_grip_clip(leaf: String, loop: bool) -> void:
@@ -653,6 +692,15 @@ func _tick_tree_bump(delta: float) -> void:
 	var bg: Array = _bg()
 	if bg.size() != 2:
 		return
+	var hit: Node3D = _tree_bump.tick(
+		delta, global_position, _motor.facing, bg[0] as WorldData, bg[1] as WorldGrid, _bump_trees(bg)
+	)
+	if hit != null:
+		hit.call("bump")
+
+
+## Collideable trees within three units: the candidates `TreeBump.pick` chooses among.
+func _bump_trees(bg: Array) -> Array[Node3D]:
 	var here: Vector3 = global_position
 	var reach_sq: float = pow((bg[1] as WorldGrid).cell_size * 3.0, 2.0)
 	var trees: Array[Node3D] = []
@@ -664,11 +712,32 @@ func _tick_tree_bump(delta: float) -> void:
 			continue
 		if bool(tree_node.call("can_bump")):
 			trees.append(tree_node)
-	var hit: Node3D = _tree_bump.tick(
-		delta, here, _motor.facing, bg[0] as WorldData, bg[1] as WorldGrid, trees
+	return trees
+
+
+## `CheckAndRequest_main_shake_tree_all`: A shakes the tree `TreeBump.pick` aims at — the
+## nearest to straight ahead among the eight units around — not the nearest volume to the
+## probe, and not one the button shook a moment ago. Null when no tree qualifies.
+func _aimed_shake(hit: InteractionQuery) -> InteractionQuery:
+	var bg: Array = _bg()
+	if bg.size() != 2:
+		return hit
+	var tree: Node3D = TreeBump.pick(
+		global_position, _motor.facing, bg[0] as WorldData, bg[1] as WorldGrid, _bump_trees(bg)
 	)
-	if hit != null:
-		hit.call("bump")
+	if tree == null:
+		return null
+	if not _tree_bump.allows_button((bg[1] as WorldGrid).world_to_cell(tree.global_position)):
+		return null
+	if tree == hit.host:
+		return hit
+	var volume := tree.get_node_or_null("InteractVolume") as InteractVolume
+	if volume == null:
+		return hit
+	for action: Interaction in volume.offers(_make_context()):
+		if action.id == Interaction.SHAKE:
+			return InteractionQuery.on(volume, action)
+	return hit
 
 
 ## `mPlib_Check_tree_shaken`: cells of trees being shaken right now.
@@ -1344,6 +1413,10 @@ func _try_interact() -> void:
 		return
 	if _demo_input() and not TitleDemo.allows_verb(hit.action.id):
 		return
+	if hit.action.id == Interaction.SHAKE and not _demo_input():
+		hit = _aimed_shake(hit)
+		if hit == null:
+			return
 	if hit.host == null and hit.action.id == Interaction.SWING_NET:
 		net.begin_net()
 		return
