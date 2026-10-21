@@ -99,6 +99,16 @@ static func _aim(light: DirectionalLight3D, dir: Vector3) -> void:
 
 
 ## Player and villager homes pin the 3/4 camera to the room (`Camera2` border invert).
+## `mPlib_Check_scene_able_change_camera_pos`: villagers' and the player's rooms, and the
+## four museum wings (not the entrance hall or shops), take the indoor C-stick camera.
+static func allows_camera_index(room: Room) -> bool:
+	if room == null:
+		return false
+	if room.kind == Room.Kind.NPC or room.kind == Room.Kind.PLAYER:
+		return true
+	return room.id in [&"museum_fossil", &"museum_painting", &"museum_insect", &"museum_fish"]
+
+
 static func pins_follow_camera(room: Room) -> bool:
 	return room != null and (room.kind == Room.Kind.NPC or room.kind == Room.Kind.PLAYER)
 

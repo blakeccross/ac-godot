@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "lighthouse", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "cam", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "lighthouse", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -268,6 +268,18 @@ func execute(raw: String) -> String:
 				return "No villager."
 			(fl_best.get("state") as VillagerState).set_feel(fl_names.find(args[0]), 60)
 			return "%s feels %s." % [fl_best.name, args[0]]
+		"cam":
+			## `cam <closer|farther|left|right>`: step the indoor camera index as C-stick would.
+			var cam_tree := Engine.get_main_loop() as SceneTree
+			var cam_node: Camera3D = cam_tree.root.get_viewport().get_camera_3d() if cam_tree != null else null
+			if cam_node == null or not cam_node.has_method("step_indoor"):
+				return "No follow camera."
+			var cam_steps := {"closer": Vector2i(-1, 0), "farther": Vector2i(1, 0), "left": Vector2i(0, -1), "right": Vector2i(0, 1)}
+			if args.is_empty() or not cam_steps.has(String(args[0])):
+				return "Usage: cam <closer|farther|left|right>"
+			var cam_step: Vector2i = cam_steps[String(args[0])]
+			cam_node.call("step_indoor", cam_step.x, cam_step.y)
+			return "Camera index %s." % [cam_node.call("indoor_index")]
 		"leave":
 			## `leave`: the villager nearest the camera pops back indoors and walks out of its
 			## door again (`aNPC_think_leave_house`).

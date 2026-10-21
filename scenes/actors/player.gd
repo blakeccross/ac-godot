@@ -397,6 +397,7 @@ func _physics_process(delta: float) -> void:
 	elif not furniture.rest.is_empty():
 		furniture.tick_rest(delta)
 	elif not _busy and not _demo_input() and not net.is_active():
+		_poll_indoor_camera()
 		furniture.poll_furniture_pickup()
 		_poll_pitfall()
 		_poll_radio_exercise(delta)
@@ -716,6 +717,34 @@ func _snap_to_bg() -> bool:
 	floor_block_on_wall = false
 	global_position.y = y
 	return true
+
+
+## `Player_actor_Set_Indoor_Camera_Index`: C-up / C-down / C-left / C-right step the indoor
+## camera in homes and the museum wings while standing, walking or running
+## (`check_able_change_camera_normal_index`). `camera_move1` for up and the turns,
+## `camera_move2` for down.
+func _poll_indoor_camera() -> void:
+	if _menu_open() or not Game.is_indoors() or Game.interior_session == null:
+		return
+	if not InteriorLighting.allows_camera_index(Game.interior_session.room):
+		return
+	var dist_step: int = 0
+	var dir_step: int = 0
+	if Input.is_action_just_pressed("camera_closer"):
+		dist_step = -1
+	elif Input.is_action_just_pressed("camera_farther"):
+		dist_step = 1
+	if Input.is_action_just_pressed("camera_left"):
+		dir_step = -1
+	elif Input.is_action_just_pressed("camera_right"):
+		dir_step = 1
+	if dist_step == 0 and dir_step == 0:
+		return
+	var cam := get_viewport().get_camera_3d()
+	if cam == null or not cam.has_method("step_indoor"):
+		return
+	if bool(cam.call("step_indoor", dist_step, dir_step)):
+		Audio.play_se(&"camera_move2" if dist_step > 0 else &"camera_move1", null)
 
 
 func _menu_open() -> bool:

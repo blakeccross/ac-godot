@@ -80,3 +80,51 @@ func test_a_report_closes_in_to_370_at_37_degrees() -> void:
 	assert_float(rad_to_deg(atan2(arm.y, Vector2(arm.x, arm.z).length()))).is_equal_approx(37.31, 0.05)
 	cam.end_item()
 	assert_bool(cam.is_item()).is_false()
+
+
+## --- indoor C-stick index (`Player_actor_Set_Indoor_Camera_Index`) ------------------------
+
+
+func test_indoor_index_clamps_and_reports_moves() -> void:
+	var cam: FollowCamera = _camera()
+	assert_that(cam.indoor_index()).is_equal(Vector2i(1, 1))
+	assert_bool(cam.step_indoor(-1, 0)).is_true()
+	assert_bool(cam.step_indoor(-1, 0)).is_false()
+	assert_bool(cam.step_indoor(0, 1)).is_true()
+	assert_bool(cam.step_indoor(0, 1)).is_false()
+	assert_that(cam.indoor_index()).is_equal(Vector2i(0, 2))
+
+
+func test_indoor_index_moves_the_arm() -> void:
+	## 620 GX at 45° by default; closer is 340 GX at 21.76°, farther 920 GX at 64.12°.
+	var cam: FollowCamera = _camera()
+	var base: Vector3 = FollowCamera.DEFAULT_OFFSET
+	cam._ease_indoor(0.0, true)
+	assert_vector(cam.indoor_offset(base)).is_equal_approx(base, Vector3.ONE * 0.001)
+	cam.step_indoor(-1, 0)
+	cam._ease_indoor(0.0, true)
+	var near: Vector3 = cam.indoor_offset(base)
+	assert_float(near.length()).is_equal_approx(340.0 * 0.05, 0.01)
+	assert_float(rad_to_deg(atan2(near.y, Vector2(near.x, near.z).length()))).is_equal_approx(21.76, 0.01)
+	cam.step_indoor(2, 1)
+	cam._ease_indoor(0.0, true)
+	var far: Vector3 = cam.indoor_offset(base)
+	assert_float(far.length()).is_equal_approx(920.0 * 0.05, 0.01)
+	assert_float(rad_to_deg(atan2(far.y, Vector2(far.x, far.z).length()))).is_equal_approx(64.12, 0.01)
+	assert_float(rad_to_deg(atan2(far.x, far.z))).is_equal_approx(16.1, 0.01)
+
+
+func test_indoor_index_morphs_in_over_about_80_ticks() -> void:
+	var cam: FollowCamera = _camera()
+	cam._ease_indoor(0.0, true)
+	cam.step_indoor(1, 0)
+	for _i: int in 80:
+		cam._ease_indoor(1.0 / 60.0, false)
+	assert_float(cam._indoor_dist_add).is_equal_approx(15.0, 0.01)
+	assert_float(cam._indoor_pitch_add).is_equal_approx(deg_to_rad(19.12), deg_to_rad(0.1))
+
+
+func test_only_homes_and_museum_wings_take_the_index() -> void:
+	assert_bool(InteriorLighting.allows_camera_index(InteriorCatalog.room_template(&"museum_insect"))).is_true()
+	assert_bool(InteriorLighting.allows_camera_index(InteriorCatalog.room_template(&"museum_entrance"))).is_false()
+	assert_bool(InteriorLighting.allows_camera_index(InteriorCatalog.room_template(&"police_box"))).is_false()
