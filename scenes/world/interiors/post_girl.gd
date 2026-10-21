@@ -208,7 +208,12 @@ func _open_repay() -> void:
 		_open_followup(DialogueCatalog.conversation(PostDisplay.REPAY_AMOUNT_ID))
 		return
 	var loan_before: int = Game.inventory.loan
-	repay.connect("closed", func(_paid: bool) -> void:
+	repay.connect("closed", func(paid: bool) -> void:
+		## `mPlib_request_main_give_from_submenu(ITM_MONEY_10000)`: a bag of money changes hands.
+		if paid:
+			var player := Player.find(get_tree())
+			if player != null:
+				await HandOver.player_gives_to_npc(player, self, PostUse.REPAY_HAND_OVER_ITEM)
 		var msg: int = PostUse.REPAY_STILL_OWE_MSG
 		if Game.inventory.loan == loan_before:
 			msg = PostUse.REPAY_NOT_READY_MSG

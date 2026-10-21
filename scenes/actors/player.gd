@@ -663,9 +663,26 @@ func request_shock(start_sec: float, face_yaw: float, chase_bgm: bool) -> void:
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	play_wait_idle()
-	if chase_bgm and BeeSwarm.find(get_tree()) != null and EventManager.demo_bgm == &"":
+	if not chase_bgm:
+		return
+	var free_music: bool = EventManager.demo_bgm == &"" or EventManager.demo_bgm == EventBgm.QUIET
+	if BeeSwarm.find(get_tree()) != null and free_music:
 		EventManager.demo_bgm = BeeSwarm.CHASE_BGM
 		Audio.play_bgm(BeeSwarm.CHASE_BGM)
+	elif EventManager.demo_bgm == EventBgm.QUIET:
+		## The swarm is gone already (netted): the field music comes back.
+		EventManager.demo_bgm = &""
+		var world: World = World.find(get_tree())
+		if world != null:
+			world.call("_play_outdoor_bgm")
+
+
+## `mBGMPsComp_make_ps_quiet`: the field music drops out ahead of a bee startle.
+static func quiet_for_bees() -> void:
+	if EventManager.demo_bgm != &"":
+		return
+	EventManager.demo_bgm = EventBgm.QUIET
+	Audio.stop_bgm()
 
 
 ## `Setup_status_for_bee`: a swarm can sting while the player stands, walks or runs, not

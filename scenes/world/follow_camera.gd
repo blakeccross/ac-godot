@@ -45,6 +45,13 @@ const FISHING_DROP_GX := 70.0
 const INDOOR_DISTANCE_ADD: Array[float] = [-280.0 * PlayerLocomotion.UNIT_METERS, 0.0, 300.0 * PlayerLocomotion.UNIT_METERS]
 const INDOOR_PITCH_ADD: Array[float] = [-23.24 * PI / 180.0, 0.0, 19.12 * PI / 180.0]
 const INDOOR_YAW_ADD: Array[float] = [-16.1 * PI / 180.0, 0.0, 16.1 * PI / 180.0]
+## `Camera2_main_Normal_SetEndCenterPos_fromPlayer` indoors: the centre follows the player's
+## eye but keeps 110 GX × scale off the room's edges (40 GX more on the near side); a room
+## narrower than 330 GX × scale (shallower than 250) centres on its middle that way.
+const ROOM_BORDER_GX := 110.0
+const ROOM_NEAR_ALLOWANCE_GX := 40.0
+const ROOM_MIN_WIDTH_GX := 330.0
+const ROOM_MIN_DEPTH_GX := 250.0
 ## Per-second rates of the 0.2 / 0.10557 per-tick eases.
 const INDOOR_DISTANCE_RATE := 13.389
 const INDOOR_ANGLE_RATE := 6.698
@@ -99,6 +106,9 @@ var _indoor_dir_idx: int = 1
 var _indoor_dist_add: float = 0.0
 var _indoor_pitch_add: float = 0.0
 var _indoor_yaw_add: float = 0.0
+## The room the indoor camera's centre is kept inside (`follow_in_room`).
+var _room_box := AABB()
+var _room_clamp: bool = false
 var _fishing_return: float = 0.0
 
 
@@ -189,6 +199,38 @@ func _ease_indoor(delta: float, snap: bool) -> void:
 	_indoor_dist_add = lerpf(_indoor_dist_add, dist_goal, d)
 	_indoor_pitch_add = lerpf(_indoor_pitch_add, pitch_goal, a)
 	_indoor_yaw_add = lerpf(_indoor_yaw_add, yaw_goal, a)
+
+
+## Indoors with the C-stick camera (homes, the museum wings): follow the player inside `box`.
+func follow_in_room(box: AABB) -> void:
+	_room_box = box
+	_room_clamp = true
+
+
+## Where the centre goes for an eye at `eye` in `box`, at the indoor index (see the consts).
+static func room_center(eye: Vector3, box: AABB, distance_index: int, direction_index: int) -> Vector3:
+	var gx: float = PlayerLocomotion.UNIT_METERS
+	var scale: float = (ORIG_DISTANCE + INDOOR_DISTANCE_ADD[distance_index] / gx) / ORIG_DISTANCE
+	if direction_index != 1:
+		scale *= 0.8
+	if distance_index == 2:
+		scale *= 0.88
+	var border: float = ROOM_BORDER_GX * gx * scale
+	var out := eye
+	var mid: Vector3 = box.get_center()
+	var x_lo: float = box.position.x + border
+	var x_hi: float = box.end.x - border
+	if box.size.x < ROOM_MIN_WIDTH_GX * gx * scale or x_lo > x_hi:
+		out.x = mid.x
+	else:
+		out.x = clampf(eye.x, x_lo, x_hi)
+	var z_lo: float = box.position.z + border
+	var z_hi: float = box.end.z - border + ROOM_NEAR_ALLOWANCE_GX * gx
+	if box.size.z < ROOM_MIN_DEPTH_GX * gx * scale or z_lo > z_hi:
+		out.z = mid.z
+	else:
+		out.z = clampf(eye.z, z_lo, z_hi)
+	return out
 
 
 func lock_at(point: Vector3) -> void:
@@ -338,6 +380,10 @@ func _follow(snap: bool, delta: float = 0.0) -> void:
 		return
 	_acre_active = false
 	var look_at_point := _look_point()
+	if _room_clamp:
+		look_at_point = room_center(look_at_point, _room_box, _indoor_dist_idx, _indoor_dir_idx)
+		_move_camera(look_at_point + indoor_offset(offset), look_at_point, snap, delta, follow_rate)
+		return
 	var destination := _target.global_position + indoor_offset(offset)
 	_move_camera(destination, look_at_point, snap, delta, follow_rate)
 

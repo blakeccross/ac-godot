@@ -17,6 +17,10 @@ const BEE_SHOCK_AFTER_EFFECT := (30.0 - SHAKE_EFFECT_FRAME) / DecompTime.FRAME_H
 ## longer 60-tick beat first.
 const BEE_SHOCK_AFTER_CHOP := (17.0 - 15.0) / DecompTime.FRAME_HZ
 const BEE_CHOP_SHOCK_START_SEC := 60.0 / DecompTime.TICK_HZ
+## The field music goes quiet at shake frame 18 (`mBGMPsComp_make_ps_quiet`), or 12 ticks
+## into the axe's startle.
+const BEE_QUIET_AFTER_EFFECT := (18.0 - SHAKE_EFFECT_FRAME) / DecompTime.FRAME_HZ
+const BEE_QUIET_AFTER_CHOP := BEE_SHOCK_AFTER_CHOP + 12.0 / DecompTime.TICK_HZ
 ## EffectBG sets `frame_control.speed = 0.5` on a 60 Hz actor tick (= 30 anim fps).
 ## Pipeline / player clips already sample at 30 fps, so Godot dt is frames / 30 — not / 15.
 ## `eYoung_Tree_dw`: cedar / palm saplings roll about a point above the trunk base.
@@ -130,7 +134,7 @@ func _on_shake(use: TreeUse, ctx: InteractionContext) -> bool:
 		apply_growth()
 	_play_shake(true)
 	if out.spawn_bees:
-		_arm_bees(ctx, BEE_SHOCK_AFTER_EFFECT, Player.BEE_SHOCK_START_SEC)
+		_arm_bees(ctx, BEE_SHOCK_AFTER_EFFECT, Player.BEE_SHOCK_START_SEC, BEE_QUIET_AFTER_EFFECT)
 	return true
 
 
@@ -159,7 +163,7 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 	if out.spawn_bees and not out.felled:
 		PlantGrowth.clear_shake_content(_persist())
 	if out.spawn_bees:
-		_arm_bees(ctx, BEE_SHOCK_AFTER_CHOP, BEE_CHOP_SHOCK_START_SEC)
+		_arm_bees(ctx, BEE_SHOCK_AFTER_CHOP, BEE_CHOP_SHOCK_START_SEC, BEE_QUIET_AFTER_CHOP)
 	if out.felled:
 		PlantGrowth.clear(_persist())
 		Game.mark_stump(_persist())
@@ -426,7 +430,7 @@ func _drop_nest(ctx: InteractionContext) -> void:
 ## `Check_BirthBee_common`: the swarm is born where the nest came down, the moment it drops,
 ## and the player starts toward it a little later (`shock_after`, then a `shock_start` beat).
 ## The swarm can sting only once the player is free again (`BeeSwarm` asks the player).
-func _arm_bees(ctx: InteractionContext, shock_after: float, shock_start: float) -> void:
+func _arm_bees(ctx: InteractionContext, shock_after: float, shock_start: float, quiet_after: float) -> void:
 	if ctx == null or ctx.world == null:
 		return
 	var parent: Node = ctx.world.get_node_or_null("Objects")
@@ -440,6 +444,7 @@ func _arm_bees(ctx: InteractionContext, shock_after: float, shock_start: float) 
 	## `bee_angle_y = atan(drop − player)`.
 	var to: Vector3 = land - player.global_position
 	var yaw: float = atan2(to.x, to.z) if Vector2(to.x, to.z).length() > 0.01 else player.facing_yaw()
+	get_tree().create_timer(quiet_after).timeout.connect(Player.quiet_for_bees, CONNECT_ONE_SHOT)
 	get_tree().create_timer(shock_after).timeout.connect(
 		func() -> void:
 			if is_instance_valid(player):

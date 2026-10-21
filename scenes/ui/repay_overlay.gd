@@ -4,14 +4,14 @@ extends CanvasLayer
 ## The post office's loan screen (`m_repay_ovl.c`), in 320x240 screen units: "Your Loan",
 ## Cash, the six-digit amount with the picked digit in red, OK, and what is still owed.
 ## Keys: ←/→ digit, ↑/↓ change the amount, Space / Enter on OK or Escape (START) pays,
-## Backspace (B) leaves unchanged. Rules live in `RepayCounter`. The window art
-## (`fkm_win_model`, its scrolling `fkm_win_ie_tex` fill) is not baked yet: a plain panel
-## stands in.
+## Backspace (B) leaves unchanged. Rules live in `RepayCounter`. The window is the baked
+## `rp_win` (`fkm_win_model`); a plain panel stands in without generated assets.
 
 const GROUP := &"repay_ui"
 
 signal closed(paid: bool)
 
+const TEX := "res://assets/generated/ui/menu/rp_win.png"
 const TITLE := "Your Loan"
 ## `mRP_set_*` colours.
 const NORMAL := Color8(70, 120, 245)
@@ -28,6 +28,7 @@ var counter := RepayCounter.new()
 var _open: bool = false
 var _paid: bool = false
 var _font: Font = null
+var _win: Texture2D = null
 var _slide: MenuSlide = null
 
 @onready var _root: Control = $Root
@@ -46,6 +47,7 @@ func _ready() -> void:
 	add_to_group("shop_ui")
 	_root.visible = false
 	_font = LetterBoard.load_font()
+	_win = load(TEX) as Texture2D if ResourceLoader.exists(TEX) else null
 	_canvas.draw.connect(_draw_canvas)
 	_slide = MenuSlide.attach(self)
 	_root.resized.connect(_fit_screen)
@@ -144,14 +146,17 @@ func _draw_canvas() -> void:
 	if not _root.visible:
 		return
 	var c := counter
-	var panel := Rect2(Vector2(132, 52), Vector2(96, 120))
-	_canvas.draw_rect(panel, PANEL)
-	_canvas.draw_rect(panel, PANEL_EDGE, false, 2.0)
+	if _win != null:
+		_canvas.draw_texture_rect(_win, Rect2(Vector2.ZERO, Vector2(320, 240)), false)
+	else:
+		var panel := Rect2(Vector2(132, 52), Vector2(96, 120))
+		_canvas.draw_rect(panel, PANEL)
+		_canvas.draw_rect(panel, PANEL_EDGE, false, 2.0)
 	if _font == null:
 		return
 	var small := int(round(FONT_PX * SMALL))
 	var asc_s := _font.get_ascent(small)
-	_canvas.draw_string(_font, Vector2(140, 64 + asc_s), TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, small, PANEL_EDGE)
+	_canvas.draw_string(_font, Vector2(153, 64 + asc_s), TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, small, Color.WHITE)
 	_right_string(BankOverlay.with_commas(c.money), 91.0, small, CASH_COLOR)
 	## The amount, digit by digit; the comma sits after the third.
 	var amount := BankOverlay.with_commas(c.amount, 6)
@@ -164,12 +169,12 @@ func _draw_canvas() -> void:
 		_canvas.draw_string(_font, Vector2(x, 112 + asc), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX,
 			SELECT if i == picked else NORMAL)
 		x += _font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX).x
-	_canvas.draw_string(_font, Vector2(190, 128 + asc_s), "OK", HORIZONTAL_ALIGNMENT_LEFT, -1, small,
+	_canvas.draw_string(_font, Vector2(207, 128 + asc_s), "OK", HORIZONTAL_ALIGNMENT_LEFT, -1, small,
 		SELECT if c.cursor >= RepayCounter.CURSOR_OK else NORMAL)
-	_right_string(BankOverlay.with_commas(c.loan), 155.0, small, LOAN_COLOR)
+	_right_string(BankOverlay.with_commas(c.loan), 155.0, small, LOAN_COLOR, 209.0)
 
 
-func _right_string(text: String, y: float, px: int, color: Color) -> void:
+func _right_string(text: String, y: float, px: int, color: Color, right: float = NUM_RIGHT) -> void:
 	var w: float = _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-	_canvas.draw_string(_font, Vector2(NUM_RIGHT - w, y + _font.get_ascent(px)), text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+	_canvas.draw_string(_font, Vector2(right - w, y + _font.get_ascent(px)), text, HORIZONTAL_ALIGNMENT_LEFT, -1,
 		px, color)

@@ -64,6 +64,8 @@ static func withdraw_amount(amount: int) -> String:
 const REPAY_STILL_OWE_MSG := 0x8D5
 const REPAY_PAID_OFF_MSG := 0x8D7
 const REPAY_NOT_READY_MSG := 0x8E5
+## What the player hands over on paying, whatever the amount.
+const REPAY_HAND_OVER_ITEM := &"money_10000"
 
 
 ## The authored menu's payment, when the loan screen isn't there: `amount < 0` pays as much

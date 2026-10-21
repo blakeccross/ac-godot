@@ -128,3 +128,19 @@ func test_only_homes_and_museum_wings_take_the_index() -> void:
 	assert_bool(InteriorLighting.allows_camera_index(InteriorCatalog.room_template(&"museum_insect"))).is_true()
 	assert_bool(InteriorLighting.allows_camera_index(InteriorCatalog.room_template(&"museum_entrance"))).is_false()
 	assert_bool(InteriorLighting.allows_camera_index(InteriorCatalog.room_template(&"police_box"))).is_false()
+
+
+func test_room_center_follows_inside_the_border_and_centres_small_rooms() -> void:
+	## 28 m × 24 m (a museum wing): follow, 5.5 m off the far edge, 7.5 m from the near one.
+	var wing := AABB(Vector3(2, 0, 2), Vector3(28, 3, 24))
+	var at: Vector3 = FollowCamera.room_center(Vector3(3, 1, 3), wing, 1, 1)
+	assert_float(at.x).is_equal_approx(7.5, 0.001)
+	assert_float(at.z).is_equal_approx(7.5, 0.001)
+	var near: Vector3 = FollowCamera.room_center(Vector3(29, 1, 25), wing, 1, 1)
+	assert_float(near.x).is_equal_approx(24.5, 0.001)
+	assert_float(near.z).is_equal_approx(22.5, 0.001)
+	## A 12 m home is narrower than 330 GX: its middle.
+	var home := AABB(Vector3(0, 0, 0), Vector3(12, 3, 12))
+	var mid: Vector3 = FollowCamera.room_center(Vector3(1, 1, 11), home, 1, 1)
+	assert_float(mid.x).is_equal_approx(6.0, 0.001)
+	assert_float(mid.z).is_equal_approx(6.0, 0.001)
