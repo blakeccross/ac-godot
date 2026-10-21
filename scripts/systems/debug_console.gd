@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "lighthouse", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "cam", "repay", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "lighthouse", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -192,7 +192,7 @@ func execute(raw: String) -> String:
 			return "No mailbox."
 		"fx":
 			## Tool effects in front of the player: `fx dig`, `fx fill`, `fx chips`, `fx splash 3`
-			## (an `eTM_CallEffect` arg), `fx net`.
+			## (an `eTM_CallEffect` arg), `fx net`, `fx soul`.
 			var fx_player := Player.find(Engine.get_main_loop() as SceneTree)
 			if fx_player == null:
 				return "No player."
@@ -213,8 +213,11 @@ func execute(raw: String) -> String:
 					FootstepEffects.bobber_splash(fx_at, int(args[1]) if args.size() > 1 else 3)
 				"net":
 					FootstepEffects.net_splash(fx_bg, fx_at, fx_yaw)
+				"soul":
+					## A trodden roach's soul (`ef_goki`).
+					FieldEffects.spawn(fx_player.get_parent(), FieldEffects.Kind.GOKI, fx_at, 0.0)
 				_:
-					return "fx dig | fill | chips | splash N | net"
+					return "fx dig | fill | chips | splash N | net | soul"
 			return "Spawned."
 		"twirl":
 			## The umbrella twirl's spray at the player (`ef_kasamizu`; drops only in rain).
@@ -265,6 +268,18 @@ func execute(raw: String) -> String:
 				return "No villager."
 			(fl_best.get("state") as VillagerState).set_feel(fl_names.find(args[0]), 60)
 			return "%s feels %s." % [fl_best.name, args[0]]
+		"cam":
+			## `cam <closer|farther|left|right>`: step the indoor camera index as C-stick would.
+			var cam_tree := Engine.get_main_loop() as SceneTree
+			var cam_node: Camera3D = cam_tree.root.get_viewport().get_camera_3d() if cam_tree != null else null
+			if cam_node == null or not cam_node.has_method("step_indoor"):
+				return "No follow camera."
+			var cam_steps := {"closer": Vector2i(-1, 0), "farther": Vector2i(1, 0), "left": Vector2i(0, -1), "right": Vector2i(0, 1)}
+			if args.is_empty() or not cam_steps.has(String(args[0])):
+				return "Usage: cam <closer|farther|left|right>"
+			var cam_step: Vector2i = cam_steps[String(args[0])]
+			cam_node.call("step_indoor", cam_step.x, cam_step.y)
+			return "Camera index %s." % [cam_node.call("indoor_index")]
 		"leave":
 			## `leave`: the villager nearest the camera pops back indoors and walks out of its
 			## door again (`aNPC_think_leave_house`).
@@ -393,6 +408,14 @@ func execute(raw: String) -> String:
 				return "No bank UI in this scene."
 			abd.open()
 			return "Bank terminal open."
+		"repay":
+			## Open the post office's loan screen (`mSM_OVL_REPAY`).
+			var rp_tree := Engine.get_main_loop() as SceneTree
+			var rp: RepayOverlay = RepayOverlay.find(rp_tree)
+			if rp == null:
+				return "No loan screen in this scene."
+			rp.open()
+			return "Loan screen open."
 		"board":
 			## Open the community board's posts (`mSM_OVL_NOTICE`).
 			var tree := Engine.get_main_loop() as SceneTree
@@ -403,7 +426,7 @@ func execute(raw: String) -> String:
 			return "%d posts on the board." % Game.notice_board.count()
 		"sting":
 			## Bee sting: `sting` plays it, `sting off` / `sting on` sets the swollen face,
-			## `sting swarm` lets a swarm loose.
+			## `sting swarm` lets a swarm loose, `sting tree` hides a nest in the nearest tree.
 			var sting_tree := Engine.get_main_loop() as SceneTree
 			var mode: String = String(args[0]).to_lower() if not args.is_empty() else ""
 			if mode == "off" or mode == "on":
@@ -420,6 +443,17 @@ func execute(raw: String) -> String:
 			if mode == "mosquito":
 				who.run_stung_mosquito()
 				return "Itchy."
+			if mode == "tree":
+				## The nearest tree hides a nest: shake it for the startle and the chase.
+				var near_tree: Node3D = null
+				for node: Node in sting_tree.get_nodes_in_group("plant"):
+					if node is Node3D and node.has_method("can_bump"):
+						if near_tree == null or (node as Node3D).global_position.distance_to(who.global_position) < near_tree.global_position.distance_to(who.global_position):
+							near_tree = node as Node3D
+				if near_tree == null:
+					return "No tree nearby."
+				PlantGrowth.set_shake_content(near_tree.call("_persist"), TreeUse.Content.BEES)
+				return "%s has a nest. Shake it." % near_tree.name
 			PlayerSe.bee_sting(who)
 			who.run_stung_bee()
 			return "Ouch."

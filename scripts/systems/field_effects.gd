@@ -10,7 +10,8 @@ extends Node3D
 ##   `ef_tumble_bodyprint`), the water ring (`ef_turi_hamon`), the umbrella twirl's spray
 ##   source (`ef_kasamizu`), which flicks a drop every other tick while it rains, the clods
 ##   a shovel throws (`ef_dig_hole`), wood chips off an axe (`ef_kikuzu`) and the net's
-##   splash (`ef_ami_mizu`). Clods and chips are worked out tick by tick when they are made
+##   splash (`ef_ami_mizu`), and a trodden roach's soul (`ef_goki`). Clods, chips and the soul
+##   are worked out tick by tick when they are made
 ##   (chips bounce off the ground), then played back on `age`.
 ## The decomp's GX-per-tick numbers are converted where they are used. The tables here are
 ## shared with `FieldParticle`.
@@ -18,10 +19,13 @@ extends Node3D
 enum Kind {
 	DUST, TUMBLE_DUST, SAND, MIZUTAMA, YUKIDAMA, YUKIHANE, SIBUKI, PETAL, TURN_PRINT, BODY_PRINT,
 	KISHA_KEMURI, STEAM, HAMON, KASAMIZU, KASAMIZUTAMA, SOBA_YUGE,
-	DIG_CLOD, DIG_MUD, KIKUZU, AMI_MIZU, TURI_HANE, TURI_SUITEKI, BUBU,
+	DIG_CLOD, DIG_MUD, KIKUZU, AMI_MIZU, TURI_HANE, TURI_SUITEKI, BUBU, GOKI,
 }
 
 const GX := FieldCatalog.GX_TO_METERS
+## `ef_goki01_01`: `gsDPSetEnvColor(0, 255, 255, 255)` and its texture animation.
+const GOKI_ENV := Color8(0, 255, 255)
+const GOKI_FRAMES: Array[int] = [0, 0, 1, 1, 2, 2, 3, 3]
 const SHADER := preload("res://shaders/field_effect.gdshader")
 const EFFECT_DIR := "res://assets/generated/effects/%s.glb"
 const FRAME_DIR := "res://assets/generated/textures/rel/%s.png"
@@ -141,6 +145,8 @@ var track_pos: PackedVector3Array = PackedVector3Array()
 var track_rot: PackedVector3Array = PackedVector3Array()
 var track_scale: PackedFloat32Array = PackedFloat32Array()
 var track_alpha: PackedFloat32Array = PackedFloat32Array()
+## Height scale where it differs from the width (`ef_goki` stretches thin as it goes).
+var track_scale_y: PackedFloat32Array = PackedFloat32Array()
 ## Petal: spins and sway phase at launch.
 var _spin0: Vector2 = Vector2.ZERO
 var _sway0: float = 0.0
@@ -238,6 +244,8 @@ func _construct() -> bool:
 			_ct_kikuzu()
 		Kind.AMI_MIZU:
 			_ct_ami_mizu()
+		Kind.GOKI:
+			_ct_goki()
 		Kind.BUBU:
 			## `eBubu_init` / `_ct`: the cross 70 GX over the player, for the effect
 			## controller's default 10 ticks, with its buzzer.
@@ -337,6 +345,43 @@ func _clod_ground(pos: Vector3) -> float:
 
 ## `eAmi_Mizu_init` / `_ct`: 13 GX behind the point (10 ahead for arg0 1), 2 up; 10 ticks.
 ## Base scale 0.0126 (arg0 2: 0.01 + 0.0002·arg1); over the last eight ticks it widens from
+## `eGoki_ct` / `_mv`: a trodden roach's soul, 190 ticks. It rises at 2.25 GX a tick plus
+## 0.075, the speed kept at √0.65 each tick, rocking side to side (2 GX, ±2000 roll, 1000 a
+## tick) until the last 80 ticks ease the rock out. It grows in over the first 30 ticks
+## and, over its last 60, thins to nothing while stretching to twice its height; the last
+## 20 fade from 255 to 100.
+func _ct_goki() -> void:
+	var total: int = 190
+	lifetime = _ticks(total)
+	var y: float = 0.0
+	var vy: float = 2.25
+	var sway: float = 2.0
+	var roll: float = 2000.0
+	var phase: float = 0.0
+	var sx: float = 0.0
+	var sy: float = 0.0
+	for t: int in total + 1:
+		var timer: int = total - t
+		if timer > 160:
+			sx = calc_adjust(timer, 160, 190, 0.005, 0.0)
+			sy = sx
+		elif timer < 60:
+			sx = calc_adjust(timer, 0, 60, 0.0, 0.005)
+			sy = calc_adjust(timer, 0, 60, 0.01, 0.005)
+		if timer < 80:
+			sway -= clampf(sway * (1.0 - sqrt(0.94)), -0.5, 0.5)
+			roll -= clampf(roll * (1.0 - sqrt(0.94)), -50.0, 50.0)
+		vy += 0.075
+		y += vy
+		vy *= sqrt(0.65)
+		phase += 1000.0
+		track_pos.append(Vector3(sway * sin(phase * MathUtil.S16), y, 0.0) * GX)
+		track_rot.append(Vector3(0.0, 0.0, -roll * cos(phase * MathUtil.S16) * MathUtil.S16))
+		track_scale.append(sx)
+		track_scale_y.append(sy)
+		track_alpha.append(calc_adjust(timer, 0, 20, 100.0, 255.0) / 255.0)
+
+
 ## 1.1× to 1.3× and rises from 0.5× to 1.2× tall, fading from 155 to 50 over the last six.
 func _ct_ami_mizu() -> void:
 	var back: float = 10.0 if arg0 == 1 else -13.0
@@ -499,6 +544,8 @@ func _model_id() -> String:
 			return "ef_amimizu01_00"
 		Kind.BUBU:
 			return "ef_peke01_00"
+		Kind.GOKI:
+			return "ef_goki01_01"
 	return ""
 
 
@@ -506,6 +553,8 @@ func _frame_names() -> Array[String]:
 	match kind:
 		Kind.HAMON:
 			return ["ef_turi_hamon01_0"]
+		Kind.GOKI:
+			return ["ef_goki01_0_int_i4", "ef_goki01_1_int_i4", "ef_goki01_2_int_i4", "ef_goki01_3_int_i4"]
 		Kind.PETAL:
 			## `mFM_obj_a_01_flower_pal[K * 9 + flower_pal_idx]` rows (pipeline `_pNN`).
 			var row: int = (arg0 % 3) * 9 + FLOWER_PAL_IDX[clampi(Clock.term_idx(), 0, 17)]
@@ -605,6 +654,16 @@ func _redraw() -> void:
 		Kind.BUBU:
 			s = Vector3.ONE * 0.015
 			mode = 4
+		Kind.GOKI:
+			var g: int = clampi(floori(ticks), 0, track_pos.size() - 1)
+			global_position = origin + track_pos[g]
+			s = Vector3(track_scale[g], track_scale_y[g], track_scale[g])
+			prim = Color(1, 1, 1, track_alpha[g])
+			env = GOKI_ENV
+			mode = 7
+			## `ef_goki01_01_evw_anime`: four frames, two ticks each.
+			_mat.set_shader_parameter(&"tex0", _frames[GOKI_FRAMES[g % GOKI_FRAMES.size()]])
+			_mat.set_shader_parameter(&"billboard_roll", track_rot[g].z)
 		Kind.AMI_MIZU:
 			var timer: float = maxf(lifetime * 60.0 - ticks, 0.0)
 			var wide: float = ring_size if ticks < 1.0 else calc_adjust(timer, 0, 8, 1.3 * ring_size, 1.1 * ring_size)
@@ -613,7 +672,7 @@ func _redraw() -> void:
 			prim = Color(AMI_ENV, calc_adjust(timer, 0, 6, 50.0, 155.0) / 255.0)
 	_holder.basis = basis * Basis.from_scale(s * GX / FieldCatalog.PIPELINE_SCALE)
 	_mat.set_shader_parameter(&"mode", mode)
-	_mat.set_shader_parameter(&"billboard", kind == Kind.BUBU)
+	_mat.set_shader_parameter(&"billboard", kind == Kind.BUBU or kind == Kind.GOKI)
 	_mat.set_shader_parameter(&"prim_color", prim)
 	_mat.set_shader_parameter(&"env_color", env)
 	_mat.set_shader_parameter(&"lod_frac", 0.0)

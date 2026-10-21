@@ -133,6 +133,10 @@ LAYERS: dict[str, list[Op]] = {
 		Op("tyo_win_moji3T_model", prim=(20, 205, 20, 255), env=(255, 255, 255, 255))],
 	"bk_wd_off": [Op("tyo_win_mode"), Op("tyo_win_model", draw=False), Op("tyo_win_moji2T_model", draw=False),
 		Op("tyo_win_moji3T_model", prim=(70, 95, 70, 255), env=(155, 165, 155, 255))],
+	# `m_repay_ovl.c` (`mRP_set_frame_dl`): the post office's loan window — the patterned
+	# panel strips, border, speech balloon, captions (Bell / Cash / Payment / Owe), house
+	# icon and rule; the patterned fill is baked at its starting scroll.
+	"rp_win": [Op("fkm_win_mode"), Op("fkm_win_model")],
 	# `m_notice_ovl.c`: the community board's page (`kei_win`), key hints (`kei_hyouji`),
 	# page arrows and the C-stick in each of its six poses (`kei_win_st_tex_tbl`).
 	"nt_win": [Op("kei_win_model")],

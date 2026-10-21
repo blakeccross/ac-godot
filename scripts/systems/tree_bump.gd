@@ -97,6 +97,15 @@ func active_cells() -> Array[Vector2i]:
 	return out
 
 
+## `CheckAndRequest_main_shake_tree_all`: the button shake is refused while the tree's own
+## entry still has more than 16 frames to run (just button-shaken).
+func allows_button(cell: Vector2i) -> bool:
+	for i: int in SLOTS:
+		if _cells[i] == cell and _timers[i] > LITTLE_TICKS:
+			return false
+	return true
+
+
 func has_entry(cell: Vector2i) -> bool:
 	return _cells.has(cell)
 

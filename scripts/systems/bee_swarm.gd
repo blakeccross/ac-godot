@@ -2,7 +2,8 @@ class_name BeeSwarm
 extends Node3D
 
 ## Bee nest swarm (`ac_bee`). Appears after a bee-tree shake, chases the player,
-## and stings once in range when the player is attackable. Two seconds into the chase the net
+## and stings once in range when the player can be stung (`Player.can_be_stung`).
+## Its chase music starts from the player's startle (`Player.request_shock`). Two seconds into the chase the net
 ## can take it (`catch_delay_frames`): a swing under way within 40 GX catches it outright,
 ## otherwise the net has to come within 24 GX; caught, it is a bee in the net
 ## (`aBEE_caught`, `aINS_INSECT_TYPE_BEE`).
@@ -12,7 +13,17 @@ enum Phase { APPEAR, FLY, ATTACK, DISAPPEAR }
 ## Attack when XZ distance under 30 GX (`aBEE_ACT_ATTACK`).
 const ATTACK_REACH := 1.5  ## 30 GX
 const CHASE_HEIGHT := 2.5  ## 50 GX
-const APPEAR_SEC := 0.45
+## `aBEE_appear`: alpha +3 a tick from 0 (85 ticks), then it flips upright (about 29).
+const APPEAR_SEC := 85.0 / DecompTime.TICK_HZ
+const FLIP_SEC := 29.0 / DecompTime.TICK_HZ
+## `aBEE_fly_move_common`: towards 8.9 GX a frame at +0.15 a tick, turning at most about
+## 800 units a tick, so it sweeps after the player rather than homing straight in.
+const CHASE_SPEED := 8.9 * FieldCatalog.GX_TO_METERS * DecompTime.FRAME_HZ
+const CHASE_ACCEL := 0.15 * FieldCatalog.GX_TO_METERS * DecompTime.FRAME_HZ * DecompTime.TICK_HZ
+const TURN_RATE := 800.0 * MathUtil.S16 * DecompTime.TICK_HZ
+## Bobs ±5 GX about every 0.47 s on top of `CHASE_HEIGHT`.
+const BOB_HEIGHT := 5.0 * FieldCatalog.GX_TO_METERS
+const BOB_PERIOD := 0.474
 ## `BGM_BEE_CHASE` (`mBGMPsComp_make_ps_happening` from the shake's `shock`).
 const CHASE_BGM := &"bee_chase"
 ## `Player_actor_Check_end_stung_bee`: the swarm leaves once the stung timer passes 162.
@@ -26,7 +37,7 @@ const BEE_ID := &"bee"
 const MODEL := "res://assets/generated/environment/act_bee.glb"
 
 var phase: Phase = Phase.APPEAR
-var attackable: bool = false
+var _speed: float = 0.0
 
 var _player: Node3D
 var _elapsed: float = 0.0
@@ -94,9 +105,7 @@ func _ready() -> void:
 	_elapsed = 0.0
 	## `aBEE_appear_init`.
 	Game.bee_chase = true
-	if EventManager.demo_bgm == &"":
-		EventManager.demo_bgm = CHASE_BGM
-		Audio.play_bgm(CHASE_BGM)
+	_yaw = _yaw_to_player()
 
 
 func _exit_tree() -> void:
@@ -109,11 +118,6 @@ func _exit_tree() -> void:
 			world.call("_play_outdoor_bgm")
 
 
-## Called near the end of the shake clip (`STATUS_FOR_BEE_ATTACK` at frame 29.5).
-func mark_attackable() -> void:
-	attackable = true
-
-
 func _process(delta: float) -> void:
 	_elapsed += delta
 	_scroll(delta)
@@ -121,7 +125,7 @@ func _process(delta: float) -> void:
 		Phase.APPEAR:
 			var t: float = clampf(_elapsed / APPEAR_SEC, 0.0, 1.0)
 			_mesh.scale = _shape_scale() * lerpf(0.15, 1.0, t)
-			if t >= 1.0:
+			if _elapsed >= APPEAR_SEC + FLIP_SEC:
 				phase = Phase.FLY
 		Phase.FLY:
 			_fly_time += delta
@@ -141,18 +145,27 @@ func _chase(delta: float) -> void:
 		phase = Phase.DISAPPEAR
 		_elapsed = 0.0
 		return
-	var target: Vector3 = _player.global_position
-	target.y += CHASE_HEIGHT
-	var to: Vector3 = target - global_position
+	var to: Vector3 = _player.global_position - global_position
 	var dist_xz: float = Vector2(to.x, to.z).length()
-	var speed: float = 4.5
-	if dist_xz > 0.001:
-		global_position += to.normalized() * speed * delta
-		_shape(atan2(to.x, to.z), delta)
-	## Buzz sway.
-	global_position.y += sin(Time.get_ticks_msec() * 0.02) * 0.02
-	if attackable and dist_xz <= ATTACK_REACH:
+	_speed = move_toward(_speed, CHASE_SPEED, CHASE_ACCEL * delta)
+	var want: float = _yaw_to_player()
+	_shape(want, delta)
+	global_position += Vector3(sin(_yaw), 0.0, cos(_yaw)) * _speed * delta
+	## Height: the player's plus 50 GX, bobbing (eased at most 1.5 GX a tick).
+	var bob: float = sin(_fly_time * TAU / BOB_PERIOD) * BOB_HEIGHT
+	var want_y: float = _player.global_position.y + CHASE_HEIGHT + bob
+	global_position.y = move_toward(global_position.y, want_y, 1.5 * FieldCatalog.GX_TO_METERS * DecompTime.TICK_HZ * delta)
+	var player := _player as Player
+	var can_sting: bool = player.can_be_stung() if player != null else true
+	if can_sting and dist_xz <= ATTACK_REACH:
 		_sting()
+
+
+func _yaw_to_player() -> float:
+	if _player == null or not is_instance_valid(_player):
+		return _yaw
+	var to: Vector3 = _player.global_position - global_position
+	return atan2(to.x, to.z) if Vector2(to.x, to.z).length() > 0.001 else _yaw
 
 
 func _hover(delta: float) -> void:
@@ -225,7 +238,7 @@ func _shape_scale() -> Vector3:
 ## Faces where it's going and poses the clip by how hard it's turning.
 func _shape(want_yaw: float, delta: float) -> void:
 	var turn: float = angle_difference(_yaw, want_yaw)
-	_yaw += turn * clampf(delta * 12.0, 0.0, 1.0)
+	_yaw += clampf(turn, -TURN_RATE * delta, TURN_RATE * delta)
 	_mesh.rotation.y = _yaw
 	## `90 + (player_angle_y - world.angle.y) / 30` in s16 units: about 6 frames a degree.
 	var target: float = clampf(90.0 + rad_to_deg(turn) * 65536.0 / 360.0 / 30.0, 0.0, 180.0)

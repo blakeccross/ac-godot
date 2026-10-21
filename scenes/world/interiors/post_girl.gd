@@ -177,7 +177,7 @@ func _on_talk_closed() -> void:
 		Pending.SAVE:
 			_open_followup(PostUse.save_mail_conversation())
 		Pending.REPAY:
-			_open_followup(DialogueCatalog.conversation(PostDisplay.REPAY_AMOUNT_ID))
+			_open_repay()
 		Pending.FARWAY:
 			_open_followup(PostUse.farway_send_conversation())
 		_:
@@ -197,6 +197,34 @@ func _open_bank() -> void:
 		if after != null:
 			_open_followup(after), CONNECT_ONE_SHOT)
 	bank.open()
+
+
+## `aPG_repay_menu_close_wait`: the loan screen opens (`mSM_OVL_REPAY`); once it closes she
+## answers by what changed — not paid (0x8E5), still owing (0x8D5), or paid off (0x8D7, and
+## the cheer on walking back out). Without the screen the authored menu stands in.
+func _open_repay() -> void:
+	var repay: RepayOverlay = RepayOverlay.find(get_tree())
+	if repay == null or Game.inventory == null:
+		_open_followup(DialogueCatalog.conversation(PostDisplay.REPAY_AMOUNT_ID))
+		return
+	var loan_before: int = Game.inventory.loan
+	repay.connect("closed", func(paid: bool) -> void:
+		## `mPlib_request_main_give_from_submenu(ITM_MONEY_10000)`: a bag of money changes hands.
+		if paid:
+			var player := Player.find(get_tree())
+			if player != null:
+				await HandOver.player_gives_to_npc(player, self, PostUse.REPAY_HAND_OVER_ITEM)
+		var msg: int = PostUse.REPAY_STILL_OWE_MSG
+		if Game.inventory.loan == loan_before:
+			msg = PostUse.REPAY_NOT_READY_MSG
+		elif Game.inventory.loan <= 0:
+			msg = PostUse.REPAY_PAID_OFF_MSG
+			Game.complete_payment = Game.PAYMENT_HOUSE
+		var after: DialogueData = DialogueCatalog.conversation(
+			StringName("msg_%d" % (msg + PostDisplay.draw_type(_species))))
+		if after != null:
+			_open_followup(after), CONNECT_ONE_SHOT)
+	repay.open()
 
 
 func _open_followup(data: DialogueData) -> void:

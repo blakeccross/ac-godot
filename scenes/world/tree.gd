@@ -10,10 +10,17 @@ const STUMP_VISUAL := &"TREE_STUMP004"
 const STUMP_RADIUS := 0.9  ## 18 GX
 ## Player shake effect lands on frame 10 (`Player_actor_SetEffect_Shake_tree`).
 const SHAKE_EFFECT_FRAME := 10.0
-## `STATUS_FOR_BEE_ATTACK` at frame 29.5 — delay from the effect mark (frame 10).
-const BEE_ATTACKABLE_AFTER_EFFECT := (29.5 - SHAKE_EFFECT_FRAME) / DecompTime.FRAME_HZ
-## Bee birth retry window starts 5 frames after the effect (`bee_spawn_timer = 5`).
-const BEE_SPAWN_DELAY := 5.0 / DecompTime.FRAME_HZ
+## `m_player_main_shake_tree` frame 30: a nest came down, so the player starts
+## (`request_main_shock_all(24, bee_angle, …)`), counted from the effect mark (frame 10).
+const BEE_SHOCK_AFTER_EFFECT := (30.0 - SHAKE_EFFECT_FRAME) / DecompTime.FRAME_HZ
+## `m_player_main_swing_axe`: the axe's startle at frame 17 (its effect is frame 15), with a
+## longer 60-tick beat first.
+const BEE_SHOCK_AFTER_CHOP := (17.0 - 15.0) / DecompTime.FRAME_HZ
+const BEE_CHOP_SHOCK_START_SEC := 60.0 / DecompTime.TICK_HZ
+## The field music goes quiet at shake frame 18 (`mBGMPsComp_make_ps_quiet`), or 12 ticks
+## into the axe's startle.
+const BEE_QUIET_AFTER_EFFECT := (18.0 - SHAKE_EFFECT_FRAME) / DecompTime.FRAME_HZ
+const BEE_QUIET_AFTER_CHOP := BEE_SHOCK_AFTER_CHOP + 12.0 / DecompTime.TICK_HZ
 ## EffectBG sets `frame_control.speed = 0.5` on a 60 Hz actor tick (= 30 anim fps).
 ## Pipeline / player clips already sample at 30 fps, so Godot dt is frames / 30 — not / 15.
 ## `eYoung_Tree_dw`: cedar / palm saplings roll about a point above the trunk base.
@@ -38,6 +45,8 @@ var _use: TreeUse
 var _motion: Tween
 var _felling: bool = false
 var _pending_bees: BeeSwarm = null
+## Where the last nest came down (`_drop_nest`); the swarm is born there.
+var _nest_land: Variant = null
 ## Where the last nest came down, once it has (the swarm gathers over it).
 var _nest_landed_at: Variant = null
 
@@ -125,10 +134,7 @@ func _on_shake(use: TreeUse, ctx: InteractionContext) -> bool:
 		apply_growth()
 	_play_shake(true)
 	if out.spawn_bees:
-		_arm_bees(ctx)
-	elif _world_has_bees(ctx):
-		## Existing swarm may sting once the shake clip reaches frame 29.5.
-		_schedule_bee_attackable(BEE_ATTACKABLE_AFTER_EFFECT)
+		_arm_bees(ctx, BEE_SHOCK_AFTER_EFFECT, Player.BEE_SHOCK_START_SEC, BEE_QUIET_AFTER_EFFECT)
 	return true
 
 
@@ -157,7 +163,7 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 	if out.spawn_bees and not out.felled:
 		PlantGrowth.clear_shake_content(_persist())
 	if out.spawn_bees:
-		_arm_bees(ctx)
+		_arm_bees(ctx, BEE_SHOCK_AFTER_CHOP, BEE_CHOP_SHOCK_START_SEC, BEE_QUIET_AFTER_CHOP)
 	if out.felled:
 		PlantGrowth.clear(_persist())
 		Game.mark_stump(_persist())
@@ -409,6 +415,7 @@ func _drop_nest(ctx: InteractionContext) -> void:
 	var cells: Array[Vector2i] = TreeUse.pick_drop_cells(origin, grid, 1)
 	var land: Vector3 = grid.cell_to_world(cells[0] if not cells.is_empty() else origin)
 	land.y = global_position.y
+	_nest_land = land
 	var nest: Node3D = WASP_NEST.instantiate() as Node3D
 	objects.add_child(nest)
 	nest.call("drop", global_position + TreeUse.crown_offset(0, true, false), land, TreeUse.drop_duration(0, true, false))
@@ -420,44 +427,30 @@ func _drop_nest(ctx: InteractionContext) -> void:
 		CONNECT_ONE_SHOT)
 
 
-func _arm_bees(ctx: InteractionContext) -> void:
+## `Check_BirthBee_common`: the swarm is born where the nest came down, the moment it drops,
+## and the player starts toward it a little later (`shock_after`, then a `shock_start` beat).
+## The swarm can sting only once the player is free again (`BeeSwarm` asks the player).
+func _arm_bees(ctx: InteractionContext, shock_after: float, shock_start: float, quiet_after: float) -> void:
 	if ctx == null or ctx.world == null:
 		return
-	var objects: Node = ctx.world.get_node_or_null("Objects")
-	if objects == null:
+	var parent: Node = ctx.world.get_node_or_null("Objects")
+	if parent == null:
 		return
-	## Delayed birth (~5 frames after shake effect) then attach to honeycomb land.
-	get_tree().create_timer(BEE_SPAWN_DELAY).timeout.connect(
+	var land: Vector3 = _nest_land if _nest_land != null else global_position
+	_pending_bees = BeeSwarm.spawn(parent, land + Vector3(0.0, 0.4, 0.0), ctx.actor)
+	var player := ctx.actor as Player
+	if player == null:
+		return
+	## `bee_angle_y = atan(drop − player)`.
+	var to: Vector3 = land - player.global_position
+	var yaw: float = atan2(to.x, to.z) if Vector2(to.x, to.z).length() > 0.01 else player.facing_yaw()
+	get_tree().create_timer(quiet_after).timeout.connect(Player.quiet_for_bees, CONNECT_ONE_SHOT)
+	get_tree().create_timer(shock_after).timeout.connect(
 		func() -> void:
-			if not is_instance_valid(self) or ctx.world == null:
-				return
-			var parent: Node = ctx.world.get_node_or_null("Objects")
-			if parent == null:
-				return
-			var at: Vector3 = (_nest_landed_at as Vector3) + Vector3(0.0, 0.4, 0.0) if _nest_landed_at != null else global_position + Vector3(0.0, 2.5, 0.0)
-			_pending_bees = BeeSwarm.spawn(parent, at, ctx.actor)
-			_schedule_bee_attackable(BEE_ATTACKABLE_AFTER_EFFECT - BEE_SPAWN_DELAY),
+			if is_instance_valid(player):
+				player.request_shock(shock_start, yaw, true),
 		CONNECT_ONE_SHOT
 	)
-
-
-func _schedule_bee_attackable(delay: float) -> void:
-	get_tree().create_timer(maxf(0.0, delay)).timeout.connect(
-		func() -> void:
-			if _pending_bees != null and is_instance_valid(_pending_bees):
-				_pending_bees.mark_attackable()
-			elif get_tree() != null:
-				for node: Node in get_tree().get_nodes_in_group("bee_swarm"):
-					if node.has_method("mark_attackable"):
-						node.call("mark_attackable"),
-		CONNECT_ONE_SHOT
-	)
-
-
-func _world_has_bees(ctx: InteractionContext) -> bool:
-	if ctx == null or ctx.world == null or ctx.world.get_tree() == null:
-		return false
-	return not ctx.world.get_tree().get_nodes_in_group("bee_swarm").is_empty()
 
 
 func _grid(ctx: InteractionContext) -> WorldGrid:
