@@ -192,6 +192,8 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	DisplayConfig.ensure_loaded()
+	DisplayConfig.apply(get_window())
 	train.name = "Train"
 	add_child(train)
 	ReddBook.ensure_art_items()

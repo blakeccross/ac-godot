@@ -1,7 +1,7 @@
 class_name SettingsOverlay
 extends CanvasLayer
 
-## Controls remapping. Open from the pause menu or the title. Process always so it works while
+## Screen shape and controls remapping. Open from the pause menu or the title. Process always so it works while
 ## the tree is paused.
 
 const GROUP := &"settings_ui"
@@ -15,6 +15,7 @@ const GROUP := &"settings_ui"
 var _open: bool = false
 var _waiting: StringName = &""
 var _bind_buttons: Dictionary = {} ## StringName → Button
+var _screen_button: Button
 
 
 ## The one in `tree`, or null.
@@ -45,6 +46,7 @@ func open() -> void:
 	_waiting = &""
 	_root.visible = true
 	InputBindings.ensure_loaded()
+	DisplayConfig.ensure_loaded()
 	_refresh_labels()
 	_hint.text = "Click a binding, then press a key or button. Esc cancels."
 	_back.grab_focus()
@@ -62,6 +64,7 @@ func _build_rows() -> void:
 	for child: Node in _list.get_children():
 		child.queue_free()
 	_bind_buttons.clear()
+	_list.add_child(_build_screen_row())
 	for entry: Dictionary in InputBindings.ACTIONS:
 		var id: StringName = entry["id"]
 		var row := HBoxContainer.new()
@@ -80,7 +83,30 @@ func _build_rows() -> void:
 		_bind_buttons[id] = bind_btn
 
 
+func _build_screen_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var name_label := Label.new()
+	name_label.text = "Screen"
+	name_label.custom_minimum_size = Vector2(160, 0)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_screen_button = Button.new()
+	_screen_button.custom_minimum_size = Vector2(260, 0)
+	_screen_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_screen_button.pressed.connect(_on_screen_pressed)
+	row.add_child(name_label)
+	row.add_child(_screen_button)
+	return row
+
+
+func _on_screen_pressed() -> void:
+	DisplayConfig.set_aspect(DisplayConfig.next(), get_window())
+	_refresh_labels()
+
+
 func _refresh_labels() -> void:
+	if _screen_button != null:
+		_screen_button.text = DisplayConfig.label()
 	for id: Variant in _bind_buttons.keys():
 		var button: Button = _bind_buttons[id]
 		if id == _waiting:
