@@ -65,7 +65,7 @@ static func _matches(row: Array, heights: PackedInt32Array) -> bool:
 	return true
 
 
-## Row for the field unit at `cell`. A unit with no collision table (placeholder acres) is flat.
+## Row for the field unit at `cell`. A unit with no collision table is flat.
 static func number_for(data: WorldData, cell: Vector2i) -> int:
 	var unit: Dictionary = FieldCollision.unit_counts(data, cell)
 	if unit.is_empty():

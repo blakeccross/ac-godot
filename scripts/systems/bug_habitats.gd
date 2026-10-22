@@ -172,7 +172,7 @@ static func acre_type(layout: WorldData, acre: Vector2i) -> int:
 	return int(layout.acre_types[acre.y * TownFieldGenerator.BLOCK_X + acre.x])
 
 
-## `unit_attribute` of a unit; placeholder acres with no `.col.json` fall back to the
+## `unit_attribute` of a unit; acres with no `.col.json` fall back to the
 ## coarse terrain enum.
 static func unit_attr(layout: WorldData, cell: Vector2i) -> int:
 	if layout == null or not layout.is_in_bounds(cell):

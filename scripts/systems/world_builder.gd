@@ -3,16 +3,6 @@ extends RefCounted
 
 ## Turns WorldData into Godot nodes. Kind → scene comes from WorldObjectRegistry.
 
-## Placeholder terrain tiles are thin boxes; water is lifted so it reads above the ground.
-const PLACEHOLDER_TILE_THICKNESS := 0.06
-const WATER_TILE_LIFT := 0.03
-
-
-## Where the water plane sits on a placeholder acre. One height per field: catalog water is
-## a heightfield and generated acres vary, so this is only right while acres stay flat.
-static func water_surface_y() -> float:
-	return WATER_TILE_LIFT + PLACEHOLDER_TILE_THICKNESS * 0.5
-
 
 func build(world: Node3D, data: WorldData, grid: WorldGrid) -> void:
 	if world == null or data == null or grid == null:
@@ -50,57 +40,13 @@ func _parent_for(
 func _paint_terrain(root: Node3D, data: WorldData, grid: WorldGrid) -> void:
 	if root == null:
 		return
-	var meshed: Array = []
-	var has_grd: bool = _attach_acres(root, data, grid, meshed)
+	_attach_acres(root, data, grid)
 	## Terrain walls are kinematic circles vs segments (`revise_xz`), not physics shapes.
 	FieldCollision.add_to(root, data, grid)
 	_add_map_bounds(root, data, grid)
-	_disable_placeholder_ground(root)
-	if has_grd and meshed.is_empty():
-		return
-	_paint_placeholder_tiles(root, data, grid, meshed)
 
 
-func _paint_placeholder_tiles(root: Node3D, data: WorldData, grid: WorldGrid, meshed: Array) -> void:
-	var water_mat := _mat(Color(0.28, 0.52, 0.78, 1))
-	var sand_mat := _mat(Color(0.82, 0.74, 0.52, 1))
-	var path_mat := _mat(Color(0.55, 0.42, 0.28, 1))
-	var stone_mat := _mat(Color(0.62, 0.61, 0.56, 1))
-	var cliff_mat := _mat(Color(0.45, 0.4, 0.35, 1))
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(grid.cell_size * 0.96, PLACEHOLDER_TILE_THICKNESS, grid.cell_size * 0.96)
-	var cliff_mesh := BoxMesh.new()
-	cliff_mesh.size = Vector3(grid.cell_size * 0.96, 0.9, grid.cell_size * 0.96)
-	var skip_meshed: bool = meshed.size() == TownFieldGenerator.BLOCK_TOTAL
-	for x: int in data.columns:
-		for z: int in data.rows:
-			if skip_meshed:
-				var bx: int = x / WorldGenerator.UT + 1
-				var bz: int = z / WorldGenerator.UT + 1
-				var bnum: int = bz * TownFieldGenerator.BLOCK_X + bx
-				if bnum >= 0 and bnum < meshed.size() and int(meshed[bnum]) != 0:
-					continue
-			var cell := Vector2i(x, z)
-			var t: WorldGrid.Terrain = data.terrain_at(cell)
-			var pos: Vector3 = grid.cell_to_world(cell)
-			var elev_y: float = FieldCollision.height_at(data, cell, false)
-			if not FieldCollision.has_floor(elev_y):
-				elev_y = float(data.elevation_at(cell)) * FieldCatalog.ACRE_STEP_METERS
-			pos.y += elev_y
-			match t:
-				WorldGrid.Terrain.WATER:
-					root.add_child(_tile(mesh, water_mat, pos + Vector3(0, WATER_TILE_LIFT, 0)))
-				WorldGrid.Terrain.SAND:
-					root.add_child(_tile(mesh, sand_mat, pos + Vector3(0, 0.02, 0)))
-				WorldGrid.Terrain.PATH:
-					root.add_child(_tile(mesh, path_mat, pos + Vector3(0, 0.02, 0)))
-				WorldGrid.Terrain.STONE:
-					root.add_child(_tile(mesh, stone_mat, pos + Vector3(0, 0.02, 0)))
-				WorldGrid.Terrain.CLIFF:
-					root.add_child(_tile(cliff_mesh, cliff_mat, pos + Vector3(0, 0.45, 0)))
-
-
-func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid, meshed: Array) -> bool:
+func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid) -> void:
 	if (
 		data.acre_visuals.size() == TownFieldGenerator.BLOCK_TOTAL
 		and data.acre_types.size() == TownFieldGenerator.BLOCK_TOTAL
@@ -108,9 +54,6 @@ func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid, meshed: Array
 		var acres_root := Node3D.new()
 		acres_root.name = "Acres"
 		root.add_child(acres_root)
-		meshed.resize(TownFieldGenerator.BLOCK_TOTAL)
-		meshed.fill(0)
-		var placed_mesh := false
 		## Full 7×10: FG (bx 1–5, bz 1–6), side cliffs (`grd_s_e2/e3_*`), north border
 		## (`e1/e4/e5`), and south ocean / island rows (`grd_s_o_*`, `il`/`ir`).
 		## Placement still uses FG-relative min-corners (`mFI_BkNum2WposXZ`).
@@ -128,13 +71,10 @@ func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid, meshed: Array
 				host.name = "acre_%d_%d" % [bx, bz]
 				host.set_meta("visual_id", visual)
 				host.position = pos
-				if GeneratedVisual.attach(host, visual) == null:
-					host.free()
-					continue
 				acres_root.add_child(host)
-				meshed[bnum] = 1
-				placed_mesh = true
-		return placed_mesh
+				if GeneratedVisual.attach(host, visual) == null:
+					_mark_missing_acre(host, visual, Vector2(WorldGenerator.UT, WorldGenerator.UT) * grid.cell_size)
+		return
 	if data.acre_visual != &"":
 		var host := Node3D.new()
 		host.name = "Acre"
@@ -142,11 +82,15 @@ func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid, meshed: Array
 		host.position = grid.cell_corner(Vector2i(0, 0))
 		root.add_child(host)
 		if GeneratedVisual.attach(host, data.acre_visual) == null:
-			root.remove_child(host)
-			host.free()
-			return false
-		return true
-	return false
+			_mark_missing_acre(host, data.acre_visual, Vector2(data.columns, data.rows) * grid.cell_size)
+
+
+## A flat `MissingModel` over the acre's footprint (the host sits on its north-west corner).
+func _mark_missing_acre(host: Node3D, visual: StringName, extent: Vector2) -> void:
+	var marker: MissingModel = GeneratedVisual.mark_missing(
+		host, visual, MissingModel.DEFAULT_TINT, Vector3(extent.x, 0.1, extent.y)
+	)
+	marker.position = Vector3(extent.x * 0.5, 0.0, extent.y * 0.5)
 
 
 func _add_map_bounds(root: Node3D, data: WorldData, grid: WorldGrid) -> void:
@@ -176,18 +120,6 @@ func _bound_wall(center: Vector3, size: Vector3) -> StaticBody3D:
 	shape.shape = box
 	body.add_child(shape)
 	return body
-
-
-func _disable_placeholder_ground(root: Node3D) -> void:
-	var mesh: Node = root.get_node_or_null("Ground/MeshInstance3D")
-	if mesh is MeshInstance3D:
-		(mesh as MeshInstance3D).visible = false
-	var ground: Node = root.get_node_or_null("Ground")
-	if ground is CollisionObject3D:
-		(ground as CollisionObject3D).collision_layer = 0
-	var ground_shape: Node = root.get_node_or_null("Ground/CollisionShape3D")
-	if ground_shape is CollisionShape3D:
-		(ground_shape as CollisionShape3D).disabled = true
 
 
 func _add_building(root: Node3D, placement: BuildingPlacement, data: WorldData, grid: WorldGrid) -> void:
@@ -366,17 +298,3 @@ func _instance_building(placement: BuildingPlacement) -> Node3D:
 		return node as Node3D
 	node.queue_free()
 	return null
-
-
-func _tile(mesh: Mesh, mat: Material, pos: Vector3) -> MeshInstance3D:
-	var vis := MeshInstance3D.new()
-	vis.mesh = mesh
-	vis.material_override = mat
-	vis.position = pos
-	return vis
-
-
-func _mat(color: Color) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	return mat

@@ -634,6 +634,23 @@ func test_fg_standin_skips_water_and_clears_tanuki_path() -> void:
 					assert_that(o.cell).is_not_equal(cell)
 
 
+func test_builder_marks_an_acre_with_no_baked_scene() -> void:
+	var world: Node3D = _shell()
+	auto_free(world)
+	add_child(world)
+	var data: WorldData = WorldGenerator.authored_test_town()
+	data.acre_visual = &"grd_no_such_acre_for_test"
+	var grid := WorldGrid.new()
+	WorldBuilder.new().build(world, data, grid)
+	var marker := world.get_node_or_null("Terrain/Acre/MissingModel") as MissingModel
+	assert_that(marker).is_not_null()
+	## The host sits on the acre's north-west corner, so the marker is centred over it.
+	var extent := Vector2(data.columns, data.rows) * grid.cell_size
+	assert_float(marker.size.x).is_equal_approx(extent.x, 0.001)
+	assert_float(marker.size.z).is_equal_approx(extent.y, 0.001)
+	assert_float(marker.position.x).is_equal_approx(extent.x * 0.5, 0.001)
+
+
 func test_builder_skips_removed_pickup() -> void:
 	Game.mark_interactable_removed(&"ground_apple")
 	var world: Node3D = _shell()

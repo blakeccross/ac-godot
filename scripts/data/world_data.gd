@@ -35,7 +35,7 @@ const GRASS_PATTERN_COUNT := 3
 ## `RSV_BRIDGE0` / `RSV_BRIDGE1` units of the FG templates: where a second bridge may go,
 ## `(x, z, 0|1)` (`BRIDGE_A0` runs north–south, `A1` turned −90°).
 @export var bridge_spots: Array[Vector3i] = []
-## Original acre mesh (`BG_TYPE_GRD_S_F_1` → `grd_s_f_1`). Empty keeps the placeholder plane.
+## Original acre mesh (`BG_TYPE_GRD_S_F_1` → `grd_s_f_1`). Empty draws no acre mesh.
 @export var acre_visual: StringName = &"grd_s_f_1"
 ## Full 7×10 `mFM_BLOCK_TYPE_*` grid from TownFieldGenerator (70 bytes). Empty for test town.
 @export var acre_types: PackedByteArray = PackedByteArray()

@@ -166,7 +166,7 @@ static func ground_y_at(
 
 static func unit_attr_at(data: WorldData, grid: WorldGrid, world_pos: Vector3) -> int:
 	## `bg_collision_check.result.unit_attribute` at an actor's XZ. −1 when the acre ships
-	## no `.col.json` (placeholder tiles) — callers fall back to the coarse terrain enum.
+	## no `.col.json` — callers fall back to the coarse terrain enum.
 	if data == null or grid == null:
 		return -1
 	return unit_attr_at_cell(data, grid.world_to_cell(world_pos))
@@ -186,7 +186,7 @@ static func acre_type_at(data: WorldData, cell: Vector2i) -> int:
 
 
 ## The unit's raw collision heights `{c, nw, sw, se, ne, s, a}` (10 GX counts), without the
-## plus-offsets; empty where the field has no table (placeholder acres).
+## plus-offsets; empty where the field has no table.
 static func unit_counts(data: WorldData, cell: Vector2i) -> Dictionary:
 	return _catalog_unit(data, cell, false)
 

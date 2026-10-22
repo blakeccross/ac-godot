@@ -83,8 +83,8 @@ func configure(grid: WorldGrid, water_surface_y: float = 0.0, layout: WorldData 
 	_spawned_acre = NO_ACRE
 
 
-## Catalog water is a heightfield (`mCoBG_GetWaterHeight`). Fallback is the flat placeholder
-## plane used by authored test towns without unit tables.
+## Catalog water is a heightfield (`mCoBG_GetWaterHeight`). Fallback is the flat
+## `surface_y` for a field without unit tables.
 func surface_at(pos: Vector3) -> float:
 	if _layout != null and _grid != null:
 		var cell: Vector2i = _grid.world_to_cell(pos)

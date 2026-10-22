@@ -107,7 +107,7 @@ func _ready() -> void:
 		Game.refresh_feng_shui()
 		_renew_money_rock()
 		Game.rate_town(self)
-	fish.configure(grid, WorldBuilder.water_surface_y(), layout)
+	fish.configure(grid, 0.0, layout)
 	bugs.configure(grid, layout)
 	if layout.mode == WorldData.Mode.TEST:
 		bugs.seed_trees()
