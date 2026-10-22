@@ -34,6 +34,7 @@ extends Node3D
 ##   touch=x,y[,hold]  A finger at that screen point (pixels), tapped or held through the shots.
 ##                     after=10,40,90 grabs at each count in one run (`name_f10.png` …).
 ##   ui=1              Keep the HUD / dialogue layers visible (hidden by default).
+##   mobile=1          Act as a phone: touch's on-screen buttons show (Android / iOS only).
 ##   out=path          Directory or .png path (default res://.tmp_captures/, gitignored).
 ##   name=label        File stem (default from target + date).
 ## Prints one `CAPTURE <absolute path>` line per image, `CAPTURE_ERROR <msg>` on failure.
@@ -50,6 +51,8 @@ func _ready() -> void:
 	var size := _vec2i(str(_args.get("size", "960x540")), Vector2i(960, 540))
 	get_window().size = size
 	get_viewport().size = size
+	if str(_args.get("mobile", "")) == "1":
+		InputDeviceTracker.on_mobile = true
 	call_deferred("_run")
 
 

@@ -404,7 +404,7 @@ func _tap_object(at: Vector2) -> bool:
 		return false
 	if a != null and b != null:
 		var hud := TouchHud.find(get_tree())
-		if hud != null:
+		if hud != null and hud.is_showing():
 			hud.show_chips(volume, a.prompt, b.prompt, func(pickup: bool) -> void: approach(volume, pickup))
 			return true
 	approach(volume, a == null)

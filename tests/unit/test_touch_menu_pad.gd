@@ -19,8 +19,14 @@ class _Menu extends Node:
 		return open
 
 
+func before_test() -> void:
+	## The pad is on-screen buttons: as on a phone.
+	InputDeviceTracker.on_mobile = true
+
+
 func after_test() -> void:
 	InputDeviceTracker._set_device(InputDeviceTracker.Device.KEYS)
+	InputDeviceTracker.on_mobile = OS.has_feature("android") or OS.has_feature("ios")
 
 
 func _pad() -> TouchMenuPad:
@@ -97,3 +103,15 @@ func test_a_tap_is_start_on_the_title_even_with_the_demo_player() -> void:
 	marker.add_to_group(TouchMenuPad.TITLE_GROUP)
 	add_child(marker)
 	assert_bool(_pad().taps_accept()).is_true()
+
+
+func test_no_buttons_on_a_desktop_even_by_touch() -> void:
+	var pad: TouchMenuPad = _pad()
+	var menu := auto_free(_Menu.new()) as _Menu
+	menu.add_to_group(&"bank_ui")
+	add_child(menu)
+	InputDeviceTracker.on_mobile = false
+	InputDeviceTracker._set_device(InputDeviceTracker.Device.TOUCH)
+	pad._refresh()
+	assert_bool(pad.get_node("Root").visible).is_false()
+	assert_bool(InputDeviceTracker.shows_touch_buttons()).is_false()

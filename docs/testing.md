@@ -85,9 +85,9 @@ Suites live in `tests/unit/`: `test_clock.gd`, `test_inventory.gd`, `test_save_s
 
 ## Touch
 
-- **On a desktop:** `pointing/emulate_touch_from_mouse.debug` is on, so a debug run turns mouse clicks into touches. The first click switches to touch: the corner buttons appear, and so does the menu pad over menus. A key press switches back.
+- **On a desktop:** `pointing/emulate_touch_from_mouse.debug` is on, so a debug run turns mouse clicks into touches. The gestures work (tap to walk, tap things), but the on-screen buttons only appear on Android or iOS (`InputDeviceTracker.on_mobile`). On a desktop, a host with verbs on both buttons gets A instead of chips. Captures take `mobile=1` to show them; tests set `InputDeviceTracker.on_mobile = true`.
 - **Phone-size captures:**
-  - `tools/capture.sh ui=1 size=1266x585 touch=850,330 after=2,90` shows the HUD and the tap marker at half of 2532×1170.
+  - `tools/capture.sh ui=1 mobile=1 size=1266x585 touch=850,330 after=2,90` shows the HUD and the tap marker at half of 2532×1170.
   - Add `console=repay` (or any menu) to see the menu pad.
 - **Android:** the `Android` preset in `export_presets.cfg` builds an arm64 APK to `out/android/`, landscape and immersive, with the vibrate permission for haptics.
   1. Install the Android export templates and set the SDK and debug keystore paths in Editor Settings.

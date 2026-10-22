@@ -1,8 +1,8 @@
 class_name TouchHud
 extends CanvasLayer
 
-## Corner buttons while playing by touch: B, Pockets, Map and Pause. Shown only while touch
-## is the last device used, and hidden under menus. B goes to the player's touch source (the
+## Corner buttons while playing by touch: B, Pockets, Map and Pause. Shown only on Android
+## or iOS while touch is the last device used, and hidden under menus. B goes to the player's touch source (the
 ## player reads no events while it drives); the others send the same actions the keys do,
 ## as events, so the menus open exactly as from the keyboard.
 ##
@@ -52,7 +52,7 @@ func _process(_delta: float) -> void:
 
 
 func _refresh() -> void:
-	var touch: bool = InputDeviceTracker.is_touch()
+	var touch: bool = InputDeviceTracker.shows_touch_buttons()
 	var player := Player.find(get_tree())
 	var menu: bool = player != null and (player._menu_open() or TouchMenuPad.menu_open(get_tree()))
 	_root.visible = touch and player != null and not menu
@@ -68,6 +68,11 @@ func show_chips(volume: InteractVolume, a_label: String, b_label: String, pick: 
 	_chip_b.text = b_label if not b_label.is_empty() else "B"
 	_chips.visible = true
 	_place_chips()
+
+
+## The buttons are up (a phone or tablet, played by touch, no menu open).
+func is_showing() -> bool:
+	return _root.visible
 
 
 func hide_chips() -> void:
