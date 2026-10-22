@@ -53,6 +53,8 @@ var _has_models: bool = false
 
 
 func _ready() -> void:
+	## A tap on the title is START (`TouchMenuPad`), though the demo town has a player.
+	add_to_group(TouchMenuPad.TITLE_GROUP)
 	## The project canvas filter is nearest. This texture is a scaled render, so nearest
 	## turns it into blocks.
 	_viewport_box.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR

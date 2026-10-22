@@ -17,8 +17,8 @@ const MENU_GROUPS: Array[StringName] = [
 	&"name_entry_ui", &"pause_ui", &"settings_ui", &"design_ui", &"design_list_ui",
 	&"design_album_ui",
 ]
-## Where a tap off the pad is OK: a page waiting on the player.
-const TAP_GROUPS: Array[StringName] = [&"dialogue_ui", &"letter_reader_ui"]
+## The title logo: the demo town behind it has a player, but a tap is still START.
+const TITLE_GROUP := &"title_ui"
 
 @onready var _root: Control = $Root
 @onready var _repeat: Timer = $Repeat
@@ -146,6 +146,8 @@ func _unhandled_input(event: InputEvent) -> void:
 ## A tap off the pad is OK: a talk page or letter waiting, or the title / intro.
 func taps_accept() -> bool:
 	var tree := get_tree()
+	if not tree.get_nodes_in_group(TITLE_GROUP).is_empty():
+		return true
 	for node: Node in tree.get_nodes_in_group(&"dialogue_ui"):
 		if node is DialogueOverlay and (node as DialogueOverlay).is_open():
 			## A choice is picked with its own button or the arrows and OK.

@@ -90,3 +90,10 @@ func test_a_tap_off_the_pad_is_ok_on_the_title() -> void:
 	pad._unhandled_input(tap)
 	await get_tree().process_frame
 	assert_array(log.keys).contains([KEY_ENTER])
+
+
+func test_a_tap_is_start_on_the_title_even_with_the_demo_player() -> void:
+	var marker := auto_free(Node.new()) as Node
+	marker.add_to_group(TouchMenuPad.TITLE_GROUP)
+	add_child(marker)
+	assert_bool(_pad().taps_accept()).is_true()
