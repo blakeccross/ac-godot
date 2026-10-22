@@ -41,6 +41,7 @@ static func find(tree: SceneTree) -> TouchMenuPad:
 func _ready() -> void:
 	add_to_group(GROUP)
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	TouchSafeArea.fit(_root)
 	for button: Button in _buttons:
 		var key: Key = _buttons[button]
 		if key in [KEY_ENTER, KEY_ESCAPE]:

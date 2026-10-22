@@ -34,6 +34,7 @@ static func find(tree: SceneTree) -> TouchHud:
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	TouchSafeArea.fit(_root)
 	_b.pressed.connect(press_b)
 	_pockets.pressed.connect(send_action.bind(&"inventory"))
 	_map.pressed.connect(send_action.bind(&"map"))
@@ -53,7 +54,7 @@ func _process(_delta: float) -> void:
 func _refresh() -> void:
 	var touch: bool = InputDeviceTracker.is_touch()
 	var player := Player.find(get_tree())
-	var menu: bool = player != null and player._menu_open()
+	var menu: bool = player != null and (player._menu_open() or TouchMenuPad.menu_open(get_tree()))
 	_root.visible = touch and player != null and not menu
 	if _chips.visible:
 		_place_chips()

@@ -233,6 +233,8 @@ The rule: no overlay grows its own touch logic. Each one gets tap regions that c
 
 ## Phase 6: polish
 
+**Done.** Haptics in `GameConfig.rumble` (`Input.vibrate_handheld` while touch is the last device), `TouchSafeArea` pads the HUD and the menu pad on phones, an Android preset plus side-load notes in `docs/testing.md` § Touch, and phone-size captures. Hit sizes were checked at 1266×585: the buttons moved up off the clock, and `SELF_RADIUS_PX`, the pick ring and the chips scale with the viewport height. The capture isn't an automated regression yet, and the haptics and safe area are untested on a device.
+
 - **Haptics:** in `GameConfig.rumble(entry)`, when the last device is touch and `rumble_on`, also call `Input.vibrate_handheld(int(shape.y * 1000), shape.x)`. Same moments, one call site.
 - **Safe areas:** `TouchHud` and the overlays' tap regions read `DisplayServer.get_display_safe_area()` and pad their anchors so nothing sits under a notch or the home bar.
 - **Hit tuning:** from captures at 1170×2532 and 2400×1080, adjust `SELF_RADIUS_PX`, the pick ring and the chip sizes.
