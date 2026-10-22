@@ -143,6 +143,8 @@ Tapping anywhere walks there along a sensible path, round ponds and up ramps, at
 
 *Playable:* the Pocket Camp loop. Tap a tree to shake it, a villager to talk, fruit to pick it up, a door to go in, the water to fish.
 
+**Done.** `TouchPick.object` (layer-8 ray plus a 24 px ring), `Player.verb_preview` / `face_toward`, the driver's approach-and-press (re-paths moving hosts, nudges once, gives up after 5 s), chips in `TouchHud`, shovel / axe on a cell up to two away (farther taps walk), rod on water, reel on any tap, and the net on a hold. Approach goes to the nearest open unit by `TouchPath` rather than a separate `approach`; chips live in `touch_hud.tscn` rather than their own scene.
+
 ### Files
 - `scripts/systems/touch_pick.gd`: add `object(cam, screen) → InteractVolume`.
 - `scripts/systems/touch_path.gd`: add `approach(data, grid, from, host_pos, reach) → path`.

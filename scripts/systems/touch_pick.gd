@@ -1,10 +1,14 @@
 class_name TouchPick
 extends RefCounted
 
-## Screen point → the ground under it, for touch. The ray from the camera meets the plane at
+## Screen point → the ground (or the interact volume) under it, for touch. The ray from the camera meets the plane at
 ## `ref_y`, then is refined three times against the field's height under it
 ## (`FieldCollision.ground_y_at`); the camera looks down at about 45°, so that settles at once.
 ## Indoors (no field) the floor is the plane at `ref_y`.
+
+## The interact layer's bit (`InteractVolume`), and how far a pick ray reaches.
+const INTERACT_LAYER := 8
+const RAY_METERS := 200.0
 
 
 ## `{hit, pos}`: `pos` the ground point in world metres.
@@ -47,3 +51,37 @@ static func stick_for(cam: Camera3D, dir: Vector3) -> Vector2:
 		return Vector2.ZERO
 	flat = flat.normalized()
 	return Vector2(flat.dot(right), -flat.dot(look))
+
+
+## The interact volume under a screen point (`InteractVolume`s sit on layer 8), or null. A
+## miss tries a ring of eight points `ring_px` round the tap and takes the hit whose host
+## shows nearest the tap, so a finger slightly off a weed still gets it.
+static func object(cam: Camera3D, screen: Vector2, ring_px: float = 24.0) -> InteractVolume:
+	if cam == null or not cam.is_inside_tree():
+		return null
+	var hit: InteractVolume = _ray(cam, screen)
+	if hit != null:
+		return hit
+	var best: InteractVolume = null
+	var best_d := INF
+	for i: int in 8:
+		var angle: float = TAU * float(i) / 8.0
+		var near: InteractVolume = _ray(cam, screen + Vector2(cos(angle), sin(angle)) * ring_px)
+		if near == null or cam.is_position_behind(near.global_position):
+			continue
+		var d: float = cam.unproject_position(near.global_position).distance_squared_to(screen)
+		if d < best_d:
+			best_d = d
+			best = near
+	return best
+
+
+static func _ray(cam: Camera3D, screen: Vector2) -> InteractVolume:
+	var origin: Vector3 = cam.project_ray_origin(screen)
+	var query := PhysicsRayQueryParameters3D.create(
+		origin, origin + cam.project_ray_normal(screen) * RAY_METERS, INTERACT_LAYER
+	)
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	var hit: Dictionary = cam.get_world_3d().direct_space_state.intersect_ray(query)
+	return hit.get("collider") as InteractVolume if not hit.is_empty() else null

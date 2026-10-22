@@ -54,3 +54,22 @@ custom_minimum_size = Vector2(96, 96)
 layout_mode = 2
 focus_mode = 0
 text = "☰"
+
+[node name="Chips" type="HBoxContainer" parent="Root"]
+visible = false
+layout_mode = 0
+offset_right = 252.0
+offset_bottom = 72.0
+theme_override_constants/separation = 12
+
+[node name="ChipA" type="Button" parent="Root/Chips"]
+custom_minimum_size = Vector2(120, 72)
+layout_mode = 2
+focus_mode = 0
+text = "A"
+
+[node name="ChipB" type="Button" parent="Root/Chips"]
+custom_minimum_size = Vector2(120, 72)
+layout_mode = 2
+focus_mode = 0
+text = "B"
