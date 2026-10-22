@@ -304,6 +304,18 @@ _PLAYER_SELECT_SPOT_ENV = (255, 255, 130)
 _PLAYER_SELECT_SPOT_LOD = 150
 
 
+def write_player_select_spot_sources(grain_png: bytes, cone_png: bytes) -> None:
+    """Native I4 grain and I8 cone for `player_select_spot.gdshader`.
+
+    Written beside the generated acre so a convert keeps the runtime tiles. The
+    baked cone PNG stays the fallback when these files are absent.
+    """
+    dest = Path(__file__).resolve().parents[2] / "assets" / "generated" / "environment" / "player_select"
+    dest.mkdir(parents=True, exist_ok=True)
+    (dest / "rom_open_spot2.png").write_bytes(grain_png)
+    (dest / "rom_open_spot.png").write_bytes(cone_png)
+
+
 def bake_player_select_spot_png(
     png: bytes,
     prim: tuple[int, int, int, int] = (255, 255, 255, 255),
@@ -312,7 +324,8 @@ def bake_player_select_spot_png(
 ) -> bytes:
     """Bake spotlight XLU: `(PRIM-ENV)*I+ENV`, A ≈ I × PRIM_LOD_FRAC.
 
-    GC pairs this with scrolling spot2 via RDP combine + EVW — we bake the cone only.
+    Fallback when the native tiles are missing. The intro samples grain + cone
+    in `player_select_spot.gdshader` (`write_player_select_spot_sources`).
 
     The ACHD cone keeps flat blocks in the falloff. On a translucent ground quad
     those blocks read as pixels, so blur the HD mask before the tint. Native

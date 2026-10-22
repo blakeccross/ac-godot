@@ -134,8 +134,8 @@ static func is_player_select_shade_surface(
 
 
 static func apply_player_select_spot_material(std: StandardMaterial3D) -> void:
-	## Baked yellow cone XLU (`grd_player_select_modelT`). GC uses RDP combine + EVW
-	## scroll on spot2 — not a programmable shader; keep the imported bake.
+	## Fallback when the native grain/cone tiles are missing. The scrolling beam is
+	## `player_select_spot.gdshader` (`PlayerSelectSpot`).
 	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	std.vertex_color_use_as_albedo = false
 	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA

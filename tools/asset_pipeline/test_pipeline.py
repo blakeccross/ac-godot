@@ -706,6 +706,68 @@ class WrapBakeTests(unittest.TestCase):
         self.assertAlmostEqual(_Part.vertices[1].u, 1.0)
         self.assertAlmostEqual(_Part.vertices[1].v, 1.0)
 
+    def test_field_hd_tile_keeps_cap_past_sixteen_repeats(self) -> None:
+        """Earth/stone strips repeat 17–29 times. Halving the 128² cap lands on native."""
+        from io import BytesIO
+
+        from PIL import Image
+
+        buf = BytesIO()
+        Image.new("RGBA", (128, 128), (90, 70, 40, 255)).save(buf, format="PNG")
+        png = buf.getvalue()
+
+        class _V:
+            def __init__(self, u: float, v: float) -> None:
+                self.u = u
+                self.v = v
+
+        class _Part:
+            wrap_s = GX_REPEAT
+            wrap_t = GX_REPEAT
+            texture_png = png
+            vertices = [_V(0.0, 0.0), _V(18.0, 1.0)]
+
+        group = {
+            "png": png,
+            "name": "mFM_grd_s_earth_tex",
+            "wrap_s": GX_REPEAT,
+            "wrap_t": GX_REPEAT,
+            "parts": [_Part()],
+        }
+        _bake_wrap_group(group)
+        self.assertEqual(Image.open(BytesIO(group["png"])).size, (128 * 18, 128))
+
+    def test_oversized_repeat_sheet_shrinks_down_to_field_cap(self) -> None:
+        """A 256² grass sheet × 16 still halves to the 128 cap (2048² atlas)."""
+        from io import BytesIO
+
+        from PIL import Image
+
+        buf = BytesIO()
+        Image.new("RGBA", (256, 256), (40, 140, 50, 255)).save(buf, format="PNG")
+        png = buf.getvalue()
+
+        class _V:
+            def __init__(self, u: float, v: float) -> None:
+                self.u = u
+                self.v = v
+
+        class _Part:
+            wrap_s = GX_REPEAT
+            wrap_t = GX_REPEAT
+            texture_png = png
+            vertices = [_V(0.0, 0.0), _V(16.0, 16.0)]
+
+        group = {
+            "png": png,
+            "name": "mFM_grd_s_grass_tex",
+            "wrap_s": GX_REPEAT,
+            "wrap_t": GX_REPEAT,
+            "parts": [_Part()],
+        }
+        _bake_wrap_group(group)
+        self.assertEqual(Image.open(BytesIO(group["png"])).size, (128 * 16, 128 * 16))
+
     def test_wrap_bake_records_tile_grid_for_runtime_reskin(self) -> None:
         """Player shirt: REPEAT S / CLAMP T, U 10..80 texels on a 32² tile → 3×1 atlas."""
         from io import BytesIO
@@ -1927,6 +1989,14 @@ class SeasonRoleTests(unittest.TestCase):
         self.assertEqual(_role_for_name("earth_tex_dummy", FIELD_ROLE_NEEDLES), "earth")
         self.assertEqual(_role_for_name("sand_tex_dummy", FIELD_ROLE_NEEDLES), "sand")
         self.assertEqual(_role_for_name("beach1_tex_dummy2", FIELD_ROLE_NEEDLES), "")
+        from asset_pipeline.seasons import _spec_for_tex_name
+
+        self.assertEqual(_spec_for_tex_name("mFM_grd_s_rail_tex"), (64, 64, "rail_pal"))
+        self.assertEqual(_spec_for_tex_name("rail_tex_dummy"), (64, 64, "rail_pal"))
+        from asset_pipeline.seasons import SEASON_STATE_ROLES
+
+        self.assertIn("beach_wet", SEASON_STATE_ROLES)
+        self.assertNotIn("beach_wet", FIELD_ROLE_NEEDLES)
         self.assertEqual(_role_for_name("river_tex_dummy", FIELD_ROLE_NEEDLES), "river_edge")
         self.assertEqual(_role_for_name("river_mFM_grd_water1_tex", FIELD_ROLE_NEEDLES), "")
         self.assertEqual(_role_for_name("obj_s_tree_leaf_tex", TREE_ROLE_NEEDLES), "tree_leaf")

@@ -4,24 +4,24 @@
 [ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_c6_s_1.tres" id="2_ip3m3"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_c6_s_1/grd_s_c6_s_12.res" id="3_x4dw1"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/b9aef45eb859.tres" id="4_egfs3"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/1c30b7cf53a1.tres" id="5_7wl6y"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/87519cf89f3b.tres" id="5_7wl6y"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/28c6457ebd66.tres" id="6_rk1l4"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/b1000a70b8c0.tres" id="7_p8gg3"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_c6_s_1/grd_s_c6_s_1_mask.res" id="8_h8ds4"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/49ba02ddd4f2.tres" id="9_7rut2"]
 
-[node name="grd_s_c6_s_1" type="Node3D" unique_id=1085612906]
+[node name="grd_s_c6_s_1" type="Node3D" unique_id=470541081]
 script = ExtResource("1_7mr4l")
 visual_id = &"grd_s_c6_s_1"
 grid = ExtResource("2_ip3m3")
 
-[node name="grd_s_c6_s_12" type="MeshInstance3D" parent="." unique_id=34349441]
+[node name="grd_s_c6_s_12" type="MeshInstance3D" parent="." unique_id=1523278617]
 mesh = ExtResource("3_x4dw1")
 surface_material_override/0 = ExtResource("4_egfs3")
 surface_material_override/1 = ExtResource("5_7wl6y")
 surface_material_override/2 = ExtResource("6_rk1l4")
 surface_material_override/3 = ExtResource("7_p8gg3")
 
-[node name="grd_s_c6_s_1_mask" type="MeshInstance3D" parent="." unique_id=1072876999]
+[node name="grd_s_c6_s_1_mask" type="MeshInstance3D" parent="." unique_id=799238180]
 mesh = ExtResource("8_h8ds4")
 surface_material_override/0 = ExtResource("9_7rut2")

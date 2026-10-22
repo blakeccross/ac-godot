@@ -64,6 +64,8 @@ func _ensure_visual() -> void:
 	## Rest AABB then posed snap — `4haku` sits; rest feet alone leave him floating/clipped.
 	VisualFit.align_actor_to_height_gx(vis, 0.0)
 	GeneratedVisual.apply_preview_materials(vis)
+	## RSP N·L on the lit body. Floor / spot / curtain stay on the acre, unshaded.
+	PlayerSelectLight.apply(vis)
 	VisualAnimation.stop_autoplay(vis)
 
 func _snap_posed_to_floor() -> void:

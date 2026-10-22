@@ -61,8 +61,7 @@ static func _apply_node(node: Node, as_decal: bool, mouth_river: bool, visual_id
 						i, VisualWaterMaterials.make_beach_wet_material(std, src)
 					)
 				elif VisualStructureMaterials.is_player_select_spot_surface(mesh_instance, i, src):
-					VisualStructureMaterials.apply_player_select_spot_material(std)
-					mesh_instance.set_surface_override_material(i, std)
+					mesh_instance.set_surface_override_material(i, PlayerSelectSpot.material_for(std))
 				elif VisualStructureMaterials.is_player_select_shade_surface(mesh_instance, i, src):
 					VisualStructureMaterials.apply_player_select_shade_material(std)
 					mesh_instance.set_surface_override_material(i, std)

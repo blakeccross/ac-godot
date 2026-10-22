@@ -8,6 +8,7 @@ from pathlib import Path
 
 from PIL import Image
 
+from .achd import REPEAT_HD_MAX_EDGE
 from .ckf import ConvertedModel
 from .gfx import MeshPart, _OCEAN_BED_PRIM, unit_normal
 from .texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT, fit_clamp_axis, flood_opaque_alpha, wrap_to_gltf
@@ -16,8 +17,10 @@ from .texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT, fit_clamp_axis, flood_opaqu
 # GeneratedVisual forces texture_repeat off, so grass/earth clamp to the edge.
 # Cap on output pixels only (a 16×128px atlas is 2048px — well under this).
 MAX_WRAP_PIXELS = 8192
-## Wrap-bake atlas edge budget: an HD tile repeated N times is halved until
-## tile × N fits (grass ×16 at 256² → 128² tiles, 2048² atlas).
+## Wrap-bake atlas edge budget. Sheets larger than the field HD cap are halved
+## until tile × repeats fits (grass 256² × 16 → 128², a 2048² atlas). Tiles
+## already at that cap stay there: a 17th repeat must not drop earth, stone,
+## or grass back to the native sheet.
 WRAP_HD_BUDGET = 2048
 _EPS = 1e-5
 
@@ -205,10 +208,14 @@ def _bake_wrap_group(group: dict) -> None:
 
     base = Image.open(io.BytesIO(png)).convert("RGBA")
     tw, th = base.size
-    ## Only shrink HD sheets (≥ 128) — native tiles are never downscaled.
+    ## Only shrink sheets still above the field HD cap. A 128² tile is already
+    ## that cap; halving it lands on the native acre sheet (earth × 18 → 64²).
     while (
         (tw * tiles_u > WRAP_HD_BUDGET or th * tiles_v > WRAP_HD_BUDGET)
-        and tw >= 128 and th >= 128 and tw % 2 == 0 and th % 2 == 0
+        and tw > REPEAT_HD_MAX_EDGE
+        and th > REPEAT_HD_MAX_EDGE
+        and tw % 2 == 0
+        and th % 2 == 0
     ):
         tw //= 2
         th //= 2

@@ -144,6 +144,29 @@ func test_frame_paths_follow_the_faces_pipeline_layout() -> void:
 	)
 
 
+func test_shader_eye_quad_still_swaps_albedo() -> void:
+	var face := NpcFace.new()
+	var host := Node3D.new()
+	add_child(host)
+	auto_free(host)
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "head"
+	mesh_instance.mesh = QuadMesh.new()
+	host.add_child(mesh_instance)
+	var image := Image.create(64, 16, false, Image.FORMAT_RGBA8)
+	image.fill(Color(1, 1, 1, 1))
+	var tex := ImageTexture.create_from_image(image)
+	var mat := ShaderMaterial.new()
+	mat.shader = PlayerSelectLight.SHADER
+	mat.resource_name = "seg_08_eye"
+	mat.set_shader_parameter("albedo_tex", tex)
+	mesh_instance.set_surface_override_material(0, mat)
+	assert_bool(face.bind(host, &"end")).is_true()
+	var shown := mesh_instance.get_surface_override_material(0) as ShaderMaterial
+	assert_that(shown).is_not_null()
+	assert_that(shown.get_shader_parameter("albedo_tex")).is_not_null()
+
+
 func test_bind_fails_without_face_quads_on_host() -> void:
 	## No 32×16 eye/mouth quads on an empty node.
 	var face := NpcFace.new()

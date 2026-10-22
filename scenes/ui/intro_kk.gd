@@ -52,10 +52,11 @@ func _setup_stage_look() -> void:
 		if vis != null:
 			VisualFit.fit_acre(vis)
 		VisualFit.disable_shadows(acre)
+		PlayerSelectSpot.apply(acre)
 	var sun: DirectionalLight3D = get_node_or_null("Sun") as DirectionalLight3D
 	if sun != null:
 		sun.light_color = IntroKkStage.SUN_COLOR
-		sun.light_energy = 1.45
+		sun.light_energy = 1.0
 		sun.shadow_enabled = false
 		sun.basis = IntroKkStage.sun_basis()
 	var world_env: WorldEnvironment = get_node_or_null("WorldEnvironment") as WorldEnvironment
@@ -65,9 +66,8 @@ func _setup_stage_look() -> void:
 		env.background_color = IntroKkStage.BG_COLOR
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		env.ambient_light_color = IntroKkStage.AMBIENT_COLOR
-		## White fur needs fill or the body reads as a black stick under the key alone.
-		## Decomp ambient RGB is tiny; energy >>1 keeps the cool tint without a black silhouette.
-		env.ambient_light_energy = 1.35
+		## K.K.'s shade is `player_select_ndotl.gdshader`. This fill does not tint him.
+		env.ambient_light_energy = 1.0
 		## `FIELD_DRAW_TYPE_PLAYER_SELECT` keeps fog_disabled — near==far kills GBI fog.
 		## Black void + scrolling spot2 fog texture (not clear-color atmosphere).
 		env.fog_enabled = false

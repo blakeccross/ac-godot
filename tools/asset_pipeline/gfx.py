@@ -42,6 +42,7 @@ from .texbank import (
     revive_stained_glass_alpha,
     tmem_palette_slot,
     uv_samples_transparent,
+    write_player_select_spot_sources,
 )
 from PIL import Image
 import io
@@ -1043,7 +1044,10 @@ def parse_gfx(
                     env=tex_state.env,
                 )
             skip_prim = bool(water_kind)
-            bank.water_surface = bool(water_kind)
+            ## Ocean and splash stay on the 128 REPEAT cap. Wet sand is one
+            ## REPEAT/CLAMP sheet (not a 16-wide wrap atlas), so it keeps the
+            ## full ACHD shore. River and falls skip ACHD below.
+            bank.water_surface = water_kind in ("ocean", "splash")
             if water_kind in ("river", "ocean", "splash", "waterfall") and tex_state.tile0 and tex_state.tile1:
                 ## Falls and river combiners add and multiply the raw I/IA levels.
                 ## An ACHD repaint turns the mist mask into a solid sheet, the
@@ -1127,6 +1131,14 @@ def parse_gfx(
                             vertex.v *= scale_v
                     wrap_s = int(tex_state.tile1["wrap_s"])
                     wrap_t = int(tex_state.tile1["wrap_t"])
+                    grain_png, _, _ = _decode_snap(
+                        bank, tex_state, tex_state.tile0, skip_prim=True, allow_achd=False
+                    )
+                    cone_native, _, _ = _decode_snap(
+                        bank, tex_state, tex_state.tile1, skip_prim=True, allow_achd=False
+                    )
+                    if grain_png and cone_native:
+                        write_player_select_spot_sources(grain_png, cone_native)
                     png, tex_name, _alpha = _decode_snap(
                         bank, tex_state, tex_state.tile1, skip_prim=True
                     )
@@ -1148,7 +1160,7 @@ def parse_gfx(
                         ## RGB ≈ (PRIM-ENV)*I+ENV; alpha = I for runtime env pulse.
                         png = bake_beach_wet_png(png, saved_prim)
                     elif is_player_select_spot_tex(tex_name) and png:
-                        ## Baked yellow cone; GC dual-tile fog scroll is not a Godot shader.
+                        ## Baked yellow cone. Runtime scroll uses the native tiles when present.
                         png = bake_player_select_spot_png(
                             png, saved_prim, (saved_env[0], saved_env[1], saved_env[2])
                         )

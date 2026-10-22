@@ -131,3 +131,110 @@ func test_kk_scene_loads() -> void:
 		assert_str(IntroKkStage.resolve_clip(anim, IntroKkStage.ANIM_LOOK_UP)).is_not_empty()
 		assert_bool(kk.play_strum()).is_true()
 		assert_bool(anim.is_playing()).is_true()
+		var lit := _first_ndotl(kk)
+		assert_that(lit).is_not_null()
+		assert_that((lit.get_shader_parameter("ambient_color") as Color)).is_equal(IntroKkStage.AMBIENT_COLOR)
+		assert_vector(lit.get_shader_parameter("sun_direction") as Vector3).is_equal(IntroKkStage.CHARACTER_SUN_DIR)
+	if ResourceLoader.exists(PlayerSelectSpot.GRAIN_PATH):
+		var spot := _first_spot(scene)
+		assert_that(spot).is_not_null()
+		assert_vector(spot.get_shader_parameter("wrap_tiles") as Vector2).is_equal(Vector2(2, 1))
+		assert_float(float(spot.get_shader_parameter("game_fps"))).is_equal_approx(DecompTime.TICK_HZ, 0.01)
+		assert_float(float(spot.get_shader_parameter("lod_frac"))).is_equal_approx(PlayerSelectSpot.LOD_FRAC, 0.001)
+		assert_float(float(spot.get_shader_parameter("beam_opacity"))).is_equal_approx(PlayerSelectSpot.BEAM_OPACITY, 0.001)
+
+
+func test_ndotl_skips_unshaded_and_replaces_lit_standard() -> void:
+	var host := MeshInstance3D.new()
+	add_child(host)
+	auto_free(host)
+	host.mesh = BoxMesh.new()
+	var lit := StandardMaterial3D.new()
+	lit.resource_name = "body"
+	var tex := ImageTexture.create_from_image(Image.create(4, 4, false, Image.FORMAT_RGBA8))
+	lit.albedo_texture = tex
+	host.set_surface_override_material(0, lit)
+	var shade := StandardMaterial3D.new()
+	shade.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	## BoxMesh has one surface; a second override is ignored. Use a child mesh.
+	var floor_mesh := MeshInstance3D.new()
+	floor_mesh.mesh = BoxMesh.new()
+	floor_mesh.set_surface_override_material(0, shade)
+	host.add_child(floor_mesh)
+	PlayerSelectLight.apply(host)
+	var body := host.get_surface_override_material(0) as ShaderMaterial
+	assert_that(body).is_not_null()
+	assert_that(body.shader).is_same(PlayerSelectLight.SHADER)
+	assert_str(body.resource_name).is_equal("body")
+	assert_that(body.get_shader_parameter("albedo_tex")).is_same(tex)
+	assert_float(float(body.get_shader_parameter("alpha_scissor_threshold"))).is_equal_approx(0.0, 0.001)
+	assert_that(floor_mesh.get_surface_override_material(0)).is_same(shade)
+
+
+func test_spot_shader_uses_wrap_tiles_and_leaves_the_curtain() -> void:
+	var host := MeshInstance3D.new()
+	add_child(host)
+	auto_free(host)
+	var mesh := ArrayMesh.new()
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_name(0, "rom_open_spot_tex")
+	host.mesh = mesh
+	var std := StandardMaterial3D.new()
+	std.resource_name = "rom_open_spot_tex"
+	std.set_meta("extras", {"wrap_tiles": [2.0, 1.0]})
+	host.set_surface_override_material(0, std)
+	var curtain := MeshInstance3D.new()
+	curtain.mesh = mesh.duplicate()
+	(curtain.mesh as ArrayMesh).surface_set_name(0, "rom_open_shade_tex")
+	var shade := StandardMaterial3D.new()
+	shade.resource_name = "rom_open_shade_tex"
+	curtain.set_surface_override_material(0, shade)
+	host.add_child(curtain)
+	PlayerSelectSpot.apply(host)
+	if not ResourceLoader.exists(PlayerSelectSpot.GRAIN_PATH):
+		assert_that(host.get_surface_override_material(0)).is_same(std)
+		return
+	var spot := host.get_surface_override_material(0) as ShaderMaterial
+	assert_that(spot).is_not_null()
+	assert_that(spot.shader).is_same(PlayerSelectSpot.SHADER)
+	assert_vector(spot.get_shader_parameter("wrap_tiles") as Vector2).is_equal(Vector2(2, 1))
+	assert_that(spot.get_shader_parameter("grain_tex")).is_not_null()
+	assert_that(spot.get_shader_parameter("cone_tex")).is_not_null()
+	assert_that(curtain.get_surface_override_material(0)).is_same(shade)
+
+
+func _first_spot(node: Node) -> ShaderMaterial:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		var count := 0
+		if mesh_instance.mesh != null:
+			count = mesh_instance.mesh.get_surface_count()
+		for i: int in count:
+			var mat: Material = mesh_instance.get_active_material(i)
+			if mat is ShaderMaterial and (mat as ShaderMaterial).shader == PlayerSelectSpot.SHADER:
+				return mat as ShaderMaterial
+	for child: Node in node.get_children():
+		var found := _first_spot(child)
+		if found != null:
+			return found
+	return null
+
+
+func _first_ndotl(node: Node) -> ShaderMaterial:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		var count := 0
+		if mesh_instance.mesh != null:
+			count = mesh_instance.mesh.get_surface_count()
+		for i: int in count:
+			var mat: Material = mesh_instance.get_active_material(i)
+			if mat is ShaderMaterial and (mat as ShaderMaterial).shader == PlayerSelectLight.SHADER:
+				return mat as ShaderMaterial
+	for child: Node in node.get_children():
+		var found := _first_ndotl(child)
+		if found != null:
+			return found
+	return null

@@ -47,6 +47,11 @@ FIELD_ROLE_NEEDLES: dict[str, tuple[str, ...]] = {
 	"river_edge": ("river_tex",),
 }
 
+## Roles stamped from gfx state rather than a texture-name needle. Still written
+## beside the name-matched sheets — ``beach_wet`` was collected and then dropped,
+## so the season swap kept a native 64×32 shore.
+SEASON_STATE_ROLES: tuple[str, ...] = ("beach_wet",)
+
 TREE_ROLE_NEEDLES: dict[str, tuple[str, ...]] = {
 	"tree_leaf": ("leaf",),
 	"tree_trunk": ("trunk",),
@@ -59,12 +64,13 @@ _FIELD_TEX_SPECS: dict[str, tuple[int, int, str]] = {
 	"cliff_tex_dummy": (64, 64, "earth_pal"),
 	"bush_a_tex_dummy": (64, 64, "bush_pal"),
 	"bush_b_tex_dummy": (64, 32, "bush_pal"),
-	"rail_tex_dummy": (64, 64, "earth_pal"),
+	"rail_tex_dummy": (64, 64, "rail_pal"),
 	"stone_tex_dummy": (64, 64, "earth_pal"),
 	"sand_tex_dummy": (64, 32, "beach_pal"),
 	"river_tex_dummy": (64, 32, "cliff_pal"),
 	## Segment names are ``mFM_grd_*_rail_tex``, not ``rail_tex_dummy``.
-	"rail_tex": (64, 64, "earth_pal"),
+	## Tracks take ``mFM_rail_pal`` (monthly rows). Earth pal hashes miss ACHD.
+	"rail_tex": (64, 64, "rail_pal"),
 }
 
 ## `mFM_BG_TEX_*` order: triangle, square, circle. Each maps to a distinct CI4 tile in REL.
@@ -225,19 +231,12 @@ def _collect_roles_from_field_bank(bank: TextureBank) -> dict[str, bytes]:
 		"bush_pal": None,
 		"beach_pal": None,
 		"cliff_pal": None,
+		"rail_pal": None,
 	}
-	earth_off = _pal_offset(names, "earth_pal")
-	if earth_off is not None and earth_off + 32 <= len(data):
-		pals["earth_pal"] = data[earth_off : earth_off + 32]
-	bush_off = _pal_offset(names, "bush_pal")
-	if bush_off is not None and bush_off + 32 <= len(data):
-		pals["bush_pal"] = data[bush_off : bush_off + 32]
-	beach_off = _pal_offset(names, "beach_pal")
-	if beach_off is not None and beach_off + 32 <= len(data):
-		pals["beach_pal"] = data[beach_off : beach_off + 32]
-	cliff_off = _pal_offset(names, "cliff_pal")
-	if cliff_off is not None and cliff_off + 32 <= len(data):
-		pals["cliff_pal"] = data[cliff_off : cliff_off + 32]
+	for key in pals:
+		off = _pal_offset(names, key)
+		if off is not None and off + 32 <= len(data):
+			pals[key] = data[off : off + 32]
 	for off, name in sorted(names.items()):
 		if "pal" in name.lower():
 			continue
@@ -485,7 +484,7 @@ def _export_field_season(
 	w, m = _export_grass_patterns(cfg, bank, rel, season, out_dir, force=force)
 	written.extend(w)
 	missing.extend(m)
-	for role in FIELD_ROLE_NEEDLES:
+	for role in (*FIELD_ROLE_NEEDLES, *SEASON_STATE_ROLES):
 		if role == "grass":
 			continue
 		dest = out_dir / f"{role}.png"

@@ -1,6 +1,6 @@
 # AC Godot
 
-A Godot 4 recreation of the GameCube version of *Animal Crossing*.
+A Godot 4 recreation of the GameCube version of _Animal Crossing_.
 
 The goal is a **1:1 recreation** of every system and content set from the original
 (`GAFE01`, USA rev 0), the only intended deviation being **HD / re-authored art** in
@@ -92,20 +92,20 @@ See [docs/testing.md](docs/testing.md).
 
 ## Project layout
 
-| Path | Purpose |
-| --- | --- |
-| `assets/generated/` | Pipeline output from a local disc (gitignored) |
-| `assets/custom/` | Hand-authored Godot assets |
-| `scenes/` | Physical game objects and UI |
-| `scripts/` | Resource classes, systems, actor/UI scripts |
-| `data/` | `.tres` instances (items, villagers, tiles, dialogue) |
-| `docs/` | Architecture, conventions, scope, decomp mapping, asset pipeline |
-| `tools/` | Disc extract / convert scripts |
-| `tests/` | GdUnit4 suites |
+| Path                | Purpose                                                          |
+| ------------------- | ---------------------------------------------------------------- |
+| `assets/generated/` | Pipeline output from a local disc (gitignored)                   |
+| `assets/custom/`    | Hand-authored Godot assets                                       |
+| `scenes/`           | Physical game objects and UI                                     |
+| `scripts/`          | Resource classes, systems, actor/UI scripts                      |
+| `data/`             | `.tres` instances (items, villagers, tiles, dialogue)            |
+| `docs/`             | Architecture, conventions, scope, decomp mapping, asset pipeline |
+| `tools/`            | Disc extract / convert scripts                                   |
+| `tests/`            | GdUnit4 suites                                                   |
 
 ## Decomp reference
 
-Behavior may be studied from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Clone that repository **outside** this project. Do not copy C into GDScript, and do not commit the decomp, disc images, or original assets here.
+Behavior may be studied from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 
 Asset extraction from a disc you already own is documented in [docs/asset_pipeline.md](docs/asset_pipeline.md). Converted files land in `assets/generated/` and are gitignored. The steps to build them and start the game are in [Run](#run).
 

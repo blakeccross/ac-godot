@@ -2,6 +2,10 @@ class_name VisualBlobShadow
 extends RefCounted
 ## Authored `*_shadow_v` companion mesh under a host (flat fan kept out of actor AABB fit).
 
+## `bIT` shadow drawer: RGB is `kankyo` shadow_color (midday fine palette), alpha is
+## the I mask × shadow_alpha. The station sheets keep that mask as white RGB.
+const AUTHORED_SHADOW_COLOR := Color(0.0, 30.0 / 255.0, 70.0 / 255.0, 180.0 / 255.0)
+
 
 static func attach(host: Node3D, visual_id: StringName) -> void:
 	## Authored `*_shadow_v` companion. Separate from GeneratedVisual so actor AABB fit
@@ -59,6 +63,14 @@ static func _apply_blob_shadow_materials(node: Node) -> void:
 				std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS:
 				std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			## Ellipse blobs are already a dark radial. Authored I masks (the station)
+			## are white, and the low sheet's vertex colour is the sweep flag, not shade.
+			if (
+				std.resource_name != "blob_shadow"
+				and bool(VisualSurface.gltf_extras(std).get("ground_spill", false))
+			):
+				std.vertex_color_use_as_albedo = false
+				std.albedo_color = AUTHORED_SHADOW_COLOR
 			## Clear of grass; under window spill / footprints.
 			std.render_priority = 2
 			mesh_instance.set_surface_override_material(i, std)

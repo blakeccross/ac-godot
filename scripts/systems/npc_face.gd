@@ -16,8 +16,8 @@ const FRAME_SIZE := Vector2i(32, 16)
 const GLB_FACE_SIZE := Vector2i(64, 16)
 
 var _anim: NpcFaceAnim = NpcFaceAnim.new()
-var _eye_mats: Array[StandardMaterial3D] = []
-var _mouth_mats: Array[StandardMaterial3D] = []
+var _eye_mats: Array[Material] = []
+var _mouth_mats: Array[Material] = []
 var _eye_frames: Array[Texture2D] = []
 var _mouth_frames: Array[Texture2D] = []
 var _eye_shown: int = -1
@@ -63,21 +63,21 @@ func bind(visual: Node3D, species: StringName, texture_set: StringName = &"") ->
 		code = texture_set
 	var use_bin_frames: bool = code == &"boy"
 	if not _eye_mats.is_empty():
-		_target_size = _quad_size(_eye_mats[0].albedo_texture)
+		_target_size = _quad_size(_albedo_of(_eye_mats[0]))
 		if use_bin_frames:
 			_eye_frames = _load_frames(code, "eye", NpcFaceAnim.EYE_SHUT + 6)
 		else:
 			_eye_frames = _prepare_villager_frames(code, "eye", NpcFaceAnim.EYE_SHUT + 6)
 		if _eye_frames.is_empty():
-			_eye_frames = _synthesize_eye_frames(_eye_mats[0].albedo_texture)
+			_eye_frames = _synthesize_eye_frames(_albedo_of(_eye_mats[0]))
 	if not _mouth_mats.is_empty():
-		_target_size = _quad_size(_mouth_mats[0].albedo_texture)
+		_target_size = _quad_size(_albedo_of(_mouth_mats[0]))
 		if use_bin_frames:
 			_mouth_frames = _load_frames(code, "mouth", NpcFaceAnim.MOUTH_OPEN + 4)
 		else:
 			_mouth_frames = _prepare_villager_frames(code, "mouth", NpcFaceAnim.MOUTH_OPEN + 4)
 		if _mouth_frames.is_empty():
-			_mouth_frames = _synthesize_mouth_frames(_mouth_mats[0].albedo_texture)
+			_mouth_frames = _synthesize_mouth_frames(_albedo_of(_mouth_mats[0]))
 	if _eye_frames.is_empty() and _mouth_frames.is_empty():
 		return false
 	_eye_shown = -1
@@ -116,13 +116,13 @@ func _apply() -> void:
 	var eye: int = _anim.eye_pattern
 	if eye != _eye_shown and eye < _eye_frames.size():
 		_eye_shown = eye
-		for mat: StandardMaterial3D in _eye_mats:
-			mat.albedo_texture = _eye_frames[eye]
+		for mat: Material in _eye_mats:
+			_set_albedo(mat, _eye_frames[eye])
 	var mouth: int = _anim.mouth_pattern
 	if mouth != _mouth_shown and mouth < _mouth_frames.size():
 		_mouth_shown = mouth
-		for mat: StandardMaterial3D in _mouth_mats:
-			mat.albedo_texture = _mouth_frames[mouth]
+		for mat: Material in _mouth_mats:
+			_set_albedo(mat, _mouth_frames[mouth])
 
 
 func _collect_face_quads(node: Node) -> void:
@@ -137,10 +137,7 @@ func _collect_face_quads(node: Node) -> void:
 
 func _try_collect_face_quad(mesh_instance: MeshInstance3D, surface: int) -> void:
 	var mat: Material = mesh_instance.get_active_material(surface)
-	if not (mat is StandardMaterial3D):
-		return
-	var std := mat as StandardMaterial3D
-	var tex: Texture2D = std.albedo_texture
+	var tex: Texture2D = _albedo_of(mat)
 	if tex == null or not _is_face_quad(tex):
 		return
 	var label := _surface_label(mesh_instance, surface)
@@ -148,7 +145,7 @@ func _try_collect_face_quad(mesh_instance: MeshInstance3D, surface: int) -> void
 	var is_mouth := "seg_09" in label or "mouth" in label
 	if not is_eye and not is_mouth:
 		return
-	var own := std.duplicate() as StandardMaterial3D
+	var own: Material = mat.duplicate()
 	mesh_instance.set_surface_override_material(surface, own)
 	if is_mouth:
 		_mouth_mats.append(own)
@@ -273,6 +270,21 @@ static func _mirror_expand_image(image: Image, target_w: int) -> Image:
 			out.set_pixel(x, y, c)
 			out.set_pixel(target_w - 1 - x, y, c)
 	return out
+
+
+static func _albedo_of(mat: Material) -> Texture2D:
+	if mat is StandardMaterial3D:
+		return (mat as StandardMaterial3D).albedo_texture
+	if mat is ShaderMaterial:
+		return (mat as ShaderMaterial).get_shader_parameter("albedo_tex") as Texture2D
+	return null
+
+
+static func _set_albedo(mat: Material, tex: Texture2D) -> void:
+	if mat is StandardMaterial3D:
+		(mat as StandardMaterial3D).albedo_texture = tex
+	elif mat is ShaderMaterial:
+		(mat as ShaderMaterial).set_shader_parameter("albedo_tex", tex)
 
 
 static func _quad_size(tex: Texture2D) -> Vector2i:

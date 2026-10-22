@@ -59,6 +59,10 @@ const AMBIENT_COLOR := Color(30.0 / 255.0, 30.0 / 255.0, 80.0 / 255.0)
 const SUN_COLOR := Color(1.0, 1.0, 200.0 / 255.0)
 ## GX light direction toward the sun; Godot shines along −Z.
 const SUN_DIR_GX := Vector3(0.0, 89.0, 79.0)
+## Same plane as the table, tipped toward overhead. (0, 89, 79) lights the cheeks
+## almost as hard as the crown, so the face stays one flat white. This puts the
+## clamped hit on the top of the head.
+const CHARACTER_SUN_DIR := Vector3(0.0, 115.0, 55.0)
 ## GC captures show a black void; decomp clear `(22,27,94)` is unused with fog off.
 ## Atmosphere is the scrolling spot2 fog texture on the XLU cone, not clear color.
 const BG_COLOR := Color(0.0, 0.0, 0.0)

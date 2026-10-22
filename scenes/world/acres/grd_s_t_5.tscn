@@ -5,7 +5,7 @@
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_t_5/grd_s_t_52.res" id="3_hn5ax"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/b9aef45eb859.tres" id="4_rd5yb"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/36747dc17472.tres" id="5_4osor"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/1c30b7cf53a1.tres" id="6_8wp1x"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/87519cf89f3b.tres" id="6_8wp1x"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/af822b8a4ed7.tres" id="7_s0kfs"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/ae18d3707dba.tres" id="8_tikoj"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_t_5/grd_s_t_5_mask.res" id="9_wwxpk"]
@@ -13,12 +13,12 @@
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_t_5/grd_s_t_5_blend.res" id="11_13wfi"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/river_6c1924ebe8e3.tres" id="12_q7b07"]
 
-[node name="grd_s_t_5" type="Node3D" unique_id=628411012]
+[node name="grd_s_t_5" type="Node3D" unique_id=545418006]
 script = ExtResource("1_w30h7")
 visual_id = &"grd_s_t_5"
 grid = ExtResource("2_yjn4j")
 
-[node name="grd_s_t_52" type="MeshInstance3D" parent="." unique_id=2040056720]
+[node name="grd_s_t_52" type="MeshInstance3D" parent="." unique_id=1743481612]
 mesh = ExtResource("3_hn5ax")
 surface_material_override/0 = ExtResource("4_rd5yb")
 surface_material_override/1 = ExtResource("5_4osor")
@@ -26,10 +26,10 @@ surface_material_override/2 = ExtResource("6_8wp1x")
 surface_material_override/3 = ExtResource("7_s0kfs")
 surface_material_override/4 = ExtResource("8_tikoj")
 
-[node name="grd_s_t_5_mask" type="MeshInstance3D" parent="." unique_id=535143143]
+[node name="grd_s_t_5_mask" type="MeshInstance3D" parent="." unique_id=568041694]
 mesh = ExtResource("9_wwxpk")
 surface_material_override/0 = ExtResource("10_dw22o")
 
-[node name="grd_s_t_5_blend" type="MeshInstance3D" parent="." unique_id=2073009565]
+[node name="grd_s_t_5_blend" type="MeshInstance3D" parent="." unique_id=1571870728]
 mesh = ExtResource("11_13wfi")
 surface_material_override/0 = ExtResource("12_q7b07")
