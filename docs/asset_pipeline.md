@@ -269,7 +269,7 @@ Message / talk window chrome (`con_kaiwa2_*`, `con_namefuti_TXT` from `foresta.r
 python3 tools/build_assets.py --step convert --kind message-ui
 ```
 
-Writes `assets/generated/ui/message/` (`msg_kaiwa_w*`, baked `msg_window_cloud` / `msg_nameplate_cloud`, and `msg_font.fnt` from `FONT_nes_tex_font1`). Cloud chrome uses ACHD kaiwa tiles when enabled (grey I4 masks × mint PRIM). Glyph atlas uses ACHD 8× GAFE font. `MessageWindowChrome` draws the baked clouds and BMFont with CUT advances.
+Writes `assets/generated/ui/message/` (`msg_kaiwa_w*`, baked `msg_window_cloud` / `msg_nameplate_cloud`, and `msg_font.fnt` from `FONT_nes_tex_font1`). Cloud chrome uses ACHD kaiwa tiles when enabled (grey I4 masks × mint PRIM). Glyph atlas uses ACHD 8× GAFE font. `MessageWindowChrome` draws the baked clouds and BMFont with CUT advances. The runtime uses committed copies of `msg_window_cloud.png`, `msg_nameplate_cloud.png`, `msg_font.fnt` and `msg_font_atlas.png` from `assets/ui/` (not copyright-protected), so a pipeline rerun's copies under `assets/generated/ui/message/` are only for comparison tooling; copy them over `assets/ui/` to update.
 
 NPC face frames (`face_*.bin` eye/mouth blocks → gitignored PNGs):
 

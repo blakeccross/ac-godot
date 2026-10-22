@@ -12,7 +12,7 @@
 [ext_resource type="Texture2D" uid="uid://dgega2ephsnmy" path="res://assets/generated/ui/inventory/bells_label.png" id="17"]
 [ext_resource type="Texture2D" uid="uid://dos5rmk5271on" path="res://assets/generated/ui/inventory/portrait_frame.png" id="18"]
 [ext_resource type="Texture2D" uid="uid://0bm1hway4t2h" path="res://assets/generated/ui/inventory/tab_design_shape.png" id="DesignTabTex"]
-[ext_resource type="FontFile" uid="uid://d1obuqkxe3oxo" path="res://assets/generated/ui/message/msg_font.fnt" id="RomFont"]
+[ext_resource type="FontFile" uid="uid://d1obuqkxe3oxo" path="res://assets/ui/msg_font.fnt" id="RomFont"]
 [ext_resource type="Texture2D" uid="uid://j4oyfpcwqvs" path="res://assets/generated/ui/inventory/slot_item.png" id="SlotItemTex"]
 [ext_resource type="Texture2D" uid="uid://dep3cpxm7aogs" path="res://assets/generated/ui/inventory/slot_letter.png" id="SlotLetterTex"]
 [ext_resource type="Texture2D" uid="uid://cpahxbqr0rkm8" path="res://assets/generated/ui/inventory/tab_lens_mask_r.png" id="TabLensTexR"]

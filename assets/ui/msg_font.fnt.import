@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://d1obuqkxe3oxo"
+path="res://.godot/imported/msg_font.fnt-a359ac981682ce69902344b64eeeb383.fontdata"
+
+[deps]
+
+source_file="res://assets/ui/msg_font.fnt"
+dest_files=["res://.godot/imported/msg_font.fnt-a359ac981682ce69902344b64eeeb383.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=2

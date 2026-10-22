@@ -16,7 +16,7 @@ const HAND_SIZE := 100.0
 ## The ROM UI font (`FONT_nes_tex_font1`, `mFont_SetLineStrings`), same as the
 ## dialogue window; Rodin `.otf` is the vector fallback.
 const UI_FONT_PATHS := [
-	"res://assets/generated/ui/message/msg_font.fnt",
+	"res://assets/ui/msg_font.fnt",
 	"res://assets/custom/ui/message/msg_font.fnt",
 	"res://assets/fonts/fot_rodin_pro_db.otf",
 ]

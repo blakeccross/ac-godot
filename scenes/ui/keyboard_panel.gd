@@ -51,7 +51,7 @@ const KEY_SELECTED_CAPS := Color8(0, 0, 205)
 const A_BUTTON_TEXT := Vector2(242.0, 180.0)
 const FONT_PX := 16
 const TEX_DIR := "res://assets/generated/ui/menu/%s.png"
-const FONT_PATHS := ["res://assets/generated/ui/message/msg_font.fnt", "res://assets/custom/ui/message/msg_font.fnt"]
+const FONT_PATHS := ["res://assets/ui/msg_font.fnt", "res://assets/custom/ui/message/msg_font.fnt"]
 
 @export var show_ink: bool = false
 
