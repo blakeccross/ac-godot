@@ -134,10 +134,6 @@ func set_choice_scale(scale: float) -> void:
 		_layout()
 
 
-func choice_scale() -> float:
-	return _choice_scale
-
-
 static func cloud_rect() -> Rect2:
 	return Rect2(Vector2(WINDOW_CENTER_X - WINDOW_SIZE.x * 0.5, WINDOW_BOTTOM_V - WINDOW_SIZE.y), WINDOW_SIZE)
 
@@ -287,10 +283,6 @@ func clear_choices() -> void:
 	if is_node_ready():
 		_choice_panel.visible = false
 		_layout()
-
-
-func choice_container() -> VBoxContainer:
-	return _choices
 
 
 func style_choice(btn: Button, selected: bool) -> void:

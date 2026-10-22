@@ -22,13 +22,7 @@ const WALL_COUNTS := 31
 
 ## `aLS_CheckPlayerSwitchPositionAngle`: the switch panel on the east wall.
 const SWITCH_GX := Vector3(180.0, 0.0, 100.0)
-## Reach from `SWITCH_GX` (`GETREG(CRV, 86) + 33.5684`, the register is 0 on retail).
-const SWITCH_REACH_GX := 33.5684
-## `aLS_CheckPlayerAction`: the player is moved here, facing 135° (toward the panel).
-const SWITCH_STAND_GX := Vector3(167.27208, 40.0, 112.72792)
 
-## `mEnv` point light for `SCENE_LIGHTHOUSE`: over the pit, warm white.
-const LIGHT_GX := Vector3(120.0, 80.0, 160.0)
 const LIGHT_COLOR := Color(235.0 / 255.0, 190.0 / 255.0, 185.0 / 255.0)
 
 

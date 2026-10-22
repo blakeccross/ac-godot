@@ -54,6 +54,7 @@ static func clear_shell_colliders(terrain: Node3D) -> void:
 
 
 ## Floor slab + outer walls. `gaps` = [{ "side", "center", "half" }, ...] door openings.
+## Test-only: no in-game callers; kept for tests.
 static func add_museum_shell_collision(root: Node3D, room: Room, grid: WorldGrid, gaps: Variant = []) -> void:
 	if root == null or room == null or grid == null:
 		return
@@ -441,16 +442,6 @@ static func museum_door_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
 		if not gap.is_empty():
 			out.append(gap)
 	return out
-
-
-## Backward-compatible single leave-door gap (prefer `museum_door_gaps`).
-static func museum_exit_gap(room: Room, grid: WorldGrid) -> Dictionary:
-	var gaps: Array[Dictionary] = museum_door_gaps(room, grid)
-	if room != null and room.id == &"museum_entrance":
-		for gap: Dictionary in gaps:
-			if gap.get("side", &"") == &"south":
-				return gap
-	return gaps[0] if not gaps.is_empty() else {}
 
 
 static func _museum_gap_for_sensor(grid: WorldGrid, sensor: Vector3, half: float) -> Dictionary:

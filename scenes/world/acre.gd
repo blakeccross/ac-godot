@@ -20,6 +20,7 @@ var _slots: Array[Dictionary] = []
 var _slots_built: bool = false
 
 
+## Test-only: no in-game callers; kept for tests.
 static func clear_tile_cache() -> void:
 	_tile_cache.clear()
 

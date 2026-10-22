@@ -81,6 +81,7 @@ static func apply_event(event: Dictionary, house: House) -> String:
 
 
 ## Palette ids on one page of the roof menu (page 0 is the default `check_roof_col_order`).
+## Test-only: no in-game callers; kept for tests.
 static func palettes_on_page(page: int) -> Array[int]:
 	var out: Array[int] = []
 	var first: int = clampi(page, 0, House.OUTLOOK_PAL_COUNT / PALETTES_PER_PAGE - 1) * PALETTES_PER_PAGE

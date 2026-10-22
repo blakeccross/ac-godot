@@ -650,10 +650,6 @@ static func _time(file: PackedByteArray, at: int) -> Dictionary:
 	}
 
 
-static func _ymd(t: Dictionary) -> Vector3i:
-	return Vector3i(int(t.get("year", 0)), int(t.get("month", 0)), int(t.get("day", 0)))
-
-
 static func _tune(file: PackedByteArray, at: int) -> PackedByteArray:
 	var notes := PackedByteArray()
 	for i: int in 8:

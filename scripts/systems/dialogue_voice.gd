@@ -105,7 +105,6 @@ var rng: RandomNumberGenerator
 var _last_num: int = 0xFF
 var _last_num2: int = 0xFF
 var _deferred: int = 0
-var _deferred_scale: int = 32
 var _effect_counter: int = 0
 var _effect_period: int = 0
 var _sad_toguru: int = 0

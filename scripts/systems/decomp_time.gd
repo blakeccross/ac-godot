@@ -26,13 +26,11 @@ static func ticks_to_sec(ticks: float) -> float:
 	return ticks * TICK_SEC
 
 
+## Test-only: no in-game callers; kept for tests.
 static func sec_to_ticks(sec: float) -> float:
 	return sec * TICK_HZ
 
 
+## Test-only: no in-game callers; kept for tests.
 static func frames_to_sec(frames: float) -> float:
 	return frames * FRAME_SEC
-
-
-static func sec_to_frames(sec: float) -> float:
-	return sec * FRAME_HZ

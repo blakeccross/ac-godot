@@ -23,8 +23,6 @@ const STORY_OTHER_TABLE: Array = [6, 10, 14, 18]
 ## Mabel first-talk / repeat greetings.
 const GREETING_FIRST := 0x2FD4
 const GREETING_REPEAT := 0x3005
-## aNNW_set_force_talk_info force_msg_table.
-const FORCE_GREETINGS: Array = [0x2FD1, 0x2FD2, 0x2FD3, 0x2FF2, 0x2FF3, 0x3034, 0x3035]
 
 ## Trade-flow result lines.
 const MSG_TRADE_EXCHANGE := 0x2FFA
@@ -38,11 +36,6 @@ const MSG_DESIGN_NAMED := 0x2FEB
 const MSG_GBA_NOT_CONNECTED := 0x3008
 
 const DESIGN_PRICE := 350  ## aNNW_DESIGN_PRICE
-
-## Trend tiers (`aNNW_set_trend_cloth_message` / `_umbrella_message`), by worn count
-## 0 / 1 / <5 / >=5.
-const MSG_TREND_CLOTH: Array = [0x2FDC, 0x2FDB, 0x2FDA, 0x2FD9]
-const MSG_TREND_UMBRELLA: Array = [0x2FE0, 0x2FDF, 0x2FDE, 0x2FDD]
 
 
 static func trend_tier(count: int) -> int:
@@ -112,10 +105,6 @@ static func story_line_ids(story_row: int, rng: RandomNumberGenerator) -> Array[
 			break
 		out.append(STORY_BASE + v)
 	return out
-
-
-static func force_greeting(rng: RandomNumberGenerator) -> int:
-	return int(FORCE_GREETINGS[rng.randi_range(0, FORCE_GREETINGS.size() - 1)])
 
 
 ## `DialogueData` for a single ROM message id, or null.

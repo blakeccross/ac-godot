@@ -25,9 +25,6 @@ const GROUP := &"letter_writer_ui"
 signal closed
 
 const MAX_LINES := 6
-## `mED_TYPE_HBOARD` (`m_hboard_ovl`): the house gyroid's visitor message.
-const HBOARD_LINES := 4
-const HBOARD_LEN := 128
 const HBOARD_TEXT := Vector2(46, 54)
 const HBOARD_COLOR := Color8(30, 0, 0)
 const FONT_PX := 16

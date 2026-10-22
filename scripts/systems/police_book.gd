@@ -111,6 +111,7 @@ func copy_item_buf() -> void:
 ## lost and found. Past twenty new items, each extra one lands on a random slot of the
 ## new batch; old items are then dropped from the front to fit the batch.
 ## `acre_items` is the acre's items in unit order; returns the ones that were taken.
+## Test-only: no in-game callers; kept for tests.
 func keep_all_items(acre_items: Array[StringName]) -> Array[StringName]:
 	var taken: Array[StringName] = []
 	var batch: Array[StringName] = []

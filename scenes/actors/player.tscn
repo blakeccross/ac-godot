@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scenes/actors/player.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/actors/actor_blob_shadow.tscn" id="2"]
@@ -16,13 +16,6 @@
 [sub_resource type="CylinderShape3D" id="PlayerShape"]
 radius = 0.9
 height = 3.0
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh"]
-radius = 0.28
-height = 1.25
-
-[sub_resource type="StandardMaterial3D" id="PlayerMat"]
-albedo_color = Color(0.91, 0.74, 0.55, 1)
 
 [sub_resource type="BoxShape3D" id="ProbeShape"]
 size = Vector3(0.9, 1.1, 1.35)
@@ -46,11 +39,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 shape = SubResource("PlayerShape")
 
 [node name="MeshPivot" type="Node3D" parent="."]
-
-[node name="PlaceholderMesh" type="MeshInstance3D" parent="MeshPivot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.625, 0)
-mesh = SubResource("CapsuleMesh")
-surface_material_override/0 = SubResource("PlayerMat")
 
 [node name="InteractProbe" type="Area3D" parent="MeshPivot"]
 collision_layer = 0

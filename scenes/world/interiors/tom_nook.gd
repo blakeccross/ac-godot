@@ -827,7 +827,6 @@ func _ensure_visual() -> void:
 	_model = $Model
 	var species: StringName = CLERK_SPECIES if clerk >= 0 else ShopDisplay.nook_species(_nook_level())
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, species)
-	($Model/Placeholder as Node3D).visible = vis == null
 	if vis == null:
 		return
 	## Permanent shop master leaves `cloth_idx` NONE (`aNPC_actor_init_for_special`).

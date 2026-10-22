@@ -35,7 +35,3 @@ enum Category { TOOL, FURNITURE, FRUIT, FISH, BUG, OTHER, WALL, FLOOR, CLOTH }
 @export var from_disc: bool = false
 ## Non-empty → inventory **Plant** tag (`PlantData.id`).
 @export var plant_id: StringName = &""
-
-
-func can_stack_with(other: ItemData) -> bool:
-	return other != null and other.id == id and max_stack > 1

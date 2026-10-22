@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/interiors/able_fixture.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="2"]
@@ -8,11 +8,6 @@ size = Vector3(1.45, 1.7, 1.45)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_reach"]
 size = Vector3(1.8, 2, 1.8)
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_placeholder"]
-top_radius = 0.1
-bottom_radius = 0.2
-height = 1.6
 
 [node name="AbleFixture" type="StaticBody3D" groups=["interactable", "needlework_set"]]
 collision_mask = 0
@@ -34,7 +29,3 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 shape = SubResource("BoxShape3D_reach")
 
 [node name="Model" type="Node3D" parent="."]
-
-[node name="Placeholder" type="MeshInstance3D" parent="Model"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
-mesh = SubResource("CylinderMesh_placeholder")

@@ -364,6 +364,7 @@ func repay_loan(amount: int) -> int:
 	return pay
 
 
+## Test-only: no in-game callers; kept for tests.
 func has_bank_account() -> bool:
 	## Bank unlocks after the house loan is cleared (`aPG_set_post_status` HAS_BANK).
 	return loan <= 0

@@ -11,7 +11,6 @@ enum { AVOID, LET_ESCAPE, WAIT }
 
 ## `angle_table` — ±175.78125° from north == ±4.21875° either side of due south.
 const SWAY := deg_to_rad(4.21875)
-const BALL_SCARE := 60.0
 const NET_SCARE := 70.0
 const SCOOP_SCARE := 30.0
 const VIB_SCARE := 150.0

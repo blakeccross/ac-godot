@@ -155,15 +155,6 @@ func slot_on_plot(building_id: StringName) -> int:
 	return -1
 
 
-## Plots other residents live on (not the one being played).
-func other_plots() -> Array[StringName]:
-	var out: Array[StringName] = []
-	for i: int in MAX:
-		if i != current and is_resident(slots[i]) and plot_of(i) != &"":
-			out.append(plot_of(i))
-	return out
-
-
 ## Another resident's house record, live for this session (writes go back on `flush_houses`).
 func house_of(slot: int) -> House:
 	if slot == current and Game != null and Game.interiors != null:

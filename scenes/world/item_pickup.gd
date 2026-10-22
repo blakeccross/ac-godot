@@ -37,11 +37,10 @@ func set_item(next: ItemData) -> void:
 func _apply_visual() -> void:
 	if item == null:
 		return
-	## Prefer the disc item card (`obj_item_apple` etc.) over the sphere placeholder.
 	var visual: StringName = &"obj_item_present" if wrapped else FieldCatalog.item_visual(item.id)
 	if visual != &"" and GeneratedVisual.attach(self, visual) != null:
 		return
-	VisualCloth.apply_item_albedo(self, item.id)
+	GeneratedVisual.mark_missing(self, visual if visual != &"" else item.id, item.icon_color, Vector3(0.36, 0.36, 0.36))
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:

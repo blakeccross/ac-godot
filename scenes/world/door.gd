@@ -163,25 +163,6 @@ func _play_indoor_link_enter() -> void:
 	player.doors.end_door_enter()
 
 
-## Outdoor leave through Exit sensor: INTO_S1 past the door (`EXIT_DOOR` walk).
-func _play_indoor_exit_through_sensor() -> void:
-	var player := Player.find(get_tree())
-	if player == null or not is_instance_valid(player):
-		return
-	var sensor := Vector3(global_position.x, player.global_position.y, global_position.z)
-	var to: Vector3 = sensor - player.global_position
-	to.y = 0.0
-	var yaw: float = (
-		atan2(to.x, to.z)
-		if to.length_squared() > 0.0001
-		else WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH)
-	)
-	var along := Vector3(sin(yaw), 0.0, cos(yaw))
-	var target: Vector3 = sensor + along * (StructureDoor.INTO_GX * FieldCatalog.GX_TO_METERS)
-	target.y = player.global_position.y
-	await player.doors.run_indoor_exit(target, yaw)
-
-
 func _enter_target() -> StringName:
 	if occupant_id != &"":
 		return occupant_id

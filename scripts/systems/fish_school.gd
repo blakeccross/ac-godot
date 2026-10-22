@@ -13,8 +13,6 @@ extends RefCounted
 
 ## `aGYO_MAX_GYOEI`: two shadows on screen at once, ever.
 const MAX_SHADOWS := 2
-## `aGYO_EXIST_MAX`: slots the original keeps tracked.
-const EXIST_MAX := 4
 ## `aGYO_cull_check` drops a shadow past 600 GX once it is in another acre.
 const CULL_DISTANCE := 600.0 * FishSize.GX
 ## `mCoBG_ATTRIBUTE_WATER`, `_RIVER_NE` and `_SEA`: the water unit attributes.

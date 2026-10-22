@@ -78,6 +78,7 @@ func tick(delta: float, uttering: bool) -> void:
 	_time = fposmod(_time + delta, maxf(_clip.length, 0.001))
 
 
+## Test-only: no in-game callers; kept for tests.
 func is_flapping() -> bool:
 	return _time > 0.0 or _tail > 0.0
 

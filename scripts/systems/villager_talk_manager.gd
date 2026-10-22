@@ -227,11 +227,6 @@ func choose(index: int) -> Dictionary:
 	return _quest_run(index)
 
 
-## `aQMgr_talk_quest_select_get_choice` (default arm).
-func _select_choices() -> Array[String]:
-	return _labels([_choice_rand(CHOICE_HELP, 10), _choice_rand(CHOICE_TALK, 10), _choice_rand(CHOICE_NEVERMIND, 5)])
-
-
 ## `aQMgr_talk_quest_change_normal_or_hint`: "Never mind" cancels; anything else is a chat
 ## (+1 friendship) — `aQMgr_TALK_COMMON_CHANGE_TALK_NORMAL`.
 func _change_normal_or_hint() -> Dictionary:

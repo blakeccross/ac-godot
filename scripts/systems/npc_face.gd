@@ -35,10 +35,6 @@ static func frame_path(species: StringName, part: String, index: int) -> String:
 	return "%s/%s_%s%d.png" % [FRAME_DIR, code, part, index]
 
 
-static func has_frames(species: StringName) -> bool:
-	return ResourceLoader.exists(frame_path(species, "eye", 0))
-
-
 ## Returns true when at least one face quad was found with frames to swap. Some heads
 ## carry only one: beaks and snouts are skeletal (`MouthFlap`, attached here too), so the
 ## owl has an eye quad and no mouth. `texture_set` (`bul_2`) picks that draw entry's own
@@ -106,10 +102,6 @@ func set_emote(emote: NpcFaceAnim.Emote, mouth_hold_override: int = -1) -> void:
 
 func set_from_mood(mood: int) -> void:
 	set_emote(NpcFaceAnim.emote_from_mood(mood))
-
-
-func current_emote() -> NpcFaceAnim.Emote:
-	return _anim.emote
 
 
 func _apply() -> void:

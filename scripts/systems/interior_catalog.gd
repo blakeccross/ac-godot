@@ -12,7 +12,6 @@ extends RefCounted
 
 const NPC_ROOM_COUNT := 15
 const PLAYER_HOUSE_ID := &"player"
-const CELL_SIZE := 2.0
 ## Disc NPC rooms occupy the NW 8×8 of the 16×16 FG grid (`fgnpcdata.bin`).
 const NPC_INNER_ORIGIN := Vector2i(1, 1)
 const NPC_INNER_SIZE := Vector2i(6, 6)
@@ -75,15 +74,7 @@ static func room_ids() -> Array[StringName]:
 	return out
 
 
-static func house_ids() -> Array[StringName]:
-	ensure_loaded()
-	var out: Array[StringName] = []
-	for key: Variant in _houses.keys():
-		out.append(key as StringName)
-	out.sort()
-	return out
-
-
+## Test-only: no in-game callers; kept for tests.
 static func has_room(room_id: StringName) -> bool:
 	ensure_loaded()
 	if _rooms.has(room_id):
@@ -173,6 +164,7 @@ static func scene_path(room_id: StringName) -> String:
 	return str(_scene_paths.get(room_id, ""))
 
 
+## Test-only: no in-game callers; kept for tests.
 static func has_authored_scene(room_id: StringName) -> bool:
 	var path: String = scene_path(room_id)
 	return path != "" and ResourceLoader.exists(path)

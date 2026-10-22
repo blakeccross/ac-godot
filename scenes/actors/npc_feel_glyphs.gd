@@ -13,7 +13,6 @@ const WARAU_VISUALS: Array[StringName] = [
 ]
 ## `eWU_ct` scale 0.0045 on authored verts (pipeline GLB already × `PIPELINE_SCALE`).
 const WARAU_MATRIX_SCALE := 0.0045
-const WARAU_LIFE_FRAMES := 24
 ## Continuous laugh while smile manpu holds — a couple of glyph cycles.
 const WARAU_CYCLES := 2
 

@@ -92,12 +92,6 @@ func order_value(target: String, slot: int) -> int:
 	return int((orders.get(target, {}) as Dictionary).get(slot, 0))
 
 
-func clear_order(target: String, slot: int) -> void:
-	var bank: Dictionary = orders.get(target, {})
-	bank.erase(slot)
-	orders[target] = bank
-
-
 func finish() -> void:
 	pass
 

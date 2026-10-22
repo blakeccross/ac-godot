@@ -71,15 +71,6 @@ func furniture_of(furniture_id: StringName) -> FurnitureData:
 	return ItemCatalog.get_item(furniture_id) as FurnitureData
 
 
-func placement_at(cell: Vector2i) -> FurniturePlacement:
-	if room == null:
-		return null
-	var occ: StringName = grid.occupant_at(cell)
-	if occ != &"":
-		return room.placement_by_id(occ)
-	return surface_item_at(cell)
-
-
 func surface_item_at(cell: Vector2i) -> FurniturePlacement:
 	if room == null:
 		return null

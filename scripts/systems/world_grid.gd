@@ -41,6 +41,7 @@ static func facing_from_player_yaw(yaw: float) -> Facing:
 	return best
 
 
+## Test-only: no in-game callers; kept for tests.
 static func facing_from_yaw(yaw: float) -> Facing:
 	var best: Facing = Facing.SOUTH
 	var best_delta: float = INF
@@ -87,6 +88,7 @@ func configure(p_columns: int, p_rows: int, p_cell_size: float, p_origin: Vector
 	clear()
 
 
+## Test-only: no in-game callers; kept for tests.
 func configure_from_acre(data: AcreData) -> void:
 	var cols: int = data.columns if data else 16
 	var rws: int = data.rows if data else 16
@@ -200,21 +202,6 @@ func furniture_world(anchor: Vector2i, size: Vector2i, _facing: Facing = Facing.
 	if w == 2 and d == 2:
 		return cell_to_world(anchor) + Vector3(cell_size * 0.5, 0.0, cell_size * 0.5)
 	return cell_to_world(anchor)
-
-
-func anchor_from_world_center(world_pos: Vector3, size: Vector2i, facing: Facing = Facing.SOUTH) -> Vector2i:
-	var w: int = maxi(size.x, 1)
-	var d: int = maxi(size.y, 1)
-	var local_min := rotate_offset(Vector2i(0, 0), facing)
-	var local_max := rotate_offset(Vector2i(w - 1, d - 1), facing)
-	var min_x: int = mini(local_min.x, local_max.x)
-	var min_z: int = mini(local_min.y, local_max.y)
-	var max_x: int = maxi(local_min.x, local_max.x)
-	var max_z: int = maxi(local_min.y, local_max.y)
-	var extent := Vector3(float(max_x - min_x + 1) * cell_size, 0.0, float(max_z - min_z + 1) * cell_size)
-	var min_world: Vector3 = world_pos - extent * 0.5
-	var inset := Vector3(cell_size * 0.25, 0.0, cell_size * 0.25)
-	return world_to_cell(min_world + inset)
 
 
 func neighbors4(cell: Vector2i) -> Array[Vector2i]:

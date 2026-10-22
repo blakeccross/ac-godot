@@ -156,7 +156,9 @@ func present_paintings(root: Node3D, interior: IndoorSession) -> void:
 			MuseumDisplay.ART_MUSEUM_VISUALS[i] if donated else MuseumDisplay.ART_MUSEUM_DUMMIES[i]
 		)
 		if not _attach_museum_art(node, visual):
-			_add_art_placeholder(node, donated)
+			GeneratedVisual.mark_missing(
+				node, visual, Color(0.9, 0.85, 0.7) if donated else Color(0.55, 0.38, 0.22), Vector3(1.2, 1.4, 0.08)
+			)
 		## Talk only when facing south within 33 GX (`aMP_CheckTalkAbleDist`).
 		var plaque: Node3D = PLAQUE_SCENE.instantiate() as Node3D
 		plaque.position = MuseumDisplay.gx_to_world(
@@ -342,14 +344,6 @@ func present_insects(root: Node3D, interior: IndoorSession) -> void:
 		root.add_child(plaque)
 
 
-func _attach_visual(node: Node3D, visual_id: StringName) -> bool:
-	var path := "res://assets/generated/furniture/%s.glb" % String(visual_id)
-	if not ResourceLoader.exists(path):
-		return false
-	GeneratedVisual.attach(node, visual_id)
-	return node.get_child_count() > 0
-
-
 func _attach_museum_art(node: Node3D, visual_id: StringName) -> bool:
 	## Host is already at `aMP_DrawOneArt` cell-center + Y=40 GX. Keep authored
 	## mesh XZ offsets (wall depth) and let `_fit_actor` rest the frame bottom on
@@ -357,14 +351,3 @@ func _attach_museum_art(node: Node3D, visual_id: StringName) -> bool:
 	return GeneratedVisual.attach(node, visual_id) != null
 
 
-func _add_art_placeholder(node: Node3D, filled: bool) -> void:
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(1.2, 1.4, 0.08)
-	mesh.mesh = box
-	## BoxMesh is centered; lift by half-height so the bottom sits on hang Y.
-	mesh.position.y = box.size.y * 0.5
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.55, 0.38, 0.22) if not filled else Color(0.9, 0.85, 0.7)
-	mesh.material_override = mat
-	node.add_child(mesh)

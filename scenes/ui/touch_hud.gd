@@ -117,6 +117,7 @@ func hide_chips() -> void:
 	_chip_pick = Callable()
 
 
+## Test-only: no in-game callers; kept for tests.
 func chips_showing() -> bool:
 	return _chips.visible
 

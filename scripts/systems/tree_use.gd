@@ -67,10 +67,6 @@ static func hits_for(p_size: Size) -> int:
 			return 3
 
 
-static func size_for(_visual_id: StringName) -> Size:
-	return Size.FULL
-
-
 static func fruit_count_for(visual_id: StringName, plant: PlantData) -> int:
 	if plant == null or plant.fruit == null:
 		return 0

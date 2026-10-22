@@ -106,7 +106,6 @@ func _ensure_visual() -> void:
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, &"ttl")
 	if vis == null:
 		vis = GeneratedVisual.attach_villager(_model, &"rcn")
-	($Model/Placeholder as Node3D).visible = vis == null
 	if vis == null:
 		return
 	_body_anim = VisualAnimation.find_animation_player(vis)

@@ -94,6 +94,7 @@ func tick(delta: float) -> void:
 	_color_ctrl(delta)
 
 
+## Test-only: no in-game callers; kept for tests.
 func is_sweeping() -> bool:
 	return state != State.WAIT
 

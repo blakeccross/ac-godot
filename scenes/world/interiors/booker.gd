@@ -350,7 +350,6 @@ func _ensure_visual() -> void:
 		return
 	_model = $Model
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, PoliceDisplay.BOOKER_SPECIES)
-	($Model/Placeholder as Node3D).visible = vis == null
 	if vis == null:
 		return
 	_body_anim = VisualAnimation.find_animation_player(vis)

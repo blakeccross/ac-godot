@@ -1,8 +1,14 @@
 class_name GeneratedVisual
 extends RefCounted
-## Loads a pipeline GLB (or baked acre scene) onto a host and hides placeholder meshes.
+## Loads a pipeline GLB (or baked acre scene) onto a host.
 ## Missing files are expected until `python3 tools/build_assets.py` has been run.
 ## Everything else — fit, materials, seasons, animation — lives in the `Visual*` classes.
+
+const MISSING_MODEL := preload("res://scenes/world/missing_model.tscn")
+const MISSING_NODE := "MissingModel"
+
+## Visual ids already reported, so a missing model warns once and not on every placement.
+static var _reported_missing: Dictionary = {}
 
 
 static func refresh(host: Node3D, visual_id: StringName) -> Node3D:
@@ -29,9 +35,35 @@ static func _find_acre(host: Node3D) -> Acre:
 	return null
 
 
+## Shows `MissingModel` on `host` for a visual that has no generated model, and says so
+## once. Call it when `attach` returns null for something that must stay visible; a second
+## call reuses the marker. `detach` removes it.
+static func mark_missing(
+	host: Node3D, visual_id: StringName, tint: Color = MissingModel.DEFAULT_TINT, size: Vector3 = Vector3(0.5, 0.5, 0.5)
+) -> MissingModel:
+	if host == null:
+		return null
+	if not _reported_missing.has(visual_id):
+		_reported_missing[visual_id] = true
+		push_warning("No generated model for '%s'; showing the missing-model marker." % visual_id)
+	var marker := host.get_node_or_null(MISSING_NODE) as MissingModel
+	if marker == null:
+		marker = MISSING_MODEL.instantiate() as MissingModel
+		marker.name = MISSING_NODE
+		host.add_child(marker)
+	marker.tint = tint
+	marker.size = size
+	return marker
+
+
 static func detach(host: Node3D) -> void:
 	if host == null:
 		return
+	var marker: Node = host.get_node_or_null(MISSING_NODE)
+	if marker != null:
+		## Out of the tree now (a same-frame `mark_missing` must not find it), freed after.
+		host.remove_child(marker)
+		marker.queue_free()
 	var vis: Node = host.get_node_or_null("GeneratedVisual")
 	if vis == null:
 		for child in host.get_children():
@@ -82,7 +114,6 @@ static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 	if pivot.get_child_count() == 0:
 		pivot.free()
 		return null
-	_hide_placeholder_meshes(host)
 	host.add_child(pivot)
 	if String(visual_id).begins_with("obj_train1_"):
 		## Stop wheel/door autoplay; strip root tracks (keep skinning for door).
@@ -120,7 +151,6 @@ static func _attach_acre_scene(host: Node3D, visual_id: StringName) -> Node3D:
 	var pivot := Node3D.new()
 	pivot.name = "GeneratedVisual"
 	pivot.add_child(acre)
-	_hide_placeholder_meshes(host)
 	host.add_child(pivot)
 	acre.apply_season()
 	VisualFit.fit(pivot, visual_id)
@@ -253,7 +283,6 @@ static func attach_villager(host: Node3D, species: StringName, fit_actor: bool =
 	var pivot := Node3D.new()
 	pivot.name = "GeneratedVisual"
 	pivot.add_child(inst)
-	_hide_placeholder_meshes(host)
 	VisualAnimation.stop_autoplay(pivot)
 	host.add_child(pivot)
 	VisualMaterials.apply(pivot)
@@ -306,7 +335,6 @@ static func attach_interior(
 	if pivot.get_child_count() == 0:
 		pivot.free()
 		return null
-	_hide_placeholder_meshes(host)
 	host.add_child(pivot)
 	VisualMaterials.apply(pivot)
 	VisualRoomPaint.paint_room_surfaces(pivot, wall_id, floor_id)
@@ -315,14 +343,3 @@ static func attach_interior(
 	VisualFit.fit_interior(pivot, target, StringName(shell_ids[0]))
 	VisualFit.disable_shadows(pivot)
 	return pivot
-
-
-static func _hide_placeholder_meshes(host: Node) -> void:
-	if host is MeshInstance3D:
-		(host as MeshInstance3D).visible = false
-	for child in host.get_children():
-		if child.name == "GeneratedVisual" or child.name == "Stump":
-			continue
-		if child is CollisionShape3D or child is Area3D:
-			continue
-		_hide_placeholder_meshes(child)

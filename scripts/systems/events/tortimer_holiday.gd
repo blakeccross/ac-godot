@@ -26,7 +26,6 @@ const NEW_YEARS_DAY := 0
 const TOWN_DAY := 4
 const GROUNDHOG_DAY := 13
 const TOY_DAY := 25
-const NEW_YEARS_EVE := 26
 const HARVEST_FESTIVAL := 27
 const MSG_EVENTS := 0x3280
 const MSG_EVENTS_COUNT := 10

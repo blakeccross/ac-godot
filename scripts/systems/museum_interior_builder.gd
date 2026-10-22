@@ -8,24 +8,6 @@ extends RefCounted
 const BLATHERS_SCENE := preload("res://scenes/world/museum/blathers.tscn")
 
 
-static func build_museum_stage(root: Node3D, interior: IndoorSession) -> void:
-	## Legacy single-root harness path — prefer `build_museum_room` per authored wing.
-	build_museum_room(root, interior)
-
-
-static func build_museum_room(room_root: Node3D, interior: IndoorSession) -> void:
-	## Authored wing helper: shell collision only. Exhibits belong to each room script.
-	if room_root == null or interior == null or interior.room == null:
-		return
-	var terrain: Node3D = room_root.get_node_or_null("Terrain") as Node3D
-	if terrain == null:
-		return
-	InteriorShellBuilder.clear_shell_colliders(terrain)
-	InteriorShellBuilder.add_museum_shell_collision(
-		terrain, interior.room, interior.grid, InteriorShellBuilder.museum_door_gaps(interior.room, interior.grid)
-	)
-
-
 static func add_museum_set(root: Node3D, interior: IndoorSession) -> void:
 	## Fossils / art / tank fish / case insects from town `MuseumBook` bits.
 	MuseumPresenter.new().present(root, interior)

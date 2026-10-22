@@ -246,11 +246,6 @@ func set_world_ground(data: WorldData, grid: WorldGrid) -> void:
 	_world_grid = grid
 
 
-## Door sensors of the debug acre's stub plots (the town houses pick themselves).
-func set_house_gx(house_gx: Array[Vector3]) -> void:
-	_house_gx = HOUSE_GX.duplicate() if house_gx.is_empty() else house_gx.duplicate()
-
-
 func reset() -> void:
 	action = Action.ARRIVE_SETUP
 	_getoff_t = 0.0
@@ -443,6 +438,7 @@ func player_unable_wade() -> bool:
 
 
 ## Demo camera (`Camera2_request_main_demo`) until GO_OUT_OF_STATION's `request_main_normal`.
+## Test-only: no in-game callers; kept for tests.
 func uses_demo_camera() -> bool:
 	return action in [
 		Action.ARRIVE_SETUP,
@@ -458,6 +454,7 @@ static func gx_to_meters(gx: Vector3) -> Vector3:
 
 
 ## Stage GX (station-block relative) of a decomp world GX point.
+## Test-only: no in-game callers; kept for tests.
 static func block_gx(world_gx: Vector3) -> Vector3:
 	return world_gx - BLOCK_ORIGIN_GX
 

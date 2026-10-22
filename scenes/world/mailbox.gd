@@ -43,12 +43,6 @@ func _ready() -> void:
 	if visual_id != &"" and not FieldCatalog.mesh_paths(visual_id).is_empty():
 		GeneratedVisual.attach(self, visual_id)
 		_has_mesh = true
-		var placeholder: Node = get_node_or_null("Post")
-		if placeholder != null:
-			placeholder.queue_free()
-		var box_mesh: Node = get_node_or_null("Box")
-		if box_mesh != null:
-			box_mesh.queue_free()
 		_anim = VisualAnimation.find_animation_player(self)
 	HostCollision.apply_box(self, footprint, HostCollision.CELL, 1.0)
 	## Connected on every plot: which one is owned can change mid-session (intro house pick).

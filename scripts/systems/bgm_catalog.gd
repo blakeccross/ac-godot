@@ -169,6 +169,7 @@ static func arm_stream_for(id: StringName) -> AudioStream:
 	return null
 
 
+## Test-only: no in-game callers; kept for tests.
 static func register_arm_stream(id: StringName, stream: AudioStream) -> void:
 	if id == &"" or stream == null:
 		return

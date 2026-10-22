@@ -77,6 +77,7 @@ func seed_rng(value: int) -> void:
 	_rng.seed = value
 
 
+## Test-only: no in-game callers; kept for tests.
 func actor_count() -> int:
 	return actors.size()
 
@@ -90,14 +91,6 @@ func notify_tool_swing() -> void:
 func notify_stop_net(net_pos: Vector3) -> void:
 	_stop_net_pending = true
 	_stop_net_pos = net_pos
-
-
-## Generic "player acted on this cell" — releases any bug settled there
-## (`aINS_set_pl_act_tim` / dig-up / axe).
-func notify_player_action(cell: Vector2i) -> void:
-	for actor: BugActor in actors:
-		if _grid != null and _grid.world_to_cell(actor.position) == cell:
-			actor.release()
 
 
 ## `aINS_set_pl_act_tim(action, ut_x, ut_z)`: latch a field action + its cell for

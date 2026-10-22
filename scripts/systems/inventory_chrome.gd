@@ -22,22 +22,6 @@ static func assets_ready() -> bool:
 	) or ResourceLoader.exists(CHROME_DIR + "/inv_mwin_items_tex.png")
 
 
-static func load_catalog() -> Dictionary:
-	if _catalog_loaded:
-		return _catalog
-	_catalog_loaded = true
-	_catalog = {}
-	if not FileAccess.file_exists(CATALOG_PATH):
-		return _catalog
-	var f: FileAccess = FileAccess.open(CATALOG_PATH, FileAccess.READ)
-	if f == null:
-		return _catalog
-	var parsed: Variant = JSON.parse_string(f.get_as_text())
-	if parsed is Dictionary:
-		_catalog = parsed
-	return _catalog
-
-
 static func clear_cache() -> void:
 	_tex_cache.clear()
 	_catalog.clear()

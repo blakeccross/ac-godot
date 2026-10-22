@@ -80,6 +80,7 @@ static func record(persist_id: StringName) -> Dictionary:
 	return (raw as Dictionary).duplicate()
 
 
+## Test-only: no in-game callers; kept for tests.
 static func has_record(persist_id: StringName) -> bool:
 	return not record(persist_id).is_empty()
 
@@ -150,11 +151,6 @@ static func visual_id(rec: Dictionary, plant: PlantData, now_renew: int = -1) ->
 			if fruit_ready(rec, plant, now_renew) and plant.visual_harvestable != &"":
 				return plant.visual_harvestable
 			return _visual(plant.visual_mature, plant)
-
-
-static func visual_scale(_pipe: Pipeline) -> float:
-	## Stage meshes (`obj_s_tree1`–`tree5`) already carry size. Do not scale a full tree down.
-	return 1.0
 
 
 static func tree_size(pipe: Pipeline) -> TreeUse.Size:

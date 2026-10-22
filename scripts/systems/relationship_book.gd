@@ -54,6 +54,7 @@ func record_gift(villager_id: StringName, item_id: StringName, day_key: String) 
 	return get_or_create(villager_id).record_gift(item_id, day_key)
 
 
+## Test-only: no in-game callers; kept for tests.
 func give_gift(
 	villager_id: StringName, item_id: StringName, inventory: Inventory, day_key: String
 ) -> bool:

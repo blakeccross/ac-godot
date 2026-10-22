@@ -85,8 +85,6 @@ static func acre_season_letter() -> String:
 	return "s"
 
 
-## Sidecar pack from `python3 tools/build_assets.py --kind seasons`.
-const SEASON_TEX_ROOT := "res://assets/generated/environment/seasons/"
 ## Material/texture name needles → pack file stem (see tools/asset_pipeline/seasons.py).
 const SEASON_FIELD_ROLES: Dictionary = {
 	"grass": "grass",
@@ -110,14 +108,6 @@ const SEASON_TREE_ROLES: Dictionary = {
 
 static func set_grass_pattern(idx: int) -> void:
 	_grass_pattern_idx = WorldData.clamp_grass_pattern(idx)
-
-
-static func grass_pattern_idx() -> int:
-	return _grass_pattern_idx
-
-
-static func grass_season_texture_path() -> String:
-	return season_texture_path("grass")
 
 
 static func grass_pattern_pack_ready() -> bool:
@@ -743,6 +733,7 @@ static func attr_allows_npc(attr: int) -> bool:
 	return NPC_BITS[a] != 0
 
 
+## Test-only: no in-game callers; kept for tests.
 static func is_bridge_attr(attr: int) -> bool:
 	## Wood 27–31 and stone 32–35 (`mCoBG_ATTRIBUTE_*`). Walkable deck, not water.
 	return is_wood_bridge_attr(attr) or is_stone_bridge_attr(attr)
@@ -1104,14 +1095,6 @@ static func villager_path(species: StringName) -> String:
 
 static func species_code(species: StringName) -> String:
 	return _species_code(species)
-
-
-static func item_albedo(item_id: StringName) -> String:
-	match item_id:
-		&"apple":
-			return _first_existing(["textures/rel/obj_item_apple_tex.png"])
-		_:
-			return ""
 
 
 ## Pipeline GLB for a pocket item drawn in the world (`bg_item` / `handOverItem` cards).

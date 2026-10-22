@@ -13,8 +13,6 @@ var bug_id: StringName = &""
 var swarm: bool = false
 
 var _poses: Array[Node3D] = []
-## Shown when the species has no converted model.
-@onready var placeholder: Node3D = $Placeholder
 var _shown: int = -1
 var _lift: float = 0.0
 var _scale: float = 1.0
@@ -36,7 +34,6 @@ func _build_swarm(bug: BugData) -> void:
 	_scale = FieldCatalog.actor_uniform_scale()
 	var scene: PackedScene = load(SWARM_MODEL) as PackedScene if ResourceLoader.exists(SWARM_MODEL) else null
 	if scene == null:
-		_add_placeholder()
 		return
 	var visual: Node3D = scene.instantiate() as Node3D
 	_swarm_mat = ShaderMaterial.new()
@@ -60,7 +57,6 @@ func _set_material(node: Node, mat: Material) -> void:
 func _build(bug: BugData) -> void:
 	_reset()
 	if bug == null:
-		_add_placeholder()
 		return
 	bug_id = bug.id
 	for pose: StringName in [&"a", &"b"]:
@@ -80,7 +76,6 @@ func _build(bug: BugData) -> void:
 	## Same draw scale as fish / every field actor (`aINS_make_insect` → 0.01).
 	_scale = FieldCatalog.actor_uniform_scale()
 	if _poses.is_empty():
-		_add_placeholder()
 		return
 	_lift = bug.model_lift * FieldCatalog.GX_TO_METERS
 	_show(0)
@@ -139,8 +134,6 @@ func _set_transparency(node: Node, fade: float) -> void:
 
 
 func _show(pose: int) -> void:
-	if placeholder != null:
-		placeholder.visible = _poses.is_empty()
 	if _poses.is_empty():
 		return
 	var want: int = clampi(pose, 0, _poses.size() - 1)
@@ -151,14 +144,9 @@ func _show(pose: int) -> void:
 		_poses[i].visible = i == want
 
 
-func _add_placeholder() -> void:
-	_show(0)
-
-
 func _reset() -> void:
 	for child in get_children():
-		if child != placeholder:
-			child.queue_free()
+		child.queue_free()
 	_poses.clear()
 	_shown = -1
 	bug_id = &""

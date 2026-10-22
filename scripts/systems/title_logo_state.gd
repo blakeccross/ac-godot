@@ -39,7 +39,6 @@ const FADEOUT_TIME := 26.0 / 60.0
 ## 32768/22 otherwise, so the dim half runs ~2.3× faster. In rad/s.
 const PULSE_RATE_POSITIVE := 655.0 * MathUtil.S16 * 60.0
 const PULSE_RATE_NONPOSITIVE := 1489.0 * MathUtil.S16 * 60.0
-const START_SE_ID := 0x44D
 
 var action: Action = Action.IN
 ## 0–1.
@@ -119,6 +118,7 @@ func press_start_visible() -> bool:
 	return action == Action.GAME_START or action == Action.FADE_OUT_START or action == Action.OUT
 
 
+## Test-only: no in-game callers; kept for tests.
 func is_leaving() -> bool:
 	return action == Action.OUT
 

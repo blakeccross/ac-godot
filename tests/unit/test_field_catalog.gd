@@ -97,7 +97,6 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 		assert_str(structure[0]).contains(String(id))
 	assert_str(FieldCatalog.mesh_paths(&"grd_s_f_1")[0]).contains("grd_s_f_1")
 	assert_str(FieldCatalog.villager_path(&"squirrel")).contains("squ_1")
-	assert_str(FieldCatalog.item_albedo(&"apple")).contains("obj_item_apple_tex")
 	assert_that(FieldCatalog.item_visual(&"apple")).is_equal(&"obj_item_apple")
 	var apple_mesh: PackedStringArray = FieldCatalog.mesh_paths(&"obj_item_apple")
 	assert_bool(apple_mesh.is_empty()).is_false()

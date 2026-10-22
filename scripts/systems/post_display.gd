@@ -15,11 +15,6 @@ const SPAWN_CELL := Vector2i(3, 7)
 const SPAWN_GX := Vector3(160.0, 0.0, 300.0)
 const SPAWN_FACING := WorldGrid.Facing.NORTH
 
-## `post_office_actable` ut (4,2); `aPG_actor_ct` then subtracts 20 GX on X.
-const POST_GIRL_STAND_UT := Vector2i(4, 2)
-const POST_GIRL_STAND_GX := Vector3(160.0, 0.0, 100.0)
-const POST_GIRL_FACING := WorldGrid.Facing.SOUTH
-
 ## Day Pelly `pga` (7:00–19:00); night Phyllis `pgb` (`bg_post_item` post_girl_npc_type).
 ## Draw data: `SP_NPC_POST_GIRL` → `pga_1`, `SP_NPC_POST_GIRL2` → `pgb_1` (not `pla`/`plb`).
 const PELLY_SPECIES := &"pga"
@@ -27,14 +22,8 @@ const PHYLLIS_SPECIES := &"pgb"
 const PELLY_DAY_START_HOUR := 7
 const PELLY_DAY_END_HOUR := 19
 
-## `bPTI_actor_draw` letter piles: X {80,120,160,200,240}, Y 60, Z 60.
-const MAIL_PILE_Y_GX := 60.0
-const MAIL_PILE_Z_GX := 60.0
-const MAIL_PILE_X_GX: Array[float] = [80.0, 120.0, 160.0, 200.0, 240.0]
-
 ## Desk slab between lobby and clerk (shell mesh has no physics). Center + half-extents GX.
 const DESK_CENTER_GX := Vector3(160.0, 0.0, 140.0)
-const DESK_HALF_GX := Vector3(100.0, 45.0, 22.0)
 
 ## `POST_OFFICE_actor_data` window beams (`ef_room_sunshine_posthouse`): arg 2 (west) and
 ## arg 3 (east). The police box effect with its own model, a 0.05 scale and no camera cull.
@@ -52,9 +41,7 @@ static func sunshine_anchor_gx(actor_gx: Vector3, left: bool) -> Vector3:
 
 ## `POST_OFFICE_actor_data` PTerminal GX {60,0,240}; talk probe near {60,40,220}.
 const PTERMINAL_GX := Vector3(60.0, 0.0, 240.0)
-const PTERMINAL_HALF_GX := Vector3(28.0, 50.0, 28.0)
 const PTERMINAL_MSG := 15854
-const PTERMINAL_GUEST_MSG := 15851
 const PTERMINAL_NO_GBA_MSG := 15859
 
 ## `aPG_set_talk_info` base msg_no[status] (Pelly); Phyllis uses +1 (`draw_type`).
@@ -64,7 +51,6 @@ const TALK_MSG_BY_STATUS: Array[int] = [
 ]
 const FALLBACK_GREETING_ID := &"post_girl_greeting"
 const DEPOSIT_AMOUNT_ID := &"post_girl_deposit"
-const WITHDRAW_AMOUNT_ID := &"post_girl_withdraw"
 const BANK_MENU_ID := &"post_girl_bank"
 const REPAY_AMOUNT_ID := &"post_girl_repay"
 const SEND_MAIL_ID := &"post_girl_send_mail"
@@ -159,8 +145,3 @@ static func is_etm_connect_msg(msg_id: StringName) -> bool:
 
 static func gx_to_world(grid: WorldGrid, gx: Vector3) -> Vector3:
 	return MuseumDisplay.gx_to_world(grid, gx)
-
-
-static func mail_pile_gx(index: int) -> Vector3:
-	var i: int = clampi(index, 0, MAIL_PILE_X_GX.size() - 1)
-	return Vector3(MAIL_PILE_X_GX[i], MAIL_PILE_Y_GX, MAIL_PILE_Z_GX)

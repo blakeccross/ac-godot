@@ -34,10 +34,6 @@ static func cell_from_persist(id: StringName) -> Vector2i:
 	return Vector2i(int(parts[0]), int(parts[1]))
 
 
-static func is_field_item(pid: StringName) -> bool:
-	return Game.town.field_items.has(String(pid))
-
-
 static func item_at(cell: Vector2i) -> StringName:
 	var rec: Variant = Game.town.field_items.get(String(persist_id(cell)), {})
 	return StringName(str((rec as Dictionary).get("id", ""))) if typeof(rec) == TYPE_DICTIONARY else &""

@@ -47,7 +47,6 @@ const GX_ACCEL := GX_SPEED * DecompTime.TICK_HZ
 
 const WALK_SPEED := ORIG_WALK * GX_SPEED
 const RUN_SPEED := ORIG_RUN * GX_SPEED
-const WALK_RUN_SPEED := ORIG_WALK_RUN * GX_SPEED
 const ACCEL := ORIG_ACCEL * GX_ACCEL
 const DECEL := ORIG_DECEL * GX_ACCEL
 const WAIT_BRAKE := ORIG_WAIT_BRAKE * GX_ACCEL
@@ -422,13 +421,6 @@ static func ease_turn(current: float, target: float, delta: float = DecompTime.T
 	return MathUtil.short_angle2(
 		current, target, MathUtil.HALF_FRACTION, TURN_MAX_RAD, TURN_MIN_RAD, _ticks(delta)
 	)
-
-
-## The walking turn toward `target` for `stick`, over `delta` seconds (for callers that steer
-## outside `tick`, e.g. the intro station follow).
-static func step_facing(current: float, target: float, stick: float, delta: float) -> float:
-	var fraction: float = 1.0 - sqrt(1.0 - turn_mod(stick))
-	return MathUtil.short_angle2(current, target, fraction, TURN_MAX_RAD, TURN_MIN_RAD, _ticks(delta))
 
 
 static func move_toward_speed(current: float, target: float, delta: float) -> float:

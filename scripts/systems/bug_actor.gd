@@ -49,8 +49,6 @@ const CATCH_ME_GX: Array[float] = [
 ## `aINS_calc_alpha_time`: fade begins under 24 ticks, ±11 a tick.
 const ALPHA_FADE_START := 24.0
 const ALPHA_STEP := 11.0
-## `aINS_cull_check`: >600 GX and in another acre → despawn.
-const CULL_DIST_GX := 600.0
 ## `aINS_position_move`: these types never chase Y toward `max_velocity_y`
 ## (they hold their flight level; vertical bob is done by the program).
 const LEVEL_Y_TYPES: Array[int] = [0, 1, 2, 3, 27, 39, 40]
@@ -198,7 +196,6 @@ var action_proc: Callable = Callable()
 
 var finished: bool = false
 var caught: bool = false
-var no_cull: bool = true       ## on-camera / just spawned → not cullable yet
 var drawn: bool = true         ## `actor->drawn` — MINO hides in the tree
 
 ## `insect->move_proc`. Default is `aINS_position_move`; MINO installs its own.

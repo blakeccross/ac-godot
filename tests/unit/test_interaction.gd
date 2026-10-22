@@ -216,14 +216,12 @@ func test_item_pickup_shrinks_toward_hand() -> void:
 
 
 func test_item_pickup_attaches_disc_apple_card() -> void:
-	## Ground apple is `obj_apple2_modelT` (4-vert TEX_EDGE card), not the sphere placeholder.
+	## Ground apple is `obj_apple2_modelT` (4-vert TEX_EDGE card), not the missing-model box.
 	var pickup: Node3D = auto_free(load("res://scenes/world/item_pickup.tscn").instantiate()) as Node3D
 	add_child(pickup)
 	assert_that(FieldCatalog.item_visual(&"apple")).is_equal(&"obj_item_apple")
 	assert_that(pickup.get_node_or_null("GeneratedVisual")).is_not_null()
-	var placeholder: MeshInstance3D = pickup.get_node_or_null("MeshInstance3D") as MeshInstance3D
-	assert_that(placeholder).is_not_null()
-	assert_bool(placeholder.visible).is_false()
+	assert_that(pickup.get_node_or_null(GeneratedVisual.MISSING_NODE)).is_null()
 
 
 func test_item_pickup_refuses_when_pockets_full() -> void:

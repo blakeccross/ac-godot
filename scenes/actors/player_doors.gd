@@ -223,19 +223,6 @@ func end_door_leave() -> void:
 	door_clear_busy = false
 
 
-## Indoor `EXIT_DOOR`: INTO_S1 while walking south through the exit cell.
-func run_indoor_exit(target: Vector3, face_yaw: float) -> void:
-	_player._busy = true
-	door_clear_busy = true
-	begin_door_enter(target, face_yaw, true)
-	door_clear_busy = true
-	if _player._anim != null and _player._anim.is_playing():
-		await _player._anim.animation_finished
-	else:
-		await get_tree().create_timer(_door_move_duration).timeout
-	end_door_leave()
-
-
 func tick_door_enter(delta: float) -> void:
 	_door_move_elapsed += delta
 	_player._motor.reset(_door_yaw)

@@ -14,7 +14,6 @@ const PER_DAY := 5
 const TABLE_EACH := 4
 ## `ply_1_zassou1`; the weed comes out on frame 17 (`ChangeFGNumber_Remove_grass`).
 const PULL_ANIM := &"ply_1_zassou1"
-const PULL_FRAME := 17.0
 
 
 static func persist_id(cell: Vector2i) -> StringName:

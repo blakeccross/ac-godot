@@ -95,3 +95,5 @@ Autoloads currently: `Clock`, `SaveService`, `Audio`, `Game`. Do not add more un
 ## Testing
 
 Logic-heavy systems (time, inventory, economy, schedules, save) must be testable without running the full game. See [testing.md](testing.md).
+
+Code that only tests call (a probe, getter or helper with no in-game caller) carries a `## Test-only: no in-game callers; kept for tests.` line in its doc comment. That keeps it out of dead-code sweeps; delete it together with the last test that uses it.

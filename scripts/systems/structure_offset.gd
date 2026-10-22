@@ -98,6 +98,7 @@ static func museum_home_cell(placement: BuildingPlacement) -> Vector2i:
 	return placement.cell
 
 
+## Test-only: no in-game callers; kept for tests.
 static func able_home_cell(placement: BuildingPlacement) -> Vector2i:
 	## FG unit; occupancy NW is FG+(−1,0) — same as east player house / shop.
 	return shop_home_cell(placement)

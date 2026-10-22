@@ -95,11 +95,6 @@ static func scoop_reflect(at: Node, outcome: int) -> void:
 	GameConfig.rumble(GameConfig.REFLECT_SOFT if outcome == ToolUse.Scoop.HIT_BUSH else GameConfig.REFLECT_HARD)
 
 
-static func scoop_tree(at: Node) -> void:
-	_play_now(at, &"scoop_tree_hit")
-	GameConfig.rumble(GameConfig.REFLECT_HARD)
-
-
 static func scoop_dig(at: Node) -> void:
 	## Dig effect frame 15 — play immediately when interact fires.
 	_play_now(at, &"scoop1")
@@ -167,10 +162,6 @@ static func bee_sting(at: Node) -> void:
 
 static func drawer_open(at: Node) -> void:
 	_play_now(at, &"drawer_open")
-
-
-static func furniture_door_open(at: Node) -> void:
-	_play_now(at, &"ftr_door_open")
 
 
 static func _play_now(at: Node, se_id: StringName) -> void:

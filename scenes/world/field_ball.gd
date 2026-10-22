@@ -83,13 +83,12 @@ func _ready() -> void:
 	var visual := Node3D.new()
 	visual.name = "Visual"
 	_roll.add_child(visual)
-	if GeneratedVisual.attach(visual, VISUALS[clampi(type, 0, VISUALS.size() - 1)]) == null:
-		var mesh := MeshInstance3D.new()
-		var sphere := SphereMesh.new()
-		sphere.radius = RADIUS_GX * gx()
-		sphere.height = sphere.radius * 2.0
-		mesh.mesh = sphere
-		visual.add_child(mesh)
+	var visual_id: StringName = VISUALS[clampi(type, 0, VISUALS.size() - 1)]
+	if GeneratedVisual.attach(visual, visual_id) == null:
+		var marker: MissingModel = GeneratedVisual.mark_missing(
+			visual, visual_id, MissingModel.DEFAULT_TINT, Vector3.ONE * RADIUS_GX * gx() * 2.0
+		)
+		marker.grounded = false
 	_snap_ground()
 
 

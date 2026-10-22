@@ -20,9 +20,6 @@ const BUILT_UPPER := &"upper_built"
 const BUILT_BASEMENT := &"basement_built"
 const BUILT_STATUE := &"statue_built"
 
-## What Nook offers when the loan is clear (`aNSC_set_talk_info_start_wait1` /
-## `aNSC_WAIT_TYPE_DONE_REHOUSE`).
-const OFFER_NONE := &""
 const OFFER_MEDIUM := &"rehouse_medium"
 const OFFER_BASEMENT_OR_SKIP := &"rehouse_2_offer"
 const OFFER_BASEMENT_PAID := &"basement_paid"

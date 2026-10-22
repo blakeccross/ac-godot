@@ -8,7 +8,6 @@ extends Node3D
 ## donated insect instead (`setup_display`), driven by a `MuseumInsectActor` and never netted.
 
 @onready var model: BugModel = $Model
-@onready var catch_area: Area3D = $CatchArea
 @onready var _catch_shape: CollisionShape3D = $CatchArea/Shape
 
 const GROUP := &"field_bugs"

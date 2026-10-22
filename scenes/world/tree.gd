@@ -590,10 +590,7 @@ func _present_stump() -> void:
 		pivot.scale = Vector3.ONE
 		pivot.visible = false
 	GeneratedVisual.detach(self)
-	var stump_vis: Node3D = GeneratedVisual.attach(self, STUMP_VISUAL)
-	var stump := get_node_or_null("Stump") as Node3D
-	if stump != null:
-		stump.visible = stump_vis == null
+	GeneratedVisual.attach(self, STUMP_VISUAL)
 	var col := get_node_or_null("CollisionShape3D") as CollisionShape3D
 	if col != null:
 		col.position.y = 0.2

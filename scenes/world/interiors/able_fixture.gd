@@ -58,11 +58,10 @@ func _refresh_design() -> void:
 		)
 
 
-## The display's model under `Model`; the scene's placeholder shows until it loads.
+## The display's model under `Model`.
 func _ensure_visual() -> void:
 	_model = $Model
 	var visual: StringName = &"obj_shop_manekin" if kind == Kind.CLOTH else &"obj_shop_umbmy"
 	var vis: Node3D = GeneratedVisual.attach(_model, visual)
-	($Model/Placeholder as Node3D).visible = vis == null
 	if vis != null:
 		_refresh_design()

@@ -16,8 +16,6 @@ const VAR_LOST := "copper_lost"
 
 enum Special { UNSCHEDULED, LATER, TODAY, ACTIVE }
 
-## `aPOL_set_norm_talk_info_talk_request`: before 05:00 / 10:00 / 17:00 / after.
-const TIME_MSGS: Array[int] = [0x0772, 0x0773, 0x0774, 0x0775]
 const TIME_KEYS: Array[String] = ["morning", "day", "evening", "night"]
 
 ## `aPOL_get_hint_msg_no` tables, indexed `event − mEv_EVENT_ARTIST`.
@@ -29,8 +27,6 @@ const HINT_TODAY: Array[int] = [0x2C34, 0x2C33, 0x2C32, 0x2C36, 0x2C31, 0x2C35]
 const HINT_LATER: Array[int] = [0x2C2A, 0x2C29, 0x2C28, 0x2C2C, 0x2C27, 0x2C2B]
 const HINT_FIRST_JOB := 0x2C2D
 const HINT_NONE := 0x2C37
-const MSG_LOST_SOME := 0x0782
-const MSG_LOST_NONE := 0x0783
 const MSG_NEVER_MIND := 0x0777
 
 

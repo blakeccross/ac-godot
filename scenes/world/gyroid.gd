@@ -377,6 +377,3 @@ func _attach_model() -> void:
 	VisualFit.align_actor_to_height_gx(pivot, 0.0)
 	VisualMaterials.apply(pivot)
 	_anim = VisualAnimation.find_animation_player(pivot)
-	var placeholder: Node = get_node_or_null("Placeholder")
-	if placeholder != null:
-		placeholder.queue_free()

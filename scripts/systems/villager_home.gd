@@ -22,10 +22,6 @@ static func door_notice(occupant_or_entry: StringName) -> String:
 	return ""
 
 
-static func can_enter(occupant_or_entry: StringName) -> bool:
-	return door_notice(occupant_or_entry) == ""
-
-
 static func should_spawn_indoor(occupant_id: StringName) -> bool:
 	## Indoor `ac_npc2`: visible when home and not SLEEP.
 	if occupant_id == &"":

@@ -193,10 +193,6 @@ func jump_to(to: StringName) -> void:
 	_goto(to)
 
 
-func current_kind() -> StringName:
-	return StringName(str(_current().get("type", "")))
-
-
 func _goto(to: StringName) -> void:
 	if _continue_override != &"" and (to == &"" or String(to).begins_with("msg_")) and (conversation == null or not conversation.has_node(to)):
 		to = _continue_override

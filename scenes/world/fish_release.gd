@@ -120,6 +120,7 @@ static func _time_to(height: float, vy: float, dt: float) -> float:
 	return clampf((vy + sqrt(disc)) / GRAVITY, 0.0, dt)
 
 
+## Test-only: no in-game callers; kept for tests.
 func position_gx() -> Vector3:
 	return _pos / GX
 

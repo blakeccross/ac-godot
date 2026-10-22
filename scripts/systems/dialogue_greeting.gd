@@ -209,10 +209,6 @@ static func fallback_conversation() -> DialogueData:
 	)
 
 
-static func bank_available() -> bool:
-	return FileAccess.file_exists("res://assets/generated/dialogue/index.json")
-
-
 static func _hello_offset(base_msg: int, looks: int, hour: int, kind_count: int, ctx: DialogueContext) -> int:
 	return msg_offset(base_msg, looks, hour, _roll(kind_count, ctx), kind_count)
 

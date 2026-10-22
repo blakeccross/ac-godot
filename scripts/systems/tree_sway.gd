@@ -85,7 +85,6 @@ const YOUNG_PHASE_STEP := 0xC68 * MathUtil.S16
 const YOUNG_FULL_TICKS := 40
 ## `eYoung_Tree_ct` life by `arg0` (EffectBG type): small shake 14, large 82.
 const YOUNG_SMALL_TICKS := 14
-const YOUNG_LARGE_TICKS := 82
 
 
 ## Keys for a grown tree of `family` at `size` (`TreeUse.Size`, S1 = medium … FULL).

@@ -37,8 +37,6 @@ const KNOCK_MOVE_COUNTER := 5.0
 const APPROACH_GX := 20.0
 ## `cKF_ba_r_ply_1_go_out_o1` frames 25→end (door-close-only emerge).
 const LEAVE_SEC := 34.0 / DecompTime.FRAME_HZ
-## How far past the exit stand the emerge walk finishes (unused for body — GO_OUT root owns it).
-const LEAVE_GX := 40.0
 ## `cKF_ba_r_ply_1_into_s1` frame count (indoor door / exit walk / outdoor walk-in).
 const INTO_SEC := 49.0 / DecompTime.FRAME_HZ
 ## `cKF_ba_r_ply_1_open1` frame count (house / Able / post door enter).

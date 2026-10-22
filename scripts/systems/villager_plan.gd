@@ -22,6 +22,7 @@ static func build(
 			return _field_plan(previous, outdoors, hints)
 
 
+## Test-only: no in-game callers; kept for tests.
 static func pick_perform(hints: Dictionary) -> VillagerAction:
 	var home: Vector3 = hints.get("home", Vector3.ZERO) as Vector3
 	var wanted: Array[StringName] = _wanted(hints)

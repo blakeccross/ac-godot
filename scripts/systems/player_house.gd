@@ -15,7 +15,6 @@ const MAIN := &"player_main"
 const UPPER := &"player_upper"
 const BASEMENT := &"player_basement"
 
-const GX_UNIT := 40.0
 ## `obj_s_myhome_a_pal` … `_l_pal` by `outlook_pal`.
 const ROOF_LETTERS := "abcdefghijkl"
 
@@ -233,16 +232,6 @@ static func step_draws(room: Room, house: House) -> Array[Dictionary]:
 		BASEMENT:
 			out.append({"visual": STEP_UP, "gx": BASEMENT_ANCHOR_GX, "mirror": true})
 	return out
-
-
-## Centre of a unit in GX.
-static func cell_center_gx(cell: Vector2i) -> Vector3:
-	return Vector3((float(cell.x) + 0.5) * GX_UNIT, 0.0, (float(cell.y) + 0.5) * GX_UNIT)
-
-
-## Room a house tier's outdoor door leads to. Only the main floor is ever an outdoor entry.
-static func entry_room(_house: House) -> StringName:
-	return MAIN
 
 
 ## Outdoor model for the player's own house node (`aMHS_actor_ct` skeleton table): one of

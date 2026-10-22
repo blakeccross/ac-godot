@@ -48,12 +48,14 @@ static func prepare_acre(pivot: Node3D, visual_id: StringName) -> void:
 	VisualMaterials.apply(pivot, FieldCatalog.is_ground_decal(visual_id), visual_id)
 
 
+## Test-only: no in-game callers; kept for tests.
 static func water_wave_cos(game_frame: float) -> float:
 	## `aFD_MakeMarinScrollInfo`: cos((game_frame % 300) / 300 * 2π).
 	var frame: float = fmod(game_frame, 300.0)
 	return cos(frame / 300.0 * TAU)
 
 
+## Test-only: no in-game callers; kept for tests.
 static func beach_env_srgb(game_frame: float) -> Color:
 	## Same cosine as ocean, phase −1.2. 8-bit ENV / 255, not linearized.
 	var beach_cos: float = cos(fmod(game_frame, 300.0) / 300.0 * TAU - 1.2)

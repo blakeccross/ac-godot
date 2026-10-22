@@ -55,12 +55,14 @@ func copy_from(src: DesignPattern) -> void:
 	pixels = src.pixels.duplicate()
 
 
+## Test-only: no in-game callers; kept for tests.
 func get_px(x: int, y: int) -> int:
 	if x < 0 or x >= WIDTH or y < 0 or y >= HEIGHT:
 		return 0
 	return pixels[y * WIDTH + x]
 
 
+## Test-only: no in-game callers; kept for tests.
 func set_px(x: int, y: int, ci: int) -> void:
 	if x < 0 or x >= WIDTH or y < 0 or y >= HEIGHT:
 		return
@@ -170,16 +172,6 @@ func from_ci4(blob: PackedByteArray) -> void:
 			var byte: int = blob[b]
 			p[y * WIDTH + x] = (byte >> 4) if (x & 1) == 0 else (byte & 0xF)
 	pixels = p
-
-
-## Nibble-swap every byte of the CI4 blob (`mNW_GC_to_Agb_texture` /
-## `mNW_AGB_to_GC_texture`). Used only by the GBA transfer path.
-static func agb_swap(blob: PackedByteArray) -> PackedByteArray:
-	var out := blob.duplicate()
-	for i in out.size():
-		var v: int = out[i]
-		out[i] = ((v << 4) | (v >> 4)) & 0xFF
-	return out
 
 
 # --- persistence --------------------------------------------------------------

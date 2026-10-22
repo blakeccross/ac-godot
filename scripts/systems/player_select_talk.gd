@@ -25,7 +25,6 @@ const SOUND := 4
 const SET_CLOCK := 5
 const DEMOLISH_WHO := 7
 const DEMOLISH_SURE := 8
-const DEMOLISH_AWAY := 9
 const TEARING := 10
 const TORN := 11
 const KEEP_HOUSES := 12

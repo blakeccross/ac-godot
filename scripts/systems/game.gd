@@ -8,7 +8,6 @@ const TITLE_SCENE := "res://scenes/ui/title.tscn"
 ## K.K. player-select opening (`ac_npc_p_sel`) before the Rover train.
 const INTRO_KK_SCENE := "res://scenes/ui/intro_kk.tscn"
 const INTRO_SCENE := "res://scenes/ui/intro_train.tscn"
-const INTRO_STATION_SCENE := "res://scenes/ui/intro_station.tscn"
 const WORLD_SCENE := "res://scenes/world/world.tscn"
 const INTERIOR_SCENE := "res://scenes/world/interior.tscn"
 const DEFAULT_SPAWN := PlayerState.DEFAULT_SPAWN
@@ -237,13 +236,6 @@ func _ready() -> void:
 		events.event_ended.connect(_on_event_ended)
 
 
-func has_continue() -> bool:
-	for path: String in SaveService.slot_paths:
-		if SaveService.has_save(path):
-			return true
-	return false
-
-
 func start_new_game(
 	mode: WorldData.Mode = WorldData.Mode.TEST,
 	seed_value: int = WorldGenerator.DEFAULT_SEED,
@@ -275,15 +267,6 @@ func start_intro_sequence() -> void:
 	Clock.sync_from_os()
 	_set_phase(Phase.INTRO)
 	_change_scene(INTRO_KK_SCENE)
-
-
-func start_intro_station() -> void:
-	## Debug entry: station arrival slice (`ac_intro_demo`) in a fresh town, with no
-	## K.K. / Rover segment before it. The chained flow arrives here via
-	## `finish_intro_sequence` instead.
-	await SceneTransition.play_wipe_out(SceneTransition.Style.FADE)
-	var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
-	_begin_station_arrival(seed_value, {}, true)
 
 
 func begin_title_demo(index: int) -> void:
@@ -1917,6 +1900,7 @@ func bind_interior(session: IndoorSession) -> void:
 
 ## Hand an inventory item to the museum (`mMmd_RequestMuseumDisplay`).
 ## Returns a short status string for notices / simple callers.
+## Test-only: no in-game callers; kept for tests.
 func donate_to_museum(item_id: StringName, player_no: int = 0) -> String:
 	return String(donate_museum_result(item_id, player_no).get("message", ""))
 

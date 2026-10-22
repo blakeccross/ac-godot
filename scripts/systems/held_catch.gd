@@ -38,14 +38,6 @@ static func left_hand_global(skeleton: Skeleton3D) -> Vector3:
 	return pose * _hand_offset(skeleton)
 
 
-static func bind_creature(skeleton: Skeleton3D, item: ItemData) -> Node3D:
-	if item is FishData:
-		return bind(skeleton, item as FishData)
-	if item is BugData:
-		return bind_bug(skeleton, item as BugData)
-	return null
-
-
 static func bind(skeleton: Skeleton3D, fish: FishData) -> Node3D:
 	unbind(skeleton)
 	if skeleton == null or fish == null:

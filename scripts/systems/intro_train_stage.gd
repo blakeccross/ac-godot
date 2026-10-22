@@ -358,10 +358,6 @@ func set_dialogue_wait_to(node: StringName) -> void:
 	_dialogue_wait_to = node
 
 
-func _dialogue_wait_to_node() -> StringName:
-	return _dialogue_wait_to
-
-
 func _set_action(next: Action) -> void:
 	_manpu_hold_clip = ""
 	action = next
@@ -630,16 +626,11 @@ func _rover_anim_frame() -> float:
 	return _rover_anim.current_animation_position * DecompTime.FRAME_HZ
 
 
+## Test-only: no in-game callers; kept for tests.
 func phone_tilt_goal() -> float:
 	if _cam == null:
 		return 0.0
 	return _cam._camera_tilt_goal
-
-
-func phone_tilt() -> float:
-	if _cam == null:
-		return 0.0
-	return _cam._camera_tilt
 
 
 ## Body yaw for any actor that turns to the player (`aNPC_act_search_turn` with

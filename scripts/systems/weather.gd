@@ -322,33 +322,3 @@ static func step_level(level: int, aim: int) -> int:
 	if level == aim:
 		return level
 	return level + (1 if aim > level else -1)
-
-
-static func spawn_count_per_frame(kind: Kind, intensity: Intensity) -> int:
-	## Rain: 1/2/3 per frame. Snow/sakura: 1 on a frame mask (caller checks).
-	if intensity == Intensity.NONE or kind == Kind.CLEAR:
-		return 0
-	match kind:
-		Kind.RAIN:
-			match intensity:
-				Intensity.LIGHT:
-					return 1
-				Intensity.NORMAL:
-					return 2
-				_:
-					return 3
-		Kind.SNOW, Kind.SAKURA:
-			return 1
-		_:
-			return 0
-
-
-static func snow_spawn_mask(intensity: Intensity) -> int:
-	## Frame counter mask: light every 8, normal every 4, heavy every 2.
-	match intensity:
-		Intensity.LIGHT:
-			return 7
-		Intensity.NORMAL:
-			return 3
-		_:
-			return 1

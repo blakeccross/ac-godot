@@ -13,18 +13,11 @@ extends Node3D
 
 func _ready() -> void:
 	add_to_group("interactable")
-	var vis: Node3D = GeneratedVisual.attach(self, visual_id)
-	var placeholder := get_node_or_null("MeshInstance3D") as MeshInstance3D
-	if placeholder != null:
-		placeholder.visible = vis == null
+	GeneratedVisual.attach(self, visual_id)
 
 
 func refresh_seasonal_visual() -> void:
 	GeneratedVisual.refresh(self, visual_id)
-	var vis := get_node_or_null("GeneratedVisual")
-	var placeholder := get_node_or_null("MeshInstance3D") as MeshInstance3D
-	if placeholder != null:
-		placeholder.visible = vis == null
 
 
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:

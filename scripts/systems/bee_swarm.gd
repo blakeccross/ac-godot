@@ -90,16 +90,10 @@ func _ready() -> void:
 	_mesh.name = "Look"
 	add_child(_mesh)
 	if not _attach_model():
-		var ball := MeshInstance3D.new()
-		var sphere := SphereMesh.new()
-		sphere.radius = 0.18
-		sphere.height = 0.36
-		ball.mesh = sphere
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.15, 0.12, 0.05, 0.85)
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		ball.material_override = mat
-		_mesh.add_child(ball)
+		var marker: MissingModel = GeneratedVisual.mark_missing(
+			_mesh, &"act_bee", Color(0.15, 0.12, 0.05, 0.85), Vector3(0.36, 0.36, 0.36)
+		)
+		marker.grounded = false
 	_mesh.scale = Vector3(0.15, 0.15, 0.15)
 	phase = Phase.APPEAR
 	_elapsed = 0.0

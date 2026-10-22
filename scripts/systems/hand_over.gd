@@ -176,13 +176,9 @@ static func player_gives_to_npc(player: Node3D, npc: Node3D, item_id: StringName
 		_unlock_player(player, locked)
 
 
+## Test-only: no in-game callers; kept for tests.
 static func has_npc_transfer(npc: Node3D) -> bool:
 	return _resolve(_anim_player(npc), NPC_TRANSFER) != ""
-
-
-static func has_player_receive(player: Node3D) -> bool:
-	var ap: AnimationPlayer = _anim_player(player)
-	return _resolve(ap, PLY_GET_PULL) != "" or _resolve(ap, PLY_GET) != ""
 
 
 static func _spawn_prop(host: Node3D, item_id: StringName) -> HandOverItem:

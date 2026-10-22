@@ -302,6 +302,7 @@ static func umbrella_pool() -> Array[StringName]:
 
 
 ## `mSP_DecideGoodsCommonList`, at game start.
+## Test-only: no in-game callers; kept for tests.
 static func deal_priorities(rng: RandomNumberGenerator) -> void:
 	priorities.clear()
 	for kind: String in ABC_KINDS:

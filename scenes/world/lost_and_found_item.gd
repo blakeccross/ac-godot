@@ -8,8 +8,6 @@ extends Node3D
 @export var slot: int = 0
 @export var item_id: StringName = &""
 
-@onready var _mesh: MeshInstance3D = $MeshInstance3D
-
 
 func _ready() -> void:
 	add_to_group("interactable")
@@ -46,17 +44,11 @@ func _booker() -> Node:
 
 func _apply_visual() -> void:
 	var visual: StringName = FieldCatalog.item_visual(item_id)
-	var attached: Node3D = GeneratedVisual.attach(self, visual) if visual != &"" else null
-	if attached != null:
-		if _mesh != null:
-			_mesh.visible = false
+	if visual != &"" and GeneratedVisual.attach(self, visual) != null:
 		return
 	var data: ItemData = ItemCatalog.get_item(item_id)
-	if _mesh != null and data != null:
-		_mesh.visible = true
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = data.icon_color
-		_mesh.material_override = mat
+	if data != null:
+		GeneratedVisual.mark_missing(self, visual if visual != &"" else item_id, data.icon_color, Vector3(0.5, 0.2, 0.5))
 
 
 ## `mCoBG_GetBgY_OnlyCenter_FromWpos2(pos, 1.0f)`: sit on whatever BG is under the unit

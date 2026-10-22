@@ -138,6 +138,7 @@ func _sync(delta: float, player: Node3D) -> void:
 
 
 ## The `Bug` scene showing `actor`, or null.
+## Test-only: no in-game callers; kept for tests.
 func bug_for(actor: BugActor) -> Bug:
 	return _bugs.get(actor) as Bug
 

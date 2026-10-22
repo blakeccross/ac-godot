@@ -126,10 +126,6 @@ static func _make_art(id: StringName, visual: StringName, index: int, forged: bo
 	return data
 
 
-func can_buy() -> bool:
-	return is_open_today() and _bought_visit != _day_key()
-
-
 func buy(item_id: StringName, inv: Inventory) -> String:
 	if not is_open_today():
 		return "Redd isn't around today."

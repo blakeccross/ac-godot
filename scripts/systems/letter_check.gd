@@ -29,6 +29,7 @@ static var _encode: Dictionary = {}
 static var _loaded: bool = false
 
 
+## Test-only: no in-game callers; kept for tests.
 static func has_tables() -> bool:
 	_ensure()
 	return not _tables.is_empty()

@@ -82,9 +82,3 @@ func field_activity_ids() -> Array[StringName]:
 	if personality != null:
 		return personality.field_activity_ids()
 	return [ActivityKind.WANDER]
-
-
-func placeholder_color() -> Color:
-	if personality != null:
-		return personality.placeholder_color
-	return Color(0.85, 0.55, 0.4, 1)

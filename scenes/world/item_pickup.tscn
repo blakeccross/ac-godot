@@ -1,15 +1,8 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/item_pickup.gd" id="1"]
 [ext_resource type="Resource" path="res://data/items/apple.tres" id="2"]
 [ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="3"]
-
-[sub_resource type="SphereMesh" id="AppleMesh"]
-radius = 0.18
-height = 0.36
-
-[sub_resource type="StandardMaterial3D" id="AppleMat"]
-albedo_color = Color(0.82, 0.18, 0.16, 1)
 
 [sub_resource type="SphereShape3D" id="AppleShape"]
 radius = 0.4
@@ -18,11 +11,6 @@ radius = 0.4
 script = ExtResource("1")
 item = ExtResource("2")
 persist_id = &"ground_apple"
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
-mesh = SubResource("AppleMesh")
-surface_material_override/0 = SubResource("AppleMat")
 
 [node name="InteractVolume" type="Area3D" parent="."]
 collision_layer = 8

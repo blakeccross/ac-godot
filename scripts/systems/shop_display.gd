@@ -191,6 +191,7 @@ static func nook_floor_id(level: int) -> StringName:
 	return NOOK_FLOOR_IDS[clampi(level, 0, NOOK_FLOOR_IDS.size() - 1)]
 
 
+## Test-only: no in-game callers; kept for tests.
 static func nook_clock_visual(level: int) -> StringName:
 	return CLOCK_VISUALS[clampi(level, 0, CLOCK_VISUALS.size() - 1)]
 
@@ -226,6 +227,7 @@ static func apply_room_bounds(room: Room) -> void:
 	room.spawn_cell = room.door_cell + Vector2i(0, -1)
 
 
+## Test-only: no in-game callers; kept for tests.
 static func nook_stand_gx(level: int) -> Vector3:
 	var ut: Vector2i = NOOK_STAND_UT[clampi(level, 0, NOOK_STAND_UT.size() - 1)]
 	return Vector3(float(ut.x) * 40.0 + 20.0, 0.0, float(ut.y) * 40.0 + 20.0)
@@ -255,6 +257,7 @@ static func stock_slots(room_id: StringName) -> Array[Dictionary]:
 	return []
 
 
+## Test-only: no in-game callers; kept for tests.
 static func stock_cells_for_goods(
 	goods: Array[StringName], room_id: StringName = &"shop0"
 ) -> Array[Vector2i]:

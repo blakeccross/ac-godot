@@ -130,15 +130,18 @@ func release() -> void:
 		_player.scripted_input = null
 
 
+## Test-only: no in-game callers; kept for tests.
 func is_following() -> bool:
 	return _following
 
 
+## Test-only: no in-game callers; kept for tests.
 func is_walking() -> bool:
 	return not _path.is_empty()
 
 
 ## Walking up to something to use it (or about to press).
+## Test-only: no in-game callers; kept for tests.
 func is_acting() -> bool:
 	return _act != Act.NONE
 

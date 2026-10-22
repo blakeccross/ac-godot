@@ -1341,22 +1341,6 @@ static func _scatter_starter_flowers(data: WorldData, rng: RandomNumberGenerator
 		placed += 1
 
 
-static func _scatter_backup_flowers(
-	data: WorldData, blocks: PackedByteArray, rng: RandomNumberGenerator
-) -> void:
-	## Legacy fallback when no FG catalog — kept for tests that call it directly.
-	var flower_n := 0
-	for bz: int in range(1, 7):
-		for bx: int in range(1, 6):
-			var type: int = _block(blocks, bx, bz)
-			if type != TownFieldGenerator.T_FLAT:
-				continue
-			_scatter_flowers(data, rng, _fg_origin(bx, bz), 3, flower_n)
-			flower_n += 3
-			if flower_n >= 12:
-				return
-
-
 static func _kind_count(data: WorldData, kind: StringName) -> int:
 	var n := 0
 	for o: ObjectPlacement in data.objects:

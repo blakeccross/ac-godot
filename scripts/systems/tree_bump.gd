@@ -106,6 +106,7 @@ func allows_button(cell: Vector2i) -> bool:
 	return true
 
 
+## Test-only: no in-game callers; kept for tests.
 func has_entry(cell: Vector2i) -> bool:
 	return _cells.has(cell)
 

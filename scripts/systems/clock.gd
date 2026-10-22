@@ -510,17 +510,6 @@ func in_hour_window(start_hour: int, end_hour: int) -> bool:
 	return hour_in_window(hour, start_hour, end_hour)
 
 
-func in_months(months: PackedInt32Array) -> bool:
-	if months.is_empty():
-		return true
-	return month in months
-
-
-## Fish / bug spawn tables ask the clock; they do not read the OS.
-func is_listed_now(months: PackedInt32Array, hour_start: int, hour_end: int) -> bool:
-	return in_months(months) and in_hour_window(hour_start, hour_end)
-
-
 func to_dict() -> Dictionary:
 	return {
 		"year": year,

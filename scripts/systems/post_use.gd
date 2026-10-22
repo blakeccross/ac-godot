@@ -3,7 +3,6 @@ extends RefCounted
 
 ## Post office desk ops (`ac_npc_post_girl` send / save / bank / repay).
 
-const PRESET_CHUNK := 1000
 ## `aPG_deposit_menu_close_wait`: "Your balance is now…" (plus the clerk's draw type).
 const BANK_AFTER_MSG := 0x2DE2
 ## `mPr_CheckMuseumAddress` — the synthetic "Museum" address-book contact used only

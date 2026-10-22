@@ -5,7 +5,7 @@ extends RefCounted
 ## actor shadow (`GetShadowBgY` + XLU oval). Field objects keep authored `*_shadow_v`
 ## meshes from convert; characters use the procedural shader instead.
 
-## Player footprint under `boy_1` / the placeholder capsule — slightly longer along facing.
+## Player footprint under `boy_1` — slightly longer along facing.
 const PLAYER_EXTENT := Vector2(0.95, 0.72)
 const PLAYER_ALPHA := 0.42
 ## Same 2 GX lift as footprints so the blob clears the acre plane without z-fighting.

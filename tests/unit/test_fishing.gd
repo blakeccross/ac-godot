@@ -960,19 +960,17 @@ func test_cast_spawns_a_bobber_and_drops_it_with_the_line() -> void:
 	assert_bool(is_instance_valid(bobber)).is_false()
 
 
-func test_bobber_uses_the_pipeline_uki_over_its_placeholder() -> void:
+func test_bobber_attaches_the_pipeline_uki() -> void:
 	var bobber: Node3D = auto_free(load("res://scenes/world/bobber.tscn").instantiate()) as Node3D
 	add_child(bobber)
 	await get_tree().process_frame
 	var pivot: Node3D = bobber.get_node_or_null("Float") as Node3D
 	assert_that(pivot).is_not_null()
-	## The ripple is a separate water effect, so it must survive the attach that hides the
-	## placeholder float.
+	## The ripple is a separate water effect and must survive the visual attach.
 	assert_bool((bobber.get_node("Ripple") as MeshInstance3D).visible).is_true()
 	if FieldCatalog.mesh_paths(&"tol_uki_1").is_empty():
 		return
 	assert_that(pivot.get_node_or_null("GeneratedVisual")).is_not_null()
-	assert_bool((pivot.get_node("MeshInstance3D") as MeshInstance3D).visible).is_false()
 
 
 func test_bobber_tilt_eases_to_each_proc_target() -> void:

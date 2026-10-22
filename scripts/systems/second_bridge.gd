@@ -14,7 +14,6 @@ extends RefCounted
 
 const SCENE := "res://scenes/world/second_bridge.tscn"
 const GROUP := &"second_bridge"
-const PERSIST := &"second_bridge"
 ## `aBridgeA_set_BgOffset` `rewrite_data`: attr, centre, nw, sw, se, ne, shape.
 const REWRITE: Array = [
 	[31, 4, 4, 4, 4, 4, 0],

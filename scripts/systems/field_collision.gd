@@ -73,11 +73,6 @@ static func set_attr_override(cell: Vector2i, attr: int) -> void:
 	invalidate_segments()
 
 
-static func clear_attr_override(cell: Vector2i) -> void:
-	if _attr_override.erase(cell):
-		invalidate_segments()
-
-
 ## Walls a unit's attribute forbids (`FORBID_WALLS` ids), none outside 27…62.
 static func forbid_walls(attr: int) -> Array:
 	if attr < FORBID_ATTR_MIN or attr > FORBID_ATTR_MAX:

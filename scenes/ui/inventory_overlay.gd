@@ -57,8 +57,6 @@ const PAGE_SWING_DURATION := 40.0 / DecompTime.TICK_HZ
 @onready var _player_bar: Panel = %PlayerBar
 @onready var _town_bar: Panel = %TownBar
 @onready var _name: Label = %ItemNameLabel
-@onready var _desc: Label = %ItemDescLabel
-@onready var _tags: Label = %TagLabel
 @onready var _equip: Label = %EquipLabel
 @onready var _hint: Label = %HintLabel
 @onready var _items_label: TextureRect = %ItemsLabel
@@ -1579,17 +1577,7 @@ func _run_wallet_tag(tag: String) -> void:
 	_update_hand_cursor(true)
 
 
-## `mTG_TABLE_BG`: this port sets the backdrop via a "Set Background" tag on shirt
-## items themselves (`Inventory.tags_for_slot`) rather than decomp's drop-on-slot gesture,
-## matching how "Equip"/"Wear" already work here — so this slot's own click only offers
-## to remove whatever's currently set.
-func _on_background_slot_gui(event: InputEvent) -> void:
-	if not _click_event(event):
-		return
-	get_viewport().set_input_as_handled()
-	_open_background_slot()
-
-
+## Test-only: no in-game callers; kept for tests.
 func _open_background_slot() -> void:
 	if not _open or _tag_mode:
 		return
@@ -2283,45 +2271,6 @@ func _refresh_mail(inv: Inventory) -> void:
 			_set_slot_picture(btn, letter_tex)
 			btn.modulate = Color(1, 1, 1, 1)
 		btn.disabled = false
-
-
-func _refresh_item_detail(inv: Inventory) -> void:
-	var sel: InventorySlot = inv.selected_slot()
-	if sel == null or sel.is_empty():
-		_name.text = ""
-		_desc.text = ""
-		return
-	var data: ItemData = ItemCatalog.get_item(sel.item.item_id)
-	if data == null:
-		_name.text = String(sel.item.item_id)
-		_desc.text = ""
-		return
-	_name.text = data.display_name
-	_desc.text = data.description
-	if sel.item.condition == InventoryItem.Condition.PRESENT:
-		_name.text = "Present"
-		_desc.text = "A wrapped gift."
-	elif sel.item.condition == InventoryItem.Condition.QUEST:
-		_name.text = "%s (quest)" % data.display_name
-		## `mQst_GetToFromName` on the item tag: who it's for, who it's from.
-		var names: Dictionary = Game.quests.to_from_for_pocket(inv, inv.selected_index) if Game.quests != null else {}
-		if not names.is_empty():
-			var to: VillagerData = VillagerCatalog.get_villager(names["to"])
-			var from: VillagerData = VillagerCatalog.get_villager(names["from"])
-			_desc.text = "To: %s\nFrom: %s" % [
-				to.display_name if to != null else "?", from.display_name if from != null else "?"
-			]
-
-
-func _refresh_mail_detail(inv: Inventory) -> void:
-	var sel: MailData = inv.mail_at(inv.selected_mail_index)
-	if sel == null or sel.is_empty():
-		_name.text = "Empty"
-		_desc.text = "Write a letter for the post office."
-	else:
-		_name.text = sel.label()
-		_desc.text = sel.preview()
-
 
 
 ## --- house gyroid table (`m_haniwa_ovl`) -------------------------------------------------

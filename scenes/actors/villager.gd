@@ -73,7 +73,6 @@ var state: VillagerState
 var schedule: VillagerSchedule = VillagerSchedule.new()
 var ai: VillagerAI = VillagerAI.new()
 var _motor: VillagerMotor = VillagerMotor.new()
-var _placeholder_bob: float = 0.0
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _layer_present: int = 4
 ## The body tree once the model is bound (`_animator`), null without a model.
@@ -148,7 +147,6 @@ var _own_cloth: Array = []
 var event_away: bool = false
 
 @onready var _model: Node3D = $Model
-@onready var _placeholder: MeshInstance3D = $Model/PlaceholderMesh
 @onready var _collision: CollisionShape3D = $Collision
 @onready var _agent: NavigationAgent3D = $NavigationAgent3D
 @onready var _volume: Area3D = $InteractionArea
@@ -165,7 +163,6 @@ func _ready() -> void:
 	add_to_group("villagers")
 	_layer_present = collision_layer
 	_ensure_bound()
-	_tint_placeholder()
 	Clock.time_changed.connect(_sync_from_clock)
 	ai.action_changed.connect(brain.on_action_changed)
 	ai.schedule_changed.connect(brain.on_schedule_changed)
@@ -314,12 +311,6 @@ func _player_in_home_acre() -> bool:
 		grid.world_to_cell((player as Node3D).global_position)
 	)
 	return player_block == home_block
-
-
-func current_action() -> StringName:
-	_ensure_bound()
-	ai.sync(current_activity(), brain.hints())
-	return ai.kind()
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
@@ -582,17 +573,8 @@ func _face_towards(world_pos: Vector3) -> void:
 		_model.rotation.y = _motor.facing
 
 
-func _tint_placeholder() -> void:
-	if _placeholder == null:
-		return
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = data.placeholder_color() if data else Color(0.85, 0.55, 0.4, 1)
-	_placeholder.material_override = mat
-
-
 func _update_animation(delta: float, planar: Vector3) -> void:
 	if _body_anim == null:
-		_update_placeholder_anim(delta, planar)
 		return
 	var moving: bool = planar.length() > IDLE_SPEED
 	## `aNPC_check_manpu_demoCode`: a reaction's first clip plays once, then its second
@@ -665,6 +647,7 @@ func replay_leave_home() -> void:
 	_apply_presence(ai.is_present())
 
 
+## Test-only: no in-game callers; kept for tests.
 func is_going_out() -> bool:
 	return _going_out > 0.0
 
@@ -718,17 +701,6 @@ func _ensure_loop(clip: String, loop: bool) -> void:
 	var animation: Animation = _body_anim.get_animation(clip)
 	if animation != null:
 		animation.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
-
-
-func _update_placeholder_anim(delta: float, planar: Vector3) -> void:
-	if _anim != null and _anim.get_animation_list().size() > 0:
-		return
-	if _placeholder == null or not _placeholder.visible:
-		return
-	var moving: bool = planar.length() > IDLE_SPEED
-	_placeholder_bob += delta * (8.0 if moving else 2.0)
-	var amp: float = 0.04 if moving else 0.0
-	_placeholder.position.y = 0.75 + sin(_placeholder_bob) * amp
 
 
 func _current_block() -> Vector2i:

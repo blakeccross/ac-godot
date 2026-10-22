@@ -39,11 +39,6 @@ static func ensure_loaded() -> void:
 		ItemCatalog.remember(_make_item(row))
 
 
-static func all_rows() -> Array[Dictionary]:
-	ensure_loaded()
-	return _rows.duplicate(true)
-
-
 static func count() -> int:
 	ensure_loaded()
 	return _rows.size()
@@ -57,6 +52,7 @@ static func row_for_index(index: int) -> Dictionary:
 	return {}
 
 
+## Test-only: no in-game callers; kept for tests.
 static func item_id_for_index(index: int) -> StringName:
 	return StringName(str(row_for_index(index).get("id", "")))
 

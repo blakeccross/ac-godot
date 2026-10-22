@@ -71,15 +71,6 @@ enum Habitat {
 ## `aSOI_TERM0`–`aSOI_TERM5`. Hour buckets from `ac_set_ovl_insect.h`.
 enum TimeTerm { T0, T1, T2, T3, T4, T5 }
 
-const TERM_HOURS := {
-	TimeTerm.T0: Vector2i(23, 4),
-	TimeTerm.T1: Vector2i(4, 8),
-	TimeTerm.T2: Vector2i(8, 16),
-	TimeTerm.T3: Vector2i(16, 17),
-	TimeTerm.T4: Vector2i(17, 19),
-	TimeTerm.T5: Vector2i(19, 23),
-}
-
 ## Decomp type index (`aINS_INSECT_TYPE_*`). Used for catch messages and spawn tables.
 @export var type_index: int = 0
 ## Empty means every month.
@@ -177,14 +168,11 @@ static func habitat_from_spawn_area(spawn_area: int, prefer_flower: bool = true)
 			return Habitat.FLYING
 
 
+## Test-only: no in-game callers; kept for tests.
 static func catch_msg_for_type(type_idx: int) -> int:
 	if type_idx < 0x20:
 		return 0xA2C + type_idx
 	return 0x2FA1 + type_idx
-
-
-func in_habitat(kind: int) -> bool:
-	return habitats.is_empty() or kind in habitats
 
 
 func is_available(p_month: int, p_hour: int) -> bool:

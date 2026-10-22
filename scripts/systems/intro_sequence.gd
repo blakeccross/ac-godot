@@ -123,17 +123,6 @@ func set_gender(value: Variant) -> void:
 	gender = normalize_gender(value)
 
 
-func apply_dialogue_vars(vars: Dictionary) -> void:
-	if vars.has("answer_flags"):
-		answer_flags = int(vars["answer_flags"])
-	if vars.has("gender"):
-		set_gender(vars["gender"])
-	if vars.has("player_name"):
-		set_player_name(str(vars["player_name"]))
-	if vars.has("town_name"):
-		set_town_name(str(vars["town_name"]))
-
-
 func handle_event(event: Dictionary) -> bool:
 	## Returns true when the event needs a modal pause (`prompt_*`).
 	var op := String(event.get("op", event.get("type", "")))

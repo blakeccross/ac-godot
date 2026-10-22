@@ -20,6 +20,7 @@ func is_valid() -> bool:
 
 ## Bake-time: parse the pipeline sidecar. Null when the acre has none; `units` is empty
 ## when the sidecar is malformed or the acre is a filler.
+## Test-only: no in-game callers; kept for tests.
 static func from_col_json(id: String) -> AcreGrid:
 	var path := FieldCatalog.GENERATED_ROOT + "environment/acres/%s.col.json" % id
 	if not FileAccess.file_exists(path):

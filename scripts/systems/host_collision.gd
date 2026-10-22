@@ -1,7 +1,7 @@
 class_name HostCollision
 extends RefCounted
 
-## Physics hulls for outdoor hosts. Generated GLBs have no collision; placeholder
+## Physics hulls for outdoor hosts. Generated GLBs have no collision; the
 ## boxes in the `.tscn` are the authored 2×2 house, not the occupancy footprint.
 ## Size from `WorldGrid` cells (same 2 m unit as outdoor). Do not trimesh the mesh.
 
@@ -193,7 +193,7 @@ static func apply_house(host: Node3D, visual_id: StringName, occupancy: Vector2i
 static func apply_building(host: Node3D, visual_id: StringName, occupancy: Vector2i, cell_size: float) -> void:
 	## Public structures with `set_bgOffset` use the heightfield; others keep a box.
 	## Station has neither: acre `collision[]` already forms the walls (`ac_station` has
-	## no `set_bgOffset`, no `mFI_FIELD_ROOM_STATION`). Drop the placeholder hull + door.
+	## no `set_bgOffset`, no `mFI_FIELD_ROOM_STATION`). Drop the scene's hull + door.
 	if is_station(visual_id):
 		disable_body(host)
 		disable_door(host)

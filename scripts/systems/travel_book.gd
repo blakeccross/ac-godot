@@ -37,6 +37,7 @@ static func today_ordinal() -> int:
 	return int(unix / 86400)
 
 
+## Test-only: no in-game callers; kept for tests.
 func in_transit_count() -> int:
 	return _in_transit.size()
 

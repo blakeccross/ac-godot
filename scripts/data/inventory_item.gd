@@ -24,10 +24,6 @@ func is_empty() -> bool:
 	return item_id == &"" or count <= 0
 
 
-func duplicate_item() -> InventoryItem:
-	return InventoryItem.new(item_id, count, condition)
-
-
 func to_save() -> Dictionary:
 	return {
 		"id": String(item_id),

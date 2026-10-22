@@ -11,7 +11,6 @@ const FOSSIL_NUM := 25
 const ART_NUM := 15
 const FISH_NUM := 40
 const INSECT_NUM := 40
-const TOTAL_NUM := FOSSIL_NUM + ART_NUM + FISH_NUM + INSECT_NUM
 ## Donatable art excludes Redd forgeries ART02/ART03.
 const DONATABLE_ART_NUM := ART_NUM - 2
 const DONATABLE_TOTAL := FOSSIL_NUM + DONATABLE_ART_NUM + FISH_NUM + INSECT_NUM
@@ -45,10 +44,6 @@ static func _empty_bits(count: int) -> PackedByteArray:
 
 static func is_donated(donator: int) -> bool:
 	return donator >= int(Donator.PLAYER1) and donator <= int(Donator.DELETED_PLAYER)
-
-
-static func donator_exists(donator: int) -> bool:
-	return donator >= int(Donator.PLAYER1) and donator <= int(Donator.PLAYER4)
 
 
 func fossil_info(index: int) -> int:
@@ -175,6 +170,7 @@ func request_display(item: ItemData, player_no: int = 0) -> bool:
 
 
 ## `mMmd_DeletePresentedByPlayer` — remap a deleted player's slots to DELETED_PLAYER.
+## Test-only: no in-game callers; kept for tests.
 func delete_presented_by_player(player_no: int) -> void:
 	if player_no < 0 or player_no > 3:
 		return
@@ -185,11 +181,13 @@ func delete_presented_by_player(player_no: int) -> void:
 	_remap_player(_insect, INSECT_NUM, search)
 
 
+## Test-only: no in-game callers; kept for tests.
 func has_fish_id(fish_id: StringName) -> bool:
 	var index: int = MuseumDisplay.fish_index(fish_id)
 	return index >= 0 and is_donated(fish_info(index))
 
 
+## Test-only: no in-game callers; kept for tests.
 func has_insect_type(type_index: int) -> bool:
 	return type_index >= 0 and type_index < INSECT_NUM and is_donated(insect_info(type_index))
 

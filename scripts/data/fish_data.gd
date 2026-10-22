@@ -24,13 +24,6 @@ const TYPE_IDS: Array[StringName] = [
 ## month's spawn table with it, so a fish is in or out of a whole slot at a time.
 enum TimeSlot { NIGHT, MORNING, DAY, EVENING }
 
-const SLOT_HOURS := {
-	TimeSlot.NIGHT: Vector2i(21, 4),
-	TimeSlot.MORNING: Vector2i(4, 9),
-	TimeSlot.DAY: Vector2i(9, 16),
-	TimeSlot.EVENING: Vector2i(16, 21),
-}
-
 ## Empty means every month. Otherwise the 1–12 months this fish appears in.
 @export var months: PackedInt32Array = PackedInt32Array()
 ## `TimeSlot` values. Empty means all four. Piranha and the dawn/dusk trout hold

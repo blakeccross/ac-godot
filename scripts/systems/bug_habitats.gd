@@ -59,9 +59,6 @@ const CANDY_ITEM := &"candy"
 const TRASH_ITEM := &"spoiled_turnips"
 
 
-## Units in from the acre's edge that bait must lie (`aSOI_ins_chk_candy`).
-const BAIT_EDGE := 2
-
 
 class Site:
 	var cell: Vector2i = Vector2i(-1, -1)
@@ -152,12 +149,6 @@ static func acre_of_world_pos(grid: WorldGrid, position: Vector3) -> Vector2i:
 	if grid == null:
 		return Vector2i(-1, -1)
 	return VillagerWalk.block_from_cell(grid.world_to_cell(position))
-
-
-static func cell_in_acre(cell: Vector2i, acre: Vector2i) -> bool:
-	if acre.x < 0:
-		return true
-	return VillagerWalk.block_from_cell(cell) == acre
 
 
 ## `mRF_BLOCKKIND_*` gate of `aSOI_ins_chk_live_area_type_pond`: pond skaters are born in

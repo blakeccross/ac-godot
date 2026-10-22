@@ -10,7 +10,6 @@ enum Looks { NORMAL, PEPPY, LAZY, JOCK, CRANKY, SNOOTY }
 @export var looks: Looks = Looks.LAZY
 ## Daily `{type, end_time}` table for this looks group.
 @export var schedule: ScheduleData
-@export var placeholder_color: Color = Color(0.85, 0.55, 0.4, 1)
 ## Field walk in m/s. Same for every looks (`aNPC_spd_data` walk 1.0 GX/frame).
 @export var walk_speed: float = 1.5
 @export var wander_radius: float = 6.0

@@ -440,9 +440,6 @@ const ART_VISUALS: Array[StringName] = [
 	&"int_sum_art15",
 ]
 
-## Dummy frame model ids from `aMP_art_data_table` (1-based → zero index in name).
-const ART_DUMMY_IDS: Array[int] = [1, 3, 1, 4, 2, 5, 7, 6, 4, 6, 7, 4, 8, 8, 8]
-
 ## Insect museum anchors (`flower_pos`, `tree_pos`, …) in GX.
 const INSECT_FLOWER_POS: Array[Vector3] = [
 	Vector3(147.0, 66.0, 169.0),
@@ -532,9 +529,6 @@ const INSECT_PLAQUE_POS: Array[Vector3] = [
 
 ## Already-collected catch report (`mSM_CHECK_LAST_FISH_GET` → 0x1349).
 const FISH_ALREADY_MSG := 0x1349
-## Bug already-collected uses the same shorter branch when modelled; 0xA54 is a stand-in
-## until the insect bank line is wired the same way.
-const BUG_ALREADY_MSG := 0xA54
 
 
 static func fish_index(fish_id: StringName) -> int:
@@ -565,18 +559,9 @@ static func museum_fish_model_path(index: int) -> String:
 	return "res://assets/generated/environment/act_mus_%s_a1.glb" % stem
 
 
+## Test-only: no in-game callers; kept for tests.
 static func tank_half(tank: int) -> Vector3:
 	return SEA_TANK_HALF_GX if tank == 4 else TANK_HALF_GX
-
-
-## Swim-AI half extent for a species (`Museum_Fish_BGCheck` with f26=f25=1).
-static func fish_swim_half_gx(index: int) -> Vector3:
-	var init: Dictionary = fish_init(index)
-	var pad: float = float(init.get("body_pad", -6.0))
-	var tank: int = fish_tank(index)
-	if tank >= 4:
-		return Vector3(pad + 189.0, 0.0, pad + 25.0)
-	return Vector3(54.0 + pad, 0.0, 54.0 + pad)
 
 
 ## Per-species museum swim params from `mfish_init_data` (scale, ofs_y, depth, speeds…).

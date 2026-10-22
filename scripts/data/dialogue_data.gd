@@ -82,20 +82,6 @@ func has_node(node_id: StringName) -> bool:
 	return nodes.has(node_id)
 
 
-func line_for_time(tod: ClockService.TimeOfDay) -> String:
-	match tod:
-		ClockService.TimeOfDay.NIGHT:
-			return night
-		ClockService.TimeOfDay.DAWN:
-			return dawn
-		ClockService.TimeOfDay.DAY:
-			return day
-		ClockService.TimeOfDay.DUSK:
-			return dusk
-		_:
-			return ""
-
-
 func _legacy_tree() -> Dictionary:
 	var tree: Dictionary = {}
 	tree["repeat"] = _line_node(already_talked if already_talked != "" else "Hello!")

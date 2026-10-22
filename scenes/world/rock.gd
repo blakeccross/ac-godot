@@ -4,7 +4,6 @@ extends StaticBody3D
 ## `ply_1_not_dig1`, contact on frame 13); the day's money rock pays out Bells (`MoneyRock`).
 
 const PICKUP_SCENE := preload("res://scenes/world/item_pickup.tscn")
-const HIT_FRAME := 13.0
 
 @export var occupant_id: StringName = &""
 @export var footprint: Vector2i = Vector2i(1, 1)

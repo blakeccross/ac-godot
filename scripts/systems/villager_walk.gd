@@ -93,6 +93,7 @@ static func release(villager_id: StringName) -> void:
 	_walkers.erase(villager_id)
 
 
+## Test-only: no in-game callers; kept for tests.
 static func is_claimed(villager_id: StringName) -> bool:
 	return _walkers.has(villager_id)
 
@@ -461,11 +462,6 @@ static func _cell_open_score(data: WorldData, grid: WorldGrid, cell: Vector2i) -
 	return open
 
 
-static func avoid_backward(from: Vector3, facing: float, meters: float = TURN_METERS) -> Vector3:
-	## `aNPC_turn_to_backward` 180° — 1 unit behind facing.
-	return _avoid_stand(from, facing, PI, meters)
-
-
 ## `aNPC_avoid_wall` widen steps — the decomp is 22.5/45/90/180, steepened here
 ## because our steer curves in slower than the original's per-frame recursion.
 const AVOID_TIERS := 4
@@ -506,6 +502,7 @@ static func retreat_hop(data: WorldData, from: Vector3, facing: float, block: Ve
 	return _avoid_stand(from, facing, PI, TURN_METERS)
 
 
+## Test-only: no in-game callers; kept for tests.
 static func first_avoid_hop(
 	data: WorldData,
 	from: Vector3,
@@ -969,18 +966,6 @@ static func _mark_blocked(anchor: Vector2i, size: Vector2i, facing: WorldGrid.Fa
 	for x: int in w:
 		for z: int in d:
 			_blocked_cells[anchor + _rotate_offset(Vector2i(x, z), facing)] = true
-
-
-static func _covers(
-	anchor: Vector2i, size: Vector2i, facing: WorldGrid.Facing, cell: Vector2i
-) -> bool:
-	var w: int = maxi(size.x, 1)
-	var d: int = maxi(size.y, 1)
-	for x: int in w:
-		for z: int in d:
-			if anchor + _rotate_offset(Vector2i(x, z), facing) == cell:
-				return true
-	return false
 
 
 static func _rotate_offset(offset: Vector2i, facing: WorldGrid.Facing) -> Vector2i:

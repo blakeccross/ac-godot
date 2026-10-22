@@ -33,14 +33,12 @@ const REWARD1_LETTER := 0x222
 const REWARD0_PRESENT := &"ftr_1033"
 const REWARD1_PRESENT := &"ftr_1034"
 
-const SERIES_ONE := 0
 const SERIES_BASE := 1
 const SERIES_THEME := 2
 const SERIES_SET := 3
 const SERIES_OTHER := 53
 const NECESSITY_NUM := 6
 const NOT_NECESSITY := 5
-const SURFACE := 1
 
 const BIT_NECESSITIES := 1 << 0
 const BIT_NECESSITIES_SAME := 1 << 1

@@ -273,6 +273,7 @@ static func is_reeling() -> bool:
 
 
 ## What the last reel-in brought up. Null until one has resolved.
+## Test-only: no in-game callers; kept for tests.
 static func last_outcome() -> Outcome:
 	return _last
 
@@ -284,6 +285,7 @@ static func anchor() -> Vector3:
 
 
 ## 0–1 through the cast parabola. 1.0 once the bobber has landed.
+## Test-only: no in-game callers; kept for tests.
 static func cast_progress() -> float:
 	if _state == State.IDLE:
 		return 0.0
@@ -293,6 +295,7 @@ static func cast_progress() -> float:
 
 
 ## True once the bobber has left the rod (its ready swing is over).
+## Test-only: no in-game callers; kept for tests.
 static func is_launched() -> bool:
 	return _state != State.IDLE and (_state != State.CAST or _cast_time >= 0.0)
 
@@ -355,6 +358,7 @@ static func is_struck() -> bool:
 	return _struck and _state == State.BITE
 
 
+## Test-only: no in-game callers; kept for tests.
 static func nibble_count() -> int:
 	return _nibbles
 

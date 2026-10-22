@@ -111,6 +111,7 @@ func allows_sell(shop_id: StringName) -> bool:
 	return shop_id == NOOK_ID
 
 
+## Test-only: no in-game callers; kept for tests.
 func is_shop_room(room: Room) -> bool:
 	return room != null and (room.kind == Room.Kind.SHOP or room.kind == Room.Kind.NEEDLEWORK)
 
@@ -514,6 +515,7 @@ func _give_ticket(inv: Inventory) -> String:
 	return "mail"
 
 
+## Test-only: no in-game callers; kept for tests.
 func mailed_tickets() -> int:
 	return int(_nook().get("ticket_mail", 0))
 

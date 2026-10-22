@@ -13,8 +13,6 @@ extends Node3D
 ## (`Matrix_mult(&play->billboard_matrix)`), it nudges the model down by a per-species
 ## `aGYO_hosei_y`, and it flips between two poses on a per-species cadence.
 
-## `aGYO_anime_ptn` values, as stored in `FishData.model_flap`.
-const FLAP_NONE := 0
 const FLAP_FAST := 1
 const FLAP_SLOW := 2
 

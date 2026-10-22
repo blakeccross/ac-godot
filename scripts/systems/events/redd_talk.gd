@@ -19,7 +19,6 @@ const MSG_OUT_BOUGHT := 0x078A
 const MSG_HELLO := 0x078B
 const MSG_ABOUT_BUY := 0x078C
 const MSG_CHAT := 0x078D
-const MSG_OTHER_BUYER := 0x0790
 const MSG_BYE := 0x0791
 const MSG_BYE_SOLD := 0x0792
 const MSG_OFFER := 0x0793

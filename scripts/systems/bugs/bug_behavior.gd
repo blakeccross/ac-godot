@@ -91,11 +91,6 @@ func setup_action(_a: BugActor, _action: int) -> void:
 	pass
 
 
-## True when the type flees at patience >= 90 rather than > 90 (flyers).
-func flees_at_ninety(_a: BugActor) -> bool:
-	return false
-
-
 # ---- field units / acres (`mFI_*`) ---------------------------------------
 
 const UNIT_GX := BugActor.UNIT_GX
@@ -379,17 +374,6 @@ static func angle_reached(cur: float, target: float) -> bool:
 	return absf(wrapf(target - cur, -PI, PI)) < 0.5 * MathUtil.S16
 
 
-## `search_position_angleY(from, to)` — yaw that points from `from` toward `to`.
-## Decomp yaw convention: +X = sin, +Z = cos (`pos_speed = speed * {sin, cos}`).
-## `mFI_Wpos2UtNum(home) != mFI_Wpos2UtNum(world)`: the insect has left the 40 GX unit it
-## spawned on (a tree / flower it was clinging to).
-static func left_home_unit(a: BugActor) -> bool:
-	return (
-		floori(a.home.x / 40.0) != floori(a.pos.x / 40.0)
-		or floori(a.home.z / 40.0) != floori(a.pos.z / 40.0)
-	)
-
-
 static func angle_to(from: Vector3, to: Vector3) -> float:
 	return atan2(to.x - from.x, to.z - from.z)
 
@@ -401,11 +385,6 @@ static func atans(dz: float, dx: float) -> float:
 
 static func dist_xz(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
-
-
-static func deg2s(deg: float) -> float:
-	## `DEG2SHORT_ANGLE2` then to radians == plain deg→rad, kept for provenance.
-	return deg_to_rad(deg)
 
 
 ## `move_proc` for a HIDE/DUG state — the actor is a frozen point in the ground.

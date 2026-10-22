@@ -9,7 +9,6 @@ extends RefCounted
 ## active paint index into 1..15. It is still a real colour when a design is rendered
 ## onto cloth / a mannequin, so all 16 are kept.
 
-const PALETTE_COUNT := 16
 const COLOR_COUNT := 16
 
 const RAW: Array = [
@@ -75,6 +74,7 @@ static func colors(palette_idx: int) -> PackedColorArray:
 
 
 ## Single colour lookup.
+## Test-only: no in-game callers; kept for tests.
 static func color_at(palette_idx: int, ci: int) -> Color:
 	var v: int = int(RAW[palette_idx & 15][ci & 15])
 	return Color8((v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF, 255)

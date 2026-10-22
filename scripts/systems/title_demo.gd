@@ -89,6 +89,7 @@ static func next_demo_index() -> int:
 	return _now_demo_no - 1
 
 
+## Test-only: no in-game callers; kept for tests.
 static func reset_rotation() -> void:
 	_now_demo_no = -1
 

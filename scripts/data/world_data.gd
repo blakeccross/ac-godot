@@ -119,6 +119,7 @@ func player_spawn() -> SpawnPoint:
 	return fallback
 
 
+## Test-only: no in-game callers; kept for tests.
 func fingerprint() -> String:
 	bake()
 	var building_bits: PackedStringArray = PackedStringArray()

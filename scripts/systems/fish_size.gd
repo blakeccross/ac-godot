@@ -84,9 +84,6 @@ const DRIFT_JITTER_GX := 0.2
 const ESCAPE_SPEED_GX := 2.0
 const ESCAPE_FRAMES := 100.0
 const ESCAPE_DECAY_GX := 0.02
-## `aGTT_swim_speed_check(gyo, 360.0f, 5.0f, 0.5f)`: cruise is half the dart speed, and the
-## sweep angle advances 5 degrees per call at half rate.
-const CRUISE_SPEED_GX := 0.5
 const SWEEP_DEG_PER_FRAME := 2.5
 ## `aGTT_player_near`: a dashing player scares fish from 110 GX, a swung tool from 150.
 const SCARE_DASH_GX := 110.0
@@ -133,10 +130,6 @@ static func speed(size: FishData.SizeClass) -> float:
 
 static func back_speed(size: FishData.SizeClass) -> float:
 	return gx_per_frame_to_mps(float(_at(BACK_SPEED_GX, size)))
-
-
-static func cruise_speed() -> float:
-	return gx_per_frame_to_mps(CRUISE_SPEED_GX)
 
 
 static func escape_speed() -> float:
@@ -224,6 +217,7 @@ static func body_blend(frame: int) -> float:
 	return float(PRIM_F[posmod(frame, ANIM_FRAMES)]) / 255.0
 
 
+## Test-only: no in-game callers; kept for tests.
 static func tile_pair(frame: int) -> Vector2i:
 	return TILE_PAIRS[posmod(frame, ANIM_FRAMES)]
 

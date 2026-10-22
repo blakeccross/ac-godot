@@ -23,6 +23,7 @@ func force(activity: StringName) -> void:
 	_publish()
 
 
+## Test-only: no in-game callers; kept for tests.
 func clear_force() -> void:
 	forced = &""
 	_publish()

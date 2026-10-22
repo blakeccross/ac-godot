@@ -88,6 +88,7 @@ static func resolve_clip(anim: AnimationPlayer, suffix: String) -> String:
 	return best
 
 
+## Test-only: no in-game callers; kept for tests.
 static func anim_for_pose(pose: Pose) -> String:
 	match pose:
 		Pose.LOOK_UP:
@@ -96,6 +97,7 @@ static func anim_for_pose(pose: Pose) -> String:
 			return ANIM_STRUM
 
 
+## Test-only: no in-game callers; kept for tests.
 static func morph_for_pose(pose: Pose) -> float:
 	## Destination clip's `morph_counter` magnitude / 30 Hz.
 	match pose:

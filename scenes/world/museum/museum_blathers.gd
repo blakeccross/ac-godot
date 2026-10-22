@@ -315,11 +315,10 @@ func _face_toward(world_pos: Vector3) -> void:
 		rotation.y = yaw
 
 
-## The owl model under `Model`; the scene's placeholder shows until it loads.
+## The owl model under `Model`.
 func _ensure_visual() -> void:
 	_model = $Model
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, &"owl")
-	($Model/Placeholder as Node3D).visible = vis == null
 	if vis == null:
 		return
 	_body_anim = VisualAnimation.find_animation_player(vis)

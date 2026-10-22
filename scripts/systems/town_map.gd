@@ -8,10 +8,6 @@ const TILES_DIR := "res://assets/generated/ui/map/tiles"
 const CHROME_DIR := "res://assets/generated/ui/map/chrome"
 const CATALOG_PATH := "res://assets/generated/ui/map/catalog.json"
 
-## Display size of one acre tile. Native drawn region is 22×22 (`kan_tizu` UVs);
-## ACHD exports scale that crop (e.g. 176×176). `compose_fg_texture` uses the
-## actual PNG size from catalog / first tile.
-const TILE_PX := 75
 const NATIVE_TILE_PX := 22
 const CURSOR_FRAMES := 18
 
@@ -179,6 +175,7 @@ static func block_from_fg(fg: Vector2i) -> Vector2i:
 	return Vector2i(fg.x + TownFieldGenerator.FG_X0, fg.y + TownFieldGenerator.FG_Z0)
 
 
+## Test-only: no in-game callers; kept for tests.
 static func acre_code(fg: Vector2i) -> String:
 	if fg.x < 0 or fg.y < 0:
 		return "--"
@@ -186,6 +183,7 @@ static func acre_code(fg: Vector2i) -> String:
 	return "%s-%d" % [letter, fg.x + 1]
 
 
+## Test-only: no in-game callers; kept for tests.
 static func label_for_acre(data: WorldData, fg: Vector2i) -> String:
 	if data == null or fg.x < 0:
 		return ""
@@ -232,6 +230,7 @@ static func label_for_acre(data: WorldData, fg: Vector2i) -> String:
 
 
 ## Chrome stem for the selected-acre feature icon (left panel), or "".
+## Test-only: no in-game callers; kept for tests.
 static func icon_name_for_acre(data: WorldData, fg: Vector2i) -> String:
 	if data == null or fg.x < 0:
 		return ""

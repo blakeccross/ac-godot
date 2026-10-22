@@ -2,8 +2,6 @@ class_name VisualWindowLight
 extends RefCounted
 ## House/shop window panes, ground spill and room-prim fills: lit at night, dark by day.
 
-## Loads a pipeline GLB onto a host and hides placeholder meshes.
-## Missing files are expected until `python3 tools/build_assets.py` has been run.
 ## Facade window panes (`*_light_model`): opaque prim/env fill, black off / yellow on.
 const _WINDOW_PANE_ON := Color(1.0, 1.0, 150.0 / 255.0, 1.0)
 const _WINDOW_PANE_OFF := Color(0.0, 0.0, 0.0, 1.0)

@@ -221,11 +221,6 @@ func swap_player_order(a: int, b: int) -> void:
 	changed.emit()
 
 
-func save_player_slot(player_slot: int, design: DesignPattern) -> void:
-	player[resolved_index(player_slot)].copy_from(design)
-	changed.emit()
-
-
 # --- design album (`mCO_swap_image`) ---------------------------------------
 
 func album_design(page: int, idx: int) -> DesignPattern:

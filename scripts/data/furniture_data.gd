@@ -72,6 +72,7 @@ func resolved_footprint() -> Vector2i:
 			return Vector2i.ONE
 
 
+## Test-only: no in-game callers; kept for tests.
 func is_sittable() -> bool:
 	if can_sit:
 		return true
@@ -90,6 +91,7 @@ func has_storage() -> bool:
 	return can_store or storage_slots > 0 or kind == Kind.STORAGE or kind == Kind.MUSIC
 
 
+## Test-only: no in-game callers; kept for tests.
 func keep_count() -> int:
 	if storage_slots > 0:
 		return storage_slots
@@ -116,10 +118,6 @@ func is_toggleable() -> bool:
 
 func is_music_player() -> bool:
 	return kind == Kind.MUSIC
-
-
-func is_chest() -> bool:
-	return kind == Kind.STORAGE
 
 
 func accepts_display(item: ItemData) -> bool:

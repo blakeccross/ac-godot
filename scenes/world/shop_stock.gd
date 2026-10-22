@@ -12,7 +12,6 @@ extends StaticBody3D
 ## Raffle-day prize on display, not for sale.
 @export var lottery_prize: bool = false
 
-@onready var _mesh: MeshInstance3D = $MeshInstance3D
 @onready var _collision: CollisionShape3D = $CollisionShape3D
 
 
@@ -65,13 +64,9 @@ func _apply_visual() -> void:
 		if cloth >= 0:
 			VisualCloth.apply_cloth(self, cloth)
 		_paint_sample(data)
-		if _mesh != null:
-			_mesh.visible = false
 		return
-	if _mesh != null and data != null:
-		_mesh.visible = true
-		_mesh.material_override = _tint(data.icon_color)
-	_fit_placeholder()
+	if data != null:
+		GeneratedVisual.mark_missing(self, visual if visual != &"" else item_id, data.icon_color, Vector3(0.5, 0.7, 0.5))
 
 
 func _paint_sample(data: ItemData) -> void:
@@ -105,20 +100,3 @@ func set_footprint_gx(half_gx: float) -> void:
 	box.size = Vector3(side, 0.8, side)
 	_collision.shape = box
 	_collision.position.y = 0.4
-
-
-func _fit_placeholder() -> void:
-	var w: float = 0.7
-	var d: float = 0.7
-	if _collision != null and _collision.shape is BoxShape3D:
-		(_collision.shape as BoxShape3D).size = Vector3(w, 0.8, d)
-		_collision.position.y = 0.4
-	if _mesh != null and _mesh.mesh is BoxMesh:
-		(_mesh.mesh as BoxMesh).size = Vector3(w * 0.7, 0.7, d * 0.7)
-		_mesh.position.y = 0.35
-
-
-func _tint(color: Color) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	return mat

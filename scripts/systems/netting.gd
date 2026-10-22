@@ -27,7 +27,6 @@ const TOOL_PUTAWAY := &"kamae_main_m1"
 
 ## Keyframe counts (`cKF_ba_r_ply_1_get_m1`, `_yatta2`, `_putaway_m1`).
 const PULL_FRAMES := 52.0
-const YATTA_FRAMES := 53.0
 const PUTAWAY_FRAMES := 19.0
 const FRAME_SPEED := 0.5
 ## `Player_actor_CorrectSomething_Pull_net`: net → left hand after this keyframe.

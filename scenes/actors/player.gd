@@ -15,10 +15,6 @@ const PLAYER_GIRL_GLB := "res://assets/generated/characters/player/grl_1.glb"
 const LOOK_HEIGHT := 33.0 * PlayerLocomotion.UNIT_METERS
 const INTERACT_REACH := 1.1
 
-## `notice_rod` chains message 0x1348 onto the fish catch report when pockets are full.
-const POCKETS_FULL_MSG_ID := &"msg_4936"
-## `notice_rod`'s follow-up to 0x1349 when the catch completes the fish record.
-const FISH_RECORD_DONE_MSG := 0x134A
 ## `notice_rod`: the fish page finished (0x134A) under its own jingle (0x4C).
 const ROD_COMPLETE_MSG := 0x134A
 const ROD_COMPLETE_FANFARE := 0x4C
@@ -77,8 +73,6 @@ const BEE_SHOCK_START_SEC := 24.0 / DecompTime.TICK_HZ
 const ANIM_KNOCK1 := "ply_1_knock1"
 ## `mPlayer_ANIM_INTO_S1` — indoor door / exit walk (`mPlayer_INDEX_DOOR`, type ≠ 0).
 const ANIM_INTO_S1 := "ply_1_into_s1"
-## `mPlayer_ANIM_GO_OUT_S1` — outdoor emerge demo (`mPlayer_INDEX_OUTDOOR`, is_start_demo).
-const ANIM_GO_OUT_S1 := "ply_1_go_out_s1"
 ## `mPlayer_ANIM_GO_OUT_O1` — non-demo outdoor emerge (`Player_actor_setup_main_Outdoor`).
 const ANIM_GO_OUT_O1 := "ply_1_go_out_o1"
 ## `mPlayer_INDEX_HOLD` / `PUSH` / `PULL` / `ROTATE_FURNITURE` clips (`FurnitureGrip`).
@@ -129,7 +123,6 @@ const MOSQUITO_NOTICE_MSG := 0x3063
 const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 
 @onready var _mesh: Node3D = $MeshPivot
-@onready var _placeholder: MeshInstance3D = $MeshPivot/PlaceholderMesh
 @onready var _probe: Area3D = $MeshPivot/InteractProbe
 @onready var _look: Marker3D = $CameraLook
 ## Glyphs over the player's head: the startle (`ef_shock`) and the like.
@@ -174,7 +167,6 @@ var _focus: Node = null
 ## The body tree once the model is bound (`_animator`), null without a model.
 var _anim: BodyAnimator
 var _gait: PlayerLocomotion.Gait = PlayerLocomotion.Gait.WAIT
-var _placeholder_bob: float = 0.0
 var _radio := RadioExercise.new()
 ## Doing a radio exercise (`mPlayer_INDEX_RADIO_EXERCISE`).
 var exercising: bool = false
@@ -372,10 +364,6 @@ func set_cutscene_driven(enabled: bool) -> void:
 	if enabled:
 		velocity = Vector3.ZERO
 		_motor.reset(_motor.facing)
-
-
-func is_cutscene_driven() -> bool:
-	return _cutscene_driven
 
 
 func apply_facing(yaw: float) -> void:
@@ -1070,10 +1058,6 @@ func _update_animation(delta: float) -> void:
 		return
 	var next: PlayerLocomotion.Gait = _motor.gait()
 	if _anim == null:
-		_placeholder_bob += delta * (8.0 if next != PlayerLocomotion.Gait.WAIT else 2.0)
-		if _placeholder.visible:
-			var amp: float = 0.04 if next != PlayerLocomotion.Gait.WAIT else 0.0
-			_placeholder.position.y = 0.625 + sin(_placeholder_bob) * amp
 		return
 	if _busy:
 		## After door emerge / while dialogue locks input, keep wait looping —
@@ -2417,7 +2401,6 @@ func _try_load_generated_visual() -> void:
 		visual.queue_free()
 		return
 	var body := visual as Node3D
-	_placeholder.visible = false
 	_mesh.add_child(body)
 	_scale_visual(body)
 	_apply_preview_materials(body)

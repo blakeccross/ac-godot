@@ -23,7 +23,6 @@ const BODY_LEN := 192
 const PIECE_MAX := 200
 ## `mNpc_EVENT_MAIL_*`.
 const EVENT_BEST_FRIEND := 0
-const EVENT_OK_FRIEND := 1
 const EVENT_NOT_FRIEND := 2
 
 

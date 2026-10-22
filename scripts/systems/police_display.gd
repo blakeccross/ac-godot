@@ -19,7 +19,6 @@ const SPAWN_FACING := WorldGrid.Facing.NORTH
 ## `police_box_actable` ut (4,6) → GX center.
 const BOOKER_STAND_UT := Vector2i(4, 6)
 const BOOKER_STAND_GX := Vector3(180.0, 0.0, 260.0)
-const BOOKER_FACING := WorldGrid.Facing.SOUTH
 ## `SP_NPC_POLICE2` → `pla_1` (`plc_1` is outdoor Copper / `SP_NPC_POLICE`).
 const BOOKER_SPECIES := &"pla"
 
@@ -87,6 +86,7 @@ static func gx_to_world(grid: WorldGrid, gx: Vector3) -> Vector3:
 	return MuseumDisplay.gx_to_world(grid, gx)
 
 
+## Test-only: no in-game callers; kept for tests.
 static func cell_for_slot(slot: int) -> Vector2i:
 	var cells: Array[Vector2i] = lost_found_cells()
 	if slot < 0 or slot >= cells.size():
@@ -116,10 +116,6 @@ static func cells_from_fg(items: PackedInt32Array) -> Array[Vector2i]:
 	if found != PoliceBook.STORAGE_COUNT:
 		out.clear()
 	return out
-
-
-static func slot_for_cell(cell: Vector2i) -> int:
-	return lost_found_cells().find(cell)
 
 
 static func unit_center_gx(cell: Vector2i) -> Vector3:

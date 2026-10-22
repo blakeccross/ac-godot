@@ -27,6 +27,7 @@ func set_a(held: bool) -> void:
 	a_held = held
 
 
+## Test-only: no in-game callers; kept for tests.
 func set_b(held: bool) -> void:
 	b_pressed = b_pressed or (held and not b_held)
 	b_held = held

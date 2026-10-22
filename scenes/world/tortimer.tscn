@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/tortimer.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="2"]
@@ -8,14 +8,6 @@ size = Vector3(1.0, 1.8, 1.0)
 
 [sub_resource type="BoxShape3D" id="reach_shape"]
 size = Vector3(1.6, 2.0, 1.6)
-
-[sub_resource type="CapsuleMesh" id="placeholder_mesh"]
-radius = 0.4
-height = 1.2
-
-[sub_resource type="StandardMaterial3D" id="placeholder_material"]
-resource_local_to_scene = true
-albedo_color = Color(0.45, 0.62, 0.4, 1)
 
 [node name="Tortimer" type="StaticBody3D"]
 script = ExtResource("1")
@@ -39,9 +31,3 @@ script = ExtResource("2")
 shape = SubResource("reach_shape")
 
 [node name="Model" type="Node3D" parent="."]
-
-[node name="Placeholder" type="MeshInstance3D" parent="Model"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
-visible = false
-mesh = SubResource("placeholder_mesh")
-material_override = SubResource("placeholder_material")

@@ -70,6 +70,7 @@ static func body_at(bodies: Array[Body], cell: Vector2i) -> Body:
 
 ## Largest size class this body can plausibly hold. Not a spawn rule — the original has no
 ## such cap and `FishSpawnScheduler` does not use it.
+## Test-only: no in-game callers; kept for tests.
 static func size_ceiling(body: Body) -> FishData.SizeClass:
 	if body == null:
 		return FishData.SizeClass.XXS

@@ -300,6 +300,7 @@ func end_item() -> void:
 	_item_target = null
 
 
+## Test-only: no in-game callers; kept for tests.
 func is_item() -> bool:
 	return _item_active
 

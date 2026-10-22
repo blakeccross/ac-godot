@@ -324,7 +324,6 @@ func _ensure_visual() -> void:
 	_model = $Model
 	_feel = $Feel
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, species) if species != &"" else null
-	($Model/Placeholder as Node3D).visible = vis == null
 	if vis != null:
 		_body_anim = VisualAnimation.find_animation_player(vis)
 		if texture_set != &"":

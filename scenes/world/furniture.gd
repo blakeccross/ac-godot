@@ -14,7 +14,6 @@ extends StaticBody3D
 const GYROID_DANCE := preload("res://scenes/world/gyroid_dance.tscn")
 
 @onready var _collision: CollisionShape3D = $CollisionShape3D
-@onready var _mesh: MeshInstance3D = $MeshInstance3D
 
 
 func _ready() -> void:
@@ -22,6 +21,8 @@ func _ready() -> void:
 	if data != null and data.visual_id != &"":
 		visual_id = data.visual_id
 	var visual: Node3D = GeneratedVisual.attach(self, visual_id)
+	if visual == null:
+		GeneratedVisual.mark_missing(self, visual_id)
 	if data != null and data.kind != FurnitureData.Kind.GYROID and FurnitureData.loops_idle(visual_id):
 		play_idle_loop(visual)
 	if data != null and data.kind == FurnitureData.Kind.GYROID:
@@ -62,9 +63,9 @@ func apply_footprint(cell_size: float) -> void:
 		(_collision.shape as BoxShape3D).size = Vector3(w, 0.8, d)
 		_collision.position.y = 0.4
 		_collision.disabled = not blocks
-	if _mesh != null and _mesh.mesh is BoxMesh:
-		(_mesh.mesh as BoxMesh).size = Vector3(w * 0.7, 0.7, d * 0.7)
-		_mesh.position.y = 0.35
+	var marker := get_node_or_null(GeneratedVisual.MISSING_NODE) as MissingModel
+	if marker != null:
+		marker.size = Vector3(w * 0.7, 0.7, d * 0.7)
 	collision_layer = 1 if blocks else 0
 
 

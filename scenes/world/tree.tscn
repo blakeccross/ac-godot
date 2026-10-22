@@ -1,31 +1,8 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/tree.gd" id="1"]
 [ext_resource type="Resource" path="res://data/plants/apple_tree.tres" id="2"]
 [ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="3"]
-
-[sub_resource type="CylinderMesh" id="TrunkMesh"]
-top_radius = 0.18
-bottom_radius = 0.22
-height = 1.8
-
-[sub_resource type="StandardMaterial3D" id="TrunkMat"]
-albedo_color = Color(0.4, 0.26, 0.14, 1)
-
-[sub_resource type="SphereMesh" id="LeafMesh"]
-radius = 1.1
-height = 2.2
-
-[sub_resource type="StandardMaterial3D" id="LeafMat"]
-albedo_color = Color(0.28, 0.55, 0.28, 1)
-
-[sub_resource type="CylinderMesh" id="StumpMesh"]
-top_radius = 0.2
-bottom_radius = 0.24
-height = 0.4
-
-[sub_resource type="StandardMaterial3D" id="StumpMat"]
-albedo_color = Color(0.38, 0.24, 0.12, 1)
 
 [sub_resource type="CylinderShape3D" id="TrunkShape"]
 height = 1.8
@@ -41,22 +18,6 @@ script = ExtResource("1")
 plant = ExtResource("2")
 
 [node name="VisualPivot" type="Node3D" parent="."]
-
-[node name="Trunk" type="MeshInstance3D" parent="VisualPivot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
-mesh = SubResource("TrunkMesh")
-surface_material_override/0 = SubResource("TrunkMat")
-
-[node name="Leaves" type="MeshInstance3D" parent="VisualPivot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 0)
-mesh = SubResource("LeafMesh")
-surface_material_override/0 = SubResource("LeafMat")
-
-[node name="Stump" type="MeshInstance3D" parent="."]
-visible = false
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
-mesh = SubResource("StumpMesh")
-surface_material_override/0 = SubResource("StumpMat")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)

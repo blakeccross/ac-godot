@@ -34,6 +34,7 @@ static func ensure_loaded() -> void:
 	_loaded = true
 
 
+## Test-only: no in-game callers; kept for tests.
 static func all_bugs() -> Array[BugData]:
 	ensure_loaded()
 	return _bugs.duplicate()

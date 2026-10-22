@@ -22,9 +22,6 @@ const SPECIAL_END_HOUR: Dictionary = {
 ## copies the town's rating (`TownAssessment`) in whenever it rates the town.
 const FIELD_RANK_MAX := 6
 const DEFAULT_FIELD_RANK := 3
-const SLOT_NAMES: Array[String] = [
-	"today", "last_play", "birthday", "special0", "special1", "special2", "weekly", "special3"
-]
 
 ## Fixed per town (`Save_Get(town_day)`): the July "Town Day" date.
 var town_day: int = 15
@@ -658,10 +655,6 @@ func area(id: StringName) -> Dictionary:
 	return save_areas[key]
 
 
-func has_area(id: StringName) -> bool:
-	return save_areas.has(String(id))
-
-
 ## `mEv_clear_save_area`.
 func clear_area(id: StringName) -> void:
 	save_areas.erase(String(id))
@@ -669,10 +662,6 @@ func clear_area(id: StringName) -> void:
 
 func mark_talked(id: StringName) -> void:
 	_talked[id] = true
-
-
-func has_talked(id: StringName) -> bool:
-	return _talked.has(id)
 
 
 ## Today's date key (`year-month-day`).

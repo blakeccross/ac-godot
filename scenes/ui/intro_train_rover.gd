@@ -6,20 +6,6 @@ extends Node3D
 signal visual_ready(visual: Node3D)
 signal intro_clip_finished(anim_name: StringName)
 
-const INTRO_CLIP_SUFFIXES: Array[String] = [
-	IntroTrainStage.ANIM_OPEN_D1,
-	IntroTrainStage.ANIM_WALK,
-	IntroTrainStage.ANIM_WAIT,
-	IntroTrainStage.ANIM_SITDOWN,
-	IntroTrainStage.ANIM_SIT_WAIT,
-	IntroTrainStage.ANIM_STANDUP,
-	IntroTrainStage.ANIM_TO_DECK,
-	IntroTrainStage.ANIM_KEITAI_ON,
-	IntroTrainStage.ANIM_KEITAI_TALK,
-	IntroTrainStage.ANIM_KEITAI_OFF,
-	IntroTrainStage.ANIM_OPEN_D2,
-]
-
 ## Wait for `animation_finished` — early poll cuts these clips short.
 const _SIGNAL_FINISH_SUFFIXES: Array[String] = [
 	IntroTrainStage.ANIM_STANDUP,
@@ -92,19 +78,6 @@ func play_intro_clip(
 	)
 	_anim.play(clip, blend)
 	return true
-
-
-func commit_one_shot_pose() -> void:
-	if _anim == null or _active_clip.is_empty():
-		_clip_active = false
-		return
-	var anim: Animation = _anim.get_animation(_active_clip)
-	if anim == null:
-		_clip_active = false
-		return
-	_anim.play(_active_clip, 0.0)
-	_anim.seek(anim.length, true)
-	_clip_active = false
 
 
 func intro_clip_playing() -> bool:

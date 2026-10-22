@@ -256,6 +256,7 @@ func set_music_pause(level: float) -> void:
 		AudioServer.get_bus_volume_db(bus), linear_to_db(maxf(level, 0.0001)), PAUSE_FADE_SEC)
 
 
+## Test-only: no in-game callers; kept for tests.
 func music_pause_level() -> float:
 	return _pause_level
 
@@ -294,6 +295,7 @@ func syslev_id() -> int:
 	return _syslev_id
 
 
+## Test-only: no in-game callers; kept for tests.
 func syslev_volume_db() -> float:
 	return _syslev_player.volume_db if _syslev_player != null else 0.0
 
@@ -440,6 +442,7 @@ func pop_fanfare(id: StringName) -> void:
 		play_bgm(base)
 
 
+## Test-only: no in-game callers; kept for tests.
 func fanfare_id() -> StringName:
 	return _fanfare_id
 

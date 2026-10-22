@@ -39,10 +39,6 @@ func end_snowball_push() -> void:
 	_player.velocity = Vector3.ZERO
 
 
-func is_pushing_snowball() -> bool:
-	return _player._snowball != null
-
-
 ## `Player_actor_main_Push_snowball`: the ball moves each step and hands back where the
 ## player stands (`mPlib_SetParam_for_push_snowball`).
 func push_snowball(

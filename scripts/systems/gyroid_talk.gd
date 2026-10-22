@@ -102,8 +102,6 @@ const SOUND_SPEC := 2
 ## `aHNW_wait` / `aHNW_dance`: start dancing inside 80 GX, stop past 90 GX.
 const DANCE_NEAR_GX := 80.0
 const DANCE_FAR_GX := 90.0
-## `actor->talk_distance`.
-const TALK_DISTANCE_GX := 43.0
 ## `aHNW_search_player` / `aHNW_search_front`: `chase_angle(..., 0x0600)`, frame-scaled.
 const TURN_STEP := 0x0600
 ## `aHNW_search_front` target_angle, per house plot (west plots look east of south).

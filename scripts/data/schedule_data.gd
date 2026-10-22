@@ -6,6 +6,7 @@ extends Resource
 @export var slots: Array[ScheduleSlot] = []
 
 
+## Test-only: no in-game callers; kept for tests.
 func activity_at(hour: int) -> StringName:
 	return activity_at_seconds(posmod(hour, 24) * 3600)
 

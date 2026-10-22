@@ -6,10 +6,6 @@ extends Node3D
 ## `*_short_model` / `*_long_model` joints, turned to the clock (`aHC_DrawClockAfter`:
 ## `RotateZ(90° − rad_hour / rad_min)`); a pendulum clip plays at half speed.
 
-## `aHC_position_data`, GX.
-const POST_OFFICE_GX := Vector3(120.0, 55.0, 135.0)
-const POLICE_BOX_GX := Vector3(200.0, 0.0, 30.0)
-
 @export var visual: StringName = &"obj_clock_yub"
 
 var _skeleton: Skeleton3D

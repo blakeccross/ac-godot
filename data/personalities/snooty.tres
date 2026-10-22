@@ -9,6 +9,5 @@ id = &"snooty"
 display_name = "Snooty"
 looks = 5
 schedule = ExtResource("2")
-placeholder_color = Color(0.72, 0.55, 0.82, 1)
 walk_speed = 1.5
 wander_radius = 5.5

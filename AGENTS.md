@@ -15,7 +15,7 @@ Read these before changing gameplay or adding features:
 - Use [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp) as a **behavioral reference**, never as architecture to copy. Do not mechanically translate C into GDScript. Do not commit the decomp or original assets.
 - Data = `Resource` classes + `.tres`. Presentation = scenes. Behavior = systems. Prefer composition over inheritance.
 - **Scene-first:** author fixed layout in `.tscn` (nested scenes, markers, lights, HUD). Runtime `instantiate()` is for procedural / session-dynamic content only—and then instance packed scenes, do not invent geometry in GDScript. See `docs/architecture.md` § Scene-first.
-- Placeholders until the system works. Do not convert original art.
+- Placeholders until the system works. Do not convert original art. Generated assets are a precondition (run the pipeline first), so scenes carry no stand-in meshes for them: an empty `Model` mount that `GeneratedVisual` fills. A visual with no generated model gets the one shared `MissingModel` marker via `GeneratedVisual.mark_missing`, never a bespoke box or sphere.
 - Asset pipeline: classify from Gfx state, not symbol-name string checks; do not nudge verts to hide z-fighting (`.cursor/rules/asset-pipeline.mdc`). Depth bias stays in `GeneratedVisual` (`grow`), not convert.
 - Gameplay runs on `delta` in seconds and metres, with Godot timing tools (`Timer`, `Tween`, `AnimationPlayer` / `AnimationTree`, `Motion`), not decomp ticks or frame counters; names are plain English, with decomp symbols only in comments. See `docs/conventions.md` § Time and units and § Naming, and `docs/godot_native_refactor_plan.md`.
 - Features must earn their place. The decomp containing a system is not a reason to build it.

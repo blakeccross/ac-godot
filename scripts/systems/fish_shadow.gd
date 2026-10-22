@@ -179,6 +179,7 @@ func is_engaged() -> bool:
 	return action == Action.NEAR or action == Action.TOUCH or is_hooked()
 
 
+## Test-only: no in-game callers; kept for tests.
 func is_landed() -> bool:
 	return _landed
 

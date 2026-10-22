@@ -259,11 +259,7 @@ func _ensure_visual() -> void:
 		return
 	_model = $Model
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, _species)
-	($Model/Placeholder as Node3D).visible = vis == null
 	if vis == null:
-		(($Model/Placeholder as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = (
-			Color(0.95, 0.92, 0.85) if _species == PostDisplay.PELLY_SPECIES else Color(0.55, 0.45, 0.55)
-		)
 		return
 	_body_anim = VisualAnimation.find_animation_player(vis)
 	_face.bind(vis, _species)

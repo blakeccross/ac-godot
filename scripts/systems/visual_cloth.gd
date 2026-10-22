@@ -3,16 +3,6 @@ extends RefCounted
 ## Shirt / design / item albedo painting onto actor and furniture surfaces.
 
 
-static func apply_item_albedo(host: Node, item_id: StringName) -> void:
-	var path: String = FieldCatalog.item_albedo(item_id)
-	if path.is_empty() or host == null:
-		return
-	var tex: Texture2D = load(path) as Texture2D
-	if tex == null:
-		return
-	paint_albedo(host, tex)
-
-
 static func apply_cloth(host: Node, cloth_index: int) -> void:
 	## Mannequin shirt samples `anime_1_txt` (seg 8). Stand keeps baked CI textures.
 	var path: String = FieldCatalog.cloth_albedo(cloth_index)

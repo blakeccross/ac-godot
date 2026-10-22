@@ -59,10 +59,6 @@ func start_quest(year: int, month: int, day: int) -> void:
 	quest_taken = true
 
 
-func has_quest() -> bool:
-	return start_ordinal > 0
-
-
 ## `mSC_LightHouse_get_period` for a calendar day.
 func period_on(ordinal: int) -> Period:
 	if start_ordinal <= 0 or ordinal < start_ordinal:
@@ -130,11 +126,6 @@ func switch_mode(year: int, month: int, day: int, hour: int) -> SwitchMode:
 func switch_on(year: int, month: int, day: int) -> void:
 	nights_lit |= 1 << night_index(EventDates.ordinal(year, month, day))
 	contributed = true
-
-
-func all_nights_lit() -> bool:
-	var full: int = (1 << NIGHT_COUNT) - 1
-	return nights_lit & full == full
 
 
 ## `mSC_LightHouse_travel_check`: the quest nights keep Tortimer away from the plaza.

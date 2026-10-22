@@ -39,8 +39,6 @@ const CONTEST_KIND_NUM := 7
 const DELIVERY_NUM := Inventory.POCKET_SLOTS
 const ERRAND_NUM := 5
 const CHAIN_ANIMAL_NUM := 3
-## `mQst_MAX_TIME_LIMIT_DAYS`.
-const MAX_TIME_LIMIT_DAYS := 28
 ## `aQMgr_FLOWER_GOAL_NUM`.
 const FLOWER_GOAL_NUM := 3
 
@@ -354,15 +352,6 @@ func occured_contest_idx(kind: int) -> int:
 	return -1
 
 
-## `mQst_GetOccuredDeliveryIdx`.
-func occured_delivery_idx(kind: int) -> int:
-	for i: int in deliveries.size():
-		var d: Dictionary = deliveries[i]
-		if int(d.get("type", Type.NONE)) == Type.DELIVERY and int(d.get("kind", -1)) == kind:
-			return i
-	return -1
-
-
 ## `aQMgr_actor_init_quest`: every live quest, deliveries then errands then contests, with
 ## who asked (`from`), who it's for (`to`) and the item. `idx` is the pocket (deliveries),
 ## errand slot or resident slot.
@@ -425,22 +414,6 @@ func clear_by_pocket(inventory: Inventory, pocket: int) -> bool:
 	else:
 		clear_errand(errands[int(q["idx"])])
 	return true
-
-
-## `mQst_CheckLimitbyPossessionIdx`.
-func limit_by_pocket(inventory: Inventory, pocket: int, now: int) -> bool:
-	if inventory == null or pocket < 0 or pocket >= DELIVERY_NUM:
-		return false
-	var s: InventorySlot = inventory.slot_at(pocket)
-	if s == null or s.is_empty():
-		return false
-	var d: Dictionary = deliveries[pocket]
-	if not is_free(d) and limit_over(d, now):
-		return true
-	for e: Dictionary in errands:
-		if not is_free(e) and int(e["pocket"]) == pocket and e["item"] == s.item.item_id and limit_over(e, now):
-			return true
-	return false
 
 
 ## `mQst_GetToFromName`: {to, from} villager ids for a quest item's tag.
