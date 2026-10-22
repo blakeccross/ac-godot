@@ -16,12 +16,10 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from .config import PipelineConfig, _resolve
+from .config import DEFAULT_WORK_ROOT, PipelineConfig, _resolve
 from .fgdata import _guess_decomp
 
 DECOMP_URL = "https://github.com/ACreTeam/ac-decomp"
-## Outside the repo: extracted disc files must never land in the project.
-DEFAULT_WORK_ROOT = Path.home() / "ac-assets-work"
 ## Animal Crossing HD texture pack (Dolphin Load/Textures layout, one `GAF/` folder).
 ## `confirm=t` skips Drive's "can't scan for viruses" page for large files.
 ACHD_URL = (
@@ -45,7 +43,7 @@ def write_local_config(project_root: Path, disc: Path | None, hd: bool | None) -
     created = not path.exists()
     if created:
         ## Godot is found at bake time (`bake.resolve_godot_bin`).
-        data = {"work_root": str(DEFAULT_WORK_ROOT), "achd_enabled": False}
+        data = {"achd_enabled": False}
     else:
         data = json.loads(path.read_text())
     if disc is not None:
@@ -53,7 +51,7 @@ def write_local_config(project_root: Path, disc: Path | None, hd: bool | None) -
     if hd is None and created:
         hd = ask_hd()
     if hd:
-        pack = fetch_achd(_resolve(project_root, data["work_root"]))
+        pack = fetch_achd(_resolve(project_root, data.get("work_root") or str(DEFAULT_WORK_ROOT)))
         data["achd_root"] = str(pack)
         data["achd_enabled"] = True
     elif hd is not None:

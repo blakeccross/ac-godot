@@ -23,19 +23,17 @@ pip3 install -r tools/requirements.txt
 python3 tools/build_assets.py --disc /path/to/GAFE01.iso
 ```
 
-That one command is the whole first build. `--disc` writes `tools/config.local.json` (gitignored) when it is missing, with `work_root` at `~/ac-assets-work`, and asks whether to use the ACHD pack (no terminal → no). With a config already there it only updates `game_files`. `--hd` downloads the pack (`ACHD_URL` in `first_run.py`, a zip with one `GAF/` folder) into `work_root/achd` and sets `achd_root` / `achd_enabled`; `--no-hd` turns it off. Both work without `--disc` on an existing config, and switching needs a full reconvert. When no ac-decomp checkout is found (`decomp_root`, then the usual sibling / `~/Documents` paths, then `work_root/ac-decomp`), the convert step shallow-clones one into `work_root/ac-decomp`. Godot comes from `GODOT_BIN`, `godot_bin`, or the usual install paths.
+That one command is the whole first build. `--disc` writes `tools/config.local.json` (gitignored) when it is missing and asks whether to use the ACHD pack (no terminal → no). With a config already there it only updates `game_files`. `--hd` downloads the pack (`ACHD_URL` in `first_run.py`, a zip with one `GAF/` folder) into `work_root/achd` and sets `achd_root` / `achd_enabled`; `--no-hd` turns it off. Both work without `--disc` on an existing config, and switching needs a full reconvert. When no ac-decomp checkout is found (`decomp_root`, then the usual sibling / `~/Documents` paths, then `work_root/ac-decomp`), the convert step shallow-clones one into `work_root/ac-decomp`. Godot comes from `GODOT_BIN`, `godot_bin`, or the usual install paths.
 
 To set paths by hand instead, copy `tools/config.example.json` to `tools/config.local.json` and edit it:
 
 ```json
 {
-  "game_files": "/absolute/path/to/Animal Crossing (USA)",
-  "work_root": "/absolute/path/to/ac-assets-work",
-  "godot_generated": "assets/generated",
-  "dtk_path": "tools/.cache/dtk",
-  "scale": 0.001
+  "game_files": "/absolute/path/to/Animal Crossing (USA)"
 }
 ```
+
+Only `game_files` is required. `decomp_root`, `achd_enabled` / `achd_root` and `godot_bin` are optional (see `tools/config.example.json`). Extracted files go to `~/ac-assets-work`; `work_root`, `godot_generated` (`assets/generated`) and `dtk_path` (`tools/.cache/dtk`) override the defaults when you really need to (keep `work_root` outside the repo).
 
 `game_files` may be:
 
@@ -77,7 +75,7 @@ From the US disc (`GAFE01_00`):
 
 ## 4. Directory structure
 
-Work root (outside the Godot repo, configured as `work_root`):
+Work root (`~/ac-assets-work`, outside the Godot repo; `work_root` overrides it):
 
 ```
 ac-assets-work/

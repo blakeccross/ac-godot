@@ -5,6 +5,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
+## Outside the repo: extracted disc files must never land in the project.
+DEFAULT_WORK_ROOT = Path.home() / "ac-assets-work"
+
 
 @dataclass
 class PipelineConfig:
@@ -17,7 +20,8 @@ class PipelineConfig:
     dtk_path: Path
     # Same Vtx multiplier for every mesh. Not the in-game draw scale: actors use
     # 0.01 (m_actor.c), acre DLs use 0.0625 (ac_field_draw.c). Godot maps both
-    # into meters with FieldCatalog (40 GX = 2 m).
+    # into meters with FieldCatalog (40 GX = 2 m). Fixed, not a config key: the runtime
+    # constants assume it.
     scale: float = 0.001
     decomp_root: Optional[Path] = None
     ## Dolphin ACHD / Load/Textures tree (DDS keyed by tex1_* hashes). Optional.
@@ -76,10 +80,9 @@ def load_config(project_root: Optional[Path] = None, config_path: Optional[Path]
     return PipelineConfig(
         project_root=root,
         game_files=_resolve(root, data["game_files"]),
-        work_root=_resolve(root, data["work_root"]),
+        work_root=_resolve(root, data.get("work_root") or str(DEFAULT_WORK_ROOT)),
         godot_generated=_resolve(root, data.get("godot_generated", "assets/generated")),
         dtk_path=_resolve(root, data.get("dtk_path", "tools/.cache/dtk")),
-        scale=float(data.get("scale", 0.001)),
         decomp_root=_resolve(root, decomp_raw) if str(decomp_raw).strip() else None,
         achd_root=achd_root if achd_enabled else None,
         achd_enabled=achd_enabled and achd_root is not None,

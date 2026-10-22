@@ -41,7 +41,6 @@ The town's acres are built by the asset pipeline. Run it once before the first p
 
    To change the defaults, edit `tools/config.local.json` (see `tools/config.example.json`):
 
-   - `work_root` — absolute path **outside** this repo, where extracted files are written
    - `godot_bin` — the Godot executable, if it is not in a usual place
    - `achd_enabled` / `achd_root` — the HD texture pack. `--hd` / `--no-hd` switch it later and reconvert
    - `decomp_root` — an existing ac-decomp checkout

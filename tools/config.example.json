@@ -1,11 +1,7 @@
 {
   "game_files": "/absolute/path/to/Animal Crossing (USA)",
-  "work_root": "/absolute/path/to/ac-assets-work",
-  "godot_generated": "assets/generated",
-  "dtk_path": "tools/.cache/dtk",
-  "scale": 0.001,
   "decomp_root": "",
-  "achd_enabled": true,
-  "achd_root": "/absolute/path/to/ACHD",
-  "godot_bin": "/Applications/Godot.app/Contents/MacOS/Godot"
+  "achd_enabled": false,
+  "achd_root": "",
+  "godot_bin": ""
 }
