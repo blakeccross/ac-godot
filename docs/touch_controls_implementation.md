@@ -209,6 +209,8 @@ The day loop can be played by tapping alone: shake trees, collect fruit, talk, e
 
 *Playable:* every screen works with fingers, in this order (most used first).
 
+**Done, differently from the table below.** Every overlay already reads ↑ ↓ ← →, Enter / Space and Escape in `_unhandled_input`, so one shared pad (`scenes/ui/touch_menu_pad.tscn`, autoload `TouchMenus`) sends those very keys, marked `DEVICE_ID_EMULATION` so the tracker stays on touch. It shows while touch is the last device and a menu is open, or there's no player yet (title, intro). Held arrows repeat. A tap off the pad is OK on a talk page (not a choice: `DialogueOverlay.waits_for_page`), a letter, and the title / intro. No overlay gained touch code; per-overlay regions stay optional polish. Inventory slots, tabs and the wallet were already tap buttons; the keyboard and design screens were already mouse-driven. Not covered yet: long-press to mark in the pockets, and drag between slots.
+
 The rule: no overlay grows its own touch logic. Each one gets tap regions that call the **same handler its keys already call**. Where an overlay has a `handle_key(key)` (bank, keyboard panel, edit-end prompt), regions call that. Where it reads keycodes inline, first pull that body out into `_on_key(keycode)`, then call it from both the key path and the regions.
 
 | Order | Overlay | Work |

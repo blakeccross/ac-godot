@@ -25,6 +25,7 @@ Audio="*res://scripts/systems/audio.gd"
 Game="*res://scripts/systems/game.gd"
 SceneTransition="*res://scripts/systems/scene_transition.gd"
 InputDeviceTracker="*res://scripts/systems/input_device_tracker.gd"
+TouchMenus="*res://scenes/ui/touch_menu_pad.tscn"
 
 [display]
 

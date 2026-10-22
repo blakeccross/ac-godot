@@ -19,6 +19,9 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
 		_set_device(Device.TOUCH)
 	elif event is InputEventKey or event is InputEventJoypadButton:
+		## The touch menu pad's keys are a finger's.
+		if event.device == InputEvent.DEVICE_ID_EMULATION:
+			return
 		if event.is_pressed() and not event.is_echo():
 			_set_device(Device.KEYS)
 	elif event is InputEventJoypadMotion:

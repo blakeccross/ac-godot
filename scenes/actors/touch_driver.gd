@@ -171,6 +171,9 @@ func press(at: Vector2) -> void:
 		return
 	if hud != null:
 		hud.hide_chips()
+	## Under a menu the finger is the menu's (`TouchMenuPad`).
+	if _player != null and (_player._menu_open() or TouchMenuPad.menu_open(get_tree())):
+		return
 	if not install():
 		return
 	_down = true
