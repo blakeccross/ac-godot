@@ -567,7 +567,9 @@ func _can_land(pos_gx: Vector3, dir: AcreWade.Dir, bg: Array) -> bool:
 	var reached: Vector3 = FieldCollision.revise_xz(data, grid, global_position, probe)
 	if Vector2(reached.x - probe.x, reached.z - probe.z).length() > 0.05:
 		return false
-	if grid.is_occupied(grid.world_to_cell(probe)):
+	## The original checks no field items here: flowers, weeds, holes and dropped items never stop
+	## a crossing. Only solids (trees, rocks, signs) do, and those carry physics bodies.
+	if _solid_at(probe):
 		return false
 	if not _demo_input():
 		var clear: float = AcreWade.NPC_CLEAR
@@ -575,6 +577,18 @@ func _can_land(pos_gx: Vector3, dir: AcreWade.Dir, bg: Array) -> bool:
 			if npc is Node3D and (npc as Node3D).global_position.distance_to(probe) < clear:
 				return false
 	return true
+
+
+## True when a physics body the player collides with (not a walkable item) overlaps `at`.
+func _solid_at(at: Vector3) -> bool:
+	var shape := SphereShape3D.new()
+	shape.radius = FieldCollision.ACTOR_RADIUS
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform = Transform3D(Basis.IDENTITY, at + Vector3.UP * shape.radius)
+	query.collision_mask = collision_mask
+	query.exclude = [get_rid()]
+	return not get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
 func _begin_wade(pos_gx: Vector3, dir: AcreWade.Dir) -> void:
