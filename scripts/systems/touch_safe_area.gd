@@ -33,5 +33,13 @@ static func fit(root: Control) -> void:
 		root.offset_right = -inset.z
 		root.offset_bottom = -inset.w
 	apply.call()
-	if vp != null and not vp.size_changed.is_connected(apply):
-		vp.size_changed.connect(apply)
+	if vp == null:
+		return
+	vp.size_changed.connect(apply)
+	## The lambda captures `root`; drop it with the node or the next resize calls into a freed one.
+	root.tree_exiting.connect(
+		func() -> void:
+			if vp.size_changed.is_connected(apply):
+				vp.size_changed.disconnect(apply),
+		CONNECT_ONE_SHOT
+	)

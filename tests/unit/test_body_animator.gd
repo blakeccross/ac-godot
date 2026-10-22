@@ -165,3 +165,13 @@ func test_clip_events_hold_while_a_clip_runs_backwards() -> void:
 	a.play_backwards(&"ply_1_putaway1", 0.0)
 	_run(a, clip.length + 0.1)
 	assert_array(fired).is_empty()
+
+
+func test_adding_clip_events_leaves_the_tree_running() -> void:
+	var a := _animator()
+	if a == null:
+		return
+	var path: NodePath = a.anim_player
+	a.add_clip_events({&"ply_1_pickup1": [[10.0, &"item_get"]]}, 30.0)
+	assert_bool(a.active).is_true()
+	assert_bool(a.anim_player == path).is_true()

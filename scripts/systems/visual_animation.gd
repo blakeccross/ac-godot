@@ -15,12 +15,18 @@ static func find_animation_player(node: Node) -> AnimationPlayer:
 	return null
 
 
+## Autoplay only matters before the node enters the tree (and setting it afterwards warns).
+static func clear_autoplay(anim: AnimationPlayer) -> void:
+	if not anim.is_inside_tree():
+		anim.autoplay = ""
+
+
 static func stop_autoplay(node: Node) -> void:
 	## Furniture cKF clips are open/close; rest is frame 1 (closed). Do not play.
 	var anim: AnimationPlayer = find_animation_player(node)
 	if anim == null:
 		return
-	anim.autoplay = ""
+	clear_autoplay(anim)
 	anim.stop()
 	anim.seek(0.0, true)
 
@@ -30,7 +36,7 @@ static func stop_autoplay_keep_rest(node: Node) -> void:
 	## Seeking frame 0 would shove the car off the rails — stop and snap to bind.
 	var anim: AnimationPlayer = find_animation_player(node)
 	if anim != null:
-		anim.autoplay = ""
+		clear_autoplay(anim)
 		anim.stop()
 	reset_skeleton_rest(node)
 

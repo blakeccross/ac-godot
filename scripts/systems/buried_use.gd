@@ -196,7 +196,7 @@ static func close_pit(world: Node, cell: Vector2i) -> void:
 			grid.remove(pid)
 		return
 	Audio.play_se(&"15b", hole)
-	var opening: Variant = hole.get_meta(&"pit_tween", null)
+	var opening: Variant = hole.get_meta(&"pit_tween") if hole.has_meta(&"pit_tween") else null
 	if opening is Tween and (opening as Tween).is_valid():
 		(opening as Tween).kill()
 	var tw: Tween = hole.create_tween()

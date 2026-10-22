@@ -405,7 +405,6 @@ func _setup_player_portrait() -> void:
 	_portrait_viewport.transparent_bg = true
 	_portrait_viewport.own_world_3d = true
 	_portrait_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	_portrait_viewport.size = Vector2i(160, 160)
 
 	var world := Node3D.new()
 	world.name = "PortraitWorld"

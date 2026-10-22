@@ -371,7 +371,7 @@ func _refresh() -> void:
 	var sel_tab := _album.get_node("SelTab") as TextureRect
 	_set_lerp(sel_tab, SEL_TAB_PRIM[_page], ENV[_page])
 	## `mCO_set_frame_tagT_dl`: the open folder's tab, raised at (105, 52 - page*29/2).
-	sel_tab.position.y = 26.0 + float((_page * 29) / 2)
+	sel_tab.position.y = 26.0 + floorf(_page * 29 / 2.0)
 	for i in DesignBook.ALBUM_PAGES:
 		(_album.get_node("Tab%d" % i) as CanvasItem).visible = i != _page
 	_book_slots.queue_redraw()

@@ -40,10 +40,24 @@ static func detach(host: Node3D) -> void:
 				break
 	if vis != null:
 		## Immediate free so a same-frame re-attach (season swap) does not stack two pivots.
+		_release_overrides(vis)
 		vis.free()
 	var blob: Node = host.get_node_or_null("BlobShadow")
 	if blob != null:
+		_release_overrides(blob)
 		blob.free()
+
+
+## A mesh freed in the frame it was made still has a pending instance update, and the engine
+## frees the override materials before the instance, so that update reads freed materials
+## ("Parameter \"material\" is null"). Drop the overrides while the instance is still valid.
+static func _release_overrides(root: Node) -> void:
+	for node: Node in root.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh == null:
+			continue
+		for i: int in mesh_instance.mesh.get_surface_count():
+			mesh_instance.set_surface_override_material(i, null)
 
 
 static func attach(host: Node3D, visual_id: StringName) -> Node3D:

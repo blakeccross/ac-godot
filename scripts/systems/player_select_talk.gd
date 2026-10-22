@@ -52,6 +52,9 @@ const DEMOLISH_OTHER := 34
 const SEL_MAYBE_NOT := 0x29
 const SEL_SOMEONE_ELSE := 0x1B9
 const NEW_PLAYER := "I'm new"
+## K.K. is no villager, so `{catchphrase}` has none of its own: the decomp (`mNpc_GetWordEnding`)
+## falls back to a four-glyph ending it never translated. This reads in English in its place.
+const WORD_ENDING := "friend"
 
 var roster: PlayerRoster
 var town_name: String = ""
@@ -87,6 +90,8 @@ func start_msg() -> int:
 
 func prepare() -> void:
 	context.town_name = town_name
+	if context.catchphrase == "":
+		context.catchphrase = WORD_ENDING
 	## Was `aNPS2_set_slot_name` ("Slot A" / "Slot B"); the greeting uses the town instead.
 	set_free(4, town_name)
 

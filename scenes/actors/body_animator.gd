@@ -78,7 +78,8 @@ func bind(player: AnimationPlayer) -> void:
 		active = false
 		return
 	player.stop()
-	player.autoplay = ""
+	VisualAnimation.clear_autoplay(player)
+	player.active = false
 	anim_player = get_path_to(player)
 	root_node = get_path_to(player.get_node(player.root_node))
 	active = true
@@ -143,8 +144,9 @@ func add_clip_events(marks: Dictionary, fps: float) -> void:
 	if not is_bound():
 		return
 	var path: NodePath = get_node(root_node).get_path_to(self)
+	_own_clips()
 	for clip: Variant in marks:
-		var anim: Animation = get_animation(StringName(clip))
+		var anim: Animation = _player.get_animation(StringName(clip))
 		if anim == null:
 			continue
 		var track: int = _event_track(anim)
@@ -156,6 +158,23 @@ func add_clip_events(marks: Dictionary, fps: float) -> void:
 		for mark: Array in marks[clip]:
 			var at: float = clampf(float(mark[0]) / fps, 0.0, anim.length)
 			anim.track_insert_key(track, at, {"method": EVENT_METHOD, "args": [StringName(clip), mark[1]]})
+
+
+## The model's clips are shared with every other instance of the same glb (the inventory
+## portrait, the title demo). Method tracks pointing at this node would not resolve there, so
+## edit a private copy of the library.
+func _own_clips() -> void:
+	for library_name: StringName in _player.get_animation_library_list():
+		var library: AnimationLibrary = _player.get_animation_library(library_name)
+		var copy := AnimationLibrary.new()
+		for clip_name: StringName in library.get_animation_list():
+			copy.add_animation(clip_name, library.get_animation(clip_name).duplicate())
+		_player.remove_animation_library(library_name)
+		_player.add_animation_library(library_name, copy)
+	## The tree copies the player's libraries when it is pointed at it.
+	var player_path: NodePath = anim_player
+	anim_player = NodePath()
+	anim_player = player_path
 
 
 func is_playing() -> bool:

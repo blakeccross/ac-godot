@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cdeditovl0001"]
 
 [ext_resource type="Script" path="res://scenes/ui/design_editor_overlay.gd" id="1"]
-[ext_resource type="Texture2D" uid="uid://bdesignwinshell01" path="res://assets/generated/ui/design/window_shell.png" id="2"]
+[ext_resource type="Texture2D" uid="uid://dweo20i8dfae5" path="res://assets/generated/ui/design/window_shell.png" id="2"]
 [ext_resource type="Shader" path="res://scenes/ui/design_mark.gdshader" id="3"]
 [ext_resource type="Script" path="res://scenes/ui/edit_end_prompt.gd" id="4"]
 

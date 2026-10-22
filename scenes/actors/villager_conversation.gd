@@ -134,7 +134,8 @@ func bind_talk_end(ui: DialogueOverlay) -> void:
 
 
 func unbind_talk() -> void:
-	if get_tree() != null:
+	var in_tree := is_inside_tree()
+	if in_tree:
 		var ui := DialogueOverlay.find(get_tree())
 		if ui != null and ui.closed.is_connected(_on_talk_closed):
 			ui.closed.disconnect(_on_talk_closed)
@@ -142,7 +143,8 @@ func unbind_talk() -> void:
 			ui.event_fired.disconnect(_on_talk_event)
 	_end_manpu()
 	if _villager.ai.is_talking():
-		TalkCamera.end(get_tree())
+		if in_tree:
+			TalkCamera.end(get_tree())
 		_villager.ai.end_talk()
 
 

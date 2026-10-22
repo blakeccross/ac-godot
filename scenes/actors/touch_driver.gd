@@ -249,7 +249,8 @@ func approach(volume: InteractVolume, pickup: bool) -> void:
 
 func _start_route(goal: Vector3, run: bool) -> void:
 	_path = _route(goal)
-	if _path.is_empty():
+	if _path.size() < 2:
+		## No route, or one that is a single point (already there): walk straight to the goal.
 		_path = PackedVector3Array([_player.global_position, goal])
 	_leg = 1
 	_running = run
@@ -301,6 +302,7 @@ func _steer(delta: float) -> void:
 		stop_walk()
 		return
 	var here: Vector3 = _player.global_position
+	_leg = clampi(_leg, 0, _path.size() - 1)
 	var to: Vector3 = _path[_leg] - here
 	to.y = 0.0
 	while to.length() < WAYPOINT_REACH and _leg < _path.size() - 1:
@@ -328,7 +330,7 @@ func _steer(delta: float) -> void:
 			_rerouted = true
 			var goal: Vector3 = _path[_path.size() - 1]
 			var again := _route(goal)
-			if again.is_empty():
+			if again.size() < 2:
 				_end_route()
 				return
 			_path = again

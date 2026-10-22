@@ -118,9 +118,9 @@ func _apply_logo_pixels() -> void:
 	if logical.x < 1.0 or logical.y < 1.0:
 		return
 	var fb := Vector2(get_viewport().size)
-	var scale := Vector2(fb.x / logical.x, fb.y / logical.y)
+	var pixel_scale := Vector2(fb.x / logical.x, fb.y / logical.y)
 	var stage := _viewport_box.size
-	var px := Vector2i(ceili(stage.x * scale.x), ceili(stage.y * scale.y)).max(Vector2i.ONE)
+	var px := Vector2i(ceili(stage.x * pixel_scale.x), ceili(stage.y * pixel_scale.y)).max(Vector2i.ONE)
 	if _logo_viewport.size != px:
 		_logo_viewport.size = px
 

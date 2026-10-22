@@ -65,7 +65,8 @@ func _process(_delta: float) -> void:
 	## Keep each voice on its actor while that actor keeps sounding.
 	var free: Array[AudioStreamPlayer] = []
 	for p: AudioStreamPlayer in _players:
-		var held: Variant = p.get_meta(&"actor", null)
+		## `set_meta(.., null)` removes the key, and `get_meta` with a null default still errors.
+		var held: Variant = p.get_meta(&"actor") if p.has_meta(&"actor") else null
 		if held != null and is_instance_valid(held) and claimed.has(held):
 			_drive(p, held as BugActor, float(claimed[held]), now)
 			claimed.erase(held)
