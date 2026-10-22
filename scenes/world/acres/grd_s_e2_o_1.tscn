@@ -7,15 +7,15 @@
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_e2_o_1/grd_s_e2_o_1_blend.res" id="5_o56xt"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/ocean_bea416965ffa.tres" id="6_jmxpv"]
 
-[node name="grd_s_e2_o_1" type="Node3D" unique_id=670303589]
+[node name="grd_s_e2_o_1" type="Node3D" unique_id=1697680884]
 script = ExtResource("1_p0put")
 visual_id = &"grd_s_e2_o_1"
 grid = ExtResource("2_6qos2")
 
-[node name="grd_s_e2_o_12" type="MeshInstance3D" parent="." unique_id=1900326138]
+[node name="grd_s_e2_o_12" type="MeshInstance3D" parent="." unique_id=829951374]
 mesh = ExtResource("3_vsx0q")
 surface_material_override/0 = ExtResource("4_njic0")
 
-[node name="grd_s_e2_o_1_blend" type="MeshInstance3D" parent="." unique_id=1890114758]
+[node name="grd_s_e2_o_1_blend" type="MeshInstance3D" parent="." unique_id=427368694]
 mesh = ExtResource("5_o56xt")
 surface_material_override/0 = ExtResource("6_jmxpv")

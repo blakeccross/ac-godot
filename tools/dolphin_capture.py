@@ -51,7 +51,12 @@ def _dolphin_bin() -> Path:
     raise SystemExit("Dolphin not found. Set DOLPHIN_BIN.")
 
 
-def _disc() -> Path:
+def _disc(explicit: str = "") -> Path:
+    if explicit:
+        path = Path(explicit).expanduser()
+        if not path.is_file():
+            raise SystemExit(f"disc not found: {path}")
+        return path
     config_path = ROOT / "tools" / "config.local.json"
     if not config_path.is_file():
         raise SystemExit(f"missing {config_path}")
@@ -468,6 +473,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--slot", type=int, default=6)
     parser.add_argument("--state", default="")
+    parser.add_argument(
+        "--disc",
+        default="",
+        help="Disc image to boot instead of game_files. Use the one the savestate was made with.",
+    )
     parser.add_argument("--frames", type=int, default=8)
     parser.add_argument(
         "--skip",
@@ -492,7 +502,7 @@ def main() -> int:
         raise SystemExit("--frames must be at least 1")
 
     dolphin = _dolphin_bin()
-    disc = _disc()
+    disc = _disc(args.disc)
     state = _state(args.slot, args.state)
     if args.layer or not args.show_clock:
         state = _patch_state(state, args.layer, not args.show_clock)

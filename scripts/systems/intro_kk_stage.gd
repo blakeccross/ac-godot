@@ -26,9 +26,13 @@ const SILENT_FRAMES := 600
 const MORPH_STRUM := 3.0 / DecompTime.FRAME_HZ
 const MORPH_LOOK_UP := 5.0 / DecompTime.FRAME_HZ
 
-## Camera lock from `aNPS_actor_ct`, look-at lowered so KK clears the dialogue box.
-const CAM_CENTER_GX := Vector3(100.0, 10.0, 60.0)
-const CAM_EYE_GX := Vector3(100.0, 130.0, 210.0)
+## The player-select floor is y 40 in the decomp (K.K.'s actor y in a GAFE01 savestate);
+## our acre floor is y 0, so decomp heights drop by this much.
+const DECOMP_FLOOR_Y_GX := 40.0
+## Camera lock from `aNPS_actor_ct`: look (100, 60, 60), eye (100, 130, 210), FOV 40, the
+## same values as the live View in that savestate, kept floor-relative.
+const CAM_CENTER_GX := Vector3(100.0, 60.0 - DECOMP_FLOOR_Y_GX, 60.0)
+const CAM_EYE_GX := Vector3(100.0, 130.0 - DECOMP_FLOOR_Y_GX, 210.0)
 const CAM_FOV := 40.0
 const CAM_NEAR_GX := 100.0
 const CAM_FAR_GX := 400.0

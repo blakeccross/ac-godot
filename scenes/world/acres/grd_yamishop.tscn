@@ -21,12 +21,12 @@
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_yamishop/grd_yamishop_blend.res" id="19_vd005"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/783683848d19.tres" id="20_4mjxj"]
 
-[node name="grd_yamishop" type="Node3D" unique_id=893361436]
+[node name="grd_yamishop" type="Node3D" unique_id=1332591421]
 script = ExtResource("1_iabbo")
 visual_id = &"grd_yamishop"
 grid = ExtResource("2_j8t0k")
 
-[node name="grd_yamishop2" type="MeshInstance3D" parent="." unique_id=1765111504]
+[node name="grd_yamishop2" type="MeshInstance3D" parent="." unique_id=623848047]
 mesh = ExtResource("3_t1tcs")
 surface_material_override/0 = ExtResource("4_2uxso")
 surface_material_override/1 = ExtResource("5_a3xoy")
@@ -35,7 +35,7 @@ surface_material_override/3 = ExtResource("7_y5qng")
 surface_material_override/4 = ExtResource("8_prpen")
 surface_material_override/5 = ExtResource("9_anhvg")
 
-[node name="grd_yamishop_mask" type="MeshInstance3D" parent="." unique_id=1408599569]
+[node name="grd_yamishop_mask" type="MeshInstance3D" parent="." unique_id=305831016]
 mesh = ExtResource("10_n2w0x")
 surface_material_override/0 = ExtResource("11_y0nuc")
 surface_material_override/1 = ExtResource("12_br0x7")
@@ -46,6 +46,6 @@ surface_material_override/5 = ExtResource("16_2yyco")
 surface_material_override/6 = ExtResource("17_0csjr")
 surface_material_override/7 = ExtResource("18_0ioav")
 
-[node name="grd_yamishop_blend" type="MeshInstance3D" parent="." unique_id=1718029405]
+[node name="grd_yamishop_blend" type="MeshInstance3D" parent="." unique_id=867225095]
 mesh = ExtResource("19_vd005")
 surface_material_override/0 = ExtResource("20_4mjxj")

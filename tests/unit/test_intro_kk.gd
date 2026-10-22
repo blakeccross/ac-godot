@@ -90,8 +90,8 @@ func test_stage_silent_idle_looks_then_resumes_strum() -> void:
 
 
 func test_camera_and_spawn_match_decomp() -> void:
-	assert_vector(IntroKkStage.CAM_CENTER_GX).is_equal(Vector3(100.0, 10.0, 60.0))
-	assert_vector(IntroKkStage.CAM_EYE_GX).is_equal(Vector3(100.0, 130.0, 210.0))
+	assert_vector(IntroKkStage.CAM_CENTER_GX).is_equal(Vector3(100.0, 20.0, 60.0))
+	assert_vector(IntroKkStage.CAM_EYE_GX).is_equal(Vector3(100.0, 90.0, 210.0))
 	assert_vector(IntroKkStage.KK_SPAWN_GX).is_equal(Vector3(100.0, 0.0, 60.0))
 	assert_float(IntroKkStage.CAM_FOV).is_equal(40.0)
 	assert_vector(IntroKkStage.SUN_DIR_GX).is_equal(Vector3(0.0, 89.0, 79.0))
