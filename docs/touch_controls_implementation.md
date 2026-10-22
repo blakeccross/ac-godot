@@ -233,7 +233,7 @@ The rule: no overlay grows its own touch logic. Each one gets tap regions that c
 
 ## Phase 6: polish
 
-**On-screen buttons are mobile only.** The corner buttons, chips and menu pad show only on Android or iOS (`InputDeviceTracker.shows_touch_buttons()`). The gestures work on every platform.
+**On-screen buttons are mobile only.** The tab bar (Map · Pockets · Menu, which replaced the corner B / Pockets / Map / Pause buttons), chips and menu pad show only on Android or iOS (`InputDeviceTracker.shows_touch_buttons()`). The gestures work on every platform.
 
 **Done.** Haptics in `GameConfig.rumble` (`Input.vibrate_handheld` while touch is the last device), `TouchSafeArea` pads the HUD and the menu pad on phones, an Android preset plus side-load notes in `docs/testing.md` § Touch, and phone-size captures. Hit sizes were checked at 1266×585: the buttons moved up off the clock, and `SELF_RADIUS_PX`, the pick ring and the chips scale with the viewport height. The capture isn't an automated regression yet, and the haptics and safe area are untested on a device.
 

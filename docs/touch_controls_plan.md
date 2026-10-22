@@ -70,7 +70,7 @@ When a host offers more than one verb, a small row of chips appears over it with
 ### `TouchHud` (new scene, `scenes/ui/touch_hud.tscn`)
 - A tap marker on the ground: a ring that fades, scene-authored. It also shows the path's end.
 - Context chips over the target host.
-- Corner buttons: pockets, map and pause, plus a B button while something offers only B. The buttons send the existing actions as `InputEventAction`s through `Input.parse_input_event` (`action_press` only sets the polled state and sends no event), so overlays need no changes for opening.
+- A tab bar along the bottom: Map, Pockets and Menu (pause). It stays up over those three screens with the open one lit, so a tab switches straight to another; there is no B button (a tapped item gets B from the driver). The buttons send the existing actions as `InputEventAction`s through `Input.parse_input_event` (`action_press` only sets the polled state and sends no event), so overlays need no changes for opening.
 - It is visible only while the touch device is active. The `InputDeviceTracker` autoload switches on the last `InputEventScreenTouch` / `ScreenDrag` vs. key / joypad event.
 
 ### Project settings

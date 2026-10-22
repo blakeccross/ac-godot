@@ -1,10 +1,12 @@
 class_name TouchHud
 extends CanvasLayer
 
-## Corner buttons while playing by touch: B, Pockets, Map and Pause. Shown only on Android
-## or iOS while touch is the last device used, and hidden under menus. B goes to the player's touch source (the
-## player reads no events while it drives); the others send the same actions the keys do,
-## as events, so the menus open exactly as from the keyboard.
+## A tab bar along the bottom while playing by touch: Map, Pockets and Menu (pause). Shown
+## only on Android or iOS while touch is the last device used. A tab sends the same action
+## its key does, as an event, so its screen opens exactly as from the keyboard. The bar stays
+## up over its own three screens with that tab lit: the lit tab closes it, another tab
+## switches (close, then open next frame). Under any other screen (talk, a shop) it hides.
+## There is no B: a tapped item is picked up with B by the touch driver.
 ##
 ## Chips: a tapped host with a verb on each button (a chair to sit on or move, a sign to read
 ## or pull up) shows one chip per verb above it, labelled with the verb's prompt. A chip
@@ -14,12 +16,20 @@ extends CanvasLayer
 const CHIP_LIFT := 2.2
 
 const GROUP := &"touch_hud"
+## Each tab: its action and the overlay group that is open while its screen is.
+const TABS: Dictionary = {
+	&"map": &"map_ui",
+	&"inventory": &"inventory_ui",
+	&"pause_menu": &"pause_ui",
+}
 
 @onready var _root: Control = $Root
-@onready var _b: Button = $Root/Buttons/B
-@onready var _pockets: Button = $Root/Buttons/Pockets
-@onready var _map: Button = $Root/Buttons/Map
-@onready var _pause: Button = $Root/Buttons/Pause
+@onready var _tab_bar: Control = $Root/TabBar
+@onready var _tabs: Dictionary = {
+	&"map": $Root/TabBar/Tabs/Map,
+	&"inventory": $Root/TabBar/Tabs/Pockets,
+	&"pause_menu": $Root/TabBar/Tabs/Menu,
+}
 @onready var _chips: Control = $Root/Chips
 @onready var _chip_a: Button = $Root/Chips/ChipA
 @onready var _chip_b: Button = $Root/Chips/ChipB
@@ -34,11 +44,11 @@ static func find(tree: SceneTree) -> TouchHud:
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	## The pause screen pauses the tree; its tab still has to close it.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	TouchSafeArea.fit(_root)
-	_b.pressed.connect(press_b)
-	_pockets.pressed.connect(send_action.bind(&"inventory"))
-	_map.pressed.connect(send_action.bind(&"map"))
-	_pause.pressed.connect(send_action.bind(&"pause_menu"))
+	for action: StringName in _tabs:
+		(_tabs[action] as Button).pressed.connect(press_tab.bind(action))
 	_chip_a.pressed.connect(_on_chip.bind(false))
 	_chip_b.pressed.connect(_on_chip.bind(true))
 	var tracker: Node = get_node_or_null("/root/InputDeviceTracker")
@@ -52,12 +62,33 @@ func _process(_delta: float) -> void:
 
 
 func _refresh() -> void:
-	var touch: bool = InputDeviceTracker.shows_touch_buttons()
 	var player := Player.find(get_tree())
-	var menu: bool = player != null and (player._menu_open() or TouchMenuPad.menu_open(get_tree()))
-	_root.visible = touch and player != null and not menu
+	_root.visible = InputDeviceTracker.shows_touch_buttons() and player != null
+	var open: StringName = open_tab()
+	_tab_bar.visible = not _menu_up() or open != &""
+	for action: StringName in _tabs:
+		(_tabs[action] as Button).set_pressed_no_signal(action == open)
 	if _chips.visible:
 		_place_chips()
+
+
+## The tab whose screen is open (its action), or empty.
+func open_tab() -> StringName:
+	var tree := get_tree()
+	for action: StringName in TABS:
+		for node: Node in tree.get_nodes_in_group(TABS[action]):
+			if node.has_method(&"is_open") and bool(node.call(&"is_open")):
+				return action
+	return &""
+
+
+## Open that tab's screen; the open one closes, another one switches.
+func press_tab(action: StringName) -> void:
+	var open: StringName = open_tab()
+	if open != &"" and open != action:
+		await send_action(open)
+		await get_tree().process_frame
+	send_action(action)
 
 
 ## Offer the host behind `volume` as two chips; `pick(pickup)` runs on the chosen one.
@@ -70,9 +101,14 @@ func show_chips(volume: InteractVolume, a_label: String, b_label: String, pick: 
 	_place_chips()
 
 
-## The buttons are up (a phone or tablet, played by touch, no menu open).
+## Playing by touch on a phone or tablet with no screen open: chips can show.
 func is_showing() -> bool:
-	return _root.visible
+	return _root.visible and not _menu_up()
+
+
+func _menu_up() -> bool:
+	var player := Player.find(get_tree())
+	return (player != null and player._menu_open()) or TouchMenuPad.menu_open(get_tree())
 
 
 func hide_chips() -> void:
@@ -87,7 +123,7 @@ func chips_showing() -> bool:
 
 func _place_chips() -> void:
 	var cam: Camera3D = get_viewport().get_camera_3d()
-	if _chip_volume == null or not is_instance_valid(_chip_volume) or cam == null or not _root.visible:
+	if _chip_volume == null or not is_instance_valid(_chip_volume) or cam == null or not is_showing():
 		hide_chips()
 		return
 	var over: Vector3 = _chip_volume.global_position + Vector3.UP * CHIP_LIFT
@@ -110,19 +146,12 @@ func _on_chip(pickup: bool) -> void:
 func covers(at: Vector2) -> bool:
 	if not _root.visible:
 		return false
-	for button: Button in [_b, _pockets, _map, _pause, _chip_a, _chip_b]:
+	if _tab_bar.is_visible_in_tree() and _tab_bar.get_global_rect().has_point(at):
+		return true
+	for button: Button in [_chip_a, _chip_b]:
 		if button.is_visible_in_tree() and button.get_global_rect().has_point(at):
 			return true
 	return false
-
-
-func press_b() -> void:
-	var player := Player.find(get_tree())
-	if player == null:
-		return
-	var driver := player.get_node_or_null("TouchDriver") as TouchDriver
-	if driver != null and driver.install():
-		driver.source.tap_b()
 
 
 ## Press then release `action` as an event (`Input.action_press` alone sends none).
