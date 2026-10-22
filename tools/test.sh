@@ -9,6 +9,7 @@
 #   tools/test.sh -v intro_train_stage   # full runner output
 #
 # Env: ACRE_PARITY_ALL etc. pass straight through. Exit code is the runner's.
+# Audio is muted (Godot's Dummy driver); set TEST_AUDIO=1 to hear it.
 set -u
 cd "$(dirname "$0")/.." || exit 2
 
@@ -97,6 +98,15 @@ GODOT_BIN=$(godot_bin)
 if [ -z "$GODOT_BIN" ]; then
 	echo "Godot not found: set GODOT_BIN or godot_bin in tools/config.local.json" >&2
 	exit 2
+fi
+
+# gdUnit's runtest.sh launches a real window, so mute it via a wrapper binary.
+if [ "${TEST_AUDIO:-0}" != "1" ]; then
+	wrapper=$(mktemp -t godot_mute.XXXXXX)
+	printf '#!/usr/bin/env bash\nexec "%s" --audio-driver Dummy "$@"\n' "$GODOT_BIN" >"$wrapper"
+	chmod +x "$wrapper"
+	trap 'rm -f "$wrapper"' EXIT
+	GODOT_BIN="$wrapper"
 fi
 export GODOT_BIN
 
