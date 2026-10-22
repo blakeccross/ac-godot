@@ -1340,6 +1340,23 @@ func _resolve_interact() -> InteractionQuery:
 	return ToolUse.resolve(_query_focus(), _make_context())
 
 
+## What A (`pickup` false) or B would do now, without doing it: touch asks before it taps.
+func verb_preview(pickup: bool) -> InteractionQuery:
+	return _query_focus(true) if pickup else _resolve_interact()
+
+
+## Turn on the spot to face `target` (touch, once it has walked up to what was tapped).
+func face_toward(target: Vector3) -> void:
+	var yaw: float = TalkCamera.face_yaw_toward(global_position, target)
+	_motor.facing = yaw
+	_mesh.rotation.y = yaw
+
+
+## The interaction context A and B would act with.
+func interaction_context() -> InteractionContext:
+	return _make_context()
+
+
 func _make_context() -> InteractionContext:
 	var ctx := InteractionContext.new()
 	ctx.actor = self

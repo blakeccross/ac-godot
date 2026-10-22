@@ -139,6 +139,9 @@ static func rumble(entry: Array) -> bool:
 		return false
 	for pad: int in Input.get_connected_joypads():
 		Input.start_joy_vibration(pad, shape.x * 0.6, shape.x, shape.y)
+	## Played by touch: the phone buzzes at the same moments.
+	if InputDeviceTracker.is_touch():
+		Input.vibrate_handheld(int(shape.y * 1000.0), shape.x)
 	return true
 
 

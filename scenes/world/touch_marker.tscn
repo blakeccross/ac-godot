@@ -1,0 +1,60 @@
+[gd_scene load_steps=6 format=3]
+
+[sub_resource type="TorusMesh" id="Ring"]
+inner_radius = 0.42
+outer_radius = 0.55
+rings = 32
+ring_segments = 6
+
+[sub_resource type="StandardMaterial3D" id="RingMat"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(1, 1, 1, 0.85)
+disable_receive_shadows = true
+
+[sub_resource type="Animation" id="Pop"]
+resource_name = "pop"
+length = 0.4
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Ring:scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.4),
+"transitions": PackedFloat32Array(0.5, 1),
+"update": 0,
+"values": [Vector3(0.6, 0.15, 0.6), Vector3(1, 0.15, 1)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Ring:transparency")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.4),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0.0, 0.45]
+}
+
+[sub_resource type="AnimationLibrary" id="Lib"]
+_data = {
+&"pop": SubResource("Pop")
+}
+
+[node name="TouchMarker" type="Node3D"]
+
+[node name="Ring" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.6, 0, 0, 0, 0.15, 0, 0, 0, 0.6, 0, 0.05, 0)
+cast_shadow = 0
+mesh = SubResource("Ring")
+surface_material_override/0 = SubResource("RingMat")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("Lib")
+}
+autoplay = "pop"

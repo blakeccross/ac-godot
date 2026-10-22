@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scenes/actors/player.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/actors/actor_blob_shadow.tscn" id="2"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scenes/actors/player_fishing.gd" id="9"]
 [ext_resource type="Script" path="res://scenes/actors/player_snowball.gd" id="10"]
 [ext_resource type="Script" path="res://scenes/actors/npc_feel_glyphs.gd" id="11"]
+[ext_resource type="Script" path="res://scenes/actors/touch_driver.gd" id="12"]
 
 [sub_resource type="CylinderShape3D" id="PlayerShape"]
 radius = 0.9
@@ -90,3 +91,6 @@ script = ExtResource("10")
 
 [node name="Feel" type="Node3D" parent="."]
 script = ExtResource("11")
+
+[node name="TouchDriver" type="Node" parent="."]
+script = ExtResource("12")

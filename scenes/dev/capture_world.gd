@@ -31,6 +31,7 @@ extends Node3D
 ##   look=dx,dy,dz     Offset added to the focus point (default 0,1,0).
 ##   fov=50  size=960x540  wait=20 (frames before the grab; also bounds a target search)
 ##   after=N (frames between a console command and the grab; defaults to wait).
+##   touch=x,y[,hold]  A finger at that screen point (pixels), tapped or held through the shots.
 ##                     after=10,40,90 grabs at each count in one run (`name_f10.png` …).
 ##   ui=1              Keep the HUD / dialogue layers visible (hidden by default).
 ##   out=path          Directory or .png path (default res://.tmp_captures/, gitignored).
@@ -132,6 +133,22 @@ func _capture_date(date: String) -> void:
 		for _i: int in int(_args.get("console_delay", "0")):
 			await get_tree().process_frame
 		_run_console()
+	## `touch=x,y[,hold]`: a finger at that screen point (pixels), lifted at once or held
+	## through the shots (`InputEventScreenTouch`), so the touch HUD and moves show.
+	if _args.has("touch"):
+		var tp: PackedStringArray = str(_args["touch"]).split(",")
+		if tp.size() >= 2:
+			var at := Vector2(float(tp[0]), float(tp[1]))
+			var down := InputEventScreenTouch.new()
+			down.position = at
+			down.pressed = true
+			Input.parse_input_event(down)
+			if tp.size() < 3 or tp[2] != "hold":
+				await get_tree().process_frame
+				var up := InputEventScreenTouch.new()
+				up.position = at
+				up.pressed = false
+				Input.parse_input_event(up)
 	## `after` frames past the console (defaults to `wait`, which also bounds the target search).
 	## Several counts (`after=10,40,90`) take a shot at each from the one run, named `_fN`.
 	var shots: PackedStringArray = str(_args.get("after", _args.get("wait", "20"))).split(",", false)

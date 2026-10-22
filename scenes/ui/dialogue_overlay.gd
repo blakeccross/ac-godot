@@ -128,6 +128,13 @@ func is_awaiting_input() -> bool:
 	return _cursor >= _visible_len and _visible_len > 0 and _mark_i >= _marks.size() and _pause_left <= 0.0
 
 
+## Open on a page, not a choice or a prompt: a tap off the buttons is A (touch).
+func waits_for_page() -> bool:
+	if not _open or _suspended:
+		return false
+	return _runner == null or not (_runner.waiting_choice or _runner.waiting_prompt)
+
+
 ## `mMsg_Check_NowUtter`: text is still being laid in. Drives NPC mouth flap.
 func is_uttering() -> bool:
 	return _open and not _suspended and _phase == Phase.OPEN and _cursor < _visible_len and _pause_left <= 0.0

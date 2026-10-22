@@ -31,6 +31,8 @@ Gameplay still reads input directly in two places, outside the player:
 
 ## Phase 2: hold-to-follow, tap-to-act, HUD buttons
 
+**Done.** `TouchDriver` (a child of the player), `TouchPick.ground` / `stick_for`, `TouchHud` (in `clock_hud.tscn`), Gracie reads A through the player, and `capture.sh touch=x,y[,hold]`.
+
 *Playable:* hold a finger on the ground and the player walks after it; tap yourself for A; B / pockets / map / pause from buttons. There is no on-screen joystick or d-pad, and nothing is drawn under the finger.
 
 ### Files
@@ -83,6 +85,8 @@ With no joystick on screen, you can walk around the town by holding a finger whe
 ---
 
 ## Phase 3: tap-to-walk
+
+**Done.** `TouchPath` (A* over the units, no corner cutting, pulled tight with occupancy and cliff checks; indoors the room's floor), the driver's route steering (eases over the last metre, re-routes once when stuck, double tap runs), `scenes/world/touch_marker.tscn`, and `FieldCollision.edge_is_wall` / `forbids_enter`.
 
 *Playable:* tap the ground anywhere on screen to walk there.
 
@@ -138,6 +142,8 @@ Tapping anywhere walks there along a sensible path, round ponds and up ramps, at
 ## Phase 4: tap-to-interact
 
 *Playable:* the Pocket Camp loop. Tap a tree to shake it, a villager to talk, fruit to pick it up, a door to go in, the water to fish.
+
+**Done.** `TouchPick.object` (layer-8 ray plus a 24 px ring), `Player.verb_preview` / `face_toward`, the driver's approach-and-press (re-paths moving hosts, nudges once, gives up after 5 s), chips in `TouchHud`, shovel / axe on a cell up to two away (farther taps walk), rod on water, reel on any tap, and the net on a hold. Approach goes to the nearest open unit by `TouchPath` rather than a separate `approach`; chips live in `touch_hud.tscn` rather than their own scene.
 
 ### Files
 - `scripts/systems/touch_pick.gd`: add `object(cam, screen) → InteractVolume`.
@@ -203,6 +209,8 @@ The day loop can be played by tapping alone: shake trees, collect fruit, talk, e
 
 *Playable:* every screen works with fingers, in this order (most used first).
 
+**Done, differently from the table below.** Every overlay already reads ↑ ↓ ← →, Enter / Space and Escape in `_unhandled_input`, so one shared pad (`scenes/ui/touch_menu_pad.tscn`, autoload `TouchMenus`) sends those very keys, marked `DEVICE_ID_EMULATION` so the tracker stays on touch. It shows while touch is the last device and a menu is open, or there's no player yet (title, intro). Held arrows repeat. A tap off the pad is OK on a talk page (not a choice: `DialogueOverlay.waits_for_page`), a letter, and the title / intro. No overlay gained touch code; per-overlay regions stay optional polish. Inventory slots, tabs and the wallet were already tap buttons; the keyboard and design screens were already mouse-driven. Not covered yet: long-press to mark in the pockets, and drag between slots.
+
 The rule: no overlay grows its own touch logic. Each one gets tap regions that call the **same handler its keys already call**. Where an overlay has a `handle_key(key)` (bank, keyboard panel, edit-end prompt), regions call that. Where it reads keycodes inline, first pull that body out into `_on_key(keycode)`, then call it from both the key path and the regions.
 
 | Order | Overlay | Work |
@@ -224,6 +232,8 @@ The rule: no overlay grows its own touch logic. Each one gets tap regions that c
 ---
 
 ## Phase 6: polish
+
+**Done.** Haptics in `GameConfig.rumble` (`Input.vibrate_handheld` while touch is the last device), `TouchSafeArea` pads the HUD and the menu pad on phones, an Android preset plus side-load notes in `docs/testing.md` § Touch, and phone-size captures. Hit sizes were checked at 1266×585: the buttons moved up off the clock, and `SELF_RADIUS_PX`, the pick ring and the chips scale with the viewport height. The capture isn't an automated regression yet, and the haptics and safe area are untested on a device.
 
 - **Haptics:** in `GameConfig.rumble(entry)`, when the last device is touch and `rumble_on`, also call `Input.vibrate_handheld(int(shape.y * 1000), shape.x)`. Same moments, one call site.
 - **Safe areas:** `TouchHud` and the overlays' tap regions read `DisplayServer.get_display_safe_area()` and pad their anchors so nothing sits under a notch or the home bar.

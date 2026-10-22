@@ -82,3 +82,16 @@ $GODOT_BIN --path . res://scenes/dev/held_fish_check.tscn
 Three things that make such a harness trustworthy. Drive the real path (`_play_show`) rather than posing a clip from outside, since the player script re-drives its own animation every frame and overwrites anything staged. Freeze with `Engine.time_scale = 0.0`, not `get_tree().paused`, so `_process` keeps running — pausing also stops billboarding, which leaves a fish edge-on and reads as "not drawn". And measure by rendering the same frame twice, with the subject shown and hidden, then diffing: judging a silver fish against a mottled player by eye is how a debug marker sphere got mistaken for the fish.
 
 Suites live in `tests/unit/`: `test_clock.gd`, `test_inventory.gd`, `test_save_service.gd`, `test_game.gd`, `test_world_grid.gd`, `test_world_generation.gd`, `test_field_catalog.gd`, `test_field_collision.gd`, `test_host_collision.gd`, `test_player_locomotion.gd`, `test_interaction.gd`, `test_tool_use.gd`, `test_tree_use.gd`, `test_plant_growth.gd`, `test_hole_use.gd`, `test_buried_use.gd`, `test_fishing.gd`, `test_fish_shadow.gd`, `test_actor_blob_shadow.gd`, `test_resources.gd`, `test_villager.gd`, `test_relationship.gd`, `test_dialogue.gd`, `test_interior.gd`, `test_museum.gd`, `test_museum_complete_scene.gd`, `test_bgm.gd`, `test_intro_kk.gd`, `test_intro_train_scene.gd`, `test_intro_station.gd`, `test_first_job.gd`, `test_hand_over.gd`, `test_footprint_marks.gd`.
+
+## Touch
+
+- **On a desktop:** `pointing/emulate_touch_from_mouse.debug` is on, so a debug run turns mouse clicks into touches. The first click switches to touch: the corner buttons appear, and so does the menu pad over menus. A key press switches back.
+- **Phone-size captures:**
+  - `tools/capture.sh ui=1 size=1266x585 touch=850,330 after=2,90` shows the HUD and the tap marker at half of 2532×1170.
+  - Add `console=repay` (or any menu) to see the menu pad.
+- **Android:** the `Android` preset in `export_presets.cfg` builds an arm64 APK to `out/android/`, landscape and immersive, with the vibrate permission for haptics.
+  1. Install the Android export templates and set the SDK and debug keystore paths in Editor Settings.
+  2. Export with `$GODOT_BIN --headless --export-debug Android out/android/ac-godot.apk`.
+  3. Side-load with `adb install -r out/android/ac-godot.apk`.
+  - The generated assets must be baked first, as for any export.
+  - iOS needs a Mac with Xcode and isn't set up.

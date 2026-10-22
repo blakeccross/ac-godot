@@ -423,6 +423,16 @@ static func _keep_y(data: WorldData, grid: WorldGrid, pos: Vector3) -> float:
 	return y if has_floor(y) else pos.y
 
 
+## A unit the player can't walk onto: water, blocked, a cliff with no table, off the field.
+static func forbids_enter(data: WorldData, cell: Vector2i) -> bool:
+	return _forbids_enter(data, cell)
+
+
+## A cliff or bank between two side-by-side units (`mCoBG_SearchWallFlag`).
+static func edge_is_wall(data: WorldData, a: Vector2i, b: Vector2i) -> bool:
+	return _edge_is_wall(data, a, b)
+
+
 static func _forbids_enter(data: WorldData, cell: Vector2i) -> bool:
 	if data.is_in_bounds(cell):
 		var t: WorldGrid.Terrain = data.terrain_at(cell)
