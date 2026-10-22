@@ -2,7 +2,10 @@ extends Node3D
 
 ## Player-select opening with K.K. Slider (`ac_npc_p_sel`) → train intro.
 
-const DIALOGUE_ID := &"kk_opening"
+## `aNPS_set_talk_info_talk_request`: 0x09C7 on a new game. The imported bank wins;
+## the authored graph only runs when the disc text was not converted.
+const DIALOGUE_ID := &"msg_2503"
+const DIALOGUE_FALLBACK := &"kk_opening"
 
 @onready var _kk: IntroKkAnim = %KkSlider
 @onready var _camera: Camera3D = %IntroCamera
@@ -138,6 +141,8 @@ func _on_ready_for_talk() -> void:
 	if _dialogue_started or _finishing:
 		return
 	var data: DialogueData = DialogueCatalog.conversation(DIALOGUE_ID)
+	if data == null:
+		data = DialogueCatalog.conversation(DIALOGUE_FALLBACK)
 	if data == null:
 		## Still advance without authored lines so the train stays reachable.
 		_stage.begin_fade()
