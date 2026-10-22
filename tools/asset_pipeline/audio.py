@@ -380,7 +380,9 @@ def convert_audio(cfg: PipelineConfig, decomp_root: Optional[Path] = None) -> di
     bgm_ids = _load_bgm_ids(decomp)
     se_ids = _load_se_ids(decomp)
 
-    stage = cfg.converted / CATALOG_DIR
+    ## Scratch only (ROM slices, seq/bank blobs, pre-encode WAVs); the game files go straight
+    ## to `godot_generated`. Kept out of `converted/`, which `validate` expects to be copied.
+    stage = cfg.work_root / "audio_stage"
     stage.mkdir(parents=True, exist_ok=True)
     (stage / "audioseq.bin").write_bytes(blob[SEQ_OFFSET : SEQ_OFFSET + SEQ_SIZE])
     (stage / "audiobank.bin").write_bytes(blob[BANK_OFFSET : BANK_OFFSET + BANK_SIZE])
