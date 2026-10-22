@@ -8,11 +8,11 @@ const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
 
 func before_test() -> void:
 	TestIsolation.forget_groups(get_tree(), [Player.GROUP, &"bee_swarm"])
-	Game.bee_chase = false
+	Game.bees.chasing = false
 
 
 func after_test() -> void:
-	Game.bee_chase = false
+	Game.bees.chasing = false
 	if EventManager.demo_bgm == BeeSwarm.CHASE_BGM:
 		EventManager.demo_bgm = &""
 

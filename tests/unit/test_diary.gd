@@ -52,5 +52,5 @@ func test_a_housemates_diary_reads_from_their_saved_pages() -> void:
 	assert_str(DiaryOverlay.entry(4, 1)).is_equal("Ann's page.")
 	assert_str(DiaryOverlay.entry(4, 0)).is_equal("Mine.")
 	assert_str(DiaryOverlay.entry(4)).is_equal("Mine.")
-	Game.visiting_slot = 1
+	Game.roster.visiting = 1
 	assert_int(FurnitureUse.diary_owner()).is_equal(1)

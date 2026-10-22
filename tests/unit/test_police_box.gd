@@ -178,7 +178,7 @@ func test_renew_tops_up_once_per_renewal() -> void:
 	Game.police.clear()
 	Game.police.rng.seed = 5
 	var before: int = Game.police.keep_item_sum()
-	Game._on_field_renewed(30)
+	TownUpkeep.on_field_renewed(30)
 	assert_int(Game.police.keep_item_sum() - before).is_less_equal(1)
 
 
@@ -190,11 +190,11 @@ func test_renew_waits_while_in_the_police_box() -> void:
 		Game.police.keep_item(id)
 	assert_int(Game.police.claim_result(0, Inventory.new())).is_equal(PoliceBook.Claim.OK)
 	Game.current_room_id = &"police_box"
-	Game._on_field_renewed(1)
+	TownUpkeep.on_field_renewed(1)
 	assert_array(Game.police.keep_items().slice(0, 3)).is_equal([&"", &"axe", &"shovel"])
-	assert_bool(Game._police_topup_pending).is_true()
+	assert_bool(Game.police.topup_waiting).is_true()
 	Game.exit_interior()
-	assert_bool(Game._police_topup_pending).is_false()
+	assert_bool(Game.police.topup_waiting).is_false()
 	assert_that(Game.police.item_at(0)).is_equal(&"axe")
 	assert_that(Game.police.item_at(1)).is_equal(&"shovel")
 

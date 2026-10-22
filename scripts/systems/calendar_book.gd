@@ -82,6 +82,11 @@ static func played_on(state: Dictionary, today: int) -> void:
 	_mark(state, "played", today)
 
 
+## Today goes on the calendar as a day the player was in town.
+static func note_today() -> void:
+	played_on(Game.resident.calendar, EventDates.ordinal(Clock.year, Clock.month, Clock.day))
+
+
 ## `mCD_calendar_event_on`: Tortimer was spoken to on a holiday.
 static func event_on(state: Dictionary, today: int) -> void:
 	_mark(state, "events", today)

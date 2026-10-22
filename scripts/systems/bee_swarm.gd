@@ -98,13 +98,13 @@ func _ready() -> void:
 	phase = Phase.APPEAR
 	_elapsed = 0.0
 	## `aBEE_appear_init`.
-	Game.bee_chase = true
+	Game.bees.chasing = true
 	_yaw = _yaw_to_player()
 
 
 func _exit_tree() -> void:
 	## Gone (stung, or the scene changed): the chase is over, and so is its music.
-	Game.bee_chase = false
+	Game.bees.chasing = false
 	if EventManager.demo_bgm == CHASE_BGM:
 		EventManager.demo_bgm = &""
 		var world: World = World.find(get_tree())
@@ -247,7 +247,7 @@ func _sting() -> void:
 	PlayerSe.bee_sting(self)
 	var player := _player as Player if is_instance_valid(_player) else null
 	if player == null:
-		Game.sting_by_bee()
+		Game.bees.sting()
 		phase = Phase.DISAPPEAR
 		_elapsed = 0.0
 		return

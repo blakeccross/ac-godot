@@ -182,11 +182,11 @@ func test_shovel_digs_empty_ground() -> void:
 	Game.notice_posted.disconnect(on_notice)
 	assert_bool("You dig a hole." in heard).is_true()
 	var pid: StringName = HoleUse.persist_id(Vector2i(8, 9))
-	assert_bool(Game.is_hole(pid)).is_true()
+	assert_bool(Game.town.is_hole(pid)).is_true()
 	assert_str(String(world.grid.occupant_at(Vector2i(8, 9)))).is_equal(String(pid))
 	assert_object(ToolUse.field_action(ctx)).is_null()
 	world.grid.remove(pid)
-	Game.clear_hole(pid)
+	Game.town.clear_hole(pid)
 	world.grid.place(&"rock", Vector2i(8, 9), Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT)
 	assert_object(ToolUse.field_action(ctx)).is_null()
 

@@ -130,11 +130,11 @@ func test_wallpaper_and_carpet_from_inventory() -> void:
 	var wall: ItemData = ItemCatalog.get_item(&"wall_blue")
 	assert_that(wall.category).is_equal(ItemData.Category.WALL)
 	Game.inventory.add(wall, 1)
-	assert_bool(Game.try_apply_cover(wall)).is_true()
+	assert_bool(FurnitureEditing.apply_cover(wall)).is_true()
 	assert_that(room.wall_id).is_equal(InteriorStyleCatalog.WALL_BLUE)
 	var floor: ItemData = ItemCatalog.get_item(&"floor_tile")
 	Game.inventory.add(floor, 1)
-	assert_bool(Game.try_apply_cover(floor)).is_true()
+	assert_bool(FurnitureEditing.apply_cover(floor)).is_true()
 	assert_that(room.floor_id).is_equal(InteriorStyleCatalog.FLOOR_TILE)
 
 

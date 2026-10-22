@@ -32,6 +32,8 @@ enum Claim { OK, POCKETS_FULL, EMPTY }
 
 var _items: Array[StringName] = []
 var rng := RandomNumberGenerator.new()
+## The renewal came due while the player was inside the box; its new item waits until they leave.
+var topup_waiting: bool = false
 
 
 func _init() -> void:
@@ -105,6 +107,25 @@ func copy_item_buf() -> void:
 	clear()
 	for i: int in packed.size():
 		_items[i] = packed[i]
+
+
+## `mAGrw_RenewalFgItem` tops the lost and found up once per renewal, however many days were
+## skipped. It runs on field make, so while the player is inside the box the new item waits for
+## them to leave (after Booker packs the list) and never lands mid-visit.
+func renew(player_inside: bool) -> void:
+	if player_inside:
+		topup_waiting = true
+	else:
+		force_set_keep_item()
+
+
+## `aPOL2_player_getout_check` -> `mPB_copy_itemBuf`: close the claimed gaps, then add any
+## item that came due during the visit.
+func player_left() -> void:
+	copy_item_buf()
+	if topup_waiting:
+		topup_waiting = false
+		force_set_keep_item()
 
 
 ## `mPB_keep_all_item_in_block`: move every keepable item lying in an acre into the

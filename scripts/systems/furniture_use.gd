@@ -7,7 +7,7 @@ extends RefCounted
 
 static func actions(host: Node, ctx: InteractionContext) -> Array[Interaction]:
 	var out: Array[Interaction] = []
-	if Game.held_furniture() != null:
+	if FurnitureEditing.held() != null:
 		return out
 	var data: FurnitureData = _data(host)
 	var entry: FurniturePlacement = _entry(host)
@@ -57,9 +57,9 @@ static func apply(action: Interaction, host: Node, ctx: InteractionContext) -> b
 		Interaction.TAKE:
 			return take_display(pid, ctx)
 		Interaction.PICK_UP:
-			return Game.pick_up_furniture(pid)
+			return FurnitureEditing.pick_up(pid)
 		Interaction.ROTATE:
-			return Game.rotate_furniture(pid)
+			return FurnitureEditing.rotate(pid)
 		_:
 			return false
 
@@ -79,7 +79,7 @@ static func _diary_open_here(entry: FurniturePlacement = null) -> bool:
 
 ## `mHS_get_pl_no_detail`: whose house the notebook is in (−1 for the player's own).
 static func diary_owner() -> int:
-	return Game.visiting_slot if Game != null else -1
+	return Game.roster.visiting if Game != null else -1
 
 
 ## The calendar comes up first; picking a day opens the diary on its month

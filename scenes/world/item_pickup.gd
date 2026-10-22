@@ -21,7 +21,7 @@ signal landed
 
 func _ready() -> void:
 	add_to_group("interactable")
-	if Game.is_interactable_removed(persist_id):
+	if Game.town.is_removed(persist_id):
 		queue_free()
 		return
 	_apply_visual()
@@ -69,7 +69,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	## `FieldItems`); everything else stays picked.
 	if not MushroomUse.picked(persist_id) and not ShellUse.picked(persist_id) and not FieldItems.picked(persist_id) \
 			and not RoomItems.picked(persist_id):
-		Game.mark_interactable_removed(persist_id)
+		Game.town.mark_removed(persist_id)
 	var id: StringName = persist_id if persist_id != &"" else occupant_id
 	ctx.release_occupant(id)
 	Game.post_notice("Picked up %s" % ("a present" if wrapped else item.display_name))

@@ -78,7 +78,7 @@ var _talk_npc: Node3D
 func setup(world: Node3D) -> void:
 	_world = world
 	name = "IntroStationDirector"
-	_resume_debt = Game.intro_station_resume_debt
+	_resume_debt = Game.intro.resume_debt
 	_payment_done = false
 	call_deferred("_boot")
 
@@ -143,11 +143,11 @@ func _boot() -> void:
 	if _dialogue != null and _dialogue.has_signal("event_fired"):
 		if not _dialogue.event_fired.is_connected(_on_dialogue_event):
 			_dialogue.event_fired.connect(_on_dialogue_event)
-	if not Game.intro_house_look_requested.is_connected(_on_intro_house_look):
-		Game.intro_house_look_requested.connect(_on_intro_house_look)
+	if not Game.intro.house_look_requested.is_connected(_on_intro_house_look):
+		Game.intro.house_look_requested.connect(_on_intro_house_look)
 
 	if _resume_debt:
-		Game.intro_station_resume_debt = false
+		Game.intro.resume_debt = false
 		_stage.drive_camera = false
 		_resume_follow_camera(true)
 		## `ac_intro_demo.c` `_1A4` path: outdoor return restarts `BGM_INTRO_RCN_GUIDE`
@@ -155,7 +155,7 @@ func _boot() -> void:
 		_play_bgm_chain([BGM_RCN_GUIDE, BGM_ARRIVE, &"intro_train"])
 		## `aID_birth_rcn_guide` on outdoor return: Nook is already beside the house
 		## while the player GO_OUT / emerges (`aNRG_restart_wait`).
-		_stage.place_nook_for_restart(IntroStationStage.house_index(Game.intro_station_house_id))
+		_stage.place_nook_for_restart(IntroStationStage.house_index(Game.intro.house_id))
 		_nook_play_wait()
 		call_deferred("_resume_debt_sequence")
 	else:
@@ -432,7 +432,7 @@ func _resume_follow_camera(snap: bool) -> void:
 
 
 func _on_house_pick_enabled(enabled: bool) -> void:
-	Game.intro_station_can_pick_house = enabled
+	Game.intro.can_pick_house = enabled
 	if enabled:
 		Game.set_interact_prompt("Choose a house")
 
@@ -641,8 +641,8 @@ func _on_dialogue_closed() -> void:
 		_end_demo_talk()
 		if _player != null:
 			_player.set_busy(false)
-		Game.intro_pending_house_id = &""
-		Game.intro_station_can_pick_house = true
+		Game.intro.pending_house_id = &""
+		Game.intro.can_pick_house = true
 		return
 	## After `msg_2020`, claim the plot and walk through the door.
 	if _pending_look_house_id != &"" and not _entering_look_house:
@@ -658,8 +658,8 @@ func _on_dialogue_closed() -> void:
 			var end_id: StringName = runner.conversation.id
 			if end_id == &"msg_2023":
 				_end_demo_talk()
-				Game.intro_station_house_id = &""
-				Game.intro_station_resume_debt = false
+				Game.intro.house_id = &""
+				Game.intro.resume_debt = false
 				_stage.notify_house_pick_again()
 				return
 		## `aNRG_demand_payment`: the debt line (and the nag) hand off to the pockets so
@@ -690,19 +690,19 @@ func _begin_demand_payment() -> void:
 		return
 	if not _payment_hold:
 		_end_demo_talk()
-	if not Game.intro_payment_resolved.is_connected(_on_payment_resolved):
-		Game.intro_payment_resolved.connect(_on_payment_resolved)
-	Game.intro_payment_pending = true
+	if not Game.intro.payment_resolved.is_connected(_on_payment_resolved):
+		Game.intro.payment_resolved.connect(_on_payment_resolved)
+	Game.intro.payment_pending = true
 	var inv_ui: InventoryOverlay = InventoryOverlay.find(get_tree())
 	if inv_ui == null:
-		Game.notify_intro_payment_made()
+		Game.intro.payment_made()
 		return
 	inv_ui.open()
 
 
 func _on_payment_resolved(paid: bool) -> void:
-	if Game.intro_payment_resolved.is_connected(_on_payment_resolved):
-		Game.intro_payment_resolved.disconnect(_on_payment_resolved)
+	if Game.intro.payment_resolved.is_connected(_on_payment_resolved):
+		Game.intro.payment_resolved.disconnect(_on_payment_resolved)
 	if _finishing:
 		return
 	if not paid:
@@ -738,7 +738,7 @@ func _enter_pending_look_house() -> void:
 	var house_id: StringName = _pending_look_house_id
 	_pending_look_house_id = &""
 	_entering_look_house = true
-	Game.claim_intro_house(house_id)
+	Game.intro.claim_house(house_id)
 	var house: Node3D = null
 	if _world != null:
 		house = _world.get_node_or_null("Buildings/%s" % String(house_id)) as Node3D
@@ -760,8 +760,8 @@ func _on_finished() -> void:
 
 
 func _finish_after_nook_retire() -> void:
-	if Game.intro_house_look_requested.is_connected(_on_intro_house_look):
-		Game.intro_house_look_requested.disconnect(_on_intro_house_look)
+	if Game.intro.house_look_requested.is_connected(_on_intro_house_look):
+		Game.intro.house_look_requested.disconnect(_on_intro_house_look)
 	if _dialogue != null and _dialogue.has_signal("event_fired"):
 		if _dialogue.event_fired.is_connected(_on_dialogue_event):
 			_dialogue.event_fired.disconnect(_on_dialogue_event)

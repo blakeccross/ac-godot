@@ -54,10 +54,10 @@ var _nest_landed_at: Variant = null
 func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group("plant")
-	if Game.is_interactable_removed(_persist()):
+	if Game.town.is_removed(_persist()):
 		queue_free()
 		return
-	if Game.is_stump(_persist()):
+	if Game.town.is_stump(_persist()):
 		_ensure_use()
 		_present_stump()
 		return
@@ -166,7 +166,7 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 		_arm_bees(ctx, BEE_SHOCK_AFTER_CHOP, BEE_CHOP_SHOCK_START_SEC, BEE_QUIET_AFTER_CHOP)
 	if out.felled:
 		PlantGrowth.clear(_persist())
-		Game.mark_stump(_persist())
+		Game.town.mark_stump(_persist())
 		_play_fall(ctx)
 	else:
 		_play_shake(true, false)
@@ -182,9 +182,9 @@ func _on_dig_stump(use: TreeUse, ctx: InteractionContext) -> bool:
 	Game.post_notice("You dig up the stump.")
 	var pid: StringName = _persist()
 	PlantGrowth.clear(pid)
-	Game.clear_stump(pid)
+	Game.town.clear_stump(pid)
 	if pid != &"":
-		Game.mark_interactable_removed(pid)
+		Game.town.mark_removed(pid)
 	var cell := Vector2i(-1, -1)
 	var grid: WorldGrid = _grid(ctx)
 	if grid != null:
@@ -197,7 +197,7 @@ func _on_dig_stump(use: TreeUse, ctx: InteractionContext) -> bool:
 
 
 func apply_growth() -> void:
-	if plant == null or Game.is_stump(_persist()) or _felling:
+	if plant == null or Game.town.is_stump(_persist()) or _felling:
 		return
 	var rec: Dictionary = PlantGrowth.record(_persist())
 	if not rec.is_empty():
@@ -226,7 +226,7 @@ func refresh_seasonal_visual() -> void:
 	## Season mesh infix (`obj_s/f/w_*`) without replaying growth math.
 	if _felling:
 		return
-	if Game.is_stump(_persist()):
+	if Game.town.is_stump(_persist()):
 		_present_stump()
 		return
 	apply_growth()
@@ -277,7 +277,7 @@ func _ensure_use() -> TreeUse:
 		return _use
 	_use = TreeUse.new()
 	var rec: Dictionary = PlantGrowth.record(_persist())
-	var as_stump: bool = Game.is_stump(_persist())
+	var as_stump: bool = Game.town.is_stump(_persist())
 	if rec.is_empty():
 		_use.configure(plant, visual_id, as_stump)
 		return _use
@@ -312,7 +312,7 @@ func can_host_mushroom() -> bool:
 ## `aFSN_moving`'s FG check: a grown tree with nothing on it (`TREE`, `*_NOFRUIT_*`,
 ## `CEDAR_TREE`, `GOLD_TREE`) is where a balloon snags.
 func can_catch_balloon() -> bool:
-	if _felling or Game.is_stump(_persist()):
+	if _felling or Game.town.is_stump(_persist()):
 		return false
 	var use: TreeUse = _ensure_use()
 	return use.size == TreeUse.Size.FULL and use.stage == TreeUse.Stage.BARE
@@ -579,7 +579,7 @@ func _play_fall(ctx: InteractionContext) -> void:
 func _present_stump() -> void:
 	_felling = false
 	_kill_motion()
-	Game.mark_stump(_persist())
+	Game.town.mark_stump(_persist())
 	if _use != null:
 		_use.stage = TreeUse.Stage.STUMP
 		_use.hits_left = 0

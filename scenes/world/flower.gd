@@ -15,7 +15,7 @@ extends Node3D
 func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group("plant")
-	if persist_id != &"" and Game.is_interactable_removed(persist_id):
+	if persist_id != &"" and Game.town.is_removed(persist_id):
 		queue_free()
 		return
 	if persist_id != &"" and plant != null:

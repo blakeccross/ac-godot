@@ -430,10 +430,8 @@ func execute(raw: String) -> String:
 			var sting_tree := Engine.get_main_loop() as SceneTree
 			var mode: String = String(args[0]).to_lower() if not args.is_empty() else ""
 			if mode == "off" or mode == "on":
-				Game.bee_swell = mode == "on"
-				Game.bee_greeted.clear()
-				Game.face_changed.emit()
-				return "Face %s." % ("swollen" if Game.bee_swell else "normal")
+				Game.bees.set_swollen(mode == "on")
+				return "Face %s." % ("swollen" if Game.bees.swollen else "normal")
 			var who := sting_tree.get_first_node_in_group(Player.GROUP) as Player if sting_tree != null else null
 			if who == null:
 				return "No player in this scene."
@@ -467,7 +465,7 @@ func execute(raw: String) -> String:
 			if not args.is_empty() and String(args[0]).to_lower() == "perfect":
 				Game.town.perfect_streak = TownAssessment.PERFECT_STREAK_MAX
 				Game.town.perfect_streak_day = Clock.day_number()
-			var r: Dictionary = Game.rate_town(tw_world)
+			var r: Dictionary = TownAssessment.rate(tw_world)
 			return "Rank %d (score %d: %d perfect, %d good acres); condition %d at %s; trees %d, flowers %d, weeds %d, trash %d; streak %d." % [
 				int(r["rank"]), int(r["score"]), int(r["perfect"]), int(r["good"]), int(r["condition"]),
 				r["block"], int(r["trees"]), int(r["flowers"]), int(r["weeds"]), int(r["dust"]), Game.town.perfect_streak,
@@ -592,7 +590,7 @@ func execute(raw: String) -> String:
 				mm_pick = {"msg": MotherMail.MSG_NORMAL + mm_n, "present": MotherMail.normal_present(mm_n, mm_rng)}
 			var mm_mail: MailData = MotherMail.letter(int(mm_pick["msg"]), StringName(mm_pick["present"]),
 				MotherMail.paper(Clock.month, Clock.day, VillagerTalkManager.birthday()), Game.resident.player_name)
-			if mm_mail == null or not Game.deliver_to_mailbox(mm_mail):
+			if mm_mail == null or not MailDelivery.to_mailbox(mm_mail):
 				return "Mom couldn't write (no mail bank or the mailbox is full)."
 			var mm_tree := Engine.get_main_loop() as SceneTree
 			var mm_reader: LetterReaderOverlay = LetterReaderOverlay.find(mm_tree)
@@ -609,7 +607,7 @@ func execute(raw: String) -> String:
 				var bd_rng := RandomNumberGenerator.new()
 				bd_rng.randomize()
 				var bd_sent: int = PresentVisit.send_cards(Game.residents, Game.relationships, &"",
-					Game.resident.player_name, bd_rng, Game.deliver_to_mailbox)
+					Game.resident.player_name, bd_rng, MailDelivery.to_mailbox)
 				return "%d birthday card(s) sent." % bd_sent
 			if bd_sub == "visit":
 				var bd_kind: int = PresentVisit.Kind.BIRTHDAY
@@ -651,7 +649,7 @@ func execute(raw: String) -> String:
 			Game.resident.sunburn["rank"] = clampi(int(args[0]), 0, Sunburn.MAX_RANK)
 			Game.resident.sunburn["changed"] = Clock.day_number()
 			Game.resident.sunburn["hold"] = Sunburn.HOLD_DAYS if int(Game.resident.sunburn["rank"]) > 0 else 0
-			Game.face_changed.emit()
+			Game.bees.face_changed.emit()
 			return "Tan rank %d." % int(Game.resident.sunburn["rank"])
 		"snowballs":
 			## The body and head balls a few units ahead of the player, at size 0–1

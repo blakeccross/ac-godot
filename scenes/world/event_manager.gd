@@ -167,7 +167,7 @@ func refresh() -> void:
 ## `title_fade`: the first festival due a title card plays it (and starts or stops under
 ## the black); the rest of `refresh` waits for it. Not before the player is free.
 func _title_due() -> bool:
-	if Game.title_demo_active or Game.intro_station_active:
+	if Game.title_demo_active or Game.intro.active:
 		return false
 	var keep: Dictionary = Game.events.area(EventTitle.KEEP_AREA)
 	for id: Variant in EventTitle.TITLE_NO:

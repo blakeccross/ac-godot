@@ -47,7 +47,7 @@ func test_snowmen_melt_over_three_winter_days() -> void:
 	assert_bool(SnowmanRules.melt({"age": 0}, 1, false)).is_false()
 	assert_bool(SnowmanRules.melt({"age": 0}, 3, true)).is_false()
 	Game.town.snowmen = [{"head": 0.5, "body": 0.6, "score": 0, "cell": [3, 3], "age": 1}, {}, {}]
-	Game.melt_snowmen(1)
+	Game.town.melt_snowmen(1)
 	## Season depends on the clock; either way the second day keeps it only in winter.
 	if Clock.season() == Clock.Season.WINTER:
 		assert_int(int((Game.town.snowmen[0] as Dictionary)["age"])).is_equal(2)

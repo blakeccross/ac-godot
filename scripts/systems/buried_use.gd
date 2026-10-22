@@ -111,7 +111,7 @@ static func bury(ctx: InteractionContext, cell: Vector2i, item_id: StringName) -
 	if grid == null or not grid.is_in_bounds(cell) or item_id == &"":
 		return false
 	var hole: StringName = grid.occupant_at(cell)
-	if not Game.is_hole(hole):
+	if not Game.town.is_hole(hole):
 		return false
 	if hole == Game.town.shine_hole:
 		var planted: bool = _plant_in_shine_hole(ctx, cell, item_id)
@@ -122,7 +122,7 @@ static func bury(ctx: InteractionContext, cell: Vector2i, item_id: StringName) -
 	if host != null:
 		HoleUse.fill(host, ctx)
 	else:
-		Game.clear_hole(hole)
+		Game.town.clear_hole(hole)
 		grid.remove(hole)
 	if hole == Game.town.shine_hole:
 		Game.town.shine_hole = &""
@@ -190,7 +190,7 @@ static func close_pit(world: Node, cell: Vector2i) -> void:
 	var ctx := InteractionContext.new()
 	ctx.world = world
 	if hole == null:
-		Game.clear_hole(pid)
+		Game.town.clear_hole(pid)
 		var grid: WorldGrid = _grid(ctx)
 		if grid != null:
 			grid.remove(pid)

@@ -86,10 +86,10 @@ func _bootstrap_session() -> void:
 	Game.give_test_tools()
 	_give_sample_donations()
 	Game.current_room_id = &"museum_entrance"
-	Game.has_interior_spawn = true
-	Game.interior_spawn_gx = MuseumDisplay.ENTRANCE_SPAWN_GX
-	Game.interior_spawn_yaw = WorldGrid.yaw_for_furniture(MuseumDisplay.ENTRANCE_SPAWN_FACING)
-	Game.spawn_at_room_door = false
+	Game.arrival.has_stand = true
+	Game.arrival.stand_gx = MuseumDisplay.ENTRANCE_SPAWN_GX
+	Game.arrival.stand_yaw = WorldGrid.yaw_for_furniture(MuseumDisplay.ENTRANCE_SPAWN_FACING)
+	Game.arrival.at_room_door = false
 	Game.block_auto_enter_doors = true
 	Game.outdoor_return = Vector3(0.0, 0.1, 6.0)
 
@@ -138,16 +138,16 @@ func _spawn_or_move_player(room_node: Node3D) -> void:
 		spawn_marker.global_position if spawn_marker != null else Vector3(12.0, 0.1, 22.0)
 	)
 	var yaw: float = Game.resident.player_yaw
-	if Game.has_interior_spawn and grid != null:
-		pos = MuseumDisplay.gx_to_world(grid, Game.interior_spawn_gx)
+	if Game.arrival.has_stand and grid != null:
+		pos = MuseumDisplay.gx_to_world(grid, Game.arrival.stand_gx)
 		pos.y = 0.1
-		yaw = Game.interior_spawn_yaw
-		Game.has_interior_spawn = false
-	elif Game.spawn_at_room_door and session != null and session.room != null:
+		yaw = Game.arrival.stand_yaw
+		Game.arrival.has_stand = false
+	elif Game.arrival.at_room_door and session != null and session.room != null:
 		pos = grid.cell_to_world(session.room.spawn_cell)
 		pos.y = 0.1
 		yaw = WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH)
-		Game.spawn_at_room_door = false
+		Game.arrival.at_room_door = false
 	if player == null:
 		player = PLAYER_SCENE.instantiate() as Player
 		_characters.add_child(player)
@@ -157,8 +157,8 @@ func _spawn_or_move_player(room_node: Node3D) -> void:
 	if _camera != null and "offset" in _camera:
 		_camera.set("offset", preload("res://scenes/world/follow_camera.gd").DEFAULT_OFFSET)
 	SceneTransition.play_wipe_in_if_pending()
-	if Game.play_door_arrive:
-		Game.play_door_arrive = false
+	if Game.arrival.walks_in:
+		Game.arrival.walks_in = false
 		call_deferred("_play_door_arrive", player)
 
 

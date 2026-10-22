@@ -783,21 +783,21 @@ func test_museum_exit_auto_enters_indoors() -> void:
 func test_museum_entrance_sets_spawn_without_arrive() -> void:
 	## Outdoor→entrance: `aMsm_museum_enter_data` spawn only — no post-load INTO_S1.
 	Game.current_room_id = &""
-	Game.play_door_arrive = false
-	Game.has_interior_spawn = false
+	Game.arrival.walks_in = false
+	Game.arrival.has_stand = false
 	var room_id: StringName = InteriorCatalog.resolve_entry(&"museum")
 	assert_that(room_id).is_equal(&"museum_entrance")
-	Game.interior_spawn_gx = MuseumDisplay.ENTRANCE_SPAWN_GX
-	Game.interior_spawn_yaw = WorldGrid.yaw_for_furniture(MuseumDisplay.ENTRANCE_SPAWN_FACING)
-	Game.has_interior_spawn = true
-	Game.play_door_arrive = false
-	assert_vector(Game.interior_spawn_gx).is_equal(MuseumDisplay.ENTRANCE_SPAWN_GX)
-	assert_float(Game.interior_spawn_yaw).is_equal_approx(
+	Game.arrival.stand_gx = MuseumDisplay.ENTRANCE_SPAWN_GX
+	Game.arrival.stand_yaw = WorldGrid.yaw_for_furniture(MuseumDisplay.ENTRANCE_SPAWN_FACING)
+	Game.arrival.has_stand = true
+	Game.arrival.walks_in = false
+	assert_vector(Game.arrival.stand_gx).is_equal(MuseumDisplay.ENTRANCE_SPAWN_GX)
+	assert_float(Game.arrival.stand_yaw).is_equal_approx(
 		WorldGrid.yaw_for_furniture(MuseumDisplay.ENTRANCE_SPAWN_FACING), 0.01
 	)
 	assert_float(MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX.z).is_greater(MuseumDisplay.ENTRANCE_SPAWN_GX.z)
-	assert_bool(Game.play_door_arrive).is_false()
-	Game.has_interior_spawn = false
+	assert_bool(Game.arrival.walks_in).is_false()
+	Game.arrival.has_stand = false
 
 
 func test_door_iris_follows_the_triforce_scroll() -> void:

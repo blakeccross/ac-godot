@@ -216,9 +216,9 @@ func test_room_template_matches_rom_toudai() -> void:
 	var gaps: Array[Dictionary] = InteriorShellBuilder.shell_door_gaps(room, WorldGrid.new())
 	assert_int(gaps.size()).is_equal(1)
 	assert_str(String(gaps[0]["side"])).is_equal("north")
-	Game.prepare_interior_spawn(&"lighthouse")
-	assert_that(Game.interior_spawn_gx).is_equal(LighthouseRoom.SPAWN_GX)
-	assert_float(Game.interior_spawn_yaw).is_equal_approx(
+	Game.arrival = InteriorArrival.for_room(&"lighthouse", room)
+	assert_that(Game.arrival.stand_gx).is_equal(LighthouseRoom.SPAWN_GX)
+	assert_float(Game.arrival.stand_yaw).is_equal_approx(
 		WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH), 0.001
 	)
 

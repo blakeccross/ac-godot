@@ -99,7 +99,7 @@ func board() -> NoticeBoard:
 func open() -> void:
 	if _open or board() == null:
 		return
-	Game.update_notice_board()
+	TownUpkeep.update_notice_board()
 	page_count = board().count()
 	now_page = maxi(page_count - 1, 0)
 	disp_page = now_page

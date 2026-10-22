@@ -50,9 +50,9 @@ static func _storage_put_in(entry: FurniturePlacement, inv: Inventory) -> void:
 	if not inv.has_putin_candidates(&"any"):
 		await _play(FurnitureStorage.DIALOGUE_ID, FurnitureStorage.VAR_SCENE, &"nothing_to_put", Callable())
 		return
-	Game.request_storage_putin(&"any")
-	if Game.storage_putin_pending:
-		var picked: StringName = await Game.storage_putin_resolved
+	Game.pocket_requests.request_putin(&"any")
+	if Game.pocket_requests.putin_pending:
+		var picked: StringName = await Game.pocket_requests.putin_resolved
 		if picked == &"":
 			return
 		if inv.remove(picked, 1) > 0:
@@ -103,10 +103,10 @@ static func _music_insert(
 	if not inv.has_putin_candidates(&"minidisk"):
 		await _play(FurnitureMusic.DIALOGUE_ID, FurnitureMusic.VAR_SCENE, &"no_disc", Callable())
 		return
-	Game.request_storage_putin(&"minidisk")
-	if not Game.storage_putin_pending:
+	Game.pocket_requests.request_putin(&"minidisk")
+	if not Game.pocket_requests.putin_pending:
 		return
-	var picked: StringName = await Game.storage_putin_resolved
+	var picked: StringName = await Game.pocket_requests.putin_resolved
 	if picked == &"":
 		return
 	var result: Dictionary = FurnitureMusic.insert_disc(session, entry, house, picked, inv)

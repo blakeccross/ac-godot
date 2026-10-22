@@ -155,7 +155,7 @@ func test_bury_into_a_hole_only() -> void:
 	assert_bool(BuriedUse.bury(ctx, cell, BuriedUse.PITFALL_ITEM)).is_true()
 	var pid: StringName = world.grid.occupant_at(cell)
 	assert_bool(BuriedUse.is_pitfall(pid)).is_true()
-	assert_bool(Game.is_hole(HoleUse.persist_id(cell))).is_false()
+	assert_bool(Game.town.is_hole(HoleUse.persist_id(cell))).is_false()
 	## Nothing marks a pitfall above ground.
 	await get_tree().process_frame
 	for child: Node in world.get_node("Objects").get_children():
@@ -178,13 +178,13 @@ func test_pitfall_springs_open_then_closes() -> void:
 	BuriedUse.bury(ctx, cell, BuriedUse.PITFALL_ITEM)
 	var hole: Node3D = BuriedUse.spring_pitfall(world, world.grid, cell)
 	assert_object(hole).is_not_null()
-	assert_bool(Game.is_hole(HoleUse.persist_id(cell))).is_true()
+	assert_bool(Game.town.is_hole(HoleUse.persist_id(cell))).is_true()
 	assert_bool(BuriedUse.is_pitfall(world.grid.occupant_at(cell))).is_false()
 	## Sprung once only.
 	assert_object(BuriedUse.spring_pitfall(world, world.grid, cell)).is_null()
 	BuriedUse.close_pit(world, cell)
 	await await_millis(int(BuriedUse.PIT_CLOSE_TICKS * DecompTime.TICK_SEC * 1000.0) + 400)
-	assert_bool(Game.is_hole(HoleUse.persist_id(cell))).is_false()
+	assert_bool(Game.town.is_hole(HoleUse.persist_id(cell))).is_false()
 	assert_bool(world.grid.is_occupied(cell)).is_false()
 
 
@@ -218,7 +218,7 @@ func test_full_pockets_dig_it_up_then_bury_it_again() -> void:
 	BuriedUse.bury(ctx, cell, &"conch")
 	assert_bool(BuriedUse.dig(ctx, cell)).is_true()
 	assert_bool(bool(BuriedUse.last_find["banked"])).is_false()
-	assert_bool(Game.is_hole(HoleUse.persist_id(cell))).is_true()
+	assert_bool(Game.town.is_hole(HoleUse.persist_id(cell))).is_true()
 	await BuriedUse.report(ctx)
 	var deposit: StringName = world.grid.occupant_at(cell)
 	assert_str(str(BuriedUse.record(deposit).get(BuriedUse.KEY_ITEM))).is_equal("conch")

@@ -52,7 +52,7 @@ func test_donate_fish_from_inventory() -> void:
 	var fish: FishData = FishCatalog.get_fish(&"carp")
 	assert_that(fish).is_not_null()
 	Game.inventory.add(fish, 1)
-	var msg: String = Game.donate_to_museum(&"carp")
+	var msg: String = String(MuseumDonation.donate(&"carp")["message"])
 	assert_str(msg).contains("Donated")
 	assert_that(Game.inventory.count_of(&"carp")).is_equal(0)
 	assert_bool(Game.museum.has_fish_id(&"carp")).is_true()

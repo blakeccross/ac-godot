@@ -39,7 +39,7 @@ func test_the_player_can_tread_on_every_roach() -> void:
 	var room: Room = Game.interiors.room(&"player_main")
 	room.placements.clear()
 	Game.current_room_id = &"player_main"
-	Game.spawn_at_room_door = true
+	Game.arrival.at_room_door = true
 	Game.goki_shocked = true
 	var interior: Node = auto_free(INTERIOR.instantiate())
 	add_child(interior)

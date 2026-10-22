@@ -1008,7 +1008,7 @@ func _check_pitfall() -> void:
 	if not grid.is_in_bounds(cell) or not BuriedUse.is_pitfall(grid.occupant_at(cell)):
 		return
 	var world := World.find(get_tree())
-	if BuriedUse.spring_pitfall(world, grid, cell) == null and not Game.is_hole(HoleUse.persist_id(cell)):
+	if BuriedUse.spring_pitfall(world, grid, cell) == null and not Game.town.is_hole(HoleUse.persist_id(cell)):
 		return
 	_pit = Pit.TOTTER
 	_pit_cell = cell

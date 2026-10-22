@@ -6,15 +6,11 @@ extends GdUnitTestSuite
 
 func before_test() -> void:
 	VillagerCatalog.reload()
-	Game.bee_swell = false
-	Game.bee_chase = false
-	Game.bee_greeted.clear()
+	Game.bees.clear()
 
 
 func after_test() -> void:
-	Game.bee_swell = false
-	Game.bee_chase = false
-	Game.bee_greeted.clear()
+	Game.bees.clear()
 
 
 func _villager(looks: int) -> VillagerData:
@@ -46,17 +42,17 @@ func test_face_set_index_follows_the_rom_layout() -> void:
 func test_first_sting_swells_and_readies_one_remark_each() -> void:
 	var v := _villager(0)
 	assert_object(v).is_not_null()
-	Game.bee_chase = true
-	assert_bool(Game.bee_remark_pending(v.id)).is_false()
-	Game.sting_by_bee()
-	assert_bool(Game.bee_swell).is_true()
-	assert_bool(Game.bee_chase).is_false()
-	assert_bool(Game.bee_remark_pending(v.id)).is_true()
-	Game.note_bee_greeting(v.id)
-	assert_bool(Game.bee_remark_pending(v.id)).is_false()
+	Game.bees.chasing = true
+	assert_bool(Game.bees.remark_pending(v.id)).is_false()
+	Game.bees.sting()
+	assert_bool(Game.bees.swollen).is_true()
+	assert_bool(Game.bees.chasing).is_false()
+	assert_bool(Game.bees.remark_pending(v.id)).is_true()
+	Game.bees.note_greeting(v.id)
+	assert_bool(Game.bees.remark_pending(v.id)).is_false()
 	## Stung again while still swollen: no fresh remarks (`mNpc_SetTalkBee` checks the flag).
-	Game.sting_by_bee()
-	assert_bool(Game.bee_remark_pending(v.id)).is_false()
+	Game.bees.sting()
+	assert_bool(Game.bees.remark_pending(v.id)).is_false()
 
 
 func test_greeting_remarks_on_the_face_then_on_the_bees() -> void:
@@ -84,7 +80,7 @@ func test_greeting_remarks_on_the_face_then_on_the_bees() -> void:
 
 func test_context_reads_the_flags_once_per_villager() -> void:
 	var v := _villager(1)
-	Game.sting_by_bee()
+	Game.bees.sting()
 	var s := _met_state(v)
 	assert_bool(DialogueContext.from_game(v, s).bee_stung).is_true()
 	DialogueGreeting.conversation(v, s)

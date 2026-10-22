@@ -277,7 +277,7 @@ static func resident_house(node_name: String) -> House:
 
 ## Outdoor house node the player lives in (`mHS_get_arrange_idx`): the intro pick while
 ## the station intro is choosing, else the saved `House.outdoor_building_id` (the pick is
-## written there by `Game.claim_intro_house`). "" while the intro has no pick yet — every
+## written there by `Game.intro.claim_house`). "" while the intro has no pick yet — every
 ## plot is vacant then.
 static func owned_building_id() -> StringName:
 	if Game == null:
@@ -285,9 +285,9 @@ static func owned_building_id() -> StringName:
 	## A visitor from another town has no house here.
 	if Game.foreigner:
 		return &""
-	if Game.intro_station_house_id != &"":
-		return Game.intro_station_house_id
-	if Game.intro_station_active:
+	if Game.intro.house_id != &"":
+		return Game.intro.house_id
+	if Game.intro.active:
 		return &""
 	var house: House = Game.interiors.player_house() if Game.interiors != null else null
 	if house == null or not String(house.outdoor_building_id).begins_with(String(DEFAULT_PLOT)):

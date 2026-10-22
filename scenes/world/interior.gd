@@ -160,7 +160,7 @@ func _on_weather_changed(_weather: StringName) -> void:
 
 ## `Na_SceneMode`: the hourly chime plays in rooms too, at `sou_chime_volume` 0.45.
 func _on_hour_chime(_hour: int) -> void:
-	if Game.title_demo_active or Game.intro_station_active:
+	if Game.title_demo_active or Game.intro.active:
 		return
 	Audio.play_melody(Game.town.town_tune, {}, Audio.CHIME_STEP_SEC, Audio.CHIME_INDOOR_DB)
 
@@ -362,16 +362,16 @@ func _spawn_player() -> void:
 	$Characters.add_child(player)
 	var pos: Vector3 = _spawn.global_position
 	var yaw: float = Game.resident.player_yaw
-	if Game.has_interior_spawn and session != null and session.grid != null:
-		pos = MuseumDisplay.gx_to_world(session.grid, Game.interior_spawn_gx)
+	if Game.arrival.has_stand and session != null and session.grid != null:
+		pos = MuseumDisplay.gx_to_world(session.grid, Game.arrival.stand_gx)
 		pos.y = 0.1
-		yaw = Game.interior_spawn_yaw
-		Game.has_interior_spawn = false
-	elif Game.spawn_at_room_door and session != null and session.room != null:
+		yaw = Game.arrival.stand_yaw
+		Game.arrival.has_stand = false
+	elif Game.arrival.at_room_door and session != null and session.room != null:
 		pos = session.grid.cell_to_world(session.room.spawn_cell)
 		pos.y = 0.1
 		yaw = WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH)
-		Game.spawn_at_room_door = false
+		Game.arrival.at_room_door = false
 	elif not Game.resident.player_position.is_equal_approx(Game.DEFAULT_SPAWN):
 		pos = Game.resident.player_position
 	player.apply_spawn(pos, yaw)
@@ -379,8 +379,8 @@ func _spawn_player() -> void:
 		if _camera.has_method("set_target"):
 			_camera.call("set_target", player)
 	SceneTransition.play_wipe_in_if_pending()
-	if Game.play_door_arrive:
-		Game.play_door_arrive = false
+	if Game.arrival.walks_in:
+		Game.arrival.walks_in = false
 		call_deferred("_play_door_arrive", player)
 
 

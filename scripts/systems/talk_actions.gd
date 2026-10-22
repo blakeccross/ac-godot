@@ -13,8 +13,8 @@ static func handle(action: Dictionary, ui: DialogueOverlay, npc: Node3D, player:
 	ui.set_suspended(true)
 	if action.has("hand"):
 		var hand: Dictionary = action["hand"]
-		Game.request_quest_handover(int(hand.get("pocket", -1)), str(hand.get("mode", "quest")))
-		var picked: Array = await Game.quest_handover_resolved
+		Game.pocket_requests.request_handover(int(hand.get("pocket", -1)), str(hand.get("mode", "quest")))
+		var picked: Array = await Game.pocket_requests.handover_resolved
 		ui.set_suspended(false)
 		runner.resolve_action({"item": picked[0], "pocket": picked[1]})
 		return

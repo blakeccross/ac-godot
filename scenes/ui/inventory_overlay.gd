@@ -1224,16 +1224,8 @@ func close() -> void:
 	_side_tab = SideTab.POCKETS
 	## Closing the pockets during the intro payment without handing anything over is
 	## Nook's "pay it all back" nag (`aNRG_menu_close_wait_talk_proc` empty branch).
-	if Game.intro_payment_pending:
-		Game.notify_intro_payment_declined()
-	if Game.museum_donate_pending:
-		Game.cancel_museum_donation()
-	if Game.shop_sell_pending:
-		Game.cancel_shop_sell()
-	if Game.storage_putin_pending:
-		Game.cancel_storage_putin()
-	if Game.quest_handover_pending:
-		Game.cancel_quest_handover()
+	Game.intro.payment_declined()
+	Game.pocket_requests.cancel_all()
 	if _hand_root != null:
 		_hand_root.visible = false
 	if _portrait_viewport != null:
@@ -1735,12 +1727,12 @@ func _run_tag(tag: String) -> void:
 		"Place":
 			var player := Player.find(get_tree())
 			if player != null:
-				Game.try_place_furniture(player)
+				FurnitureEditing.place_held(player)
 			close()
 		"Hang", "Lay":
 			var slot: InventorySlot = inv.slot_at(idx)
 			if slot != null and not slot.is_empty():
-				Game.try_apply_cover(ItemCatalog.get_item(slot.item.item_id))
+				FurnitureEditing.apply_cover(ItemCatalog.get_item(slot.item.item_id))
 			close()
 		"Drop":
 			_drop_selected()
@@ -1777,33 +1769,33 @@ func _run_tag(tag: String) -> void:
 					Game.set_interact_prompt("Talk to Tom Nook")
 				close()
 		"Hand over":
-			if Game.quest_handover_pending:
+			if Game.pocket_requests.handover_pending:
 				## A villager's quest — the talk plays the hand-over.
-				Game.take_quest_handover(idx)
+				Game.pocket_requests.take_handover(idx)
 				close()
 				return
 			## Intro down payment — Nook's director plays the hand-over and books it.
-			Game.notify_intro_payment_made()
+			Game.intro.payment_made()
 			close()
 		"Put in":
 			## A drawer or music player is waiting — hand the pick back to it.
 			var putin_slot: InventorySlot = inv.slot_at(idx)
 			if putin_slot != null and not putin_slot.is_empty():
-				Game.take_storage_putin(putin_slot.item.item_id)
+				Game.pocket_requests.take_putin(putin_slot.item.item_id)
 			close()
 		"Sell":
-			Game.take_shop_sell([idx] as Array[int])
+			Game.pocket_requests.take_sell([idx] as Array[int])
 			close()
 		"Sell all":
 			var picked: Array[int] = inv.marked_indices()
 			inv.clear_marks()
-			Game.take_shop_sell(picked)
+			Game.pocket_requests.take_sell(picked)
 			close()
 		"Donate":
 			## Blathers is waiting — book the outcome and let his dialogue respond.
 			var slot: InventorySlot = inv.slot_at(idx)
 			if slot != null and not slot.is_empty():
-				Game.take_museum_donation(slot.item.item_id)
+				Game.pocket_requests.take_donation(slot.item.item_id)
 			close()
 		"Move":
 			inv.pick_hand(idx)

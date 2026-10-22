@@ -21,11 +21,11 @@ func test_hud_hosts_pause_overlay_and_it_pauses_while_open() -> void:
 func test_continue_leaves_title_demo_mode() -> void:
 	## Regression: Continue from the attract-mode title left `title_demo_active` set, so the
 	## loaded world reported phase TITLE and Esc did nothing.
-	Game.begin_title_demo(0)
+	TitleDemo.begin(0)
 	assert_bool(Game.title_demo_active).is_true()
 	SaveService.save_game("user://_test_continue.json")
 	Game.reset_session()
-	Game.begin_title_demo(0)
+	TitleDemo.begin(0)
 	## Same steps as `continue_game` without the scene change.
 	Game.reset_session()
 	SaveService.load_game("user://_test_continue.json")

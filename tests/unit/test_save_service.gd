@@ -36,17 +36,17 @@ func test_save_and_load_clock_and_inventory() -> void:
 func test_save_and_load_player_pose_and_removed_pickup() -> void:
 	Game.resident.player_position = Vector3(2.0, 0.1, 1.5)
 	Game.resident.player_yaw = 0.5
-	Game.mark_interactable_removed(&"ground_apple")
-	Game.mark_stump(&"tree_1")
-	Game.mark_hole(&"hole_8_9")
+	Game.town.mark_removed(&"ground_apple")
+	Game.town.mark_stump(&"tree_1")
+	Game.town.mark_hole(&"hole_8_9")
 	assert_int(SaveService.save_game(PATH)).is_equal(OK)
 	Game.reset_session()
 	assert_int(SaveService.load_game(PATH)).is_equal(OK)
 	assert_vector(Game.resident.player_position).is_equal_approx(Vector3(2.0, 0.1, 1.5), Vector3(0.001, 0.001, 0.001))
 	assert_float(Game.resident.player_yaw).is_equal_approx(0.5, 0.001)
-	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_true()
-	assert_bool(Game.is_stump(&"tree_1")).is_true()
-	assert_bool(Game.is_hole(&"hole_8_9")).is_true()
+	assert_bool(Game.town.is_removed(&"ground_apple")).is_true()
+	assert_bool(Game.town.is_stump(&"tree_1")).is_true()
+	assert_bool(Game.town.is_hole(&"hole_8_9")).is_true()
 
 
 func test_save_and_load_villager_friendship() -> void:

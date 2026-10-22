@@ -63,11 +63,11 @@ func test_pulling_frees_the_unit() -> void:
 
 
 func test_days_wait_for_the_field_and_survive_a_save() -> void:
-	Game._on_field_renewed(3)
+	TownUpkeep.on_field_renewed(3)
 	Game.town.weeds["weed_4_5"] = 2
 	var saved: Dictionary = Game.to_save()
 	Game.reset_session()
 	Game.apply_snapshot(saved)
 	assert_int(int(Game.town.weeds["weed_4_5"])).is_equal(2)
-	assert_int(Game.take_weed_days()).is_equal(3)
-	assert_int(Game.take_weed_days()).is_equal(0)
+	assert_int(Game.town.take_weed_days()).is_equal(3)
+	assert_int(Game.town.take_weed_days()).is_equal(0)

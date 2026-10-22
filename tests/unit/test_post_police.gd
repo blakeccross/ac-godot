@@ -138,21 +138,21 @@ func test_post_office_shell_has_door_gap_and_desk() -> void:
 func test_enter_sets_decomp_spawns() -> void:
 	## Avoid scene change; only assert spawn tables Game would set.
 	Game.current_room_id = &""
-	Game.has_interior_spawn = false
+	Game.arrival.has_stand = false
 	var post_room: Room = InteriorCatalog.room_template(&"post_office")
 	assert_that(post_room).is_not_null()
 	## Mirror `Game.try_enter_interior` spawn branches.
-	Game.interior_spawn_gx = PostDisplay.SPAWN_GX
-	Game.interior_spawn_yaw = WorldGrid.yaw_for_facing(PostDisplay.SPAWN_FACING)
-	Game.has_interior_spawn = true
-	assert_vector(Game.interior_spawn_gx).is_equal(PostDisplay.SPAWN_GX)
-	assert_float(Game.interior_spawn_yaw).is_equal_approx(
+	Game.arrival.stand_gx = PostDisplay.SPAWN_GX
+	Game.arrival.stand_yaw = WorldGrid.yaw_for_facing(PostDisplay.SPAWN_FACING)
+	Game.arrival.has_stand = true
+	assert_vector(Game.arrival.stand_gx).is_equal(PostDisplay.SPAWN_GX)
+	assert_float(Game.arrival.stand_yaw).is_equal_approx(
 		WorldGrid.yaw_for_facing(PostDisplay.SPAWN_FACING), 0.01
 	)
-	Game.interior_spawn_gx = PoliceDisplay.SPAWN_GX
-	Game.interior_spawn_yaw = WorldGrid.yaw_for_facing(PoliceDisplay.SPAWN_FACING)
-	assert_vector(Game.interior_spawn_gx).is_equal(PoliceDisplay.SPAWN_GX)
-	assert_float(Game.interior_spawn_yaw).is_equal_approx(
+	Game.arrival.stand_gx = PoliceDisplay.SPAWN_GX
+	Game.arrival.stand_yaw = WorldGrid.yaw_for_facing(PoliceDisplay.SPAWN_FACING)
+	assert_vector(Game.arrival.stand_gx).is_equal(PoliceDisplay.SPAWN_GX)
+	assert_float(Game.arrival.stand_yaw).is_equal_approx(
 		WorldGrid.yaw_for_facing(PoliceDisplay.SPAWN_FACING), 0.01
 	)
 

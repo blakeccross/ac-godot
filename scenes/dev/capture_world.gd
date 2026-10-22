@@ -92,7 +92,7 @@ func _capture_date(date: String) -> void:
 		scene_path = Game.INTERIOR_SCENE
 		if String(Game.current_room_id).begins_with("shop"):
 			_stock_nook(ShopDisplay.nook_level_for_room(Game.current_room_id))
-		Game.prepare_interior_spawn(Game.current_room_id)
+		Game.arrival = InteriorArrival.for_room(Game.current_room_id, Game.interiors.room(Game.current_room_id))
 	var packed := load(scene_path if not scene_path.is_empty() else WORLD_SCENE) as PackedScene
 	if packed == null:
 		_error("cannot load scene '%s'" % scene_path)

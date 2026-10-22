@@ -197,7 +197,7 @@ func test_item_pickup_adds_to_inventory() -> void:
 	assert_float(actions[0].effect_frame).is_equal(20.0)
 	assert_bool(await pickup.interact(actions[0], ctx)).is_true()
 	assert_int(ctx.inventory.count_of(&"apple")).is_equal(1)
-	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_true()
+	assert_bool(Game.town.is_removed(&"ground_apple")).is_true()
 	assert_str(String((ctx.world as _FakeWorld).released)).is_equal("ground_apple")
 
 
@@ -234,7 +234,7 @@ func test_item_pickup_refuses_when_pockets_full() -> void:
 	assert_bool(pickup.interact(action, ctx)).is_false()
 	assert_int(ctx.inventory.count_of(&"axe")).is_equal(Inventory.POCKET_SLOTS)
 	assert_int(ctx.inventory.count_of(&"apple")).is_equal(0)
-	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_false()
+	assert_bool(Game.town.is_removed(&"ground_apple")).is_false()
 
 
 func test_scene_hosts_offer_expected_verbs() -> void:
@@ -286,12 +286,12 @@ func test_tree_chops_when_axe_equipped() -> void:
 	assert_str(String(action.player_anim)).is_equal("ply_1_axe_swing1")
 	assert_bool(tree.interact(action, ctx)).is_true()
 	assert_bool(tree.is_queued_for_deletion()).is_false()
-	assert_bool(Game.is_interactable_removed(&"tree_1")).is_false()
+	assert_bool(Game.town.is_removed(&"tree_1")).is_false()
 	assert_str(String((ctx.world as _FakeWorld).released)).is_equal("")
 	assert_bool(tree.interact(action, ctx)).is_true()
 	assert_bool(tree.interact(action, ctx)).is_true()
 	assert_bool(tree.is_queued_for_deletion()).is_false()
-	assert_bool(Game.is_stump(&"tree_1")).is_true()
+	assert_bool(Game.town.is_stump(&"tree_1")).is_true()
 	assert_int(tree.get_interactions(empty).size()).is_equal(0)
 	var dig_ctx := _ctx_with_tool(&"shovel")
 	dig_ctx.world = ctx.world
@@ -299,14 +299,14 @@ func test_tree_chops_when_axe_equipped() -> void:
 	assert_str(String(dig.id)).is_equal(String(Interaction.DIG))
 	assert_bool(tree.interact(dig, dig_ctx)).is_true()
 	assert_bool(tree.is_queued_for_deletion()).is_true()
-	assert_bool(Game.is_interactable_removed(&"tree_1")).is_true()
-	assert_bool(Game.is_stump(&"tree_1")).is_false()
+	assert_bool(Game.town.is_removed(&"tree_1")).is_true()
+	assert_bool(Game.town.is_stump(&"tree_1")).is_false()
 	assert_str(String((ctx.world as _FakeWorld).released)).is_equal("tree_1")
 
 
 func test_hole_fill_requires_shovel() -> void:
 	ItemCatalog.reload()
-	Game.mark_hole(&"hole_4_5")
+	Game.town.mark_hole(&"hole_4_5")
 	var hole: Node = auto_free(load("res://scenes/world/hole.tscn").instantiate())
 	hole.set("persist_id", &"hole_4_5")
 	var empty := InteractionContext.new()
@@ -320,12 +320,12 @@ func test_hole_fill_requires_shovel() -> void:
 	assert_float(action.effect_frame).is_equal(PlantGrowth.FILL_HOLE_EFFECT_FRAME)
 	assert_bool(hole.interact(action, ctx)).is_true()
 	assert_bool(hole.is_queued_for_deletion()).is_true()
-	assert_bool(Game.is_hole(&"hole_4_5")).is_false()
+	assert_bool(Game.town.is_hole(&"hole_4_5")).is_false()
 
 
 func test_saved_stump_offers_dig() -> void:
 	ItemCatalog.reload()
-	Game.mark_stump(&"tree_1")
+	Game.town.mark_stump(&"tree_1")
 	var tree: Node = auto_free(load("res://scenes/world/tree.tscn").instantiate())
 	tree.set("persist_id", &"tree_1")
 	assert_int(tree.get_interactions(InteractionContext.new()).size()).is_equal(0)

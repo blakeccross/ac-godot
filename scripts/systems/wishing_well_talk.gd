@@ -82,12 +82,12 @@ func hand_result(item: StringName, pocket: int = -1) -> Dictionary:
 
 
 func _how_are_things() -> int:
-	var result: Dictionary = Game.rate_town(world, rng, true)
+	var result: Dictionary = TownAssessment.rate(world, rng, true)
 	var rank: int = int(result["rank"])
 	var condition: int = int(result["condition"])
 	if (
 		rank == TownAssessment.RANK_PERFECT
-		and Game.perfect_town_long_enough()
+		and TownAssessment.perfect_long_enough()
 		and not Game.town.golden_axe_got
 		and inventory != null and inventory.has_space(1)
 		and not (Game.first_job != null and Game.first_job.is_active())

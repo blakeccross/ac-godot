@@ -23,17 +23,17 @@ func test_reset_session_clears_pockets_and_world_deltas() -> void:
 	Game.town.plant_states["plant_4_6"] = {"plant": "apple_tree", "planted_renew": 10}
 	Game.resident.player_position = Vector3(3, 0.1, -2)
 	Game.resident.player_yaw = 1.2
-	Game.mark_interactable_removed(&"ground_apple")
-	Game.mark_stump(&"tree_1")
-	Game.mark_hole(&"hole_8_9")
+	Game.town.mark_removed(&"ground_apple")
+	Game.town.mark_stump(&"tree_1")
+	Game.town.mark_hole(&"hole_8_9")
 	Game.reset_session()
 	assert_int(Game.inventory.count_of_occupied()).is_equal(0)
 	assert_bool(Game.villagers.has_id(&"filbert")).is_false()
 	assert_vector(Game.resident.player_position).is_equal(Game.DEFAULT_SPAWN)
 	assert_float(Game.resident.player_yaw).is_equal(0.0)
-	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_false()
-	assert_bool(Game.is_stump(&"tree_1")).is_false()
-	assert_bool(Game.is_hole(&"hole_8_9")).is_false()
+	assert_bool(Game.town.is_removed(&"ground_apple")).is_false()
+	assert_bool(Game.town.is_stump(&"tree_1")).is_false()
+	assert_bool(Game.town.is_hole(&"hole_8_9")).is_false()
 	assert_int(Game.town.plant_states.size()).is_equal(0)
 	assert_that(Game.town.world_mode).is_equal(WorldData.Mode.TEST)
 	assert_int(Game.shops.to_save().size()).is_equal(0)
@@ -67,9 +67,9 @@ func test_test_world_gets_starter_tools() -> void:
 func test_world_snapshot_round_trip() -> void:
 	Game.resident.player_position = Vector3(4.5, 0.1, -3.25)
 	Game.resident.player_yaw = 0.75
-	Game.mark_interactable_removed(&"ground_apple")
-	Game.mark_stump(&"tree_1")
-	Game.mark_hole(&"hole_8_9")
+	Game.town.mark_removed(&"ground_apple")
+	Game.town.mark_stump(&"tree_1")
+	Game.town.mark_hole(&"hole_8_9")
 	Game.town.plant_states["plant_4_6"] = {"plant": "apple_tree", "planted_renew": 10}
 	Game.town.world_mode = WorldData.Mode.GENERATED
 	Game.town.world_seed = 12345
@@ -81,9 +81,9 @@ func test_world_snapshot_round_trip() -> void:
 	Game.apply_snapshot(snap)
 	assert_vector(Game.resident.player_position).is_equal(Vector3(4.5, 0.1, -3.25))
 	assert_float(Game.resident.player_yaw).is_equal(0.75)
-	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_true()
-	assert_bool(Game.is_stump(&"tree_1")).is_true()
-	assert_bool(Game.is_hole(&"hole_8_9")).is_true()
+	assert_bool(Game.town.is_removed(&"ground_apple")).is_true()
+	assert_bool(Game.town.is_stump(&"tree_1")).is_true()
+	assert_bool(Game.town.is_hole(&"hole_8_9")).is_true()
 	assert_str(str(Game.town.plant_states.get("plant_4_6", {}).get("plant", ""))).is_equal("apple_tree")
 	assert_that(Game.town.world_mode).is_equal(WorldData.Mode.GENERATED)
 	assert_int(Game.town.world_seed).is_equal(12345)
@@ -103,9 +103,9 @@ func test_villager_roster_survives_world_snapshot() -> void:
 
 
 func test_empty_persist_id_is_never_removed() -> void:
-	Game.mark_interactable_removed(&"")
-	Game.mark_stump(&"")
-	Game.mark_hole(&"")
-	assert_bool(Game.is_interactable_removed(&"")).is_false()
-	assert_bool(Game.is_stump(&"")).is_false()
-	assert_bool(Game.is_hole(&"")).is_false()
+	Game.town.mark_removed(&"")
+	Game.town.mark_stump(&"")
+	Game.town.mark_hole(&"")
+	assert_bool(Game.town.is_removed(&"")).is_false()
+	assert_bool(Game.town.is_stump(&"")).is_false()
+	assert_bool(Game.town.is_hole(&"")).is_false()

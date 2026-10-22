@@ -343,14 +343,14 @@ func test_the_pockets_offer_put_in_only_for_what_was_asked() -> void:
 
 func test_pocket_picker_hands_back_the_pick() -> void:
 	var picked: Array[StringName] = []
-	Game.storage_putin_resolved.connect(func(id: StringName) -> void: picked.append(id))
-	Game.storage_putin_pending = true
-	Game.take_storage_putin(&"apple")
+	Game.pocket_requests.putin_resolved.connect(func(id: StringName) -> void: picked.append(id))
+	Game.pocket_requests.putin_pending = true
+	Game.pocket_requests.take_putin(&"apple")
 	assert_array(picked).is_equal([&"apple"])
-	Game.storage_putin_pending = true
-	Game.cancel_storage_putin()
+	Game.pocket_requests.putin_pending = true
+	Game.pocket_requests.cancel_putin()
 	assert_array(picked).is_equal([&"apple", &""])
-	Game.cancel_storage_putin()
+	Game.pocket_requests.cancel_putin()
 	assert_int(picked.size()).is_equal(2)
 
 

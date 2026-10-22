@@ -652,7 +652,7 @@ func test_builder_marks_an_acre_with_no_baked_scene() -> void:
 
 
 func test_builder_skips_removed_pickup() -> void:
-	Game.mark_interactable_removed(&"ground_apple")
+	Game.town.mark_removed(&"ground_apple")
 	var world: Node3D = _shell()
 	auto_free(world)
 	add_child(world)

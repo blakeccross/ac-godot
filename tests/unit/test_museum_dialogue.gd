@@ -189,8 +189,8 @@ func test_donating_one_of_a_multipart_fossil_names_the_set() -> void:
 func test_donate_select_pockets_flow() -> void:
 	## Blathers opens the pockets; a caught fish gets a "Donate" tag; picking it commits.
 	Game.inventory.add(FishCatalog.get_fish(&"carp"), 1)
-	Game.request_museum_donation()
-	assert_bool(Game.museum_donate_pending).is_true()
+	Game.pocket_requests.request_donation()
+	assert_bool(Game.pocket_requests.donation_pending).is_true()
 	var slot: int = -1
 	for i: int in Inventory.POCKET_SLOTS:
 		var s: InventorySlot = Game.inventory.slot_at(i)
@@ -198,27 +198,27 @@ func test_donate_select_pockets_flow() -> void:
 			slot = i
 	assert_array(Game.inventory.tags_for_slot(slot)).contains(["Donate"])
 	var resolved: Array[bool] = []
-	Game.museum_donate_resolved.connect(func(d: bool) -> void: resolved.append(d))
-	Game.take_museum_donation(&"carp")
-	assert_bool(Game.museum_donate_pending).is_false()
+	Game.pocket_requests.donation_resolved.connect(func(d: bool) -> void: resolved.append(d))
+	Game.pocket_requests.take_donation(&"carp")
+	assert_bool(Game.pocket_requests.donation_pending).is_false()
 	assert_array(resolved).is_equal([true])
 	assert_bool(Game.museum.has_fish_id(&"carp")).is_true()
 	assert_int(Game.inventory.count_of(&"carp")).is_equal(0)
 
 
 func test_cancel_donation_emits_false() -> void:
-	Game.request_museum_donation()
+	Game.pocket_requests.request_donation()
 	var resolved: Array[bool] = []
-	Game.museum_donate_resolved.connect(func(d: bool) -> void: resolved.append(d))
-	Game.cancel_museum_donation()
+	Game.pocket_requests.donation_resolved.connect(func(d: bool) -> void: resolved.append(d))
+	Game.pocket_requests.cancel_donation()
 	assert_array(resolved).is_equal([false])
-	assert_bool(Game.museum_donate_pending).is_false()
+	assert_bool(Game.pocket_requests.donation_pending).is_false()
 
 
 func test_build_outcome_uses_the_stored_result() -> void:
 	## Donatable fish -> examine + trivia + "anything else?".
 	Game.inventory.add(FishCatalog.get_fish(&"koi"), 1)
-	var res: Dictionary = Game.donate_museum_result(&"koi")
+	var res: Dictionary = MuseumDonation.donate(&"koi")
 	res["item_id"] = "koi"
 	var runner := DialogueRunner.new()
 	runner.start(MuseumDialogue.build_outcome(&"koi", res), _game_ctx(), null)
@@ -235,7 +235,7 @@ func test_build_outcome_uses_the_stored_result() -> void:
 
 func test_build_outcome_generic_fossil_is_farway_referral() -> void:
 	Game.inventory.add(ItemCatalog.get_item(&"fossil"), 1)
-	var res: Dictionary = Game.donate_museum_result(&"fossil")
+	var res: Dictionary = MuseumDonation.donate(&"fossil")
 	var runner := DialogueRunner.new()
 	runner.start(MuseumDialogue.build_outcome(&"fossil", res), _game_ctx(), null)
 	assert_str(runner.line).contains("Farway")

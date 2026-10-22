@@ -2,7 +2,7 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — do not commit the recordings, logo art, or the disc textures.
 
-**Read before implementing:** `TitleLogoState`, `TitleDemoInput`, `TitleDemo`, `scenes/ui/title.tscn` / `title_logo.tscn`, `Game.begin_title_demo`.
+**Read before implementing:** `TitleLogoState`, `TitleDemoInput`, `TitleDemo`, `scenes/ui/title.tscn` / `title_logo.tscn`, `TitleDemo.begin`.
 
 There is **no static title image**. The title screen is a live town (`SCENE_TITLE_DEMO`, a normal `play` game state) with a scripted player, and the "Animal Crossing" logo is an *actor* (`ANIMAL_LOGO`, control actor 8) drawn over it in the font/ortho layer.
 
@@ -83,7 +83,7 @@ Layout (font matrix = ortho ±160×120 px × 16, y up, 320×240 virtual): logo a
 
 | Decomp | Godot |
 | --- | --- |
-| `trademark` + `SCENE_TITLE_DEMO` | `scenes/ui/title.tscn` (main scene) hosts an instance of `world.tscn`; `Game.begin_title_demo(index)` in `_enter_tree` fixes date (`Clock.set_datetime`), weather, random resident, tool, spawn. `Game.title_demo_active` keeps the phase `TITLE` and picks the title BGM in `world.gd`. |
+| `trademark` + `SCENE_TITLE_DEMO` | `scenes/ui/title.tscn` (main scene) hosts an instance of `world.tscn`; `TitleDemo.begin(index)` in `_enter_tree` fixes date (`Clock.set_datetime`), weather, random resident, tool, spawn. `Game.title_demo_active` keeps the phase `TITLE` and picks the title BGM in `world.gd`. |
 | `pactN` recording | `--kind title` → `assets/generated/titledemo/demos.json`; `TitleDemoInput` (decode + 30→60 Hz blend + A edge); `Player.scripted_input` swaps the stick and A, `TitleDemo.SAFE_VERBS` limits A to tool/pickup verbs (no talking, doors, shops). |
 | `data_fdd[SCENE_TITLE_DEMO]` | `--kind title` → `demos.json` `acres` (`parse_title_demo_acres`); `TitleDemo.acres()` remaps to generator ids; `WorldGenerator.generate(seed, true)` uses it and lays the fixed FG over it whole. |
 | `mTRC_mati_init` + `TRAIN0`/`TRAIN1`/engineer | `TitleDemo.has_parked_train` (demo 1) → `Game.train` (`TrainService`) parks `TrainControl` and drives the world's `FieldTrain`, exactly as in play. See [world_objects](world_objects.md) § Train. |

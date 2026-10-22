@@ -55,9 +55,9 @@ static func dig(ctx: InteractionContext, cell: Vector2i, play_scoop_se: bool = t
 			PlayerSe.scoop_dig(ctx.actor)
 		return true
 	var pid: StringName = persist_id(cell)
-	Game.mark_hole(pid)
+	Game.town.mark_hole(pid)
 	if not grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT):
-		Game.clear_hole(pid)
+		Game.town.clear_hole(pid)
 		return false
 	var hole: Node3D = _instance(ctx.world if ctx != null else null, grid, cell, pid)
 	## `Put_Hole_Dig_scoop`: the unit is a hole from the dig's frame 15, but the hole itself
@@ -80,7 +80,7 @@ static func fill(host: Node, ctx: InteractionContext) -> bool:
 	## `Player_actor_set_viblation_Fill_scoop`.
 	GameConfig.rumble(GameConfig.FILL)
 	var pid: StringName = _host_persist(host)
-	Game.clear_hole(pid)
+	Game.town.clear_hole(pid)
 	var grid: WorldGrid = _grid(ctx)
 	if grid != null:
 		grid.remove(pid)

@@ -63,7 +63,7 @@ func test_buy_genuine_then_donate_completes_toward_art() -> void:
 	ReddBook.ensure_art_items()
 	var genuine_id: StringName = ReddBook.art_item_id(4, false)
 	Game.inventory.add(ItemCatalog.get_item(genuine_id), 1)
-	var res: Dictionary = Game.donate_museum_result(genuine_id)
+	var res: Dictionary = MuseumDonation.donate(genuine_id)
 	assert_bool(res.get("ok", false)).is_true()
 	assert_int(Game.museum.count_art()).is_equal(1)
 
@@ -74,7 +74,7 @@ func test_forgery_is_rejected_by_blathers() -> void:
 	var fake: ItemData = ItemCatalog.get_item(fake_id)
 	assert_that(Game.museum.display_info_for_item(fake)).is_equal(MuseumBook.DisplayInfo.CANNOT_DONATE)
 	Game.inventory.add(fake, 1)
-	var res: Dictionary = Game.donate_museum_result(fake_id)
+	var res: Dictionary = MuseumDonation.donate(fake_id)
 	assert_bool(res.get("ok", false)).is_false()
 	assert_str(str(res.get("reason", ""))).is_equal("forgery")
 	assert_int(Game.museum.count_art()).is_equal(0)

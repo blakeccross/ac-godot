@@ -476,7 +476,7 @@ func test_exterior_model_follows_size_for_the_owned_plot_only() -> void:
 
 
 func test_intro_pick_decides_which_plot_is_owned() -> void:
-	Game.intro_station_house_id = &"player_house_2"
+	Game.intro.house_id = &"player_house_2"
 	assert_bool(PlayerHouse.is_owned_node("player_house_2")).is_true()
 	assert_bool(PlayerHouse.is_owned_node("player_house")).is_false()
 

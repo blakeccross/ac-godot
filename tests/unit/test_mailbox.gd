@@ -174,12 +174,12 @@ func test_only_the_owned_plots_box_is_live() -> void:
 
 func test_mailbox_follows_the_intro_house_pick() -> void:
 	## `mHS_get_arrange_idx`: the player picked plot 2 at the station.
-	Game.intro_station_active = true
+	Game.intro.active = true
 	var box0: Node = _placed_box(&"player_mailbox")
 	var box2: Node = _placed_box(&"player_mailbox_2")
 	## Nothing picked yet: every plot is vacant.
 	assert_bool(box0.call("is_owned")).is_false()
-	Game.claim_intro_house(&"player_house_2")
+	Game.intro.claim_house(&"player_house_2")
 	assert_bool(box2.call("is_owned")).is_true()
 	assert_bool(box0.call("is_owned")).is_false()
 	var verbs: Array[Interaction] = box2.call("get_interactions", InteractionContext.new())
@@ -187,9 +187,9 @@ func test_mailbox_follows_the_intro_house_pick() -> void:
 
 
 func test_house_pick_survives_save_and_load() -> void:
-	Game.intro_station_active = true
-	Game.claim_intro_house(&"player_house_3")
-	Game.intro_station_active = false
+	Game.intro.active = true
+	Game.intro.claim_house(&"player_house_3")
+	Game.intro.active = false
 	var snapshot: Dictionary = Game.to_save()
 	Game.reset_session()
 	assert_that(PlayerHouse.owned_building_id()).is_equal(&"player_house")

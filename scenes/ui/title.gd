@@ -2,7 +2,7 @@ extends Node
 
 ## Title screen: `m_trademark` → `SCENE_TITLE_DEMO` + the `ac_animal_logo` actor.
 ##
-## The screen is a live town: `Game.begin_title_demo` fixes the date, weather and a random
+## The screen is a live town: `TitleDemo.begin` fixes the date, weather and a random
 ## resident, the world scene builds the generated town, and a recording (`TitleDemoInput`)
 ## plays the player's stick and A button for 60 s (`title_demo_move`). The logo overlay
 ## (`TitleLogo`) animates in over it; START or A then fades to black and shows four save
@@ -43,7 +43,7 @@ var _import_slot: int = -1
 func _enter_tree() -> void:
 	## Runs before the hosted world's `_ready`, which reads this session state.
 	_demo_index = TitleDemo.next_demo_index()
-	Game.begin_title_demo(_demo_index)
+	TitleDemo.begin(_demo_index)
 	## `Common_Set(transition.wipe_type, WIPE_TYPE_FADE_BLACK)`: fade in from black.
 	SceneTransition.hold_black()
 

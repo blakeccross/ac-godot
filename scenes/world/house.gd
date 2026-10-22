@@ -113,14 +113,14 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 		entry_id = StringName(name)
 	## Vacant myhome shells during station intro house pick — Nook speaks first.
 	if (
-		Game.intro_station_active
-		and Game.intro_station_can_pick_house
+		Game.intro.active
+		and Game.intro.can_pick_house
 		and String(name).begins_with("player_house")
 	):
-		Game.request_intro_house_look(StringName(name))
+		Game.intro.request_house_look(StringName(name))
 		return true
-	elif Game.intro_station_active and not Game.intro_station_can_pick_house:
-		if Game.intro_pending_house_id != &"":
+	elif Game.intro.active and not Game.intro.can_pick_house:
+		if Game.intro.pending_house_id != &"":
 			return true
 		Game.post_notice("Talk to Tom Nook first.")
 		return true
@@ -135,7 +135,7 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 			Game.post_notice("The door is locked.")
 			return true
 		if slot != Game.roster.current:
-			Game.enter_resident_house(slot)
+			Game.roster.enter_house(slot, Game.interiors)
 	## Villager homes: `aHUS_odekake_check` — sleep / not home / enter.
 	var gate: String = VillagerHome.door_notice(entry_id)
 	if gate != "":
@@ -153,5 +153,5 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if Game.try_enter_interior(entry_id):
 		return true
 	StructureDoor.end_enter(self)
-	Game.leave_resident_house()
+	Game.roster.leave_house(Game.interiors)
 	return false

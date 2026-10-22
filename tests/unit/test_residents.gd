@@ -29,7 +29,7 @@ func _two_residents() -> void:
 	Game.town.town_name = "Pine"
 	Game.interiors.player_house().outdoor_building_id = &"player_house"
 	Game.inventory.add(_apple(), 2)
-	Game.mark_interactable_removed(&"town_thing")
+	Game.town.mark_removed(&"town_thing")
 	assert_int(SaveService.save_game(PATH)).is_equal(OK)
 	Game.reset_session()
 	assert_int(SaveService.load_game(PATH, 1)).is_equal(OK)
@@ -59,7 +59,7 @@ func test_each_resident_keeps_their_own_things_and_shares_the_town() -> void:
 	assert_int(SaveService.load_game(PATH, 1)).is_equal(OK)
 	assert_str(Game.resident.player_name).is_equal("Bob")
 	assert_int(Game.inventory.count_of(&"apple")).is_equal(0)
-	assert_bool(Game.is_interactable_removed(&"town_thing")).is_true()
+	assert_bool(Game.town.is_removed(&"town_thing")).is_true()
 	assert_str(String(PlayerHouse.owned_building_id())).is_equal("player_house_1")
 	Game.reset_session()
 	assert_int(SaveService.load_game(PATH, 0)).is_equal(OK)
@@ -90,7 +90,7 @@ func test_a_one_resident_save_from_before_is_resident_one() -> void:
 	assert_str(SaveService.read_town_name(PATH)).is_equal("Elm")
 	assert_int(SaveService.load_game(PATH)).is_equal(OK)
 	assert_str(Game.resident.player_name).is_equal("Old")
-	assert_bool(Game.is_interactable_removed(&"x")).is_true()
+	assert_bool(Game.town.is_removed(&"x")).is_true()
 
 
 func _talk(roster: PlayerRoster) -> PlayerSelectTalk:
@@ -177,11 +177,11 @@ func test_visiting_a_housemate_swaps_their_house_in_and_back() -> void:
 	_two_residents()
 	Game.reset_session()
 	assert_int(SaveService.load_game(PATH, 0)).is_equal(OK)
-	Game.enter_resident_house(1)
+	Game.roster.enter_house(1, Game.interiors)
 	assert_str(String(Game.interiors.player_house().outdoor_building_id)).is_equal("player_house_1")
-	Game.leave_resident_house()
+	Game.roster.leave_house(Game.interiors)
 	assert_str(String(Game.interiors.player_house().outdoor_building_id)).is_equal("player_house")
-	assert_int(Game.visiting_slot).is_equal(-1)
+	assert_int(Game.roster.visiting).is_equal(-1)
 
 
 func test_the_disc_talk_runs_from_hello_to_loading_a_resident() -> void:
@@ -231,7 +231,7 @@ func test_a_posted_letter_to_a_housemate_waits_for_the_round() -> void:
 	var bob := Inventory.new()
 	bob.from_save(Game.roster.slots[1].get(PlayerRoster.KEY_INVENTORY, {}))
 	assert_int(bob.received_mail_count()).is_equal(0)
-	Game.post.deliver(Clock.absolute_minute(), Game._post_to_resident, true)
+	Game.post.deliver(Clock.absolute_minute(), MailDelivery.from_post_office, true)
 	bob.from_save(Game.roster.slots[1].get(PlayerRoster.KEY_INVENTORY, {}))
 	assert_int(bob.received_mail_count()).is_equal(1)
 	assert_int(Game.post.occupied_count()).is_equal(0)

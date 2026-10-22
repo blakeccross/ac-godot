@@ -25,7 +25,7 @@ func test_fossil_catalog_registers_identified_items() -> void:
 
 func test_send_fossils_queues_and_returns_next_day() -> void:
 	Game.inventory.add(ItemCatalog.get_item(&"fossil"), 2)
-	var msg: String = Game.send_fossils_to_museum(2)
+	var msg: String = MuseumDonation.mail_fossils(2)
 	assert_str(msg).contains("Farway")
 	assert_int(Game.inventory.count_of(&"fossil")).is_equal(0)
 	assert_int(Game.travel_book.in_transit_count()).is_equal(2)
@@ -52,7 +52,7 @@ func test_intro_letter_sends_once() -> void:
 
 func test_delivered_letter_lands_in_mailbox_and_enclosure_is_takeable() -> void:
 	Game.inventory.add(ItemCatalog.get_item(&"fossil"), 1)
-	Game.send_fossils_to_museum(1)
+	MuseumDonation.mail_fossils(1)
 	var letters: Array = Game.travel_book.process_delivery(TravelBook.today_ordinal() + 1)
 	var slot: int = Game.inventory.add_received_mail(letters[0])
 	assert_int(slot).is_greater_equal(0)
@@ -61,7 +61,7 @@ func test_delivered_letter_lands_in_mailbox_and_enclosure_is_takeable() -> void:
 	var fossil_id: StringName = mail.present_item_id
 	Game.inventory.add(FossilCatalog.get_item(fossil_id), 1)
 	## Donating the identified fossil writes the museum nibble.
-	var res: Dictionary = Game.donate_museum_result(fossil_id)
+	var res: Dictionary = MuseumDonation.donate(fossil_id)
 	assert_bool(res.get("ok", false)).is_true()
 	assert_int(Game.museum.count_fossils()).is_equal(1)
 	assert_int(Game.inventory.count_of(fossil_id)).is_equal(0)
@@ -69,8 +69,8 @@ func test_delivered_letter_lands_in_mailbox_and_enclosure_is_takeable() -> void:
 
 func test_field_renew_delivers_mail_and_notifies() -> void:
 	Game.inventory.add(ItemCatalog.get_item(&"fossil"), 1)
-	Game.send_fossils_to_museum(1)
+	MuseumDonation.mail_fossils(1)
 	## Roll the calendar forward a day and fire the 06:00 renew.
 	Clock.apply_snapshot({"year": Clock.year, "month": Clock.month, "day": Clock.day + 1, "hour": 6})
-	Game._on_field_renewed(1)
+	TownUpkeep.on_field_renewed(1)
 	assert_int(Game.inventory.count_mail()).is_greater_equal(1)

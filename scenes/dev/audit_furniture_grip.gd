@@ -42,7 +42,7 @@ func _run() -> void:
 	var chair: FurnitureData = ItemCatalog.get_item(&"wood_chair") as FurnitureData
 	var table: FurnitureData = ItemCatalog.get_item(&"wood_table") as FurnitureData
 	Game.current_room_id = &"player_main"
-	Game.spawn_at_room_door = true
+	Game.arrival.at_room_door = true
 	var interior: Node = INTERIOR.instantiate()
 	add_child(interior)
 	await _frames(6)
@@ -133,7 +133,7 @@ func _run() -> void:
 	await _frames(4)
 	var apples_before: int = Game.inventory.count_of(&"apple")
 	var probe_hit: InteractionQuery = player._resolve_interact()
-	print("tap     probe host=", probe_hit.host if probe_hit else null, " action=", probe_hit.action.id if probe_hit and probe_hit.action else null, " held=", Game.held_furniture())
+	print("tap     probe host=", probe_hit.host if probe_hit else null, " action=", probe_hit.action.id if probe_hit and probe_hit.action else null, " held=", FurnitureEditing.held())
 	print("tap     grip=", player.furniture.try_grip())
 	Input.action_press("interact")
 	await _frames(5)

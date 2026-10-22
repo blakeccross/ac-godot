@@ -55,7 +55,7 @@ static func time_signal_quiet(minute: int, second: int) -> bool:
 func _process(delta: float) -> void:
 	## Windows fade on at 18:00 and off at 05:00 (`aPBOX_actor_move`'s 320-a-tick chase).
 	VisualWindowLight.step_window_lights(self, delta)
-	if not Game.title_demo_active and not Game.intro_station_active:
+	if not Game.title_demo_active and not Game.intro.active:
 		var quiet: bool = time_signal_quiet(Clock.minute, Clock.second)
 		if quiet != _time_signal_quiet:
 			_time_signal_quiet = quiet
@@ -102,11 +102,11 @@ func _ready() -> void:
 	if Game.town.buried_deposits.is_empty():
 		BuriedUse.renew(self, grid)
 	_sow_weeds()
-	if not Game.title_demo_active and not Game.intro_station_active:
+	if not Game.title_demo_active and not Game.intro.active:
 		## `mHsRm_GetHuusuiRoom` as the last scene let go (`play_dt`).
 		Game.refresh_feng_shui()
 		_renew_money_rock()
-		Game.rate_town(self)
+		TownAssessment.rate(self)
 	fish.configure(grid, 0.0, layout)
 	bugs.configure(grid, layout)
 	if layout.mode == WorldData.Mode.TEST:
@@ -121,9 +121,9 @@ func _ready() -> void:
 	_apply_time_of_day()
 	_play_outdoor_bgm()
 	_spawn_player()
-	if not Game.title_demo_active and not Game.intro_station_active:
-		Game.note_played_today()
-		Game.try_treasure(self)
+	if not Game.title_demo_active and not Game.intro.active:
+		CalendarBook.note_today()
+		TownUpkeep.try_treasure(self)
 		if not Game.mushrooms_session_cleared:
 			Game.mushrooms_session_cleared = true
 			MushroomUse.first_clear(self, Clock.absolute_minute(), _field_rng())
@@ -131,19 +131,19 @@ func _ready() -> void:
 	## `aNPS2_make_door_data`: someone with a present outside the door, else Resetti
 	## (`ac_reset_demo`) when the last session ended without saving.
 	var present: int = PresentVisit.Kind.NONE
-	if _door_stand != Vector3.INF and not Game.intro_station_active and not Game.title_demo_active:
+	if _door_stand != Vector3.INF and not Game.intro.active and not Game.title_demo_active:
 		present = PresentVisit.decide_now()
 		if present != PresentVisit.Kind.NONE:
 			load("res://scenes/world/present_npc.gd").spawn($Characters, present, _door_stand, _door_yaw)
 	if (present == PresentVisit.Kind.NONE and Game.reset_flag and not Game.resetti_disabled
-			and not Game.intro_station_active and not Game.title_demo_active):
+			and not Game.intro.active and not Game.title_demo_active):
 		load("res://scenes/world/resetti.gd").spawn($Characters, Player.find(get_tree()))
-	if not Game.title_demo_active and not Game.intro_station_active:
+	if not Game.title_demo_active and not Game.intro.active:
 		_place_station_porter()
 	var event_mgr: EventManager = get_node_or_null("EventManager") as EventManager
 	if event_mgr != null:
 		event_mgr.setup(self)
-	if Game.intro_station_active:
+	if Game.intro.active:
 		var director: Node = load("res://scenes/world/intro_station_director.gd").new()
 		add_child(director)
 		if director.has_method("setup"):
@@ -225,7 +225,7 @@ func _on_hour_changed(_hour: int) -> void:
 	_play_outdoor_bgm()
 	## `mBGMTime_signal_melody`: the town tune on the hour, outdoors, not in the title
 	## demo or the first arrival.
-	if not Game.title_demo_active and not Game.intro_station_active and Game.current_room_id == &"":
+	if not Game.title_demo_active and not Game.intro.active and Game.current_room_id == &"":
 		Audio.play_melody(Game.town.town_tune, {}, Audio.CHIME_STEP_SEC)
 
 
@@ -245,7 +245,7 @@ func _play_outdoor_bgm() -> void:
 	if _time_signal_quiet:
 		return
 	## Fresh station arrival owns `intro_arrive`; after a house exit we keep field BGM.
-	if Game.intro_station_active and not Game.intro_station_resume_debt:
+	if Game.intro.active and not Game.intro.resume_debt:
 		return
 	var ev: Dictionary = _event_bgm()
 	_event_bgm_now = ev
@@ -290,7 +290,7 @@ func _spawn_player() -> void:
 			_door_stand = pos
 			_door_yaw = yaw
 	player.apply_spawn(pos, yaw)
-	if Game.intro_station_active and _camera.has_method("suspend"):
+	if Game.intro.active and _camera.has_method("suspend"):
 		## Station demo framing — do not snap-follow the house spawn first.
 		_camera.call("suspend")
 	elif _camera.has_method("set_target"):
@@ -399,15 +399,15 @@ func _on_field_renewed(_days: int) -> void:
 	if SecondBridge.build_if_due(EventDates.ordinal(Clock.year, Clock.month, Clock.day), Clock.hour):
 		SecondBridge.restore(self, layout, grid)
 	## `mFAs_SetFieldRank` at the end of every growth pass.
-	Game.rate_town(self)
+	TownAssessment.rate(self)
 
 
 ## `mAGrw_SetGrass` for every renewal since the field last saw one (after the deposits are
 ## laid, so weeds never sit on a dig spot).
 func _sow_weeds() -> void:
-	if Game.title_demo_active or Game.intro_station_active:
+	if Game.title_demo_active or Game.intro.active:
 		return
-	var days: int = Game.take_weed_days()
+	var days: int = Game.town.take_weed_days()
 	if days <= 0:
 		return
 	## `mAGrw_ClearGrass`: a wish to the Wisp clears every weed, and none grow that once.
@@ -427,7 +427,7 @@ func _renew_money_rock() -> void:
 
 ## `mFI_FieldMove` → `mMsr_SetMushroom` and `mFI_SetShell`, once a game minute while out on the field.
 func _tick_mushrooms() -> void:
-	if Game.title_demo_active or Game.intro_station_active or Game.current_room_id != &"":
+	if Game.title_demo_active or Game.intro.active or Game.current_room_id != &"":
 		return
 	var player: Node3D = Player.find(get_tree())
 	var block := Vector2i(-1, -1)

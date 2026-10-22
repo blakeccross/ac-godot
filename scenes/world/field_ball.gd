@@ -300,7 +300,7 @@ func _check_hole() -> void:
 	if world == null or world.grid == null or not on_ground or speed >= FRAME:
 		return
 	var cell: Vector2i = world.grid.world_to_cell(global_position)
-	if not Game.is_hole(world.grid.occupant_at(cell)):
+	if not Game.town.is_hole(world.grid.occupant_at(cell)):
 		return
 	var centre: Vector3 = world.grid.cell_to_world(cell)
 	global_position = Vector3(centre.x, global_position.y, centre.z)

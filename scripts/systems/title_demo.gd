@@ -219,6 +219,50 @@ static func random_identity(rng: RandomNumberGenerator) -> Dictionary:
 	}
 
 
+## `trademark_goto_demo_scene`: set the session up for demo `index`: fixed date, time and
+## weather (`tradeday_table`), a randomised resident (`mPr_RandomSetPlayerData_title_demo`), a
+## random grass motif (`mFM_DecideBgTexIdx`), and the recording's tool and spawn. Nothing here
+## is saved: every real entry point (`Game.start_*`, `continue_game`) begins with `reset_session`.
+static func begin(index: int) -> void:
+	Game.reset_session()
+	Game.title_demo_active = true
+	Game.title_demo_index = index
+	var moment: Dictionary = trade_day(index)
+	Clock.set_datetime(Clock.MIN_YEAR + 1, int(moment["month"]), int(moment["day"]), int(moment["hour"]))
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var who: Dictionary = random_identity(rng)
+	var resident: PlayerState = Game.resident
+	resident.player_gender = who["gender"] as StringName
+	resident.player_face = int(who["face"])
+	resident.cloth_id = who["cloth"] as StringName
+	var town: TownState = Game.town
+	town.world_mode = WorldData.Mode.GENERATED
+	town.world_seed = WorldGenerator.DEFAULT_SEED
+	town.grass_pattern = rng.randi_range(0, WorldData.GRASS_PATTERN_COUNT - 1)
+	Game.set_weather(moment["weather"] as StringName)
+	_equip_tool(tool_item_id(index))
+	var layout := WorldData.new()
+	layout.columns = WorldGenerator.FG_X * WorldGenerator.UT
+	layout.rows = WorldGenerator.FG_Z * WorldGenerator.UT
+	layout.cell_size = 2.0
+	resident.player_position = gx_to_world(layout, spawn_gx(index))
+	resident.player_yaw = spawn_yaw(index)
+
+
+static func _equip_tool(tool_id: StringName) -> void:
+	var tool: ItemData = ItemCatalog.get_item(tool_id) if tool_id != &"" else null
+	if tool == null:
+		return
+	var inventory: Inventory = Game.inventory
+	inventory.add(tool, 1)
+	for i: int in Inventory.POCKET_SLOTS:
+		var slot: InventorySlot = inventory.slot_at(i)
+		if slot != null and not slot.is_empty() and slot.item.item_id == tool_id:
+			inventory.equip_slot(i)
+			return
+
+
 static func allows_verb(verb: StringName) -> bool:
 	return SAFE_VERBS.has(verb)
 

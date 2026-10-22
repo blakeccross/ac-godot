@@ -49,7 +49,7 @@ static func build_donate(preselect: StringName = &"") -> DialogueData:
 
 
 ## Blathers' spoken response to the item the player just picked in the donate-select
-## pockets. `result` is `Game.donate_museum_result` (commit already applied on `ok`).
+## pockets. `result` is `MuseumDonation.donate` (commit already applied on `ok`).
 static func build_outcome(item_id: StringName, result: Dictionary) -> DialogueData:
 	var nodes: Dictionary = _static_nodes()
 	var reason := String(result.get("reason", ""))

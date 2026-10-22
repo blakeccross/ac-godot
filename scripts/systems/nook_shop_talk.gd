@@ -184,7 +184,7 @@ static func apply_event(event: Dictionary, ctx: DialogueContext) -> Dictionary:
 				ctx.set_var(VAR_ORDER_DONE, "ok" if code == ShopBook.Order.OK
 					else ("no_money" if code == ShopBook.Order.NO_MONEY else "full"))
 		"sell_confirm":
-			var selection: Dictionary = sell_selection(Game.shop_sell_slots)
+			var selection: Dictionary = sell_selection(Game.pocket_requests.sell_slots)
 			var done: String = "ok"
 			var paid: int = 0
 			for id: StringName in selection:
@@ -192,7 +192,7 @@ static func apply_event(event: Dictionary, ctx: DialogueContext) -> Dictionary:
 				if int(res.get("code", -1)) == ShopBook.Sell.OVERFLOW:
 					done = "full"
 				paid += int(res.get("paid", 0))
-			Game.shop_sell_slots = []
+			Game.pocket_requests.sell_slots = []
 			if ctx != null:
 				ctx.set_var(VAR_SELL_DONE, done)
 		"code_say":

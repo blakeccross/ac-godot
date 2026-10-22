@@ -56,7 +56,7 @@ static func manager(villager: VillagerData, state: VillagerState, ctx: DialogueC
 	m.show_letter = func(letter: Dictionary) -> void: _show_letter(villager, letter)
 	m.edit_catchphrase = func() -> void: _edit_catchphrase(villager, state)
 	m.edit_birthday = _edit_birthday
-	m.send_mail = Game.deliver_to_mailbox
+	m.send_mail = MailDelivery.to_mailbox
 	m.field_counts = Game.field_counts
 	if state != null:
 		## `mNpc_GetOverImpatient` for the greeting.

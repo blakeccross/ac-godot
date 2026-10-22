@@ -78,7 +78,7 @@ func _is_drowsy() -> bool:
 ## through the talk menu's "I've something to donate" choice (`blathers_greeting.json`
 ## `menu` node -> `{op:"museum_menu", choice:"donate"}` -> `_open_donate_pockets`), same as
 ## the decomp's pocket `DONATE` tag route (`Inventory.tags_for_slot`, gated on
-## `Game.museum_donate_pending`).
+## `Game.pocket_requests.donation_pending`).
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 	return [Interaction.of(Interaction.TALK, "Talk to Blathers", 20)]
 
@@ -164,26 +164,26 @@ func _mark_greeted() -> void:
 func _open_donate_pockets() -> void:
 	if Game == null:
 		return
-	if not Game.museum_donate_resolved.is_connected(_on_donate_resolved):
-		Game.museum_donate_resolved.connect(_on_donate_resolved)
+	if not Game.pocket_requests.donation_resolved.is_connected(_on_donate_resolved):
+		Game.pocket_requests.donation_resolved.connect(_on_donate_resolved)
 	var inv_ui: InventoryOverlay = InventoryOverlay.find(get_tree())
 	if inv_ui == null:
 		_play_donate_conversation(&"")
 		return
-	Game.request_museum_donation()
+	Game.pocket_requests.request_donation()
 
 
 func _on_donate_resolved(donated: bool) -> void:
-	if Game != null and Game.museum_donate_resolved.is_connected(_on_donate_resolved):
-		Game.museum_donate_resolved.disconnect(_on_donate_resolved)
+	if Game != null and Game.pocket_requests.donation_resolved.is_connected(_on_donate_resolved):
+		Game.pocket_requests.donation_resolved.disconnect(_on_donate_resolved)
 	if not donated:
 		return
 	_play_donate_outcome()
 
 
-## Blathers' response to the item just picked in the pockets (`Game.museum_donate_result`).
+## Blathers' response to the item just picked in the pockets (`Game.pocket_requests.donation_result`).
 func _play_donate_outcome() -> void:
-	var result: Dictionary = Game.museum_donate_result if Game != null else {}
+	var result: Dictionary = Game.pocket_requests.donation_result if Game != null else {}
 	var item_id: StringName = StringName(str(result.get("item_id", "")))
 	var ui := DialogueOverlay.find(get_tree())
 	var data: DialogueData = MuseumDialogue.build_outcome(item_id, result)

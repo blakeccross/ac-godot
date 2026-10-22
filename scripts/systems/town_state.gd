@@ -289,6 +289,64 @@ func read_save(data: Dictionary) -> void:
 		dialogue_vars = (vars_raw as Dictionary).duplicate(true)
 
 
+## Trees, flowers and the like that were cut down for good (persist ids from the field).
+func is_removed(persist_id: StringName) -> bool:
+	return persist_id != &"" and removed_interactables.has(String(persist_id))
+
+
+func mark_removed(persist_id: StringName) -> void:
+	if persist_id == &"":
+		return
+	if not is_removed(persist_id):
+		removed_interactables.append(String(persist_id))
+	clear_stump(persist_id)
+
+
+func is_stump(persist_id: StringName) -> bool:
+	return persist_id != &"" and stump_interactables.has(String(persist_id))
+
+
+func mark_stump(persist_id: StringName) -> void:
+	if persist_id == &"" or is_removed(persist_id) or is_stump(persist_id):
+		return
+	stump_interactables.append(String(persist_id))
+
+
+func clear_stump(persist_id: StringName) -> void:
+	stump_interactables.erase(String(persist_id))
+
+
+func is_hole(persist_id: StringName) -> bool:
+	return persist_id != &"" and hole_interactables.has(String(persist_id))
+
+
+func mark_hole(persist_id: StringName) -> void:
+	if persist_id == &"" or is_hole(persist_id):
+		return
+	hole_interactables.append(String(persist_id))
+
+
+func clear_hole(persist_id: StringName) -> void:
+	hole_interactables.erase(String(persist_id))
+
+
+## `mSN_MeltSnowman` at each renewal: a day older and smaller; gone after three days or once
+## winter ends. The field drops the ones that melted when it next loads.
+func melt_snowmen(days: int) -> void:
+	var winter: bool = Clock.season() == Clock.Season.WINTER
+	for i: int in snowmen.size():
+		var snowman: Dictionary = snowmen[i]
+		if not snowman.is_empty() and not SnowmanRules.melt(snowman, days, winter):
+			snowmen[i] = {}
+
+
+## The renewals waiting for weeds, handed to the field once (`World` sows them).
+func take_weed_days() -> int:
+	var days: int = weed_days_pending
+	weed_days_pending = 0
+	return days
+
+
 ## A new town's values (`Game.reset_session`).
 func reset() -> void:
 	town_id = Travel.new_town_id()

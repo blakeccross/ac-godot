@@ -480,7 +480,7 @@ func _apply_event(event: Dictionary) -> void:
 			_donate_commit(event)
 		"farway_send":
 			if Game != null:
-				var msg: String = Game.send_fossils_to_museum(int(event.get("count", 1)))
+				var msg: String = MuseumDonation.mail_fossils(int(event.get("count", 1)))
 				if msg != "":
 					Game.post_notice(msg)
 		"deposit_bells":
@@ -532,7 +532,7 @@ func _demo_order(event: Dictionary) -> void:
 func _donate_commit(event: Dictionary) -> void:
 	if context == null or Game == null:
 		return
-	var res: Dictionary = Game.donate_museum_result(StringName(str(event.get("item", ""))))
+	var res: Dictionary = MuseumDonation.donate(StringName(str(event.get("item", ""))))
 	context.set_var("donate_ok", "yes" if res.get("ok", false) else "no")
 	context.set_var("donate_completed_set", "yes" if res.get("completed_set", false) else "no")
 	context.set_var(

@@ -66,7 +66,7 @@ const NPC_HOUSE_APPROACH_GX := Vector2(0.0, 40.0)
 static func needs_knock(visual_id: StringName) -> bool:
 	if HostCollision.is_villager_house(visual_id) and not HostCollision.is_lighthouse(visual_id):
 		return true
-	return HostCollision.is_player_house(visual_id) and Game.intro_station_active
+	return HostCollision.is_player_house(visual_id) and Game.intro.active
 
 
 static func uses_walk_in(visual_id: StringName) -> bool:
@@ -178,7 +178,7 @@ static func play_emerge(host: Node) -> void:
 
 
 ## After a door spawn, keep walking INTO_S1 past the door so exit sensors stay clear.
-## Museum rooms skip this (`Game.play_door_arrive` stays false) — spawn is door_data only.
+## Museum rooms skip this (`Game.arrival.walks_in` stays false) — spawn is door_data only.
 static func play_arrive(player: Player) -> void:
 	if player == null or not is_instance_valid(player):
 		return

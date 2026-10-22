@@ -156,7 +156,7 @@ func _add_object(root: Node3D, placement: ObjectPlacement, data: WorldData, grid
 	if root == null or placement == null:
 		return
 	var persist: StringName = placement.persist_id if placement.persist_id != &"" else placement.id
-	if persist != &"" and Game.is_interactable_removed(persist):
+	if persist != &"" and Game.town.is_removed(persist):
 		return
 	var node: Node3D = _instance(placement.kind)
 	if node == null:

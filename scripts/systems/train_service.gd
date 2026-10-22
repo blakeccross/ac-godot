@@ -96,7 +96,7 @@ static func is_active() -> bool:
 		return false
 	if Game.title_demo_active:
 		return TitleDemo.has_parked_train(Game.title_demo_index)
-	return Game.phase == Game.Phase.PLAYING or Game.intro_station_active
+	return Game.phase == Game.Phase.PLAYING or Game.intro.active
 
 
 func field_train() -> FieldTrain:

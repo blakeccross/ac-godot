@@ -45,12 +45,12 @@ func _run() -> void:
 	Game.town.grass_pattern = WorldGenerator.decide_grass_pattern(Game.town.world_seed)
 	Game.resident.player_name = "Audit"
 	Game.town.town_name = "Testville"
-	Game.intro_station_active = true
+	Game.intro.active = true
 	Game._grant_intro_start_items()
 	Game._set_phase(Game.Phase.INTRO)
 	if resume:
-		Game.intro_station_house_id = &"player_house"
-		Game.intro_station_resume_debt = true
+		Game.intro.house_id = &"player_house"
+		Game.intro.resume_debt = true
 	var world: Node3D = load(Game.WORLD_SCENE).instantiate() as Node3D
 	add_child(world)
 	_t0 = Time.get_ticks_msec()
@@ -69,7 +69,7 @@ func _run() -> void:
 	while Time.get_ticks_msec() - _t0 < limit_ms and is_inside_tree():
 		await get_tree().process_frame
 		if not is_instance_valid(_director) or not _director.is_inside_tree():
-			print("AUDIT director gone (intro complete=", not Game.intro_station_active, ")")
+			print("AUDIT director gone (intro complete=", not Game.intro.active, ")")
 			break
 		var t: int = Time.get_ticks_msec() - _t0
 		if t - last_log >= 1000:
@@ -90,7 +90,7 @@ func _drive(stage: IntroStationStage) -> void:
 	var ui := DialogueOverlay.find(get_tree())
 	## `aNRG_menu_open_wait`: the pockets are open on the 1,000-bell bag — pick it and choose
 	## "Hand over" with real presses (the talk underneath must not take them).
-	if Game.intro_payment_pending:
+	if Game.intro.payment_pending:
 		await get_tree().create_timer(0.4).timeout
 		print("AUDIT pockets: press A (talk suspended=", ui.is_suspended() if ui else null, ")")
 		_press(&"ui_accept")
@@ -121,7 +121,7 @@ func _drive(stage: IntroStationStage) -> void:
 			print("AUDIT picking player_house")
 			_log("pick")
 			await _shot(&"pick_ready")
-			Game.request_intro_house_look(&"player_house")
+			Game.intro.request_house_look(&"player_house")
 			await get_tree().create_timer(0.2).timeout
 		_:
 			Input.action_release("move_back")
@@ -163,7 +163,7 @@ func _log(kind: String) -> void:
 					steam += 1
 		print("AUDIT fx smoke=", smoke, " steam=", steam, " smoke_top_y_gx=", top)
 	if Game.inventory != null:
-		print("AUDIT bag=", Game.inventory.count_of(&"money_1000"), " pockets_open=", Game.intro_payment_pending,
+		print("AUDIT bag=", Game.inventory.count_of(&"money_1000"), " pockets_open=", Game.intro.payment_pending,
 			" window_visible=", DialogueOverlay.find(get_tree()).visible if DialogueOverlay.find(get_tree()) else null)
 	print("AUDIT %s t=%.2f stage=%s player=(%.1f, %.1f, %.1f) yaw=%.0f busy=%s door=%s demo=%s nook=(%.1f, %.1f) porter=(%.1f, %.1f) train=%s x=%.1f v=%.3f" % [
 		kind, (Time.get_ticks_msec() - _t0) / 1000.0, _stage_name, p.x, p.y, p.z,

@@ -37,7 +37,7 @@ var _player: Player:
 ## `aMR_ManageMoveBottun`: A against a piece in your own house grips it. Anything else —
 ## nothing there, a piece in the pockets to place, another room — falls through to the normal verb.
 func try_grip() -> bool:
-	if _player._busy or gripping or _player.doors.is_door_entering() or not Game.is_decorating() or Game.held_furniture() != null:
+	if _player._busy or gripping or _player.doors.is_door_entering() or not Game.is_decorating() or FurnitureEditing.held() != null:
 		return false
 	var session: IndoorSession = Game.interior_session
 	if session == null:
@@ -366,7 +366,7 @@ func poll_furniture_pickup() -> void:
 		return
 	_player._busy = true
 	var tail: float = await _player._play_action(&"ply_1_pickup1", 20.0)
-	Game.pick_up_furniture(id)
+	FurnitureEditing.pick_up(id)
 	await _player._finish_action(tail)
 	_player._busy = false
 	_player._gait = PlayerLocomotion.Gait.WAIT

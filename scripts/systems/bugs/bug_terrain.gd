@@ -183,7 +183,7 @@ static func tree_cut(layout: WorldData, cell: Vector2i) -> bool:
 		if obj.kind != &"tree":
 			continue
 		var pid: StringName = obj.persist_id if obj.persist_id != &"" else obj.id
-		return Game != null and Game.is_stump(pid)
+		return Game != null and Game.town.is_stump(pid)
 	return true
 
 

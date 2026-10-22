@@ -140,6 +140,44 @@ static func next_streak(rank: int, streak: int, streak_day: int, today: int) -> 
 	return Vector2i(streak, streak_day)
 
 
+## `mFAs_GetFieldRank_Condition` / `mFAs_SetFieldRank`: rate the town now and keep the rank and
+## the perfect-day streak on `Game.town`. Returns the assessment ({rank, condition, block, ...}).
+## `at_well`: asked at the wishing well, where any remark at all also restarts the streak.
+static func rate(world: Node, rng: RandomNumberGenerator = null, at_well: bool = false) -> Dictionary:
+	var town: TownState = Game.town
+	var roll: RandomNumberGenerator = rng
+	if roll == null:
+		roll = RandomNumberGenerator.new()
+		roll.randomize()
+	var result: Dictionary = evaluate(survey(world), roll)
+	## `dust_flag`: once trash sank the town, any trash left keeps it at nothing.
+	var dust: int = int(result["dust"])
+	if dust >= DUST_OVER_NUM:
+		town.dust_flag = true
+	elif town.dust_flag:
+		if dust > 0:
+			result["rank"] = 0
+			result["condition"] = Condition.DUST_OVER
+		else:
+			town.dust_flag = false
+	town.field_rank = int(result["rank"])
+	Game.events.field_rank = town.field_rank
+	if at_well and int(result["condition"]) != Condition.NO_CASE:
+		town.perfect_streak = 0
+		town.perfect_streak_day = -1
+	var streak: Vector2i = next_streak(
+		town.field_rank, town.perfect_streak, town.perfect_streak_day, Clock.day_number()
+	)
+	town.perfect_streak = streak.x
+	town.perfect_streak_day = streak.y
+	return result
+
+
+## `mFAs_CheckGoodField`: fifteen perfect days in a row.
+static func perfect_long_enough() -> bool:
+	return Game.town.perfect_streak >= PERFECT_STREAK_MAX
+
+
 ## Counts from the live field: trees and flowers by their hosts, weeds from `Game.town.weeds`,
 ## trash from ground items outside the dump acre.
 static func survey(world: Node) -> Array:
@@ -171,7 +209,7 @@ static func survey(world: Node) -> Array:
 				continue
 			if plant.kind == PlantData.Kind.FLOWER:
 				acre.flowers += 1
-			elif not Game.is_stump(StringName(str(node.get("persist_id")))):
+			elif not Game.town.is_stump(StringName(str(node.get("persist_id")))):
 				acre.trees += 1
 		for node: Node in tree.get_nodes_in_group("interactable"):
 			var item: ItemData = node.get("item") as ItemData if "item" in node else null

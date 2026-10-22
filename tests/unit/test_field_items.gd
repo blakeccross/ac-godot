@@ -69,7 +69,7 @@ func test_picking_it_up_forgets_it() -> void:
 	FieldItems.put(world, Vector2i(3, 4), &"apple")
 	assert_bool(FieldItems.picked(FieldItems.persist_id(Vector2i(3, 4)))).is_true()
 	assert_bool(Game.town.field_items.is_empty()).is_true()
-	assert_bool(Game.is_interactable_removed(FieldItems.persist_id(Vector2i(3, 4)))).is_false()
+	assert_bool(Game.town.is_removed(FieldItems.persist_id(Vector2i(3, 4)))).is_false()
 
 
 func test_turnips_spoil_once_a_sunday_comes_round() -> void:

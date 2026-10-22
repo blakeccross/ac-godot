@@ -57,7 +57,7 @@ static func conversation(villager: VillagerData, state: VillagerState, ctx: Dial
 	_ensure_rng(snap)
 	var msg_no: int = hello_msg_no(villager, state, snap)
 	if villager != null and Game != null:
-		Game.note_bee_greeting(villager.id)
+		Game.bees.note_greeting(villager.id)
 	## A finished fish / insect collection is worth a word — once per villager per collection.
 	if snap.mood != VillagerState.Mood.PITFALL and not snap.bee_chase and meet_type(state, snap) != MEET_FIRST:
 		var congrats: int = CompleteTalk.try_greeting(_looks(villager), state, snap.rng)

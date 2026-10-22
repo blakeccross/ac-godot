@@ -616,8 +616,8 @@ func _on_talk_closed() -> void:
 ## "I want to sell": the pockets open in sell mode (`mSM_IV_OPEN_SELL`); what's picked
 ## comes back to Nook, who names the total and asks (`aNSC_buy_sum_check`).
 func _start_sell() -> void:
-	Game.request_shop_sell()
-	var picked: bool = await Game.shop_sell_resolved
+	Game.pocket_requests.request_sell()
+	var picked: bool = await Game.pocket_requests.sell_resolved
 	if not picked:
 		return
 	var data: DialogueData = _graph(NookShopTalk.SELL_ID)
@@ -627,7 +627,7 @@ func _start_sell() -> void:
 	var listener: Node3D = Player.find(get_tree())
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = clerk_name()
-	NookShopTalk.fill_sell(talk_ctx, NookShopTalk.sell_selection(Game.shop_sell_slots))
+	NookShopTalk.fill_sell(talk_ctx, NookShopTalk.sell_selection(Game.pocket_requests.sell_slots))
 	if ui.is_open():
 		ui.close()
 	_shop_talk = true
@@ -693,8 +693,8 @@ func _start_code_hear() -> void:
 	if town == Game.town.town_name:
 		_play_code_result("same_town", null, {})
 		return
-	Game.request_storage_putin(&"code_gift")
-	var picked: StringName = await Game.storage_putin_resolved
+	Game.pocket_requests.request_putin(&"code_gift")
+	var picked: StringName = await Game.pocket_requests.putin_resolved
 	var item: ItemData = ItemCatalog.get_item(picked)
 	if item == null:
 		_play_code_result("no_item", null, {})

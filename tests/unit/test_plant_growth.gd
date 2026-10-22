@@ -139,7 +139,7 @@ func test_can_plant_terrain_and_occupancy() -> void:
 	world.grid.place(&"rock", cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT)
 	assert_bool(PlantGrowth.can_plant(ctx, apple, cell)).is_false()
 	world.grid.remove(&"rock")
-	Game.mark_hole(&"hole_8_8")
+	Game.town.mark_hole(&"hole_8_8")
 	world.grid.place(&"hole_8_8", cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT)
 	assert_bool(PlantGrowth.can_plant(ctx, apple, cell)).is_true()
 
@@ -218,7 +218,7 @@ func test_take_plant_from_slot_flags_scoop_on_hole() -> void:
 	assert_bool(PlantGrowth.has_record(PlantGrowth.persist_id(face))).is_false()
 	var pid: StringName = PlantGrowth.plant(ctx, taken.get("plant") as PlantData, face)
 	assert_str(String(pid)).is_equal(String(PlantGrowth.persist_id(face)))
-	assert_bool(Game.is_hole(HoleUse.persist_id(face))).is_false()
+	assert_bool(Game.town.is_hole(HoleUse.persist_id(face))).is_false()
 
 
 func test_scoop_plant_ready_needs_shovel_and_hole() -> void:

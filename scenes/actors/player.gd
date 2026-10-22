@@ -234,8 +234,8 @@ func _ready() -> void:
 		Game.cloth_changed.connect(_on_cloth_changed)
 	if Game != null and not Game.design_changed.is_connected(_on_design_changed):
 		Game.design_changed.connect(_on_design_changed)
-	if Game != null and not Game.face_changed.is_connected(_apply_face):
-		Game.face_changed.connect(_apply_face)
+	if Game != null and not Game.bees.face_changed.is_connected(_apply_face):
+		Game.bees.face_changed.connect(_apply_face)
 	_apply_worn_cloth()
 	## `Player_actor_Check_player_sunburn_for_ct`: a tan earned or faded shows on set-up.
 	if Game != null and not Game.title_demo_active:
@@ -1419,11 +1419,11 @@ func _try_interact() -> void:
 		return
 	if net.net_swing.state != NetSwing.State.NONE:
 		return
-	if Game.held_furniture() != null and Game.try_place_furniture(self):
+	if FurnitureEditing.held() != null and FurnitureEditing.place_held(self):
 		return
 	var hit: InteractionQuery = _resolve_interact()
 	if hit == null or hit.action == null:
-		if Game.try_place_furniture(self):
+		if FurnitureEditing.place_held(self):
 			return
 		## When A has nothing else in range, pick up (B still always picks up; A still skips
 		## pick-up when another verb — talk, shake, … — is available).
@@ -1927,8 +1927,8 @@ func exchange_into_pockets(item_id: StringName) -> bool:
 	var world := World.find(get_tree())
 	if inv == null or data == null or world == null or not (world.grid is WorldGrid):
 		return false
-	Game.request_quest_handover(-1, "take")
-	var picked: Array = await Game.quest_handover_resolved
+	Game.pocket_requests.request_handover(-1, "take")
+	var picked: Array = await Game.pocket_requests.handover_resolved
 	var pocket: int = int(picked[1])
 	var slot: InventorySlot = inv.slot_at(pocket) if pocket >= 0 else null
 	if slot == null or slot.is_empty() or slot.item.count > 1:
@@ -2019,8 +2019,8 @@ func run_dig_get(item_id: StringName, banked: bool, cell: Vector2i, ctx: Interac
 ## `PUTAWAY_SCOOP` with `submenu_flag` → the exchange pockets, or `PUTIN_SCOOP` with the find.
 func _dig_swap_or_bury(item_id: StringName, swap: bool, cell: Vector2i, ctx: InteractionContext) -> void:
 	if swap and Game.inventory != null:
-		Game.request_quest_handover(-1, "take")
-		var picked: Array = await Game.quest_handover_resolved
+		Game.pocket_requests.request_handover(-1, "take")
+		var picked: Array = await Game.pocket_requests.handover_resolved
 		var pocket: int = int(picked[1])
 		if pocket >= 0:
 			var out: InventoryItem = Game.inventory.remove_from_slot(pocket, Game.inventory.slot_at(pocket).item.count)
@@ -2316,12 +2316,12 @@ func run_stung_bee() -> void:
 			hati2_t += delta
 		if on_hati2 and not swelled and hati2_t >= STUNG_SWELL_FRAME / DecompTime.FRAME_HZ:
 			swelled = true
-			Game.sting_by_bee()
+			Game.bees.sting()
 		if elapsed > STUNG_TURN_SEC:
 			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW + PI, delta)
 			_mesh.rotation.y = _motor.facing
 	if not swelled:
-		Game.sting_by_bee()
+		Game.bees.sting()
 	await _notice_bee()
 	stung = false
 	EventManager.demo_bgm = &""
@@ -2448,7 +2448,7 @@ func _apply_face() -> void:
 	if Game == null or _mesh == null:
 		return
 	PlayerFace.apply(
-		_mesh, Game.resident.player_gender == IntroSequence.GENDER_FEMALE, Game.resident.player_face, Game.bee_swell,
+		_mesh, Game.resident.player_gender == IntroSequence.GENDER_FEMALE, Game.resident.player_face, Game.bees.swollen,
 		int(Game.resident.sunburn.get("rank", 0))
 	)
 
@@ -2462,7 +2462,7 @@ func _tick_sunburn(delta: float) -> void:
 	Sunburn.rankdown_interval(Game.resident.sunburn, today)
 	Sunburn.check_rankdown(Game.resident.sunburn, today)
 	var exposed: bool = (
-		not Game.intro_station_active and Game.town.weather == &"clear" and tools.umbrella == null
+		not Game.intro.active and Game.town.weather == &"clear" and tools.umbrella == null
 	)
 	Sunburn.sun_tick(Game.resident.sunburn, exposed, Clock.month, Clock.day, Clock.hour, delta)
 

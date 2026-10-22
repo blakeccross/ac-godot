@@ -40,7 +40,6 @@ The town's acres are built by the asset pipeline. Run it once before the first p
    This extracts the disc, converts models, textures, UI, dialogue and music, and bakes the acre scenes. The first run asks whether to use the [Animal Crossing HD](https://docs.google.com/document/d/1ofFuIgV9AfQcx3DmGXvDKl-fdoTk-ZQ3AxBX5QLA7vI/) texture pack (about 160 MB, downloaded for you; pass `--hd` or `--no-hd` to skip the question), writes `tools/config.local.json` (gitignored), puts extracted files in `~/ac-assets-work`, downloads `dtk` into `tools/.cache/dtk`, and shallow-clones [ac-decomp](https://github.com/ACreTeam/ac-decomp) into the work folder unless it finds a checkout already. Godot is found in its usual install locations; set `GODOT_BIN` if yours is elsewhere. Later rebuilds are just `python3 tools/build_assets.py`.
 
    To change the defaults, edit `tools/config.local.json` (see `tools/config.example.json`):
-
    - `godot_bin` — the Godot executable, if it is not in a usual place
    - `achd_enabled` / `achd_root` — the HD texture pack. `--hd` / `--no-hd` switch it later and reconvert
    - `decomp_root` — an existing ac-decomp checkout
@@ -56,8 +55,6 @@ The town's acres are built by the asset pipeline. Run it once before the first p
    ```sh
    /Applications/Godot.app/Contents/MacOS/Godot --path .
    ```
-
-Title → **New Game** runs the full opening (K.K. player select → Rover's train → station arrival with Porter and Nook → house pick → first job), like the original. Dev shortcuts: **Town Seed 12345** drops straight into a deterministic town, **Intro Sequence** re-enters the K.K.→train chain, **Station Arrival** runs just the station demo. WASD to walk, Shift to run, **E** / Space for A (talk, shake, sit, read, use a tool, …), **F** for B (pick up items, weeds, signboards and furniture), **Esc** for the pause menu (Settings remaps buttons; Save and exit returns to title). Remap keys and pad buttons from **Settings** on the title or pause menu. **Continue** reloads that save. **Import GameCube Save** brings over a town from your own original-game Memory Card dump (a Dolphin `.gci` export or a `.raw` card image) into slot A or B. Debug: **T** +1 hour, **Y** +1 day (crosses the 06:00 daily renew), **U** save. Shop is open 9:00–22:00. Filbert is off the acre while asleep or indoors.
 
 ### Desktop builds
 

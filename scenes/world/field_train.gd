@@ -96,7 +96,7 @@ func advance(delta: float, control: TrainControl, parked_demo: bool) -> Dictiona
 	if not door.is_empty():
 		_apply_door(door)
 		## `aTR1_chg_station_attr` (not during the first intro, which drives the gate itself).
-		if not Game.intro_station_active:
+		if not Game.intro.active:
 			if cars.door_action == TrainControl.Action.WAIT_STOPPED:
 				set_station_gate(get_tree(), true)
 			elif cars.door_action == TrainControl.Action.SIGNAL_STARTING:

@@ -44,7 +44,7 @@ func has_save(path: String = "") -> bool:
 func save_game(path: String = "") -> Error:
 	path = _path(path)
 	## Inside another resident's house: their rooms go home first.
-	Game.leave_resident_house()
+	Game.roster.leave_house(Game.interiors)
 	Game.capture_player_from_tree()
 	var world: Dictionary = Game.to_save()
 	var priv: Dictionary = PlayerRoster.split(world)

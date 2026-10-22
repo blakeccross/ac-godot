@@ -325,7 +325,7 @@ static func _fg_cells(layout: WorldData) -> Dictionary:
 	if Game != null:
 		for key: Variant in Game.town.plant_states.keys():
 			var pid := StringName(str(key))
-			if Game.is_interactable_removed(pid):
+			if Game.town.is_removed(pid):
 				continue
 			var cell: Vector2i = _record_cell(pid)
 			if cell.x >= 0:
@@ -375,7 +375,7 @@ static func is_spawn_tree_fg(visual: StringName) -> bool:
 
 
 static func _record_is_spawn_tree(pid: StringName, rec: Dictionary) -> bool:
-	if rec.is_empty() or Game.is_stump(pid) or Game.is_interactable_removed(pid):
+	if rec.is_empty() or Game.town.is_stump(pid) or Game.town.is_removed(pid):
 		return false
 	var plant: PlantData = PlantGrowth.plant_data(StringName(str(rec.get(PlantGrowth.KEY_PLANT, ""))))
 	if plant == null or plant.kind != PlantData.Kind.TREE:
@@ -533,7 +533,7 @@ static func _object_removed(obj: ObjectPlacement) -> bool:
 	if Game == null:
 		return false
 	var pid: StringName = _object_persist(obj)
-	return Game.is_interactable_removed(pid) or Game.is_stump(pid)
+	return Game.town.is_removed(pid) or Game.town.is_stump(pid)
 
 
 static func _plant_record_ids(kind: PlantData.Kind) -> Array[StringName]:
@@ -542,7 +542,7 @@ static func _plant_record_ids(kind: PlantData.Kind) -> Array[StringName]:
 		return out
 	for key: Variant in Game.town.plant_states.keys():
 		var pid := StringName(str(key))
-		if Game.is_interactable_removed(pid) or Game.is_stump(pid):
+		if Game.town.is_removed(pid) or Game.town.is_stump(pid):
 			continue
 		var rec: Dictionary = PlantGrowth.record(pid)
 		var plant: PlantData = PlantGrowth.plant_data(StringName(str(rec.get(PlantGrowth.KEY_PLANT, ""))))

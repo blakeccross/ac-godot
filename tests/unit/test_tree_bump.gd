@@ -90,7 +90,7 @@ func test_tree_scene_bumps_but_stump_does_not() -> void:
 	var tree: Node = auto_free(load("res://scenes/world/tree.tscn").instantiate())
 	assert_bool(tree.can_bump()).is_true()
 	tree.bump()
-	Game.mark_stump(&"tree_bump_stump")
+	Game.town.mark_stump(&"tree_bump_stump")
 	var stump: Node = auto_free(load("res://scenes/world/tree.tscn").instantiate())
 	stump.set("persist_id", &"tree_bump_stump")
 	assert_bool(stump.can_bump()).is_false()

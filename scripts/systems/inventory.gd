@@ -749,13 +749,13 @@ func tags_for_slot(index: int) -> PackedStringArray:
 		return tags
 	## A villager is waiting for their item (`mSM_IV_OPEN_QUEST` / `mSM_IV_OPEN_TAKE`): only
 	## what they asked for can be picked.
-	if Game != null and Game.quest_handover_pending:
-		if Game.quest_handover_allows(index):
+	if Game != null and Game.pocket_requests.handover_pending:
+		if Game.pocket_requests.handover_allows(index):
 			tags.append("Hand over")
 		return tags
 	## Nook is buying (`mSM_IV_OPEN_SELL`): "Sell", or "Sell all" on a marked item
 	## (`mTG_TYPE_SELL_ITEM` / `mTG_TYPE_SELL_ALL_ITEM`).
-	if Game != null and Game.shop_sell_pending:
+	if Game != null and Game.pocket_requests.sell_pending:
 		if slot.item.condition != InventoryItem.Condition.QUEST:
 			tags.append("Sell all" if is_marked(index) and marked_indices().size() > 1 else "Sell")
 		return tags
@@ -767,18 +767,18 @@ func tags_for_slot(index: int) -> PackedStringArray:
 		## only pocket item Nook will take on the station acre.
 		if (
 			Game != null
-			and Game.intro_payment_pending
+			and Game.intro.payment_pending
 			and slot.item.item_id == &"money_1000"
 		):
 			tags.append("Hand over")
 		return tags
 	## A drawer or music player opened the pockets (`mTG_TYPE_PUTIN_ITEM`).
-	if Game != null and Game.storage_putin_pending:
-		if putin_allowed(data, Game.storage_putin_filter):
+	if Game != null and Game.pocket_requests.putin_pending:
+		if putin_allowed(data, Game.pocket_requests.putin_filter):
 			tags.append("Put in")
 		return tags
 	## Blathers opened the pockets to receive a donation (`mMmd` IV_OPEN).
-	if Game != null and Game.museum_donate_pending and MuseumDialogue.is_offerable(data):
+	if Game != null and Game.pocket_requests.donation_pending and MuseumDialogue.is_offerable(data):
 		tags.append("Donate")
 		return tags
 	if data.equippable:

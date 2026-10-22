@@ -91,7 +91,7 @@ data tables before a category is called done.
 - [~] Carrying a held item in hand while walking (`ToolCarry`, part tables per tool). The GCN player never carries furniture: it is pushed and pulled (`FurnitureGrip`)
 - [x] Trip / stumble when running into things or on ants (`m_player_main_tumble`, `stung`) — `player.gd` `TUMBLE` gaits + `_tumble_events`
 - [x] Fall in a pitfall; struggle out (`m_player_main_fall_pitfall`, `struggle_pitfall`, `climbup_pitfall`) — `Player.run_pitfall`; seeds are buried with the pockets' "Bury" (shovel + hole, `mTG_TYPE_FIELD_DEFAULT_BURY`) into `BuriedUse` `KIND_PITFALL`; villagers fall in too and climb out when talked to (`aNPC_act_pitfall` / `revive`)
-- [x] Get stung by bees → swollen face; villagers react (`m_player_main_stung_bee`, `notice_bee`, `mNpc_SetTalkBee`) — `Player.run_stung_bee`, `PlayerFace`, `Game.bee_*`, `DialogueGreeting` `BEE_STUNG` / `BEE_CHASE`. The swell lasts until the game is reset (common data); GCN has no medicine
+- [x] Get stung by bees → swollen face; villagers react (`m_player_main_stung_bee`, `notice_bee`, `mNpc_SetTalkBee`) — `Player.run_stung_bee`, `PlayerFace`, `Game.bees`, `DialogueGreeting` `BEE_STUNG` / `BEE_CHASE`. The swell lasts until the game is reset (common data); GCN has no medicine
 - [x] Mosquito bites in summer (`ac_ins_ka`, `stung_mosquito`, `notice_mosquito`) — `Mosquito` bite → `BugField.take_bite` → `Player.run_stung_mosquito` (`MSG_12387`)
 - [x] ~~Tired / sleepy animations late at night~~ — GCN `m_player_main_tired` only follows `wash_car`; there is no late-night tiredness
 - [x] Push / pull furniture and snowballs (`m_player_main_push`, `push_snowball`) — furniture (`FurnitureGrip`); snowballs (`ply_1_push_yuki1`, the ball leads and the player keeps behind it, `Player.begin_snowball_push`). Pushing, the player stays walled in the acre; square on to the border (5°) with the stick across, player and ball wade over together, the ball carried at its offset, and the push carries on — otherwise the push lets go (`aSMAN_player_push_scroll_request`, `WADE_SNOWBALL`). Not done: the ball cracking when it was already wedged as the wade starts (`crash_snowball_for_wade`)
@@ -343,7 +343,7 @@ data tables before a category is called done.
 - [x] ~~Move house location~~ — not in GCN
 - [x] Cockroaches spawn if you don't play for weeks — `HouseCockroaches` / `house_cockroach.gd`: 6-day rule, up to 3 out, furniture flushes, startle, stomp, and a trodden roach's soul rising (`ef_goki`, `FieldEffects.Kind.GOKI`). The island cottage's own roaches (`island.cottage.goki`) wait for the island; there is no house dust in the decomp (the town's `dust_flag` is litter)
 - [x] HRA judges the main room, and the upper floor in part (origins, sets, luck, facing, clutter); never the basement (§11)
-- [x] Other residents' houses can be entered (`ac_my_house` has no owner check): their rooms stand in for yours while you are inside (`Game.enter_resident_house`); a notebook on a table there opens the owner's calendar, and their diary to read only (`mSM_OVL_CALENDAR`'s player, `mSM_OVL_DIARY` arg 1)
+- [x] Other residents' houses can be entered (`ac_my_house` has no owner check): their rooms stand in for yours while you are inside (`PlayerRoster.enter_house`); a notebook on a table there opens the owner's calendar, and their diary to read only (`mSM_OVL_CALENDAR`'s player, `mSM_OVL_DIARY` arg 1)
 
 ## 19. Furniture & collectibles
 

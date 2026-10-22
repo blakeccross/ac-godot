@@ -31,6 +31,10 @@ const KEY_DESIGNS := "own_designs"
 
 var slots: Array[Dictionary] = [{}, {}, {}, {}]
 var current: int = 0
+## The other resident whose house the player is inside (their rooms are swapped in), or -1.
+var visiting: int = -1
+## The player's own house while a neighbour's is swapped in.
+var _own_house: Dictionary = {}
 ## Other residents' houses opened this session (gyroid sales, the outdoor model), by slot.
 var _houses: Dictionary = {}
 
@@ -185,6 +189,30 @@ static func capture_house(interiors: InteriorBook) -> Dictionary:
 ## Put a slot's house (or a stash from `capture_house`) into `interiors`.
 static func restore_house(interiors: InteriorBook, priv: Dictionary) -> void:
 	interiors.replace_player_house(priv.get(KEY_ROOMS, {}), priv.get(KEY_HOUSE, {}))
+
+
+## Walk into another resident's house: their rooms and house record stand in for the player's
+## own until they come back out (`aMHS_goto_next_pl_scene` to that house's scene).
+func enter_house(slot: int, interiors: InteriorBook) -> void:
+	if slot < 0 or slot == current or visiting == slot:
+		return
+	leave_house(interiors)
+	_own_house = capture_house(interiors)
+	restore_house(interiors, slots[slot])
+	visiting = slot
+
+
+## Back outside from another resident's house: their rooms go back to their slot.
+func leave_house(interiors: InteriorBook) -> void:
+	if visiting < 0:
+		return
+	var theirs: Dictionary = capture_house(interiors)
+	slots[visiting][KEY_ROOMS] = theirs[KEY_ROOMS]
+	slots[visiting][KEY_HOUSE] = theirs[KEY_HOUSE]
+	forget_house(visiting)
+	restore_house(interiors, _own_house)
+	_own_house = {}
+	visiting = -1
 
 
 ## Drop a cached house record after its slot was written some other way.

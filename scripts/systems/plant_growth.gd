@@ -215,12 +215,12 @@ static func plant(ctx: InteractionContext, plant: PlantData, cell: Vector2i) -> 
 	var grid: WorldGrid = _grid(ctx)
 	var pid: StringName = persist_id(cell)
 	var occupant: StringName = grid.occupant_at(cell)
-	if occupant != &"" and Game.is_hole(occupant):
+	if occupant != &"" and Game.town.is_hole(occupant):
 		var hole: Node = _hole_at(ctx.world, occupant)
 		if hole != null:
 			HoleUse.fill(hole, ctx)
 		else:
-			Game.clear_hole(occupant)
+			Game.town.clear_hole(occupant)
 			grid.remove(occupant)
 	var now: int = Clock.renew_index()
 	var rec := {
@@ -273,7 +273,7 @@ static func can_plant(ctx: InteractionContext, plant: PlantData, cell: Vector2i)
 		return false
 	if not grid.is_occupied(cell):
 		return true
-	return Game.is_hole(grid.occupant_at(cell))
+	return Game.town.is_hole(grid.occupant_at(cell))
 
 
 static func water(persist_id: StringName) -> bool:
@@ -351,7 +351,7 @@ static func assign_special_trees(world: Node = null) -> void:
 	var money_count := 0
 	for key: Variant in Game.town.plant_states.keys():
 		var pid := StringName(str(key))
-		if Game.is_interactable_removed(pid) or Game.is_stump(pid):
+		if Game.town.is_removed(pid) or Game.town.is_stump(pid):
 			continue
 		var rec: Dictionary = record(pid)
 		var plant: PlantData = plant_data(StringName(str(rec.get(KEY_PLANT, ""))))
@@ -432,7 +432,7 @@ static func set_xmas_trees(month: int, day: int, rng: RandomNumberGenerator, wor
 		var rec: Dictionary = record(pid)
 		if rec.is_empty():
 			continue
-		if not season or Game.is_interactable_removed(pid) or Game.is_stump(pid):
+		if not season or Game.town.is_removed(pid) or Game.town.is_stump(pid):
 			if has_lights(rec):
 				rec.erase(KEY_LIGHTS)
 				_store(pid, rec)
@@ -484,7 +484,7 @@ static func scoop_plant_ready(ctx: InteractionContext) -> bool:
 	var cell: Vector2i = ToolUse.facing_cell(ctx)
 	if not grid.is_in_bounds(cell):
 		return false
-	return Game.is_hole(grid.occupant_at(cell))
+	return Game.town.is_hole(grid.occupant_at(cell))
 
 
 ## Scale-in for a freshly placed host (`bIT_actor_drop_move_plant` / hole plant).
@@ -651,7 +651,7 @@ static func trample_flower(world: Node, grid: WorldGrid, cell: Vector2i) -> bool
 		return false
 	var host: Node3D = host_at(world, occupant)
 	clear(occupant)
-	Game.mark_interactable_removed(occupant)
+	Game.town.mark_removed(occupant)
 	grid.remove(occupant)
 	if host != null and host.is_inside_tree():
 		host.remove_from_group("plant")
@@ -664,7 +664,7 @@ static func trample_flower(world: Node, grid: WorldGrid, cell: Vector2i) -> bool
 
 static func _kill_flower(world: Node, grid: WorldGrid, pid: StringName) -> void:
 	clear(pid)
-	Game.mark_interactable_removed(pid)
+	Game.town.mark_removed(pid)
 	if grid != null:
 		grid.remove(pid)
 	if world == null or world.get_tree() == null:
@@ -695,7 +695,7 @@ static func restore(world: Node, grid: WorldGrid) -> void:
 		return
 	for key: Variant in Game.town.plant_states.keys():
 		var pid := StringName(str(key))
-		if Game.is_interactable_removed(pid) or Game.is_stump(pid):
+		if Game.town.is_removed(pid) or Game.town.is_stump(pid):
 			continue
 		if _host_exists(world, pid):
 			continue
