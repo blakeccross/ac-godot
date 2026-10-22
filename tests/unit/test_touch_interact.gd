@@ -25,10 +25,13 @@ var _cam: Camera3D
 func before_test() -> void:
 	TestIsolation.forget_groups(get_tree(), [Player.GROUP, World.GROUP, TouchHud.GROUP])
 	Game.reset_session()
+	## Chips are on-screen buttons: as on a phone.
+	InputDeviceTracker.on_mobile = true
 
 
 func after_test() -> void:
 	Game.reset_session()
+	InputDeviceTracker.on_mobile = OS.has_feature("android") or OS.has_feature("ios")
 
 
 func _setup() -> Player:
@@ -217,3 +220,27 @@ func test_a_tool_stands_beside_the_tapped_cell() -> void:
 	var stand: Vector2i = driver._stand_beside(null, grid, cell, here)
 	assert_bool(stand != here + Vector2i(1, 0) and stand != Vector2i(-1, -1)).is_true()
 	assert_int(absi(stand.x - cell.x) + absi(stand.y - cell.y)).is_equal(1)
+
+
+func test_on_a_desktop_two_verbs_use_a_without_chips() -> void:
+	InputDeviceTracker.on_mobile = false
+	var player: Player = _setup()
+	var hud: TouchHud = auto_free(HUD_SCENE.instantiate()) as TouchHud
+	add_child(hud)
+	InputDeviceTracker._set_device(InputDeviceTracker.Device.TOUCH)
+	var host: _Host = _host(
+		Vector3(5, 0, -2),
+		[Interaction.of(Interaction.SIT, "Sit", 5), Interaction.of(Interaction.PICK_UP, "Move", 5)]
+	)
+	await _run(2)
+	var driver: TouchDriver = _driver(player)
+	_tap(driver, _screen(host.global_position + Vector3.UP * 0.5))
+	await get_tree().process_frame
+	assert_bool(hud.chips_showing()).is_false()
+	assert_bool(hud.is_showing()).is_false()
+	for _i: int in 300:
+		await get_tree().physics_frame
+		if not host.used.is_empty():
+			break
+	assert_array(host.used).contains_exactly([Interaction.SIT])
+	InputDeviceTracker._set_device(InputDeviceTracker.Device.KEYS)

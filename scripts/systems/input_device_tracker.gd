@@ -9,6 +9,9 @@ enum Device { KEYS, TOUCH }
 signal device_changed(device: Device)
 
 var device: Device = Device.KEYS
+## Android or iOS: on-screen buttons show only there (a desktop has keys and a mouse).
+## Tests set it to check the buttons.
+var on_mobile: bool = OS.has_feature("android") or OS.has_feature("ios")
 
 
 func _ready() -> void:
@@ -31,6 +34,11 @@ func _input(event: InputEvent) -> void:
 
 func is_touch() -> bool:
 	return device == Device.TOUCH
+
+
+## On-screen buttons: on a phone or tablet, while touch is the last device used.
+func shows_touch_buttons() -> bool:
+	return on_mobile and is_touch()
 
 
 func _set_device(next: Device) -> void:

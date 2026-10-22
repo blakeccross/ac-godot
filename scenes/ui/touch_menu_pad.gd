@@ -1,7 +1,7 @@
 class_name TouchMenuPad
 extends CanvasLayer
 
-## Fingers on menus. While touch is the last device used and a menu is up (or there's no
+## Fingers on menus. On Android or iOS, while touch is the last device used and a menu is up (or there's no
 ## player yet: the title and the intro), arrows, OK and Back sit at the bottom corners and
 ## send the very keys a keyboard would (↑ ↓ ← →, Enter, Escape), so every overlay runs the
 ## handler its keys already call and none grows touch code of its own. An arrow held
@@ -58,7 +58,7 @@ func _process(_delta: float) -> void:
 
 
 func _refresh() -> void:
-	_root.visible = InputDeviceTracker.is_touch() and wanted()
+	_root.visible = InputDeviceTracker.shows_touch_buttons() and wanted()
 	if not _root.visible:
 		_arrow_up()
 
