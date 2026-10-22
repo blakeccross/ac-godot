@@ -20,10 +20,12 @@ Generated Nintendo assets stay **outside git**. The Godot repo only contains con
 ```sh
 cd /path/to/ac-godot
 pip3 install -r tools/requirements.txt
-cp tools/config.example.json tools/config.local.json
+python3 tools/build_assets.py --disc /path/to/GAFE01.iso
 ```
 
-Edit `tools/config.local.json` (gitignored):
+That one command is the whole first build. `--disc` writes `tools/config.local.json` (gitignored) when it is missing, with `work_root` at `~/ac-assets-work`, and asks whether to use the ACHD pack (no terminal → no). With a config already there it only updates `game_files`. `--hd` downloads the pack (`ACHD_URL` in `first_run.py`, a zip with one `GAF/` folder) into `work_root/achd` and sets `achd_root` / `achd_enabled`; `--no-hd` turns it off. Both work without `--disc` on an existing config, and switching needs a full reconvert. When no ac-decomp checkout is found (`decomp_root`, then the usual sibling / `~/Documents` paths, then `work_root/ac-decomp`), the convert step shallow-clones one into `work_root/ac-decomp`. Godot comes from `GODOT_BIN`, `godot_bin`, or the usual install paths.
+
+To set paths by hand instead, copy `tools/config.example.json` to `tools/config.local.json` and edit it:
 
 ```json
 {
@@ -134,11 +136,11 @@ Copies/extracts the disc into `work_root/extracted/disc`, decompresses `foresta.
 
 ## 6. Conversion
 
-Test set only (default):
-
 ```sh
 python3 tools/build_assets.py --step convert
 ```
+
+With no `--kind` (or `--kind all`) this runs the full convert below, then every side kind in this section: `fg`, `seasons`, `inventory-ui`, `design-ui`, `menu-ui`, `map-ui`, `message-ui`, `clock-ui`, `title`, `dialogue`, `faces` and `audio` (`SIDE_KINDS` in `build_assets.py`). `villagers` is left out because it rewrites the tracked `data/villagers/*.tres`. Each `--kind` command below reruns just that part.
 
 Pipeline:
 
@@ -153,11 +155,7 @@ disc image
   → validate
 ```
 
-Convert builds the full library (every cKF skeleton, static Gfx, BTI, player face/shirt bins, room floor/wall, REL `*_tex*`):
-
-```sh
-python3 tools/build_assets.py --step convert
-```
+The core convert builds the full library (every cKF skeleton, static Gfx, BTI, player face/shirt bins, room floor/wall, REL `*_tex*`).
 
 Texture layout follows the Gfx that loads it. A Dolphin `gsDPSetTextureImage_Dolphin` (it carries a height) points at GX 4×4 / 8×8 blocks with RGB5A3 TLUTs. A classic `gsDPSetTextureImage` of a REL image, the N64 `gsDPLoadBlock` path about a hundred models still use (insect models, museum art, clocks, window beams), points at N64 row-major texels with RGBA5551 TLUTs (`TextureState.n64_linear`, `bti.decode_n64_linear`). Decoding those as GX blocks gives banded noise.
 
@@ -315,7 +313,7 @@ python3 tools/build_assets.py --kind title --step convert
 
 Writes `assets/generated/ui/title/` (`press_start_{demo}_{half}.png`, `copyright_{n}.png`, PRIM/ENV tints baked) from `foresta.rel`, and `assets/generated/titledemo/demos.json` (spawn, angle, tool and the raw 30 Hz input samples per demo, plus the fixed FG table) from a local `ac-decomp` checkout. The logo skeletons and backdrop come from the normal full convert. These glyphs are **linear `IIIIAAAA`** 64×16, not the GX IA4 layout above — see [decomp_notes/title.md](decomp_notes/title.md). With ACHD enabled the masks are the pack's 8× sheets (still tinted); otherwise the native decode is Lanczos-upscaled 4×.
 
-Optional `"decomp_root"` points at an `ac-decomp` checkout for FG combis. `--step all` runs extract + scan + convert + bake + validate. Pass `--export windows|macos|all` to run desktop export afterward (or use `--step export` alone).
+Optional `"decomp_root"` points at an `ac-decomp` checkout for FG combis. `--step all` runs extract + scan + convert (every kind but `villagers`) + bake + validate. Pass `--export windows|macos|all` to run desktop export afterward (or use `--step export` alone).
 
 Convert **overwrites** the files it writes and does not delete `assets/generated/` (so a run will not wipe the FG catalog, inventory UI, or other side outputs). It clears work-root `converted/` staging only.
 

@@ -31,25 +31,22 @@ The town's acres are built by the asset pipeline. Run it once before the first p
    pip3 install -r tools/requirements.txt
    ```
 
-2. Copy the config and edit `tools/config.local.json` (gitignored):
+2. Build every asset from your disc image (`.iso`, `.gcm`, `.rvz`, or a Dolphin dump that contains `files/`):
 
    ```sh
-   cp tools/config.example.json tools/config.local.json
+   python3 tools/build_assets.py --disc /path/to/GAFE01.iso
    ```
 
-   - `game_files` — absolute path to the disc image (`.iso`, `.gcm`, `.rvz`) or a Dolphin dump that contains `files/`
+   This extracts the disc, converts models, textures, UI, dialogue and music, and bakes the acre scenes. The first run asks whether to use the [Animal Crossing HD](https://docs.google.com/document/d/1ofFuIgV9AfQcx3DmGXvDKl-fdoTk-ZQ3AxBX5QLA7vI/) texture pack (about 160 MB, downloaded for you; pass `--hd` or `--no-hd` to skip the question), writes `tools/config.local.json` (gitignored), puts extracted files in `~/ac-assets-work`, downloads `dtk` into `tools/.cache/dtk`, and shallow-clones [ac-decomp](https://github.com/ACreTeam/ac-decomp) into the work folder unless it finds a checkout already. Godot is found in its usual install locations; set `GODOT_BIN` if yours is elsewhere. Later rebuilds are just `python3 tools/build_assets.py`.
+
+   To change the defaults, edit `tools/config.local.json` (see `tools/config.example.json`):
+
    - `work_root` — absolute path **outside** this repo, where extracted files are written
-   - `godot_bin` — the Godot executable. On macOS: `/Applications/Godot.app/Contents/MacOS/Godot`
-   - `achd_enabled` — set to `false` unless you have an ACHD texture pack at `achd_root`
-   - `decomp_root` — optional. A local [ac-decomp](https://github.com/ACreTeam/ac-decomp) checkout, used for villager tables, furniture layouts, and music. Leave it `""` if you do not have one
+   - `godot_bin` — the Godot executable, if it is not in a usual place
+   - `achd_enabled` / `achd_root` — the HD texture pack. `--hd` / `--no-hd` switch it later and reconvert
+   - `decomp_root` — an existing ac-decomp checkout
 
-3. Build the assets. This extracts the disc, converts models and textures, and bakes the acre scenes. The first run downloads `dtk` into `tools/.cache/dtk`.
-
-   ```sh
-   python3 tools/build_assets.py
-   ```
-
-4. Start the game. Open this folder in Godot 4.6+ and press Play, or from a terminal:
+3. Start the game. Open this folder in Godot 4.6+ and press Play, or from a terminal:
 
    ```sh
    godot --path .

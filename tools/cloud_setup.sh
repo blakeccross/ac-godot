@@ -137,14 +137,9 @@ run() {
 	log "build_assets.py $*"
 	python3 tools/build_assets.py "$@" || { log "build_assets.py $* reported errors"; status=1; }
 }
-# extract + scan + convert + bake + validate. Side kinds after, since bake/runtime
-# only need the full convert; seasons must follow it so grass/snow sheets match.
+# extract + scan + convert (every kind but villagers) + bake + validate.
 run --step all
-# `villagers` is left out: it rewrites the tracked data/villagers/*.tres.
-for kind in fg seasons inventory-ui design-ui map-ui message-ui clock-ui title dialogue faces audio; do
-	run --step convert --kind "$kind"
-done
-# Import what the side kinds wrote so the editor and tests see it.
+# Import what the convert wrote so the editor and tests see it.
 "$GODOT_BIN" --headless --path . --import >/dev/null 2>&1 || log "godot --import reported errors"
 
 date -u +%FT%TZ >"$STAMP"

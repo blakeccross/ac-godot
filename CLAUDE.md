@@ -21,6 +21,6 @@ A fresh cloud container has no disc, no generated assets and no Godot. The game 
      "godot_bin": "/opt/godot/godot"
    }
    ```
-5. **Generate assets:** `python3 tools/build_assets.py` (extract → scan → convert → bake → validate). Then `tools/capture.sh --import …` or open the project once headless so Godot imports the new files.
+5. **Generate assets:** `python3 tools/build_assets.py` (extract → scan → convert → bake → validate; convert covers every kind except `villagers`, including FG templates and seasons). Then `tools/capture.sh --import …` or open the project once headless so Godot imports the new files.
 
 Check it worked: `scenes/world/acres/*.tscn` exist and `tools/test.sh` passes. Details and per-kind reruns are in [docs/asset_pipeline.md](docs/asset_pipeline.md).

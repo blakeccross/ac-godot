@@ -10,6 +10,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
+try:
+    import numpy, PIL, texture2ddecoder, xxhash  # noqa: E401, F401
+except ImportError as exc:
+    raise SystemExit(f"missing Python package {exc.name!r}: pip3 install -r tools/requirements.txt")
+
 from asset_pipeline.config import load_config  # noqa: E402
 from asset_pipeline.convert import (  # noqa: E402
     BUG_STATIC_NEEDLES,
@@ -36,6 +41,7 @@ from asset_pipeline.dialogue import convert_dialogue  # noqa: E402
 from asset_pipeline.villagers import generate_villagers  # noqa: E402
 from asset_pipeline.seasons import export_seasonal_textures  # noqa: E402
 from asset_pipeline.weather_sprites import export_weather_sprites  # noqa: E402
+from asset_pipeline.first_run import ensure_decomp, local_config_path, write_local_config  # noqa: E402
 from asset_pipeline.extract import extract_archives, extract_disc  # noqa: E402
 from asset_pipeline.design_ui import extract_design_ui  # noqa: E402
 from asset_pipeline.menu_ui import extract_menu_ui  # noqa: E402
@@ -49,9 +55,365 @@ from asset_pipeline.scan import scan  # noqa: E402
 from asset_pipeline.validate import validate  # noqa: E402
 
 
+## Kinds that read the core convert or write outside it, run after it by `--kind all`.
+## `villagers` stays opt-in: it rewrites the tracked data/villagers/*.tres.
+SIDE_KINDS = (
+    "fg",
+    "seasons",
+    "inventory-ui",
+    "design-ui",
+    "menu-ui",
+    "map-ui",
+    "message-ui",
+    "clock-ui",
+    "title",
+    "dialogue",
+    "faces",
+    "audio",
+)
+
+
+def convert_kind(cfg, kind: str) -> bool:
+    """Run one `--kind` convert. `all` is the core full convert (static, cKF, BTI,
+    collision, water, villager textures); returns True when anything failed."""
+    failed = False
+    errors: list[dict] = []
+    if kind == "collision":
+        col = convert_acre_collision(cfg)
+        print(f"wrote {col['converted']} acre collision sidecars")
+    elif kind == "fg":
+        fg = convert_fgdata(cfg)
+        if fg.get("error"):
+            print(f"fgdata: {fg['error']}")
+            failed = True
+        else:
+            print(
+                f"wrote FG catalog ({fg['templates']} templates, "
+                f"{fg['combis']} combis, {fg['combis_with_trees']} with trees)"
+            )
+        npc = convert_npc_rooms(cfg)
+        if npc.get("error"):
+            print(f"npc_rooms: {npc['error']}")
+            failed = True
+        else:
+            print(
+                f"wrote NPC room layouts ({npc['villagers']} villagers, "
+                f"{npc['placements']} furniture) -> {npc.get('path', '')}"
+            )
+        prof = convert_furniture_profiles(cfg)
+        if prof.get("error"):
+            print(f"furniture_profiles: {prof['error']}")
+            failed = True
+        else:
+            print(f"wrote {prof['profiles']} furniture profiles -> {prof.get('path', '')}")
+    elif kind == "message-ui":
+        report = extract_message_ui(cfg)
+        if report.get("error"):
+            print(f"message-ui: {report['error']}")
+            failed = True
+        else:
+            converted = report["converted"]
+            errors = [r for r in report["results"] if r["status"] == "error"]
+            print(f"wrote {converted} message UI assets (tiles + baked shapes) -> {report['output']}")
+            for err in errors[:40]:
+                print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+            if errors:
+                failed = True
+    elif kind == "faces":
+        report = extract_faces(cfg)
+        if report.get("error"):
+            print(f"faces: {report['error']}")
+            failed = True
+        else:
+            converted = report["converted"]
+            errors = [r for r in report["results"] if r["status"] == "error"]
+            print(f"wrote {converted} NPC face frames -> {report['output']}")
+            for err in errors[:40]:
+                print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+            if errors:
+                failed = True
+    elif kind == "inventory-ui":
+        report = extract_inventory_ui(cfg)
+        if report.get("error"):
+            print(f"inventory-ui: {report['error']}")
+            failed = True
+        else:
+            converted = report["converted"]
+            errors = [r for r in report["results"] if r["status"] == "error"]
+            achd_hits = int(report.get("achd_hits", 0))
+            print(
+                f"wrote {converted} inventory UI textures"
+                f" ({achd_hits} ACHD) -> {report['output']}"
+            )
+            shell_info = report.get("window_shell")
+            if shell_info:
+                bbox = shell_info.get("alpha_bbox") or {}
+                print(
+                    f"  window_shell {shell_info.get('width')}x{shell_info.get('height')}"
+                    f" alpha_bbox={bbox}"
+                )
+            for err in errors[:40]:
+                print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+            if errors:
+                failed = True
+    elif kind == "design-ui":
+        report = extract_design_ui(cfg)
+        if report.get("error"):
+            print(f"design-ui: {report['error']}")
+            failed = True
+        else:
+            converted = report["converted"]
+            errors = [r for r in report["results"] if r.get("status") == "error"]
+            print(f"wrote {converted} design UI assets -> {report['output']} (ACHD hits {report['achd_hits']})")
+            for err in errors[:40]:
+                print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+            if errors:
+                failed = True
+    elif kind == "menu-ui":
+        report = extract_menu_ui(cfg)
+        if report.get("error"):
+            print(f"menu-ui: {report['error']}")
+            failed = True
+        else:
+            errors = [r for r in report["results"] if r.get("status") == "error"]
+            print(f"wrote {report['converted']} menu UI layers -> {report['output']} (ACHD hits {report['achd_hits']})")
+            for err in errors[:40]:
+                print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+            if errors:
+                failed = True
+    elif kind == "map-ui":
+        report = extract_map_ui(cfg)
+        if report.get("error"):
+            print(f"map-ui: {report['error']}")
+            failed = True
+        else:
+            converted = report["converted"]
+            errors = [r for r in report["results"] if r["status"] == "error"]
+            achd_hits = int(report.get("achd_hits", 0))
+            print(
+                f"wrote {converted} map UI textures"
+                f" ({achd_hits} ACHD) -> {report['output']}"
+            )
+            for err in errors[:40]:
+                print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+            if errors:
+                failed = True
+    elif kind == "clock-ui":
+        report = extract_clock_ui(cfg)
+        if report.get("error"):
+            print(f"clock-ui: {report['error']}")
+            failed = True
+        else:
+            converted = report["converted"]
+            errors = [r for r in report["results"] if r["status"] == "error"]
+            achd_hits = int(report.get("achd_hits", 0))
+            print(
+                f"wrote {converted} clock UI textures"
+                f" ({achd_hits} ACHD) -> {report['output']}"
+            )
+            for err in errors[:40]:
+                print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+            if errors:
+                failed = True
+    elif kind == "title":
+        ui_report = extract_title_ui(cfg)
+        if ui_report.get("error"):
+            print(f"title (ui): {ui_report['error']}")
+            failed = True
+        else:
+            errors = [r for r in ui_report["results"] if r["status"] == "error"]
+            achd_hits = int(ui_report.get("achd_hits", 0))
+            print(
+                f"wrote {ui_report['converted']} title UI textures"
+                f" ({achd_hits} ACHD) -> {ui_report['output']}"
+            )
+            for err in errors[:40]:
+                print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+            if errors:
+                failed = True
+        demo_report = extract_title_demo(cfg)
+        if demo_report.get("error"):
+            print(f"title (demo): {demo_report['error']}")
+            failed = True
+        else:
+            print(
+                f"wrote {demo_report['demos']} title demos"
+                f" ({demo_report['samples']} samples, {demo_report['fg_blocks']} FG blocks)"
+                f" -> {demo_report['path']}"
+            )
+    elif kind == "villagers":
+        report = generate_villagers(cfg)
+        if report.get("error"):
+            print(f"villagers: {report['error']}")
+            failed = True
+        else:
+            print(
+                f"wrote {report['written']} villagers "
+                f"({report['starters']} starters) -> data/villagers/"
+            )
+    elif kind == "dialogue":
+        report = convert_dialogue(cfg)
+        if report.get("error"):
+            print(f"dialogue: {report['error']}")
+            failed = True
+        else:
+            print(
+                f"wrote {report['converted']} messages -> {report['output']} "
+                f"({report['files']} files, {report['select_count']} choices, "
+                f"{report['string_count']} strings; "
+                f"{report.get('manpu_events', 0)} manpu, "
+                f"{report.get('set_emote_events', 0)} set_emote, "
+                f"{report.get('demo_order_events', 0)} demo_order; "
+                f"{report.get('mail_strings', 0)} letter strings)"
+            )
+    elif kind == "audio":
+        report = convert_audio(cfg)
+        if report.get("error"):
+            print(f"audio: {report['error']}")
+            failed = True
+        else:
+            print(
+                f"wrote audio catalog ({report['bgm']} bgm, "
+                f"{report.get('sfx', 0)} sfx, {report.get('voice', 0)} voice, "
+                f"{report['seq_sliced']} seq slices, "
+                f"rendered bgm={report['rendered']} "
+                f"sfx={report.get('sfx_rendered', 0)} "
+                f"voice={report.get('voice_rendered', 0)}) -> {report['output']}"
+            )
+    else:
+        if kind == "static":
+            report = convert_static_only(cfg)
+            label = "static assets"
+        elif kind == "buildings":
+            ## All house/myhome/shop stages — MASK doors must not share a
+            ## skinned mesh with OPAQUE walls (Godot transparent pipeline).
+            report = convert_ckf_starting_with(
+                cfg,
+                "obj_s_house",
+                "obj_w_house",
+                "obj_s_myhome",
+                "obj_w_myhome",
+                "obj_s_shop",
+                "obj_w_shop",
+                "obj_s_tailor",
+                "obj_w_tailor",
+                "obj_s_yubinkyoku",
+                "obj_w_yubinkyoku",
+                "obj_s_station",
+                "obj_w_station",
+                "obj_s_uranai",
+                "obj_w_uranai",
+                "obj_s_yamishop",
+                "obj_w_yamishop",
+            )
+            pal_report = convert_villager_house_palettes(cfg)
+            report["results"].extend(pal_report.get("results", []))
+            roof_report = convert_player_house_palettes(cfg)
+            report["results"].extend(roof_report.get("results", []))
+            static_report = convert_static_prefixes(
+                cfg, ["obj_s_museum", "obj_w_museum", "obj_s_kouban", "obj_w_kouban", "obj_s_shrine", "obj_w_shrine"]
+            )
+            report["results"].extend(static_report.get("results", []))
+            label = "building assets"
+        elif kind == "furniture":
+            report = convert_ckf_starting_with(cfg, "int_", "clk_")
+            label = "furniture cKF assets"
+        elif kind == "plants":
+            report = convert_static_prefixes(
+                cfg,
+                [
+                    "obj_s_tree",
+                    "obj_w_tree",
+                    "obj_f_tree",
+                    "obj_s_stump",
+                    "obj_w_stump",
+                    "obj_f_stump",
+                    "palm",
+                    "cedar",
+                    "tree5_apple",
+                    "obj_s_stone",
+                    "obj_w_stone",
+                    "obj_s_cstump",
+                    "obj_s_pstump",
+                    "obj_w_cstump",
+                    "obj_w_pstump",
+                    "obj_hole",
+                    "obj_zassou",
+                ],
+            )
+            label = "plant assets"
+        elif kind == "villager-textures":
+            report = convert_villager_texture_sets(cfg)
+            label = "villager texture sets"
+        elif kind == "water":
+            report = convert_water_acres(cfg)
+            label = "river/ocean/pond acre assets"
+        elif kind == "fish":
+            report = convert_static_prefixes(cfg, FISH_STATIC_NEEDLES)
+            label = "fish assets"
+        elif kind == "bugs":
+            report = convert_test_static_needles(cfg, BUG_STATIC_NEEDLES)
+            label = "bug assets"
+        elif kind == "seasons":
+            ## Always rewrite — ACHD caps / palette rows change without new filenames.
+            season_report = export_seasonal_textures(cfg, force=True)
+            if not season_report.get("ok"):
+                print(f"seasons: {season_report.get('error', 'no textures written')}")
+                failed = True
+            else:
+                print(
+                    f"wrote {season_report['written']} seasonal textures "
+                    f"-> {season_report.get('out', '')}"
+                )
+            sprites = export_weather_sprites(cfg)
+            if not sprites.get("ok"):
+                print(f"weather sprites: {sprites.get('error')}")
+                failed = True
+            else:
+                print(f"wrote {sprites['written']} weather sprites -> {sprites['out']}")
+                if season_report.get("missing"):
+                    print(f"  missing: {', '.join(season_report['missing'][:20])}")
+            report = None
+        else:
+            report = convert_assets(cfg)
+            report["results"].extend(convert_villager_texture_sets(cfg).get("results", []))
+            label = "assets"
+            ## Title-demo sakura / snow need these sprites; without them
+            ## `WeatherFx` falls back to a solid pink/white quad.
+            sprites = export_weather_sprites(cfg)
+            if not sprites.get("ok"):
+                print(f"weather sprites: {sprites.get('error')}")
+                failed = True
+            else:
+                print(f"wrote {sprites['written']} weather sprites -> {sprites['out']}")
+        if report is not None:
+            converted = sum(1 for r in report["results"] if r["status"] == "converted")
+            errors = [r for r in report["results"] if r["status"] == "error"]
+            print(f"converted {converted}/{len(report['results'])} {label}")
+            for err in errors[:40]:
+                print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+            if len(errors) > 40:
+                print(f"  ... {len(errors) - 40} more errors")
+            if errors:
+                failed = True
+    return failed
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=None)
+    parser.add_argument(
+        "--disc",
+        type=Path,
+        default=None,
+        help="Disc image or Dolphin dump. Writes it into tools/config.local.json (created with defaults on first run).",
+    )
+    parser.add_argument(
+        "--hd",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Use the ACHD HD texture pack (downloaded into work_root) or not. Asked on first run when omitted.",
+    )
     parser.add_argument(
         "--step",
         choices=["all", "extract", "scan", "convert", "bake", "validate", "export"],
@@ -61,7 +423,7 @@ def main() -> int:
         "--kind",
         choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "design-ui", "menu-ui", "map-ui", "message-ui", "clock-ui", "title", "dialogue", "villagers", "villager-textures", "faces", "audio", "water", "fish", "bugs", "seasons"],
         default="all",
-        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory/map UI chrome, dialogue banks, villager roster from decomp tables, per-villager body texture sets, NPC eye/mouth face frames, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
+        help="all (default: the full convert, then FG templates, seasons, UI chrome, title, dialogue, faces and audio; not villagers), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory/map UI chrome, dialogue banks, villager roster from decomp tables, per-villager body texture sets, NPC eye/mouth face frames, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
     )
     parser.add_argument(
         "--export",
@@ -70,6 +432,20 @@ def main() -> int:
         help="Godot --export-release into out/ (windows, macos, or all). Use with --step all (after validate) or --step export alone. Needs export templates installed.",
     )
     args = parser.parse_args()
+    if args.disc is not None and not args.disc.expanduser().exists():
+        print(f"disc: {args.disc} not found")
+        return 1
+    if args.disc is not None or args.hd is not None:
+        if args.config is not None:
+            print("--disc / --hd write tools/config.local.json; drop --config")
+            return 1
+        if args.disc is None and not local_config_path(ROOT).exists():
+            print("No tools/config.local.json yet. First run: python3 tools/build_assets.py --disc /path/to/disc.iso")
+            return 1
+        print(f"config: wrote {write_local_config(ROOT, args.disc, args.hd)}")
+    elif args.config is None and not local_config_path(ROOT).exists():
+        print("No tools/config.local.json yet. First run: python3 tools/build_assets.py --disc /path/to/disc.iso")
+        return 1
     cfg = load_config(ROOT, args.config)
 
     failed = False
@@ -91,325 +467,10 @@ def main() -> int:
             pack = load_achd_pack(cfg.achd_root, cfg.achd_cache)
             n = pack.size if pack else 0
             print(f"achd: {cfg.achd_root} ({n} textures)")
-        errors: list[dict] = []
-        if args.kind == "collision":
-            col = convert_acre_collision(cfg)
-            print(f"wrote {col['converted']} acre collision sidecars")
-        elif args.kind == "fg":
-            fg = convert_fgdata(cfg)
-            if fg.get("error"):
-                print(f"fgdata: {fg['error']}")
-                failed = True
-            else:
-                print(
-                    f"wrote FG catalog ({fg['templates']} templates, "
-                    f"{fg['combis']} combis, {fg['combis_with_trees']} with trees)"
-                )
-            npc = convert_npc_rooms(cfg)
-            if npc.get("error"):
-                print(f"npc_rooms: {npc['error']}")
-                failed = True
-            else:
-                print(
-                    f"wrote NPC room layouts ({npc['villagers']} villagers, "
-                    f"{npc['placements']} furniture) -> {npc.get('path', '')}"
-                )
-            prof = convert_furniture_profiles(cfg)
-            if prof.get("error"):
-                print(f"furniture_profiles: {prof['error']}")
-                failed = True
-            else:
-                print(f"wrote {prof['profiles']} furniture profiles -> {prof.get('path', '')}")
-        elif args.kind == "message-ui":
-            report = extract_message_ui(cfg)
-            if report.get("error"):
-                print(f"message-ui: {report['error']}")
-                failed = True
-            else:
-                converted = report["converted"]
-                errors = [r for r in report["results"] if r["status"] == "error"]
-                print(f"wrote {converted} message UI assets (tiles + baked shapes) -> {report['output']}")
-                for err in errors[:40]:
-                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
-                if errors:
-                    failed = True
-        elif args.kind == "faces":
-            report = extract_faces(cfg)
-            if report.get("error"):
-                print(f"faces: {report['error']}")
-                failed = True
-            else:
-                converted = report["converted"]
-                errors = [r for r in report["results"] if r["status"] == "error"]
-                print(f"wrote {converted} NPC face frames -> {report['output']}")
-                for err in errors[:40]:
-                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
-                if errors:
-                    failed = True
-        elif args.kind == "inventory-ui":
-            report = extract_inventory_ui(cfg)
-            if report.get("error"):
-                print(f"inventory-ui: {report['error']}")
-                failed = True
-            else:
-                converted = report["converted"]
-                errors = [r for r in report["results"] if r["status"] == "error"]
-                achd_hits = int(report.get("achd_hits", 0))
-                print(
-                    f"wrote {converted} inventory UI textures"
-                    f" ({achd_hits} ACHD) -> {report['output']}"
-                )
-                shell_info = report.get("window_shell")
-                if shell_info:
-                    bbox = shell_info.get("alpha_bbox") or {}
-                    print(
-                        f"  window_shell {shell_info.get('width')}x{shell_info.get('height')}"
-                        f" alpha_bbox={bbox}"
-                    )
-                for err in errors[:40]:
-                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
-                if errors:
-                    failed = True
-        elif args.kind == "design-ui":
-            report = extract_design_ui(cfg)
-            if report.get("error"):
-                print(f"design-ui: {report['error']}")
-                failed = True
-            else:
-                converted = report["converted"]
-                errors = [r for r in report["results"] if r.get("status") == "error"]
-                print(f"wrote {converted} design UI assets -> {report['output']} (ACHD hits {report['achd_hits']})")
-                for err in errors[:40]:
-                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
-                if errors:
-                    failed = True
-        elif args.kind == "menu-ui":
-            report = extract_menu_ui(cfg)
-            if report.get("error"):
-                print(f"menu-ui: {report['error']}")
-                failed = True
-            else:
-                errors = [r for r in report["results"] if r.get("status") == "error"]
-                print(f"wrote {report['converted']} menu UI layers -> {report['output']} (ACHD hits {report['achd_hits']})")
-                for err in errors[:40]:
-                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
-                if errors:
-                    failed = True
-        elif args.kind == "map-ui":
-            report = extract_map_ui(cfg)
-            if report.get("error"):
-                print(f"map-ui: {report['error']}")
-                failed = True
-            else:
-                converted = report["converted"]
-                errors = [r for r in report["results"] if r["status"] == "error"]
-                achd_hits = int(report.get("achd_hits", 0))
-                print(
-                    f"wrote {converted} map UI textures"
-                    f" ({achd_hits} ACHD) -> {report['output']}"
-                )
-                for err in errors[:40]:
-                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
-                if errors:
-                    failed = True
-        elif args.kind == "clock-ui":
-            report = extract_clock_ui(cfg)
-            if report.get("error"):
-                print(f"clock-ui: {report['error']}")
-                failed = True
-            else:
-                converted = report["converted"]
-                errors = [r for r in report["results"] if r["status"] == "error"]
-                achd_hits = int(report.get("achd_hits", 0))
-                print(
-                    f"wrote {converted} clock UI textures"
-                    f" ({achd_hits} ACHD) -> {report['output']}"
-                )
-                for err in errors[:40]:
-                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
-                if errors:
-                    failed = True
-        elif args.kind == "title":
-            ui_report = extract_title_ui(cfg)
-            if ui_report.get("error"):
-                print(f"title (ui): {ui_report['error']}")
-                failed = True
-            else:
-                errors = [r for r in ui_report["results"] if r["status"] == "error"]
-                achd_hits = int(ui_report.get("achd_hits", 0))
-                print(
-                    f"wrote {ui_report['converted']} title UI textures"
-                    f" ({achd_hits} ACHD) -> {ui_report['output']}"
-                )
-                for err in errors[:40]:
-                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
-                if errors:
-                    failed = True
-            demo_report = extract_title_demo(cfg)
-            if demo_report.get("error"):
-                print(f"title (demo): {demo_report['error']}")
-                failed = True
-            else:
-                print(
-                    f"wrote {demo_report['demos']} title demos"
-                    f" ({demo_report['samples']} samples, {demo_report['fg_blocks']} FG blocks)"
-                    f" -> {demo_report['path']}"
-                )
-        elif args.kind == "villagers":
-            report = generate_villagers(cfg)
-            if report.get("error"):
-                print(f"villagers: {report['error']}")
-                failed = True
-            else:
-                print(
-                    f"wrote {report['written']} villagers "
-                    f"({report['starters']} starters) -> data/villagers/"
-                )
-        elif args.kind == "dialogue":
-            report = convert_dialogue(cfg)
-            if report.get("error"):
-                print(f"dialogue: {report['error']}")
-                failed = True
-            else:
-                print(
-                    f"wrote {report['converted']} messages -> {report['output']} "
-                    f"({report['files']} files, {report['select_count']} choices, "
-                    f"{report['string_count']} strings; "
-                    f"{report.get('manpu_events', 0)} manpu, "
-                    f"{report.get('set_emote_events', 0)} set_emote, "
-                    f"{report.get('demo_order_events', 0)} demo_order; "
-                    f"{report.get('mail_strings', 0)} letter strings)"
-                )
-        elif args.kind == "audio":
-            report = convert_audio(cfg)
-            if report.get("error"):
-                print(f"audio: {report['error']}")
-                failed = True
-            else:
-                print(
-                    f"wrote audio catalog ({report['bgm']} bgm, "
-                    f"{report.get('sfx', 0)} sfx, {report.get('voice', 0)} voice, "
-                    f"{report['seq_sliced']} seq slices, "
-                    f"rendered bgm={report['rendered']} "
-                    f"sfx={report.get('sfx_rendered', 0)} "
-                    f"voice={report.get('voice_rendered', 0)}) -> {report['output']}"
-                )
-        else:
-            if args.kind == "static":
-                report = convert_static_only(cfg)
-                label = "static assets"
-            elif args.kind == "buildings":
-                ## All house/myhome/shop stages — MASK doors must not share a
-                ## skinned mesh with OPAQUE walls (Godot transparent pipeline).
-                report = convert_ckf_starting_with(
-                    cfg,
-                    "obj_s_house",
-                    "obj_w_house",
-                    "obj_s_myhome",
-                    "obj_w_myhome",
-                    "obj_s_shop",
-                    "obj_w_shop",
-                    "obj_s_tailor",
-                    "obj_w_tailor",
-                    "obj_s_yubinkyoku",
-                    "obj_w_yubinkyoku",
-                    "obj_s_station",
-                    "obj_w_station",
-                    "obj_s_uranai",
-                    "obj_w_uranai",
-                    "obj_s_yamishop",
-                    "obj_w_yamishop",
-                )
-                pal_report = convert_villager_house_palettes(cfg)
-                report["results"].extend(pal_report.get("results", []))
-                roof_report = convert_player_house_palettes(cfg)
-                report["results"].extend(roof_report.get("results", []))
-                static_report = convert_static_prefixes(
-                    cfg, ["obj_s_museum", "obj_w_museum", "obj_s_kouban", "obj_w_kouban", "obj_s_shrine", "obj_w_shrine"]
-                )
-                report["results"].extend(static_report.get("results", []))
-                label = "building assets"
-            elif args.kind == "furniture":
-                report = convert_ckf_starting_with(cfg, "int_", "clk_")
-                label = "furniture cKF assets"
-            elif args.kind == "plants":
-                report = convert_static_prefixes(
-                    cfg,
-                    [
-                        "obj_s_tree",
-                        "obj_w_tree",
-                        "obj_f_tree",
-                        "obj_s_stump",
-                        "obj_w_stump",
-                        "obj_f_stump",
-                        "palm",
-                        "cedar",
-                        "tree5_apple",
-                        "obj_s_stone",
-                        "obj_w_stone",
-                        "obj_s_cstump",
-                        "obj_s_pstump",
-                        "obj_w_cstump",
-                        "obj_w_pstump",
-                        "obj_hole",
-                        "obj_zassou",
-                    ],
-                )
-                label = "plant assets"
-            elif args.kind == "villager-textures":
-                report = convert_villager_texture_sets(cfg)
-                label = "villager texture sets"
-            elif args.kind == "water":
-                report = convert_water_acres(cfg)
-                label = "river/ocean/pond acre assets"
-            elif args.kind == "fish":
-                report = convert_static_prefixes(cfg, FISH_STATIC_NEEDLES)
-                label = "fish assets"
-            elif args.kind == "bugs":
-                report = convert_test_static_needles(cfg, BUG_STATIC_NEEDLES)
-                label = "bug assets"
-            elif args.kind == "seasons":
-                ## Always rewrite — ACHD caps / palette rows change without new filenames.
-                season_report = export_seasonal_textures(cfg, force=True)
-                if not season_report.get("ok"):
-                    print(f"seasons: {season_report.get('error', 'no textures written')}")
-                    failed = True
-                else:
-                    print(
-                        f"wrote {season_report['written']} seasonal textures "
-                        f"-> {season_report.get('out', '')}"
-                    )
-                sprites = export_weather_sprites(cfg)
-                if not sprites.get("ok"):
-                    print(f"weather sprites: {sprites.get('error')}")
-                    failed = True
-                else:
-                    print(f"wrote {sprites['written']} weather sprites -> {sprites['out']}")
-                    if season_report.get("missing"):
-                        print(f"  missing: {', '.join(season_report['missing'][:20])}")
-                report = None
-            else:
-                report = convert_assets(cfg)
-                report["results"].extend(convert_villager_texture_sets(cfg).get("results", []))
-                label = "assets"
-                ## Title-demo sakura / snow need these sprites; without them
-                ## `WeatherFx` falls back to a solid pink/white quad.
-                sprites = export_weather_sprites(cfg)
-                if not sprites.get("ok"):
-                    print(f"weather sprites: {sprites.get('error')}")
-                    failed = True
-                else:
-                    print(f"wrote {sprites['written']} weather sprites -> {sprites['out']}")
-            if report is not None:
-                converted = sum(1 for r in report["results"] if r["status"] == "converted")
-                errors = [r for r in report["results"] if r["status"] == "error"]
-                print(f"converted {converted}/{len(report['results'])} {label}")
-                for err in errors[:40]:
-                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
-                if len(errors) > 40:
-                    print(f"  ... {len(errors) - 40} more errors")
-                if errors:
-                    failed = True
+        cfg.decomp_root = ensure_decomp(cfg)
+        kinds = [args.kind] if args.kind != "all" else ["all", *SIDE_KINDS]
+        for kind in kinds:
+            failed = convert_kind(cfg, kind) or failed
     if args.step in ("all", "bake"):
         baked = bake_acre_scenes(cfg)
         if baked["ok"]:

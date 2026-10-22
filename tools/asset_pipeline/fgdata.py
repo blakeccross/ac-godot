@@ -74,6 +74,8 @@ def _guess_decomp(cfg: PipelineConfig) -> Path | None:
         cfg.project_root.parent.parent / "ac-decomp",
         Path.home() / "Documents" / "ac-decomp",
         cfg.project_root / ".." / "ac-decomp",
+        ## Where `first_run.ensure_decomp` clones it.
+        cfg.work_root / "ac-decomp",
     ):
         resolved = path.resolve()
         if (resolved / "include" / "m_fg_type.h").is_file():
