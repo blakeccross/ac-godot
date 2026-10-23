@@ -218,7 +218,7 @@ func _move(dx: int, dy: int) -> void:
 	Audio.play_se(&"cursol")
 	var cols: int = ALBUM_COLS if _region == Region.ALBUM else MINE_COLS
 	var c: int = _sel % cols + dx
-	var r: int = clampi(_sel / cols + dy, 0, ALBUM_ROWS - 1)
+	var r: int = clampi(floori(float(_sel) / cols) + dy, 0, ALBUM_ROWS - 1)
 	if _region == Region.ALBUM and c < 0:
 		_region = Region.MINE
 		c = MINE_COLS - 1
