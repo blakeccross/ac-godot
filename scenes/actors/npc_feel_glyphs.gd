@@ -26,6 +26,7 @@ const HA_MATRIX_SCALE := 0.0067
 const HA_LIFE_FRAMES := 56
 const HA_Y := 0.6  ## 12 GX
 const HA_X := 0.8  ## 16 GX
+const HA_TILT_DEG := 45.0
 
 ## Lightbulb bolt (`ef_hirameki_den`) + brief glow (`ef_hirameki_hikari`).
 const HIRAMEKI_DEN_VISUAL := &"ef_hirameki01_den"
@@ -94,6 +95,9 @@ var _ongen_player: AudioStreamPlayer
 ## last joint, at the top of the head). Unset, they start at the glyph point.
 var feel_skeleton: Skeleton3D = null
 var feel_bone: int = -1
+## Spawn the one-shot glyphs at the feel joint as it is when they start, as
+## `aNPC_set_eff` does (`Matrix_Position_Zero` on the last joint), not at `head_lift`.
+var spawn_at_feel_joint: bool = false
 ## Mood pose effects (`NpcManpu.MOOD_POSE_EFFECTS`), independent of the reaction glyphs.
 var _pose: String = ""
 var _pose_counter: float = 0.0
@@ -119,6 +123,11 @@ func _process(delta: float) -> void:
 		_tick_moods(delta)
 		return
 	_frame += delta * DecompTime.TICK_HZ
+	## `eWU_mv` / `eAS2_mv`: `sAdo_OngenPos` each tick holds the effect's level SE.
+	if _kind == &"warau":
+		_hold_ongen(&"lev_f")
+	elif _kind == &"ase":
+		_hold_ongen(&"lev_29")
 	match _kind:
 		&"warau":
 			_tick_warau()
@@ -156,21 +165,26 @@ func play(kind: StringName) -> void:
 		## The effect's first tick runs as it is made.
 		_tick_moods(DecompTime.TICK_SEC)
 		return
+	if spawn_at_feel_joint:
+		_snap_to_feel_joint()
 	match kind:
 		&"warau":
 			_show_warau_frame(0)
 		&"shock":
+			Audio.play_se(&"2d", self)  ## `eSK_mv` first tick
 			_set_visual(SHOCK_VISUAL, SHOCK_MATRIX_SCALE)
 			_mesh_host.position = Vector3(0.0, SHOCK_Y, 0.0)
 			_tint_mesh(Color(1.0, 1.0, 0.0))
 		&"ha":
+			Audio.play_se(&"2c", self)  ## `eHA_mv` on the first tick (`NA_SE_2C`)
 			_set_visual(HA_VISUAL, HA_MATRIX_SCALE)
-			_mesh_host.position = Vector3(
-				HA_X,
-				HA_Y,
-				0.0
-			)
+			## `eHA_ct`: the side follows `angle − (camera angle + 180°)`, the card tilts 45° /
+			## 315° (`eHA_angle_z_data`) and sits 12 up, 16 out (billboard space).
+			var left: bool = view_diff_deg() >= 180.0
+			_mesh_host.position = Vector3(-HA_X if left else HA_X, HA_Y, 0.0)
+			_mesh_host.rotation = Vector3(0.0, 0.0, deg_to_rad(HA_TILT_DEG if left else -HA_TILT_DEG))
 		&"hirameki":
+			Audio.play_se(&"2e", self)  ## `eHiramekiD_mv` first tick
 			_set_visual(HIRAMEKI_DEN_VISUAL, HIRAMEKI_DEN_MATRIX_SCALE)
 			_mesh_host.position = Vector3(0.0, HIRAMEKI_Y, 0.0)
 			_tint_mesh(Color(1.0, 1.0, 0.39))
@@ -315,6 +329,7 @@ func clear() -> void:
 		for child: Node in _mesh_host.get_children():
 			child.free()
 		_mesh_host.position = Vector3.ZERO
+		_mesh_host.rotation = Vector3.ZERO
 		_mesh_host.scale = Vector3.ONE
 	if _glow_host != null:
 		for child: Node in _glow_host.get_children():
@@ -331,6 +346,15 @@ func bind_feel_joint(skeleton: Skeleton3D) -> void:
 		feel_bone = skeleton.find_bone("joint_25")
 		if feel_bone < 0:
 			feel_bone = skeleton.get_bone_count() - 1
+
+
+## Move this node onto the feel joint, in the parent's frame (the effect's spawn position).
+func _snap_to_feel_joint() -> void:
+	var parent := get_parent() as Node3D
+	if parent == null or feel_skeleton == null or not is_instance_valid(feel_skeleton) or feel_bone < 0:
+		return
+	var at: Vector3 = (feel_skeleton.global_transform * feel_skeleton.get_bone_global_pose(feel_bone)).origin
+	position = parent.global_transform.affine_inverse() * at
 
 
 func set_head_lift(meters: float) -> void:

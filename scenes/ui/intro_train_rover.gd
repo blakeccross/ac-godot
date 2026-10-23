@@ -77,6 +77,11 @@ func play_intro_clip(
 		blend_override if blend_override >= 0.0 else IntroTrainStage._rover_anim_blend(suffix)
 	)
 	_anim.play(clip, blend)
+	if blend <= 0.0:
+		## A cut: apply frame 1 now. Until the next process tick the skeleton still holds the
+		## old pose, and `root_motion_offset_gx` (the camera's look target) reads zero for a
+		## frame, so the view jumps off Rover and back.
+		_anim.seek(0.0, true)
 	return true
 
 

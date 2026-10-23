@@ -16,6 +16,53 @@
 [ext_resource type="Script" uid="uid://cpvk0863sunne" path="res://scenes/ui/intro_train_stage_sync.gd" id="14"]
 [ext_resource type="Script" uid="uid://dstml0imckfih" path="res://scenes/ui/intro_train_camera_rig.gd" id="15"]
 [ext_resource type="Script" uid="uid://dchr4eohq1w4l" path="res://scenes/ui/intro_train_keitai.gd" id="16"]
+[ext_resource type="Texture2D" uid="uid://c66blacapdycl" path="res://assets/ui/input_panel_cloud.png" id="17"]
+[ext_resource type="FontFile" uid="uid://d1obuqkxe3oxo" path="res://assets/ui/msg_font.fnt" id="18"]
+
+[sub_resource type="StyleBoxTexture" id="InputPanel"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+texture = ExtResource("17")
+
+[sub_resource type="StyleBoxFlat" id="InputField"]
+content_margin_left = 18.0
+content_margin_top = 6.0
+content_margin_right = 18.0
+content_margin_bottom = 6.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.9, 0.84, 0.62, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="InputOk"]
+content_margin_left = 28.0
+content_margin_top = 2.0
+content_margin_right = 28.0
+content_margin_bottom = 2.0
+bg_color = Color(0.63, 0.84, 0.12, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="InputOkHover"]
+content_margin_left = 28.0
+content_margin_top = 2.0
+content_margin_right = 28.0
+content_margin_bottom = 2.0
+bg_color = Color(0.72, 0.92, 0.2, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
 
 [node name="IntroTrain" type="Node3D" unique_id=683829147]
 script = ExtResource("1")
@@ -65,33 +112,34 @@ transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 0, -2, 0)
 
 [node name="TrainLights" type="Node3D" parent="TrainCar" unique_id=2026054953]
 
-[node name="CarLamp" type="OmniLight3D" parent="TrainCar/TrainLights" unique_id=612123029]
+[node name="ActorLamp" type="OmniLight3D" parent="TrainCar/TrainLights" unique_id=612123033]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 6, 25.5)
 light_color = Color(1, 1, 0.627451, 1)
-light_energy = 3.2
+light_energy = 1.1
 light_specular = 0.0
+light_cull_mask = 2
 omni_range = 60.0
-omni_attenuation = 1.15
+omni_attenuation = 0.2
 
 [node name="Sun" type="DirectionalLight3D" parent="TrainCar/TrainLights" unique_id=612123030]
 unique_name_in_owner = true
+visible = false
 light_energy = 0.0
 light_specular = 0.0
-visible = false
 
 [node name="Moon" type="DirectionalLight3D" parent="TrainCar/TrainLights" unique_id=612123031]
 unique_name_in_owner = true
+visible = false
 light_energy = 0.0
 light_specular = 0.0
-visible = false
 
 [node name="LampLight" type="DirectionalLight3D" parent="TrainCar/TrainLights" unique_id=612123032]
 unique_name_in_owner = true
+visible = false
 light_color = Color(1, 1, 0.75, 1)
 light_energy = 0.0
 light_specular = 0.0
-visible = false
 
 [node name="TrainDoor" type="Node3D" parent="." unique_id=1473175996]
 unique_name_in_owner = true
@@ -213,39 +261,63 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -180.0
-offset_top = -70.0
-offset_right = 180.0
-offset_bottom = 70.0
+offset_left = -310.0
+offset_top = -115.0
+offset_right = 310.0
+offset_bottom = 115.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_styles/panel = SubResource("InputPanel")
 
 [node name="NameMargin" type="MarginContainer" parent="UI/Root/NameModal/NamePanel" unique_id=1343599488]
 layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 90
+theme_override_constants/margin_top = 46
+theme_override_constants/margin_right = 90
+theme_override_constants/margin_bottom = 26
 
 [node name="NameVBox" type="VBoxContainer" parent="UI/Root/NameModal/NamePanel/NameMargin" unique_id=628629959]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 
 [node name="NameTitle" type="Label" parent="UI/Root/NameModal/NamePanel/NameMargin/NameVBox" unique_id=250944097]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.17647, 0, 0.11765, 1)
+theme_override_fonts/font = ExtResource("18")
+theme_override_font_sizes/font_size = 36
 text = "Your name"
 horizontal_alignment = 1
 
 [node name="NameEdit" type="LineEdit" parent="UI/Root/NameModal/NamePanel/NameMargin/NameVBox" unique_id=125103341]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.17647, 0, 0.11765, 1)
+theme_override_colors/font_selected_color = Color(1, 1, 1, 1)
+theme_override_colors/font_placeholder_color = Color(0.17647, 0, 0.11765, 0.35)
+theme_override_colors/caret_color = Color(0.17647, 0, 0.11765, 1)
+theme_override_colors/selection_color = Color(0.63, 0.84, 0.12, 1)
+theme_override_fonts/font = ExtResource("18")
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("InputField")
+theme_override_styles/focus = SubResource("InputField")
 placeholder_text = "Name"
 alignment = 1
 max_length = 8
 
 [node name="NameOk" type="Button" parent="UI/Root/NameModal/NamePanel/NameMargin/NameVBox" unique_id=2116181814]
 layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.19608, 0.35294, 0, 1)
+theme_override_colors/font_focus_color = Color(0.19608, 0.35294, 0, 1)
+theme_override_colors/font_pressed_color = Color(0.19608, 0.35294, 0, 1)
+theme_override_colors/font_hover_color = Color(0.19608, 0.35294, 0, 1)
+theme_override_fonts/font = ExtResource("18")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("InputOk")
+theme_override_styles/pressed = SubResource("InputOkHover")
+theme_override_styles/hover = SubResource("InputOkHover")
+theme_override_styles/focus = SubResource("InputOk")
 text = "OK"
 
 [node name="TownModal" type="ColorRect" parent="UI/Root" unique_id=2118031304]
@@ -266,39 +338,63 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -180.0
-offset_top = -70.0
-offset_right = 180.0
-offset_bottom = 70.0
+offset_left = -310.0
+offset_top = -115.0
+offset_right = 310.0
+offset_bottom = 115.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_styles/panel = SubResource("InputPanel")
 
 [node name="TownMargin" type="MarginContainer" parent="UI/Root/TownModal/TownPanel" unique_id=1785395164]
 layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 90
+theme_override_constants/margin_top = 46
+theme_override_constants/margin_right = 90
+theme_override_constants/margin_bottom = 26
 
 [node name="TownVBox" type="VBoxContainer" parent="UI/Root/TownModal/TownPanel/TownMargin" unique_id=1962306814]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 
 [node name="TownTitle" type="Label" parent="UI/Root/TownModal/TownPanel/TownMargin/TownVBox" unique_id=1501472855]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.17647, 0, 0.11765, 1)
+theme_override_fonts/font = ExtResource("18")
+theme_override_font_sizes/font_size = 36
 text = "Town name"
 horizontal_alignment = 1
 
 [node name="TownEdit" type="LineEdit" parent="UI/Root/TownModal/TownPanel/TownMargin/TownVBox" unique_id=1882662367]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.17647, 0, 0.11765, 1)
+theme_override_colors/font_selected_color = Color(1, 1, 1, 1)
+theme_override_colors/font_placeholder_color = Color(0.17647, 0, 0.11765, 0.35)
+theme_override_colors/caret_color = Color(0.17647, 0, 0.11765, 1)
+theme_override_colors/selection_color = Color(0.63, 0.84, 0.12, 1)
+theme_override_fonts/font = ExtResource("18")
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("InputField")
+theme_override_styles/focus = SubResource("InputField")
 placeholder_text = "Town"
 alignment = 1
 max_length = 8
 
 [node name="TownOk" type="Button" parent="UI/Root/TownModal/TownPanel/TownMargin/TownVBox" unique_id=735750719]
 layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.19608, 0.35294, 0, 1)
+theme_override_colors/font_focus_color = Color(0.19608, 0.35294, 0, 1)
+theme_override_colors/font_pressed_color = Color(0.19608, 0.35294, 0, 1)
+theme_override_colors/font_hover_color = Color(0.19608, 0.35294, 0, 1)
+theme_override_fonts/font = ExtResource("18")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("InputOk")
+theme_override_styles/pressed = SubResource("InputOkHover")
+theme_override_styles/hover = SubResource("InputOkHover")
+theme_override_styles/focus = SubResource("InputOk")
 text = "OK"
 
 [node name="ClockModal" type="ColorRect" parent="UI/Root" unique_id=1833761400]

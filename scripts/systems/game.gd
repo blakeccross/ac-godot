@@ -31,23 +31,6 @@ const PAYMENT_ARBEIT := &"arbeit"
 const GOODS_POWER_MIN := -30
 const GOODS_POWER_MAX := 50
 
-## What the test town (`WorldData.Mode.TEST`) hands the player.
-const TEST_BELLS := 2000
-const TEST_TOOL_IDS: Array[StringName] = [
-	&"shovel",
-	&"axe",
-	&"net",
-	&"fishing_rod",
-	&"watering_can",
-	&"apple_sapling",
-	&"wood_chair",
-	&"wood_table",
-	&"wood_dresser",
-	&"wood_tv",
-	&"wall_blue",
-	&"floor_tile",
-]
-
 const _ESC_BLOCKING_UI: Array[String] = [
 	"inventory_ui", "dialogue_ui", "shop_ui", "map_ui", "debug_console_ui", "design_ui",
 	"design_list_ui", "name_entry_ui", "pause_ui", "settings_ui",
@@ -241,24 +224,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func start_new_game(
-	mode: WorldData.Mode = WorldData.Mode.TEST,
 	seed_value: int = WorldGenerator.DEFAULT_SEED,
 	identity: Dictionary = {}
 ) -> void:
 	reset_session()
 	_apply_identity(identity)
-	town.world_mode = mode
+	town.world_mode = WorldData.Mode.GENERATED
 	town.world_seed = seed_value
-	if mode == WorldData.Mode.GENERATED:
-		town.grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
-	else:
-		town.grass_pattern = WorldData.GrassPattern.TRIANGLE
+	town.grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
 	if identity.is_empty() or not Clock.rtc_override:
 		Clock.rtc_override = false
 		Clock.sync_from_os()
 	apply_weather_roll(Weather.roll())
-	if mode == WorldData.Mode.TEST:
-		give_test_tools()
 	_change_scene(WORLD_SCENE)
 
 
@@ -307,8 +284,6 @@ func notify_title_ready() -> void:
 
 
 func notify_world_ready() -> void:
-	if town.world_mode == WorldData.Mode.TEST:
-		give_test_tools()
 	if intro.active:
 		_set_phase(Phase.INTRO)
 	elif title_demo_active:
@@ -377,7 +352,7 @@ func finish_intro_sequence(identity: Dictionary) -> void:
 ## Exit path for the standalone `intro_station.tscn` dev scene, which has already played its
 ## own Porter/Nook beats: drop into the world and start the first job.
 func debug_finish_station_arrival(identity: Dictionary) -> void:
-	start_new_game(WorldData.Mode.GENERATED, _random_seed(), identity)
+	start_new_game(_random_seed(), identity)
 	_grant_intro_start_items()
 	first_job.begin_after_house()
 	_set_phase(Phase.PLAYING)
@@ -754,19 +729,6 @@ func capture_player_from_tree() -> void:
 		return
 	resident.player_position = player.global_position
 	resident.player_yaw = player.facing_yaw()
-
-
-func give_test_tools() -> void:
-	for item_id: StringName in TEST_TOOL_IDS:
-		if inventory.count_of(item_id) > 0:
-			continue
-		var data: ItemData = ItemCatalog.get_item(item_id)
-		if data != null:
-			inventory.add(data, 1)
-	if inventory.wallet <= 0:
-		inventory.add_bells(TEST_BELLS)
-	if inventory.count_mail() <= 0:
-		PostUse.write_letter(&"filbert", 0)
 
 
 # --- HUD messages -----------------------------------------------------------------------------

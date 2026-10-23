@@ -11,7 +11,7 @@ const MUSEUM_RECIPIENT_ID := &"museum"
 ## Recipient ids for the town's other human residents: `resident_<roster slot>`.
 const RESIDENT_PREFIX := "resident_"
 const MUSEUM_RECIPIENT_NAME := "Museum"
-## Debug/test-only canned bodies (`give_test_tools`, `test_post_police.gd`) — the
+## Debug/test-only canned bodies (`test_post_police.gd`) — the
 ## interactive pockets "Write" flow types a real body now (`letter_writer_overlay.gd`),
 ## it doesn't use these.
 const BODY_PRESETS: Array[String] = [

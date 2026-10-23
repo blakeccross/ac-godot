@@ -111,6 +111,10 @@ EXTRA_SE_NUMS: dict[str, int] = {
     "137": 0x137,
     "13d": 0x13D,
     "14b": 0x14B,
+    ## The pop-up glyphs' starts: the exclamation burst (`ef_shock`, 0x2D), the lightbulb
+    ## (`ef_hirameki_den`, 0x2E); `ef_ha` is the named `NA_SE_2C`.
+    "2d": 0x2D,
+    "2e": 0x2E,
     ## The toss-the-ball game's throw and score (`ef_tamaire`, 0x152 / 0x153) and the wishing
     ## well's coin (`ef_coin`, 0x466 / 0x467).
     "152": 0x152,
@@ -181,6 +185,10 @@ LEV_SE_NUMS: dict[str, int] = {
     ## Villager feel effects held while their clip plays: the happy glow (14,
     ## `ef_siawase_hikari`), shivering (0x2D, `ef_buruburu`), sobbing (0x2E, `ef_naku`),
     ## the thinking bubbles (0x58, `ef_kangaeru`) and the gloom cloud (0x59, `ef_otikomi`).
+    ## The laughing "Ha" cards (`ef_warau`, 0x0F) and the sweat drops (`ef_ase2`, 0x29) hold
+    ## their level SE while they last.
+    "lev_f": 0x0F,
+    "lev_29": 0x29,
     "lev_e": 0x0E,
     "lev_2d": 0x2D,
     "lev_2e": 0x2E,

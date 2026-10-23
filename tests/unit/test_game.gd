@@ -39,31 +39,6 @@ func test_reset_session_clears_pockets_and_world_deltas() -> void:
 	assert_int(Game.shops.to_save().size()).is_equal(0)
 
 
-func test_test_world_gets_starter_tools() -> void:
-	ItemCatalog.reload()
-	assert_int(Game.inventory.count_of_occupied()).is_equal(0)
-	Game.notify_world_ready()
-	assert_int(Game.inventory.count_of(&"shovel")).is_equal(1)
-	assert_int(Game.inventory.count_of(&"axe")).is_equal(1)
-	assert_int(Game.inventory.count_of(&"net")).is_equal(1)
-	assert_int(Game.inventory.count_of(&"fishing_rod")).is_equal(1)
-	assert_int(Game.inventory.count_of(&"watering_can")).is_equal(1)
-	assert_int(Game.inventory.count_of(&"apple_sapling")).is_equal(1)
-	assert_int(Game.inventory.count_of(&"wood_chair")).is_equal(1)
-	assert_int(Game.inventory.count_of(&"wood_table")).is_equal(1)
-	assert_int(Game.inventory.count_of(&"wood_dresser")).is_equal(1)
-	assert_int(Game.inventory.count_of(&"wood_tv")).is_equal(1)
-	assert_int(Game.inventory.count_of(&"wall_blue")).is_equal(1)
-	assert_int(Game.inventory.count_of(&"floor_tile")).is_equal(1)
-	assert_int(Game.inventory.wallet).is_equal(Game.TEST_BELLS)
-	Game.notify_world_ready()
-	assert_int(Game.inventory.count_of(&"axe")).is_equal(1)
-	Game.reset_session()
-	Game.town.world_mode = WorldData.Mode.GENERATED
-	Game.notify_world_ready()
-	assert_int(Game.inventory.count_of_occupied()).is_equal(0)
-
-
 func test_world_snapshot_round_trip() -> void:
 	Game.resident.player_position = Vector3(4.5, 0.1, -3.25)
 	Game.resident.player_yaw = 0.75

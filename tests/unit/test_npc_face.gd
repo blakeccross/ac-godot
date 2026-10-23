@@ -246,3 +246,74 @@ func test_manpu_smile_parks_mouth_open() -> void:
 	face.set_emote(NpcFaceAnim.Emote.SURPRISE, NpcFaceAnim.MOUTH_ANGRY_OPEN)
 	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_SURPRISE)
 	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_ANGRY_OPEN)
+
+
+## `aNPC_tex_anm_ctrl_fix_seq` — Rover's `open_d1` / `to_deck_d1` / `keitai_talk1` carry their
+## own eye and mouth sequences (`npc_1_*.c`).
+func test_open_d1_mouth_follows_its_frame_table() -> void:
+	var face := NpcFaceAnim.new()
+	face.set_clip_face(NpcClipFace.for_clip("npc_1_open_d1"))
+	face.set_clip_frame(10)
+	face.tick(FRAME, false)
+	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_SHUT)
+	## Frames 76–118 close onto mouth3 for the step down.
+	face.set_clip_frame(90)
+	face.tick(FRAME, false)
+	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_ANGRY_SHUT)
+	## A fixed mouth ignores message flapping.
+	face.set_clip_frame(10)
+	face.tick(FRAME, true)
+	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_SHUT)
+	face.set_clip_frame(125)
+	face.tick(FRAME, false)
+	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_OPEN)
+
+
+func test_open_d1_blinks_on_authored_frames() -> void:
+	var face := NpcFaceAnim.new()
+	face.set_clip_face(NpcClipFace.for_clip("npc_1_open_d1"))
+	for frame: int in [36, 73, 81, 100, 117]:
+		face.set_clip_frame(frame)
+		face.tick(FRAME, false)
+		assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_HALF)
+		face.set_clip_frame(frame + 1)
+		face.tick(FRAME, false)
+		assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_SHUT)
+	face.set_clip_frame(20)
+	face.tick(FRAME, false)
+	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_OPEN)
+
+
+func test_sitdown_clip_holds_eyes_open_without_blinking() -> void:
+	var face := NpcFaceAnim.new()
+	face.set_clip_face(NpcClipFace.for_clip("npc_1_sitdown_d1"))
+	for _i: int in 900:
+		face.tick(FRAME, false)
+		assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_OPEN)
+
+
+func test_blink_resumes_after_a_held_clip() -> void:
+	var face := NpcFaceAnim.new()
+	face.set_clip_face(NpcClipFace.for_clip("npc_1_keitai_talk1"))
+	face.set_clip_frame(5)
+	face.tick(FRAME, false)
+	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_SHUT)
+	face.set_clip_face(NpcClipFace.for_clip("npc_1_keitai_talk2"))
+	var shut_run := 0
+	var worst := 0
+	for _i: int in 600:
+		face.tick(FRAME, false)
+		shut_run = shut_run + 1 if face.eye_pattern == NpcFaceAnim.EYE_SHUT else 0
+		worst = maxi(worst, shut_run)
+	assert_int(worst).is_less(10)
+
+
+func test_clip_face_rules_match_the_decomp_tables() -> void:
+	assert_bool(NpcClipFace.for_clip("npc_1_walk1").is_empty()).is_true()
+	assert_bool(NpcClipFace.for_clip("npc_1_wait1").is_empty()).is_true()
+	assert_bool(NpcClipFace.for_clip("npc_1_sitdown_wait1").is_empty()).is_true()
+	assert_int(NpcClipFace.pattern_at(NpcClipFace.OPEN_D1_EYE, 130)).is_equal(0)
+	var frames := 0
+	for run: Vector2i in NpcClipFace.OPEN_D1_MOUTH:
+		frames += run.y
+	assert_int(frames).is_equal(131)

@@ -141,6 +141,8 @@ var _phone_trip_started: bool = false
 var _pending_return_sit: bool = false
 ## `aNGD_keitai_talk`: `keitai_talk1` plays once, then `keitai_talk2` loops.
 var _keitai_talk_looping: bool = false
+## A manpu cue that arrived while `sitdown_d1` was still playing.
+var _deferred_manpu: String = ""
 
 
 var lock_camera: bool:
@@ -225,6 +227,7 @@ func bind(
 	_phone_tilt_reset_armed = false
 	_phone_trip_started = false
 	_pending_return_sit = false
+	_deferred_manpu = ""
 	_set_action(Action.ENTER)
 	_refresh_camera(0.0)
 
@@ -258,6 +261,10 @@ func end_phone_talk() -> void:
 
 ## Dialogue `manpu` / `DEMONPC0` reaction (`aNPC_check_manpu_demoCode`).
 func cue_manpu(name: String) -> String:
+	## The sit is the action's own clip: a reaction asked for mid-sit waits for the seat.
+	if action == Action.SITDOWN:
+		_deferred_manpu = name
+		return ""
 	var key := _manpu_key(name)
 	var clip := NpcManpu.clip_for(key)
 	if clip.is_empty():
@@ -329,7 +336,11 @@ func can_advance_dialogue(_from_node: StringName, to_node: StringName) -> bool:
 		&"phone_done_stage":
 			return action >= Action.KEITAI_TALK
 		&"phone_done", &"phone_done_2", &"farewell":
-			return action >= Action.RETURN_APPROACH
+			## After the call: walking back, talking at the aisle, or seated again. The seat
+			## sorts below `RETURN_APPROACH`, so it needs its own case.
+			return _phone_trip_started and (
+				action == Action.SEATED or action == Action.TALK or action >= Action.RETURN_APPROACH
+			)
 		_:
 			return true
 
@@ -405,6 +416,10 @@ func _set_action(next: Action) -> void:
 			_await_then(Action.SEATED, ANIM_SITDOWN)
 		Action.SEATED:
 			_play_rover(ANIM_SIT_WAIT, true)
+			if not _deferred_manpu.is_empty():
+				var queued: String = _deferred_manpu
+				_deferred_manpu = ""
+				cue_manpu(queued)
 		Action.STANDUP:
 			## `aNGD_standup_start_wait` → NORMAL look; the actor stays on the seat while
 			## `standup_d1` (morph −5) plays. `lock_camera_flag` is never cleared.

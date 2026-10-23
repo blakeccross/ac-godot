@@ -64,7 +64,7 @@ func start(
 	_stage_wait_key = ""
 	_stage_wait_next = &""
 	_prompt_next = &""
-	advance_gate = Callable()
+	## `advance_gate` is the caller's: the overlay sets it before `start`, so it is kept.
 	_pending_choices.clear()
 	_manager_choice = false
 	_continue_override = &""

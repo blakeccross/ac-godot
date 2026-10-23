@@ -11,7 +11,19 @@ const LAMP_COLOR := Color(1.0, 1.0, 0.59)
 ## `mEnv_GetNowRoomPointLightInfo` TRAIN: pos (80,120,510), colour (255,255,160), power
 ## 1200. No light-switch index for the start demo → `point_light_percent` stays 1 all
 ## ride (it is *not* switched off with `sunlight_flag`).
-const CAR_LAMP_ENERGY := 3.2
+## The shell and the door are pre-lit (`TEXEL0 × SHADE`, no `G_LIGHTING`), so the car lamp
+## only matters to actors; the hardware point light the decomp registers never reaches a BG.
+## Actors take the same light through `LightsN__point_proc` instead of the BG path: a
+## directional diffuse of the full light colour scaled by `1 − (d / radius)²`, so Rover is
+## lit almost flat-out. The `ActorLamp` omni (visual layer 2, where the actors live)
+## stands in for it; `omni_attenuation` 0.2 over the 1200-GX radius follows that falloff.
+const ACTOR_LAMP_ENERGY := 1.1
+## `mEnv_GetNowRoomPointLightInfo` TRAIN colour, the lamp term of the room PRIM colour.
+const CAR_LAMP_COLOR := Color8(255, 255, 160)
+## Material meta marking a surface whose colour is the room PRIM (`G_CC` `PRIMITIVE × (TEXEL0 × SHADE)`).
+const ROOM_PRIM_META := &"room_prim"
+## Visual layer for Rover, the sleeper and the phone, which the actor lamp lights.
+const ACTOR_VISUAL_LAYER := 2
 ## `mEnv_CalcSetLight_train` ambient lift while `sun_percent < 1`: (35, 30, 40).
 const TUNNEL_AMBIENT_LIFT := Color(35.0 / 255.0, 30.0 / 255.0, 40.0 / 255.0)
 ## `mEnv_ChangeDiffuseVctlSet` TRAIN / PLAYER_SELECT: dir (0,60,60) → sun (0, 90, 80),
@@ -31,6 +43,9 @@ static var SUN_HALF_LIFE: float = Motion.half_life_from_fraction(MathUtil.HALF_F
 const SUN_MAX_SPEED := 0.1 * DecompTime.TICK_HZ
 const SUN_MIN_SPEED := 0.005 * DecompTime.TICK_HZ
 
+## Nodes whose `room_prim` surfaces `_apply_lighting` tints (the car shell and the door).
+static var _prim_roots: Array[Node] = []
+static var _applied_prim: Color = Color(-1.0, -1.0, -1.0)
 ## 0 in tunnel → 1 after Rover finishes sitdown (`aNGD_sitdown` sets `sunlight_flag`).
 static var sun_percent: float = 0.0
 static var _sun_target: float = 0.0
@@ -108,7 +123,45 @@ static func current_light() -> Dictionary:
 	}
 
 
+## The shell and door are drawn `PRIMITIVE × TEXEL0 × SHADE` with `Global_kankyo_set_room_prim`
+## as PRIM: `room_color × 0.7 + lamp × 0.6`, where `room_color` scales with `sun_percent`. In the
+## tunnel that is the lamp alone, (153, 153, 96): the warm, blue-poor cast of the walls.
+static func set_prim_roots(roots: Array[Node]) -> void:
+	_prim_roots = roots
+	_applied_prim = Color(-1.0, -1.0, -1.0)
+
+
+static func room_prim() -> Color:
+	var room: Color = Clock.outdoor_light()["room"] as Color
+	var t: float = clampf(sun_percent, 0.0, 1.0)
+	return InteriorLightModel.room_prim(
+		Color8(roundi(room.r8 * t), roundi(room.g8 * t), roundi(room.b8 * t)), CAR_LAMP_COLOR, 1.0, 1.0, false
+	)
+
+
+static func _apply_room_prim() -> void:
+	var prim: Color = room_prim()
+	if prim == _applied_prim:
+		return
+	_applied_prim = prim
+	for root: Node in _prim_roots:
+		if root != null and is_instance_valid(root):
+			_tint_room_prim(root, prim)
+
+
+static func _tint_room_prim(node: Node, prim: Color) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		for i: int in mesh_instance.get_surface_override_material_count():
+			var mat := mesh_instance.get_surface_override_material(i) as StandardMaterial3D
+			if mat != null and mat.has_meta(ROOM_PRIM_META):
+				mat.albedo_color = Color(prim.r, prim.g, prim.b, mat.albedo_color.a)
+	for child: Node in node.get_children():
+		_tint_room_prim(child, prim)
+
+
 static func _apply_lighting(world_env: WorldEnvironment, train_car: Node) -> void:
+	_apply_room_prim()
 	var light: Dictionary = current_light()
 	_apply_environment(world_env, light)
 	_apply_car_lights(train_car, light)
@@ -132,9 +185,9 @@ static func _apply_environment(world_env: WorldEnvironment, light: Dictionary) -
 static func _apply_car_lights(train_car: Node, light: Dictionary) -> void:
 	if train_car == null:
 		return
-	var lamp: OmniLight3D = train_car.get_node_or_null("%CarLamp") as OmniLight3D
-	if lamp != null:
-		lamp.light_energy = CAR_LAMP_ENERGY
+	var actor_lamp: OmniLight3D = train_car.get_node_or_null("%ActorLamp") as OmniLight3D
+	if actor_lamp != null:
+		actor_lamp.light_energy = ACTOR_LAMP_ENERGY
 	var sun: DirectionalLight3D = train_car.get_node_or_null("%Sun") as DirectionalLight3D
 	if sun != null:
 		aim_directional(sun, SUN_DIR)
@@ -155,6 +208,14 @@ static func _apply_car_lights(train_car: Node, light: Dictionary) -> void:
 			down.light_color = Color(lamp_light.x / peak, lamp_light.y / peak, lamp_light.z / peak)
 		down.light_energy = peak / 255.0
 		down.visible = peak > 0.0
+
+
+## Move every mesh under `root` onto the actor visual layer.
+static func assign_actor_layer(root: Node) -> void:
+	if root == null:
+		return
+	for node: Node in root.find_children("*", "VisualInstance3D", true, false):
+		(node as VisualInstance3D).layers = 1 << (ACTOR_VISUAL_LAYER - 1)
 
 
 ## Decomp light dirs point toward the source; Godot directional lights shine along −Z.
@@ -220,8 +281,13 @@ static func _apply_car_opa_surfaces_inner(node: Node) -> void:
 				std = (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 			else:
 				std = StandardMaterial3D.new()
-			std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-			std.disable_ambient_light = false
+			## `rom_train_in_model`: `TEXEL0 × SHADE` with no `G_LIGHTING`, so SHADE is the baked
+			## vertex colour: no light reaches the shell (only the actors are lit).
+			std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			std.vertex_color_use_as_albedo = true
+			## GX multiplies gamma-encoded values: read the colours as sRGB so the product matches.
+			std.vertex_color_is_srgb = true
+			std.set_meta(ROOM_PRIM_META, true)
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
 			std.roughness = 1.0
@@ -486,7 +552,7 @@ static func _apply_glass_surface(std: StandardMaterial3D) -> void:
 	## `rom_train_in_modelT`: XLU, ENV (100,230,255), `(PRIM−ENV)×I+ENV` / `I×PRIM`.
 	## Converted GLBs often bake the I4 as opaque RGB — put intensity into alpha.
 	## Color A stays 1 so only the I channel gates see-through (no forced 0.55 body).
-	std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	std.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
 	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY

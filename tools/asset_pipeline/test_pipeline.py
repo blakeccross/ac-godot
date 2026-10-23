@@ -2423,5 +2423,17 @@ class PlayerFacePaletteTests(unittest.TestCase):
         self.assertEqual(out["tan"][0], out["sets"][63])
 
 
+class FeelGlyphSoundTests(unittest.TestCase):
+    def test_pop_up_glyph_sounds_are_rendered(self) -> None:
+        from asset_pipeline.audio import EXTRA_SE_NUMS, LEV_SE_NUMS
+
+        ## `ef_shock` 0x2D and `ef_hirameki_den` 0x2E are trig SEs; `ef_warau` (0x0F) and
+        ## `ef_ase2` (0x29) hold a level SE.
+        self.assertEqual(EXTRA_SE_NUMS["2d"], 0x2D)
+        self.assertEqual(EXTRA_SE_NUMS["2e"], 0x2E)
+        self.assertEqual(LEV_SE_NUMS["lev_f"], 0x0F)
+        self.assertEqual(LEV_SE_NUMS["lev_29"], 0x29)
+
+
 if __name__ == "__main__":
     unittest.main()

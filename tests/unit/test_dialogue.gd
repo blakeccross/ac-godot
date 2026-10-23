@@ -176,6 +176,29 @@ func test_hidden_choice_when_item_missing() -> void:
 	assert_str(runner.line).is_equal("no")
 
 
+func test_advance_gate_set_before_start_holds_the_next_line() -> void:
+	var data: DialogueData = DialogueData.from_dict({
+		"id": "held",
+		"start": "a",
+		"nodes": {
+			"a": {"type": "line", "text": "first", "next": "b"},
+			"b": {"type": "line", "text": "second"},
+		},
+	})
+	var open: Array = [false]
+	var runner := DialogueRunner.new()
+	## The overlay assigns the gate before `start`; `start` must not drop it.
+	runner.advance_gate = func(_from: StringName, _to: StringName) -> bool: return open[0]
+	runner.start(data, DialogueContext.new(), null)
+	assert_bool(runner.is_continue_blocked()).is_true()
+	runner.advance()
+	assert_str(runner.line).is_equal("first")
+	open[0] = true
+	## The held advance waits for the caller to release it (`IntroTrain._poll_dialogue_stage_wait`).
+	runner.release_stage_wait()
+	assert_str(runner.line).is_equal("second")
+
+
 func test_catalog_loads_authored_json() -> void:
 	DialogueCatalog.reset()
 	var data: DialogueData = DialogueCatalog.conversation(&"filbert_greeting")

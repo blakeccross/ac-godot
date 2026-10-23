@@ -94,7 +94,13 @@
     "greet_sit": {
       "type": "line",
       "text": "So, you mind if I sit here?\nI promise I won't fall asleep,\ntumble onto you, and start\ndrooling on your shirt!",
-      "next": "greet_choice"
+      "next": "greet_choice",
+      "events": [
+        {
+          "op": "manpu",
+          "name": "reset"
+        }
+      ]
     },
     "greet_choice": {
       "type": "choice",
@@ -119,7 +125,12 @@
     "sit_yes": {
       "type": "line",
       "text": "Thanks again! It sure is nice\nmeeting friendly folk on the\ntrain… You aren't a psycho,\nright? Just kidding!",
-      "next": "sit_yes_2"
+      "next": "sit_yes_2",
+      "events": [
+        {
+          "op": "rover_sit"
+        }
+      ]
     },
     "sit_yes_2": {
       "type": "line",
@@ -131,6 +142,9 @@
       "text": "Wow, it's nice to know there\nare still plenty of rude people\nin the world. Know what?\nI'm going to sit here anyway.",
       "next": "sit_no_2",
       "events": [
+        {
+          "op": "rover_sit"
+        },
         {
           "op": "manpu",
           "name": "niko_d1"
@@ -150,11 +164,7 @@
     },
     "sit_stage": {
       "type": "event",
-      "events": [
-        {
-          "op": "rover_sit"
-        }
-      ],
+      "events": [],
       "wait_stage": "seated",
       "next": "name_prompt"
     },

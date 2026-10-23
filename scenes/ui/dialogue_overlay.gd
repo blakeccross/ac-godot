@@ -164,7 +164,8 @@ func fast_advance() -> void:
 	if _runner == null:
 		return
 	_runner.advance()
-	if _runner.done:
+	## The last line's `finished` can already have torn the runner down.
+	if _runner != null and _runner.done:
 		close()
 
 

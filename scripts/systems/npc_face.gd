@@ -24,6 +24,7 @@ var _eye_shown: int = -1
 var _mouth_shown: int = -1
 var _target_size := Vector2i.ZERO
 var _mouth_flap: MouthFlap
+var _clip_name: String = ""
 
 
 ## Face PNGs are keyed by disc prefix (`flg`, `rbt`, …), while villager data uses
@@ -98,6 +99,14 @@ func tick(delta: float, uttering: bool) -> void:
 func set_emote(emote: NpcFaceAnim.Emote, mouth_hold_override: int = -1) -> void:
 	_anim.set_emote(emote, mouth_hold_override)
 	_apply()
+
+
+## Drive the face from the body clip: its fixed eye / mouth sequences, indexed by `frame`.
+func set_clip(clip: String, frame: int) -> void:
+	if clip != _clip_name:
+		_clip_name = clip
+		_anim.set_clip_face(NpcClipFace.for_clip(clip))
+	_anim.set_clip_frame(frame)
 
 
 func set_from_mood(mood: int) -> void:

@@ -83,7 +83,6 @@ func _bootstrap_session() -> void:
 	Clock.minute = 0
 	Game.museum.fill_complete()
 	Game.town.world_mode = WorldData.Mode.TEST
-	Game.give_test_tools()
 	_give_sample_donations()
 	Game.current_room_id = &"museum_entrance"
 	Game.arrival.has_stand = true

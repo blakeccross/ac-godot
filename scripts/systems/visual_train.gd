@@ -27,6 +27,10 @@ static func fit_train_window_shell(pivot: Node3D, car_pivot: Node3D = null) -> v
 		pivot.position = Vector3.ZERO
 
 
+## Baked shade of the door, fitted to a Dolphin capture (the converter drops its vertex colours).
+const DOOR_BAKED_SHADE := Color(0.8, 0.82, 1.0)
+
+
 static func apply_train_door_materials(node: Node) -> void:
 	## Match `rom_train_in` OPA + glass rules so the vestibule door reads like the car shell.
 	if node is MeshInstance3D:
@@ -49,7 +53,13 @@ static func apply_train_door_materials(node: Node) -> void:
 			if "glass" in label:
 				IntroTrainPresentation._apply_glass_surface(std)
 			else:
-				std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+				## `obj_romtrain_door_model` is `TEXEL0 × SHADE` with no `G_LIGHTING`, but the
+				## converter read its vertex bytes as normals and exported no colours. The Dolphin
+				## frame shows the maroon door a cool purple, not the warm car shell, so tint it
+				## by the fitted baked shade instead (the lintel / jamb read ≈ texture × this).
+				std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+				std.vertex_color_use_as_albedo = false
+				std.albedo_color = DOOR_BAKED_SHADE
 				std.roughness = 1.0
 				std.metallic = 0.0
 				std.specular_mode = BaseMaterial3D.SPECULAR_DISABLED

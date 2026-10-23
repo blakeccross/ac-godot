@@ -130,6 +130,11 @@ var _mouth_seq: int = 0
 var _mouth_loops: int = 1
 var _mouth_active: bool = false
 
+## The playing clip's own face rule (`NpcClipFace.for_clip`); empty = none.
+var _clip_face: Dictionary = {}
+## 0-based frame of the playing clip (`main_animation_frame − 1`).
+var _clip_frame: int = 0
+
 
 func _init() -> void:
 	_rng.randomize()
@@ -227,7 +232,39 @@ func tick(delta: float, uttering: bool) -> bool:
 	var step: float = clampf(delta, 0.0, MAX_STEP)
 	_step_eye(step)
 	_step_mouth(step, uttering)
+	_apply_clip_face()
 	return before != Vector2i(eye_pattern, mouth_pattern)
+
+
+## Follow the playing clip's face rule (`aNPC_tex_anm_ctrl_fix_seq`, or eye type 0). Pass
+## `NpcClipFace.for_clip(name)` when the clip changes; an empty rule hands the face back to
+## the blink / flap state, which kept running underneath.
+func set_clip_face(face: Dictionary) -> void:
+	if face.is_empty() == _clip_face.is_empty():
+		_clip_face = face
+		return
+	_clip_face = face
+	if face.is_empty():
+		## The natural state was not written while overridden: redraw it on the next step.
+		_eye_left = 0.0
+		_mouth_active = false
+
+
+func set_clip_frame(frame: int) -> void:
+	_clip_frame = frame
+
+
+func _apply_clip_face() -> void:
+	if _clip_face.is_empty():
+		return
+	match int(_clip_face["eye"]):
+		NpcClipFace.Eye.HOLD:
+			eye_pattern = EYE_OPEN
+		NpcClipFace.Eye.FIXED:
+			eye_pattern = NpcClipFace.pattern_at(_clip_face["eye_seq"] as Array, _clip_frame)
+	var mouth_seq: Array = _clip_face["mouth_seq"] as Array
+	if not mouth_seq.is_empty():
+		mouth_pattern = NpcClipFace.pattern_at(mouth_seq, _clip_frame)
 
 
 func _step_eye(delta: float) -> void:

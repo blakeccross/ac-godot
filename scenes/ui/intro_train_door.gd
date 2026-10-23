@@ -12,6 +12,9 @@ func _ready() -> void:
 		return
 	VisualTrain.apply_train_door_materials(vis)
 	_anim = VisualAnimation.find_animation_player(self)
+	if _anim != null:
+		## `aTRD_actor_move`: when the clip ends the door returns to frame 1 (closed) and stops.
+		_anim.animation_finished.connect(_on_door_clip_finished)
 	## Closed pose is anim frame 0 (decomp actor). Snap before gateway fit so a
 	## ckf_basis-only rest GLB still skins the panel into the vestibule.
 	_snap_closed()
@@ -25,6 +28,10 @@ func _ready() -> void:
 			car_vis,
 			IntroTrainStage.DOOR_PANEL_Z_BIAS_GX
 		)
+
+
+func _on_door_clip_finished(_clip: StringName) -> void:
+	_snap_closed()
 
 
 func reset_door_pulse() -> void:
@@ -41,7 +48,9 @@ func open_door() -> void:
 	if clip.is_empty():
 		return
 	_anim.play(clip)
-	_anim.speed_scale = 0.5
+	## `aTRD_actor_move`: `frame_control.speed = 0.5` a 60 Hz tick is 30 clip frames a second,
+	## real time for a clip authored at 30 fps (Rover's own clips run the same way).
+	_anim.speed_scale = 1.0
 
 
 func _snap_closed() -> void:

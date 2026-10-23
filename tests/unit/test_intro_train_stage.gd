@@ -275,6 +275,36 @@ func test_dialogue_gate_blocks_phone_until_keitai_talk() -> void:
 	rover.queue_free()
 
 
+func test_dialogue_gate_lets_the_farewell_through_once_seated_again() -> void:
+	var stage := IntroTrainStage.new()
+	var rover := Node3D.new()
+	add_child(rover)
+	stage.bind(rover, null, null, null, null)
+	## Before the call, the post-call lines are not reachable.
+	assert_that(stage.can_advance_dialogue(&"q4", &"farewell")).is_false()
+	stage._phone_trip_started = true
+	stage.action = IntroTrainStage.Action.SEATED
+	assert_that(stage.can_advance_dialogue(&"return_sit_stage", &"phone_done_2")).is_true()
+	assert_that(stage.can_advance_dialogue(&"farewell_rich_3", &"farewell")).is_true()
+	## But never while the sit itself is playing.
+	stage.action = IntroTrainStage.Action.LAST_SIT
+	assert_that(stage.can_advance_dialogue(&"return_sit_stage", &"phone_done_2")).is_false()
+	rover.queue_free()
+
+
+func test_a_manpu_cue_during_the_sit_waits_for_the_seat() -> void:
+	var stage := IntroTrainStage.new()
+	var rover := Node3D.new()
+	add_child(rover)
+	stage.bind(rover, null, null, null, null)
+	stage.action = IntroTrainStage.Action.SITDOWN
+	assert_str(stage.cue_manpu("niko_d1")).is_empty()
+	assert_str(stage._deferred_manpu).is_equal("niko_d1")
+	stage._set_action(IntroTrainStage.Action.SEATED)
+	assert_str(stage._deferred_manpu).is_empty()
+	rover.queue_free()
+
+
 func test_stage_wait_seated_after_sit() -> void:
 	var stage := IntroTrainStage.new()
 	var rover := Node3D.new()

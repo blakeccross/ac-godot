@@ -68,6 +68,7 @@ func _ready() -> void:
 	var existing: Node3D = _rover_host.get_node_or_null("GeneratedVisual") as Node3D
 	if existing != null:
 		_bind_rover_face(existing)
+	_assign_actor_layers()
 	_bootstrap_stage()
 
 
@@ -75,6 +76,7 @@ func _process(delta: float) -> void:
 	if not preview_seated_daylight:
 		_stage.tick(delta)
 	IntroTrainPresentation.tick_sunlight(delta, _world_env, _train_car)
+	_sync_rover_clip_face()
 	_rover_face.tick(delta, _dialogue_uttering())
 	_poll_dialogue_stage_wait()
 	if auto_advance_dialogue and not _finishing:
@@ -83,6 +85,17 @@ func _process(delta: float) -> void:
 			_auto_advance_timer = 0.0
 			if _dialogue_started:
 				_auto_advance_step()
+
+
+## `aNPC_tex_anm_ctrl_fix_seq`: the clip's eye / mouth sequences follow its frame.
+func _sync_rover_clip_face() -> void:
+	if not _rover_host.has_method("body_animation_player"):
+		return
+	var anim: AnimationPlayer = _rover_host.body_animation_player()
+	if anim == null:
+		return
+	var frame: int = floori(anim.current_animation_position * DecompTime.FRAME_HZ)
+	_rover_face.set_clip(_rover_host.current_intro_clip(), frame)
 
 
 func _dialogue_uttering() -> bool:
@@ -124,6 +137,7 @@ func _bootstrap_stage() -> void:
 			+ "python3 tools/build_assets.py --step convert\n"
 			+ "(need rom_train_in, rom_train_out, obj_romtrain_door, xct_1, kab_1, tol_keitai_1)"
 		)
+	IntroTrainPresentation.set_prim_roots([_train_car, _door_host] as Array[Node])
 	if not preview_seated_daylight:
 		IntroTrainPresentation.apply_tunnel(_world_env, _train_car)
 	var rover_anim: AnimationPlayer = (
@@ -179,11 +193,15 @@ func _finish_seated_preview() -> void:
 	_dialogue.play(data, _ctx)
 
 
+## Rover, the sleeper and the phone are actors: they take the actor lamp, not the BG one.
+func _assign_actor_layers() -> void:
+	for host: Node in [_rover_host, _sleep_npc, _keitai_host]:
+		IntroTrainPresentation.assign_actor_layer(host)
+
+
 func _bind_rover_face(rover_visual: Node3D) -> void:
+	_assign_actor_layers()
 	_rover_face.bind(rover_visual, &"xct")
-	## Entrance `open_d1`: normal eye blink seq + mouth3 hold (not angry eye3).
-	if _stage.action == IntroTrainStage.Action.ENTER:
-		_rover_face.set_emote(NpcFaceAnim.Emote.NORMAL, NpcFaceAnim.MOUTH_ANGRY_SHUT)
 	_ensure_rover_feel(rover_visual)
 
 
@@ -199,6 +217,11 @@ func _ensure_rover_feel(rover_visual: Node3D) -> void:
 		if aabb.size.y > 0.1:
 			lift = aabb.position.y + aabb.size.y * 0.92
 	_rover_feel.set_head_lift(lift)
+	## The glyphs start at the head-top joint (`aNPC_set_feel_eff`, the last joint).
+	var skeletons: Array[Node] = rover_visual.find_children("*", "Skeleton3D", true, false) if rover_visual != null else []
+	if not skeletons.is_empty():
+		_rover_feel.bind_feel_joint(skeletons[0] as Skeleton3D)
+		_rover_feel.spawn_at_feel_joint = true
 
 
 func _local_visual_aabb(root: Node3D) -> AABB:
@@ -219,10 +242,8 @@ func _local_visual_aabb(root: Node3D) -> AABB:
 
 func _on_stage_changed(action: StringName) -> void:
 	match action:
-		&"enter":
-			## `npc_1_open_d1` eye_seq is normal blinks; mouth_seq parks on mouth3.
-			_rover_face.set_emote(NpcFaceAnim.Emote.NORMAL, NpcFaceAnim.MOUTH_ANGRY_SHUT)
-		&"approach", &"talk":
+		&"enter", &"approach", &"talk":
+			## `open_d1` carries its own eye / mouth sequences (`NpcClipFace`).
 			_rover_face.set_emote(NpcFaceAnim.Emote.NORMAL)
 		&"seated":
 			IntroTrainPresentation.apply_daylight(_world_env, _train_car)
@@ -250,9 +271,12 @@ func _start_dialogue() -> void:
 
 func _apply_rover_voice(ctx: DialogueContext) -> void:
 	## `DialogueContext.from_game()` with no villager falls back to CLICK. Rover is
-	## `SP_NPC_GUIDE` in `l_sp_actor_name` (`m_npc.c`): male nameplate, animalese
-	## `sound_id` 2 — same path `mNpc_GetNpcSoundSpecNotAnimal` gives Nook / Porter / K.K.
-	ctx.speaker_sex = 0
+	## `SP_NPC_GUIDE` in `l_sp_actor_name` (`m_npc.c`): animalese `sound_id` 2 — same path
+	## `mNpc_GetNpcSoundSpecNotAnimal` gives Nook / Porter / K.K. The nameplate is the
+	## lime OTHER one, not the male cyan: an `ACTOR_PART_NPC` takes `mNpc_GetAnimalSex` of
+	## its `npc_info.animal`, which special NPCs lack, so the `l_sp_actor_name` sex is
+	## never read for them.
+	ctx.speaker_sex = MessageWindowChrome.SpeakerSex.OTHER
 	ctx.voice_mode = DialogueVoice.Mode.ANIMALESE
 	ctx.sound_spec = 2
 

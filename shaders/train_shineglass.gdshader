@@ -5,8 +5,10 @@ render_mode unshaded, cull_disabled, depth_draw_never, blend_mix;
 // Tile 0 = shine I4 (64×8, CLAMP/CLAMP), scrolled by `Two_Scrollx1` (the exit scroll).
 // Tile 1 = glass I4 (16×16, CLAMP/CLAMP, shift_t 15 = ×2) at a fixed origin, so in tile-0
 // normalised UV it samples (4u, v).
-uniform sampler2D shine_tex : filter_nearest, repeat_disable;
-uniform sampler2D glass_tex : filter_nearest, repeat_disable;
+// Both tiles are bilinear (`G_TF_BILERP`, the RDP default): nearest steps the shaft into
+// visible blocks at 64×8 / 16×16.
+uniform sampler2D shine_tex : filter_linear, repeat_disable;
+uniform sampler2D glass_tex : filter_linear, repeat_disable;
 uniform vec4 prim_color : source_color = vec4(1.0);
 uniform float lod_frac = 0.0;
 // Tile-0 origin in normalised S (negative as the tile origin grows).
