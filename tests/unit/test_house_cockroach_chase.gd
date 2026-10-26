@@ -17,10 +17,11 @@ func after_test() -> void:
 	Clock.paused = false
 
 
-func _alive() -> Array[Node3D]:
+## The live roaches in `interior` only: an earlier suite's leftovers don't count.
+func _alive(interior: Node) -> Array[Node3D]:
 	var out: Array[Node3D] = []
 	for node: Node in get_tree().get_nodes_in_group("house_cockroaches"):
-		if bool(node.get("alive")):
+		if interior.is_ancestor_of(node) and bool(node.get("alive")):
 			out.append(node as Node3D)
 	return out
 
@@ -48,15 +49,17 @@ func test_the_player_can_tread_on_every_roach() -> void:
 		await get_tree().physics_frame
 	Game.interiors.player_house().goki_count = 3
 	interior.call("_spawn_gokis", room)
-	assert_int(_alive().size()).is_greater(0)
+	assert_int(_alive(interior).size()).is_greater(0)
 	var player := Player.find(get_tree())
 	var source := PlayerInput.new()
 	player.scripted_input = source
 	var cam: Camera3D = get_viewport().get_camera_3d()
 	## Walk straight at the nearest live roach, as a stick held toward it would.
+	var frames: int = 0
 	for _frame: int in 600:
 		await get_tree().physics_frame
-		var alive: Array[Node3D] = _alive()
+		frames += 1
+		var alive: Array[Node3D] = _alive(interior)
 		if alive.is_empty():
 			break
 		var target: Node3D = alive[0]
@@ -72,4 +75,13 @@ func test_the_player_can_tread_on_every_roach() -> void:
 		dir = dir.normalized()
 		source.move = Vector2(dir.dot(right.normalized()), -dir.dot(look.normalized()))
 	player.scripted_input = null
-	assert_int(_alive().size()).is_equal(0)
+	## Alone this takes 70–180 frames; if it ever runs out, say where everything was.
+	var left: Array[Node3D] = _alive(interior)
+	var where: Array[String] = []
+	for roach: Node3D in left:
+		where.append("%s (%.2f m away)" % [roach.global_position, roach.global_position.distance_to(player.global_position)])
+	assert_int(left.size()).override_failure_message(
+		"%d roach(es) left after %d frames: %s; player at %s, busy %s, camera %s" % [
+			left.size(), frames, ", ".join(where), player.global_position, player.is_busy(),
+			cam.get_path() if cam != null else "none"]
+	).is_equal(0)
