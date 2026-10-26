@@ -28,6 +28,8 @@ func test_intro_scene_loads_and_has_stage_hosts() -> void:
 	assert_that(scene.get_node_or_null("%TrainCar")).is_not_null()
 	assert_that(scene.get_node_or_null("%Rover")).is_not_null()
 	assert_that(scene.get_node_or_null("%StageSync")).is_not_null()
+	## The car's window colours follow the intro's own light, not a copy of their own.
+	assert_that((scene.get_node("%TrainCar") as IntroTrainCar).lighting).is_same(scene.get("_lighting"))
 	assert_that(scene.get_node_or_null("%IntroCameraRig")).is_not_null()
 	assert_that(scene.get_node_or_null("%IntroCamera")).is_not_null()
 	assert_that(scene.get_node_or_null("%DialogueOverlay")).is_not_null()

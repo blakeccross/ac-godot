@@ -5,7 +5,9 @@ extends Node3D
 const DIALOGUE_ID := &"rover_intro"
 
 @onready var _stage_sync: IntroTrainStageSync = %StageSync
-@onready var _train_car: Node3D = %TrainCar
+@onready var _train_car: IntroTrainCar = %TrainCar
+## The car's light this ride: tunnel, then the sun coming up.
+var _lighting := IntroTrainPresentation.new()
 @onready var _world_env: WorldEnvironment = $WorldEnvironment
 @onready var _door_host: Node3D = %TrainDoor
 @onready var _rover_host: Node3D = %Rover
@@ -42,6 +44,7 @@ var _auto_advance_timer: float = 0.0
 
 
 func _ready() -> void:
+	_train_car.lighting = _lighting
 	if _cmdline_has("--record-intro"):
 		auto_advance_dialogue = true
 	Game.notify_intro_ready()
@@ -75,7 +78,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not preview_seated_daylight:
 		_stage.tick(delta)
-	IntroTrainPresentation.tick_sunlight(delta, _world_env, _train_car)
+	_lighting.advance_sunlight(delta, _world_env, _train_car)
 	_sync_rover_clip_face()
 	_rover_face.tick(delta, _dialogue_uttering())
 	_poll_dialogue_stage_wait()
@@ -137,9 +140,9 @@ func _bootstrap_stage() -> void:
 			+ "python3 tools/build_assets.py --step convert\n"
 			+ "(need rom_train_in, rom_train_out, obj_romtrain_door, xct_1, kab_1, tol_keitai_1)"
 		)
-	IntroTrainPresentation.set_prim_roots([_train_car, _door_host] as Array[Node])
+	_lighting.set_prim_roots([_train_car, _door_host] as Array[Node])
 	if not preview_seated_daylight:
-		IntroTrainPresentation.apply_tunnel(_world_env, _train_car)
+		_lighting.apply_tunnel(_world_env, _train_car)
 	var rover_anim: AnimationPlayer = (
 		_rover_host.body_animation_player()
 		if _rover_host.has_method("body_animation_player")
@@ -157,7 +160,7 @@ func _bootstrap_stage() -> void:
 
 
 func _bootstrap_seated_preview() -> void:
-	IntroTrainPresentation.snap_daylight(_world_env, _train_car)
+	_lighting.snap_daylight(_world_env, _train_car)
 	_stage._pos_gx = IntroTrainStage.ROVER_SIT_GX
 	_stage._yaw = 0.0
 	_stage.action = IntroTrainStage.Action.SEATED
@@ -246,7 +249,7 @@ func _on_stage_changed(action: StringName) -> void:
 			## `open_d1` carries its own eye / mouth sequences (`NpcClipFace`).
 			_rover_face.set_emote(NpcFaceAnim.Emote.NORMAL)
 		&"seated":
-			IntroTrainPresentation.apply_daylight(_world_env, _train_car)
+			_lighting.apply_daylight(_world_env, _train_car)
 			_sleep_npc.realign()
 
 

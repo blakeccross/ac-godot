@@ -1,7 +1,9 @@
 class_name IntroTrainPresentation
 extends RefCounted
 
-## Train car materials and WorldEnvironment tuning for the intro scene.
+## Train car materials and WorldEnvironment tuning for the intro scene. The material helpers
+## are static; the lighting (the sun coming up out of the tunnel, the lamp, the tinted shell)
+## is one instance the intro scene owns.
 ## Lighting follows `mEnv_SetBaseLight` (`FIELD_DRAW_TYPE_TRAIN`): the outdoor
 ## `l_mEnv_normal_kcolor_data` palette for the current time, every RGB field scaled by
 ## `sun_percent`, plus the `mEnv_CalcSetLight_train` tunnel lift, the fixed car point
@@ -44,16 +46,16 @@ const SUN_MAX_SPEED := 0.1 * DecompTime.TICK_HZ
 const SUN_MIN_SPEED := 0.005 * DecompTime.TICK_HZ
 
 ## Nodes whose `room_prim` surfaces `_apply_lighting` tints (the car shell and the door).
-static var _prim_roots: Array[Node] = []
-static var _applied_prim: Color = Color(-1.0, -1.0, -1.0)
+var _prim_roots: Array[Node] = []
+var _applied_prim: Color = Color(-1.0, -1.0, -1.0)
 ## 0 in tunnel → 1 after Rover finishes sitdown (`aNGD_sitdown` sets `sunlight_flag`).
-static var sun_percent: float = 0.0
-static var _sun_target: float = 0.0
+var sun_percent: float = 0.0
+var _sun_target: float = 0.0
 ## `ef_lamp_light` diffuse colour (0–255 per channel); starts black (`Light_diffuse_ct`).
-static var lamp_light: Vector3 = Vector3.ZERO
+var lamp_light: Vector3 = Vector3.ZERO
 
 
-static func apply_tunnel(world_env: WorldEnvironment, train_car: Node) -> void:
+func apply_tunnel(world_env: WorldEnvironment, train_car: Node) -> void:
 	sun_percent = 0.0
 	_sun_target = 0.0
 	lamp_light = Vector3.ZERO
@@ -63,7 +65,7 @@ static func apply_tunnel(world_env: WorldEnvironment, train_car: Node) -> void:
 
 
 ## Begin the tunnel→daylight ramp (`sunlight_flag = TRUE` when sitdown finishes).
-static func apply_daylight(world_env: WorldEnvironment, train_car: Node) -> void:
+func apply_daylight(world_env: WorldEnvironment, train_car: Node) -> void:
 	_sun_target = 1.0
 	if train_car != null and train_car.has_method("apply_daylight"):
 		train_car.call("apply_daylight", true)
@@ -71,7 +73,7 @@ static func apply_daylight(world_env: WorldEnvironment, train_car: Node) -> void
 
 
 ## Instant daylight (seated preview / capture helpers).
-static func snap_daylight(world_env: WorldEnvironment, train_car: Node) -> void:
+func snap_daylight(world_env: WorldEnvironment, train_car: Node) -> void:
 	sun_percent = 1.0
 	_sun_target = 1.0
 	lamp_light = Vector3.ZERO
@@ -80,9 +82,9 @@ static func snap_daylight(world_env: WorldEnvironment, train_car: Node) -> void:
 	_apply_lighting(world_env, train_car)
 
 
-## Per-frame kankyo update: `sun_percent` add_calc + `ef_lamp_light` chase, then relight.
-## Returns true while `sun_percent` is still moving.
-static func tick_sunlight(delta: float, world_env: WorldEnvironment, train_car: Node = null) -> bool:
+## `delta` seconds of the kankyo update: `sun_percent` add_calc + `ef_lamp_light` chase, then
+## relight. Returns true while `sun_percent` is still moving.
+func advance_sunlight(delta: float, world_env: WorldEnvironment, train_car: Node = null) -> bool:
 	sun_percent = Motion.approach(sun_percent, _sun_target, SUN_HALF_LIFE, SUN_MAX_SPEED, SUN_MIN_SPEED, delta)
 	_step_lamp_light(delta)
 	_apply_lighting(world_env, train_car)
@@ -90,7 +92,7 @@ static func tick_sunlight(delta: float, world_env: WorldEnvironment, train_car: 
 
 
 ## `Ef_Lamp_Light_actor_move` / `eLL_get_light_sw_start_demo`: on until `sunlight_flag`.
-static func _step_lamp_light(delta: float) -> void:
+func _step_lamp_light(delta: float) -> void:
 	var on: bool = _sun_target < 1.0
 	var goal: Vector3 = LAMP_LIGHT_ON if on else Vector3.ZERO
 	var step: Vector3 = (LAMP_LIGHT_RATE_ON if on else LAMP_LIGHT_RATE_OFF) * delta
@@ -102,7 +104,7 @@ static func _step_lamp_light(delta: float) -> void:
 
 
 ## Decomp `BaseLight` for this frame: palette × `sun_percent` + tunnel lift.
-static func current_light() -> Dictionary:
+func current_light() -> Dictionary:
 	var pal: Dictionary = Clock.outdoor_light()
 	var t: float = clampf(sun_percent, 0.0, 1.0)
 	var lift: float = 1.0 - t
@@ -126,12 +128,12 @@ static func current_light() -> Dictionary:
 ## The shell and door are drawn `PRIMITIVE × TEXEL0 × SHADE` with `Global_kankyo_set_room_prim`
 ## as PRIM: `room_color × 0.7 + lamp × 0.6`, where `room_color` scales with `sun_percent`. In the
 ## tunnel that is the lamp alone, (153, 153, 96): the warm, blue-poor cast of the walls.
-static func set_prim_roots(roots: Array[Node]) -> void:
+func set_prim_roots(roots: Array[Node]) -> void:
 	_prim_roots = roots
 	_applied_prim = Color(-1.0, -1.0, -1.0)
 
 
-static func room_prim() -> Color:
+func room_prim() -> Color:
 	var room: Color = Clock.outdoor_light()["room"] as Color
 	var t: float = clampf(sun_percent, 0.0, 1.0)
 	return InteriorLightModel.room_prim(
@@ -139,7 +141,7 @@ static func room_prim() -> Color:
 	)
 
 
-static func _apply_room_prim() -> void:
+func _apply_room_prim() -> void:
 	var prim: Color = room_prim()
 	if prim == _applied_prim:
 		return
@@ -160,7 +162,7 @@ static func _tint_room_prim(node: Node, prim: Color) -> void:
 		_tint_room_prim(child, prim)
 
 
-static func _apply_lighting(world_env: WorldEnvironment, train_car: Node) -> void:
+func _apply_lighting(world_env: WorldEnvironment, train_car: Node) -> void:
 	_apply_room_prim()
 	var light: Dictionary = current_light()
 	_apply_environment(world_env, light)
@@ -182,7 +184,7 @@ static func _apply_environment(world_env: WorldEnvironment, light: Dictionary) -
 	env.glow_enabled = false
 
 
-static func _apply_car_lights(train_car: Node, light: Dictionary) -> void:
+func _apply_car_lights(train_car: Node, light: Dictionary) -> void:
 	if train_car == null:
 		return
 	var actor_lamp: OmniLight3D = train_car.get_node_or_null("%ActorLamp") as OmniLight3D

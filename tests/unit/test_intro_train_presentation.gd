@@ -2,24 +2,25 @@ class_name TestIntroTrainPresentation
 extends GdUnitTestSuite
 
 
+var _light: IntroTrainPresentation
+
+
 func before_test() -> void:
-	IntroTrainPresentation.sun_percent = 0.0
-	IntroTrainPresentation._sun_target = 0.0
-	IntroTrainPresentation.lamp_light = Vector3.ZERO
+	_light = IntroTrainPresentation.new()
 
 
 func test_sun_percent_ramps_after_daylight_flag() -> void:
 	var world := WorldEnvironment.new()
 	world.environment = Environment.new()
 	add_child(world)
-	IntroTrainPresentation.apply_tunnel(world, null)
-	assert_float(IntroTrainPresentation.sun_percent).is_equal_approx(0.0, 0.001)
-	IntroTrainPresentation.apply_daylight(world, null)
-	assert_float(IntroTrainPresentation.sun_percent).is_equal_approx(0.0, 0.001)
-	assert_float(IntroTrainPresentation._sun_target).is_equal_approx(1.0, 0.001)
+	_light.apply_tunnel(world, null)
+	assert_float(_light.sun_percent).is_equal_approx(0.0, 0.001)
+	_light.apply_daylight(world, null)
+	assert_float(_light.sun_percent).is_equal_approx(0.0, 0.001)
+	assert_float(_light._sun_target).is_equal_approx(1.0, 0.001)
 	for _i: int in 40:
-		IntroTrainPresentation.tick_sunlight(1.0 / 30.0, world)
-	assert_float(IntroTrainPresentation.sun_percent).is_equal_approx(1.0, 0.001)
+		_light.advance_sunlight(1.0 / 30.0, world)
+	assert_float(_light.sun_percent).is_equal_approx(1.0, 0.001)
 	## Lift gone: ambient is the outdoor palette for the current time (`mEnv_SetBaseLight` TRAIN).
 	var ambient: Color = world.environment.ambient_light_color
 	var palette: Color = Clock.outdoor_light()["ambient"] as Color
@@ -33,7 +34,7 @@ func test_tunnel_ambient_is_only_the_lift() -> void:
 	var world := WorldEnvironment.new()
 	world.environment = Environment.new()
 	add_child(world)
-	IntroTrainPresentation.apply_tunnel(world, null)
+	_light.apply_tunnel(world, null)
 	var ambient: Color = world.environment.ambient_light_color
 	assert_float(ambient.r).is_equal_approx(35.0 / 255.0, 0.002)
 	assert_float(ambient.g).is_equal_approx(30.0 / 255.0, 0.002)
@@ -44,19 +45,19 @@ func test_tunnel_ambient_is_only_the_lift() -> void:
 
 func test_lamp_light_chases_on_then_off() -> void:
 	## `ef_lamp_light`: +8/+8/+4 per frame to (200,200,150) in the tunnel, −1/−1/−0.5 after.
-	IntroTrainPresentation.apply_tunnel(null, null)
+	_light.apply_tunnel(null, null)
 	for _i: int in 10:
-		IntroTrainPresentation.tick_sunlight(1.0 / 60.0, null)
-	assert_float(IntroTrainPresentation.lamp_light.x).is_equal_approx(80.0, 0.01)
+		_light.advance_sunlight(1.0 / 60.0, null)
+	assert_float(_light.lamp_light.x).is_equal_approx(80.0, 0.01)
 	## Blue steps 4/frame → reaches 150 at frame 38.
 	for _i: int in 30:
-		IntroTrainPresentation.tick_sunlight(1.0 / 60.0, null)
-	assert_vector(IntroTrainPresentation.lamp_light).is_equal(Vector3(200.0, 200.0, 150.0))
-	IntroTrainPresentation.apply_daylight(null, null)
+		_light.advance_sunlight(1.0 / 60.0, null)
+	assert_vector(_light.lamp_light).is_equal(Vector3(200.0, 200.0, 150.0))
+	_light.apply_daylight(null, null)
 	for _i: int in 4:
-		IntroTrainPresentation.tick_sunlight(1.0 / 60.0, null)
-	assert_float(IntroTrainPresentation.lamp_light.x).is_equal_approx(196.0, 0.01)
-	assert_float(IntroTrainPresentation.lamp_light.z).is_equal_approx(148.0, 0.01)
+		_light.advance_sunlight(1.0 / 60.0, null)
+	assert_float(_light.lamp_light.x).is_equal_approx(196.0, 0.01)
+	assert_float(_light.lamp_light.z).is_equal_approx(148.0, 0.01)
 
 
 func test_car_glass_forced_translucent() -> void:

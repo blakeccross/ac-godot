@@ -1,3 +1,4 @@
+class_name IntroTrainCar
 extends Node3D
 
 ## Train interior shell and window scenery (`ac_train_window` / `rom_train_out`).
@@ -9,6 +10,10 @@ const CLOUD_ENV := Color(127.0 / 255.0, 127.0 / 255.0, 100.0 / 255.0)
 const TREE_ENV := Color(60.0 / 255.0, 60.0 / 255.0, 35.0 / 255.0)
 const TREE_PRIM_OFFSET := Color(-80.0 / 255.0, -70.0 / 255.0, -160.0 / 255.0)
 const TUNNEL_LOD := 43.0 / 255.0
+
+## The light the window colours follow: the intro scene's (`intro_train.gd` hands its own over),
+## or one of the car's own when it is shown on its own.
+var lighting: IntroTrainPresentation
 const CLOUD_LOD := 127.0 / 255.0
 const TREE_LOD := 27.0 / 255.0
 ## Decomp tile widths (texels) for UV normalisation.
@@ -60,6 +65,8 @@ var _shine_mats: Array[ShaderMaterial] = []
 
 
 func _ready() -> void:
+	if lighting == null:
+		lighting = IntroTrainPresentation.new()
 	VisualTrain.fit_train_car_shell(_car_visual)
 	VisualTrain.fit_train_window_shell(_window_visual, _car_visual)
 	IntroTrainPresentation.apply_car_surfaces(_car_visual)
@@ -148,8 +155,8 @@ static func now_lod_factor(now_sec: int) -> float:
 
 
 ## `aTrainWindow_SetLightPrimColorDetail`: clamp(global ambient + sun colour + offset).
-static func prim_color(offset: Color = Color(0, 0, 0)) -> Color:
-	var light: Dictionary = IntroTrainPresentation.current_light()
+func prim_color(offset: Color = Color(0, 0, 0)) -> Color:
+	var light: Dictionary = lighting.current_light()
 	var amb: Color = light["ambient"] as Color
 	var sun: Color = light["sun_scaled"] as Color
 	return Color(
