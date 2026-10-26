@@ -134,7 +134,8 @@ func _ready() -> void:
 	if _door_stand != Vector3.INF and not Game.intro.active and not Game.title_demo_active:
 		present = PresentVisit.decide_now()
 		if present != PresentVisit.Kind.NONE:
-			load("res://scenes/world/present_npc.gd").spawn($Characters, present, _door_stand, _door_yaw)
+			load("res://scenes/world/present_npc.gd").spawn($Characters, present, _door_stand, _door_yaw,
+				IntroStationStage.house_index(PlayerHouse.owned_building_id()))
 	if (present == PresentVisit.Kind.NONE and Game.reset_flag and not Game.resetti_disabled
 			and not Game.intro.active and not Game.title_demo_active):
 		load("res://scenes/world/resetti.gd").spawn($Characters, Player.find(get_tree()))

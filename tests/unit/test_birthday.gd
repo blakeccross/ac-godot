@@ -62,13 +62,25 @@ func test_the_talk_hands_the_present_over_on_the_order() -> void:
 	var talk := PresentVisit.Talk.new(K.GOLDEN_NET, 0, rng)
 	talk.inventory = Inventory.new()
 	var had_net: bool = PresentVisit.has_trophy(PresentVisit.TROPHY_NET)
+	var saved: Dictionary = Game.events.area(&"present_npc").duplicate()
+	Game.events.area(&"present_npc").erase("first_present")
 	assert_int(talk.start_msg()).is_equal(PresentVisit.MSG_NET)
 	assert_that(talk.lock_continue()).is_equal({})
 	talk.npc_order("npc0", 1, 2)
 	assert_that(talk.lock_continue()).is_equal({"anim": {"give": PresentVisit.GOLDEN_NET}})
 	assert_that(talk.lock_continue()).is_equal({})
 	assert_int(talk.inventory.count_of(PresentVisit.GOLDEN_NET)).is_equal(1)
+	## The trophy waits until Tortimer has gone (`aPRD_retire_npc_wait`).
+	if not had_net:
+		assert_bool(PresentVisit.has_trophy(PresentVisit.TROPHY_NET)).is_false()
+	PresentVisit.retire(K.GOLDEN_NET)
 	assert_bool(PresentVisit.has_trophy(PresentVisit.TROPHY_NET)).is_true()
+	## Anyone else in town after that hears "someone else already has one".
+	assert_int(PresentVisit.Talk.new(K.GOLDEN_NET, 0, rng).start_msg()).is_equal(PresentVisit.MSG_NET_AGAIN)
+	assert_int(PresentVisit.Talk.new(K.GOLDEN_ROD, 0, rng).start_msg()).is_equal(PresentVisit.MSG_ROD)
+	assert_int(PresentVisit.Talk.new(K.GOLDEN_ROD, 0, rng).start_msg()).is_equal(PresentVisit.MSG_ROD_AGAIN)
+	Game.events.area(&"present_npc").clear()
+	Game.events.area(&"present_npc").merge(saved)
 	if not had_net:
 		(PresentVisit.record().get("trophies", {}) as Dictionary).erase(str(PresentVisit.TROPHY_NET))
 	var bday := PresentVisit.Talk.new(K.BIRTHDAY, 2, rng)
@@ -85,6 +97,8 @@ func test_the_runner_holds_the_page_for_the_hand_over() -> void:
 	var talk := PresentVisit.Talk.new(K.GOLDEN_ROD, 0, rng)
 	talk.inventory = Inventory.new()
 	var had_rod: bool = PresentVisit.has_trophy(PresentVisit.TROPHY_ROD)
+	var saved: Dictionary = Game.events.area(&"present_npc").duplicate()
+	Game.events.area(&"present_npc").erase("first_present")
 	var runner := DialogueRunner.new()
 	runner.talk_manager = talk
 	talk.context = DialogueContext.new()
@@ -103,5 +117,21 @@ func test_the_runner_holds_the_page_for_the_hand_over() -> void:
 	assert_bool(runner.done).is_false()
 	assert_int(talk.current_msg).is_equal(0x31C4)
 	assert_int(talk.inventory.count_of(PresentVisit.GOLDEN_ROD)).is_equal(1)
+	Game.events.area(&"present_npc").clear()
+	Game.events.area(&"present_npc").merge(saved)
 	if not had_rod:
 		(PresentVisit.record().get("trophies", {}) as Dictionary).erase(str(PresentVisit.TROPHY_ROD))
+
+
+## `aPST_exit`: the north pair runs up the path between the houses, the south pair down it.
+func test_the_visitor_leaves_along_the_path_between_the_houses() -> void:
+	var npc: GDScript = load("res://scenes/world/present_npc.gd")
+	var s: float = FieldCatalog.GX_TO_METERS
+	var north: Array = npc.call("exit_points", Vector3.ZERO, 0)
+	assert_int(north.size()).is_equal(2)
+	assert_vector(north[0]).is_equal_approx(Vector3(60.0, 0.0, -240.0) * s, Vector3.ONE * 0.001)
+	assert_vector(north[1]).is_equal_approx(Vector3(60.0, 0.0, -320.0) * s, Vector3.ONE * 0.001)
+	var east: Array = npc.call("exit_points", Vector3.ZERO, 1)
+	assert_float((east[0] as Vector3).x).is_equal_approx(-60.0 * s, 0.001)
+	var south: Array = npc.call("exit_points", Vector3.ZERO, 3)
+	assert_vector(south[1]).is_equal_approx(Vector3(-60.0, 0.0, 160.0) * s, Vector3.ONE * 0.001)

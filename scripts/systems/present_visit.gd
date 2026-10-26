@@ -9,12 +9,14 @@ extends RefCounted
 ##   (`FTR_FAMICOM_COMMON02`, "Donkey Kong"). Message 0x319F + looks × 6 + rand(3).
 ## - otherwise Mr. Resetti, if the last session wasn't saved;
 ## - otherwise, with a free pocket, Tortimer brings the Golden Rod once every fish is caught
-##   (0x31C3) or the Golden Net once every insect is (0x31C5). Each comes once
-##   (`mSC_TROPHY_GOLDEN_ROD` / `_NET` in Tortimer's trophy record).
+##   or the Golden Net once every insect is. The first in town of each gets 0x31C3 / 0x31C5;
+##   after that (`Save_Get(first_present)`, town-wide) it's 0x31C7 / 0x31C9, "someone else in
+##   town already has one". Each comes once (`mSC_TROPHY_GOLDEN_ROD` / `_NET` in Tortimer's
+##   trophy record), set only once Tortimer has gone (`aPRD_retire_npc_wait`).
 ##
 ## The visitor stands a few steps in front of the door facing the player, speaks on its own,
 ## hands the present over when the message says so (`mDemo_ORDER_NPC0` slot 1 = 2), then
-## turns and runs off.
+## turns and runs off while the player waits.
 ##
 ## Birthday cards (`mNpc_SendEventBirthdayCard2`) go out once the birthday has passed since
 ## the last renewal: every villager who remembers the player (but the one bringing the
@@ -33,6 +35,11 @@ const TROPHY_ROD := 31
 const MSG_BIRTHDAY := 0x319F
 const MSG_ROD := 0x31C3
 const MSG_NET := 0x31C5
+const MSG_ROD_AGAIN := 0x31C7
+const MSG_NET_AGAIN := 0x31C9
+## `aPST_PRESENT_TYPE_GOLDEN_ROD` / `_NET` bits of `first_present`.
+const FIRST_ROD := 1 << 0
+const FIRST_NET := 1 << 1
 const MAIL_BIRTHDAY := 0xEA
 ## `aPST_schedule_init_proc`: (2180, 1540) against the door at (2128, 1488), facing back.
 const STAND_GX := 73.5
@@ -70,6 +77,28 @@ static func set_trophy(trophy: int) -> void:
 	var trophies: Dictionary = rec.get("trophies", {})
 	trophies[str(trophy)] = true
 	rec["trophies"] = trophies
+
+
+## `aPST_check_first_present`: true the first time anyone in town is given `bit`, which it
+## then marks.
+static func check_first_present(bit: int) -> bool:
+	if Game == null or Game.events == null:
+		return true
+	var area: Dictionary = Game.events.area(&"present_npc")
+	var bits: int = int(area.get("first_present", 0))
+	if bits & bit != 0:
+		return false
+	area["first_present"] = bits | bit
+	return true
+
+
+## `aPRD_retire_npc_wait`: the golden rod / net trophy, once Tortimer has gone.
+static func retire(kind: int) -> void:
+	match kind:
+		Kind.GOLDEN_ROD:
+			set_trophy(TROPHY_ROD)
+		Kind.GOLDEN_NET:
+			set_trophy(TROPHY_NET)
 
 
 ## The visit for the game being continued now. Sets the year it was celebrated.
@@ -211,9 +240,9 @@ class Talk extends BankTalk:
 			Kind.BIRTHDAY:
 				return MSG_BIRTHDAY + looks * 6 + rng.randi_range(0, 2)
 			Kind.GOLDEN_ROD:
-				return MSG_ROD
+				return MSG_ROD if PresentVisit.check_first_present(FIRST_ROD) else MSG_ROD_AGAIN
 			Kind.GOLDEN_NET:
-				return MSG_NET
+				return MSG_NET if PresentVisit.check_first_present(FIRST_NET) else MSG_NET_AGAIN
 		return -1
 
 	## `aPST_present_send_start_wait_talk_proc`: a birthday present comes wrapped.
@@ -225,9 +254,4 @@ class Talk extends BankTalk:
 		if data != null and inventory != null:
 			inventory.add(data, 1,
 				InventoryItem.Condition.PRESENT if kind == Kind.BIRTHDAY else InventoryItem.Condition.NORMAL)
-		match kind:
-			Kind.GOLDEN_ROD:
-				PresentVisit.set_trophy(TROPHY_ROD)
-			Kind.GOLDEN_NET:
-				PresentVisit.set_trophy(TROPHY_NET)
 		return {"anim": {"give": present}}

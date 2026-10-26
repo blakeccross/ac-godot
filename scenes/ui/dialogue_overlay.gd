@@ -5,6 +5,9 @@ extends CanvasLayer
 
 signal closed
 signal event_fired(event: Dictionary)
+## The window started or stopped waiting on the player (`is_awaiting_input`): a finished
+## page, a choice or a prompt. Fires `false` when the window closes.
+signal awaiting_input_changed(awaiting: bool)
 
 ## `m_msg` counts decomp play frames (1/60 s, `DecompTime.TICK_HZ`): appear timer +1 per
 ## frame, a glyph every other frame.
@@ -69,6 +72,7 @@ var _voice: DialogueVoice = DialogueVoice.new()
 ## `mMsg_REQUEST_MAIN_DISAPPEAR_WAIT`: the window is put away mid-conversation (a menu is up
 ## on top of the talk). Hidden, no typing, no input; the runner keeps its place.
 var _suspended: bool = false
+var _awaiting: bool = false
 
 
 func _ready() -> void:
@@ -332,6 +336,7 @@ func _finish_close() -> void:
 	_disconnect_runner()
 	_runner = null
 	_clear_choices_immediate()
+	_sync_awaiting()
 	closed.emit()
 
 
@@ -353,6 +358,18 @@ func _on_runner_event(event: Dictionary) -> void:
 
 
 func _process(delta: float) -> void:
+	_advance(delta)
+	_sync_awaiting()
+
+
+func _sync_awaiting() -> void:
+	var now: bool = is_awaiting_input()
+	if now != _awaiting:
+		_awaiting = now
+		awaiting_input_changed.emit(now)
+
+
+func _advance(delta: float) -> void:
 	if not _open or _suspended:
 		return
 	_process_window_anim(delta)

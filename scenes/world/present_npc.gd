@@ -2,19 +2,33 @@ extends EventNpc
 
 ## The visitor with a present outside the house (`ac_present_npc`). Waits until the player
 ## has stepped out (`aPST_wait`), speaks on its own (`aPST_talk_request`), hands the present
-## over during the talk, then turns away and runs off (`aPST_exit_turn`, `aPST_exit`). A
-## villager comes under their umbrella when it rains (`aPST_make_umbrella`).
+## over during the talk, then turns to the path between the houses and runs off along it
+## (`aPST_exit_turn`, `aPST_exit`). The player stands and waits from the talk until the
+## visitor is gone (`aPRD_present_wait`, `aPRD_retire_npc_wait`). A villager comes under
+## their umbrella when it rains (`aPST_make_umbrella`).
 
-enum Think { WAIT, TALK, EXIT }
+enum Think { WAIT, TALK, EXIT_TURN, EXIT }
 
 const RUN_SPEED := 3.0
-## How far it runs before it is gone.
-const EXIT_RUN := 10.0
+## Gone after this long even if a run leg never ends (blocked).
+const EXIT_TIMEOUT := 8.0
+## `aPST_schedule_init_proc` `set_data`: where the visitor stands for each house
+## (`mHS_get_arrange_idx`), in field GX.
+const SET_GX: Array[Vector2] = [
+	Vector2(2180.0, 1540.0), Vector2(2300.0, 1540.0), Vector2(2180.0, 1820.0), Vector2(2300.0, 1820.0),
+]
+## `aPST_exit_turn_init` / `aPST_exit` `moveX` / `moveZ`: up the path between the houses
+## for the north pair, down it for the south pair. The turn faces the first point.
+const EXIT_NORTH_GX: Array[Vector2] = [Vector2(2240.0, 1300.0), Vector2(2240.0, 1220.0)]
+const EXIT_SOUTH_GX: Array[Vector2] = [Vector2(2240.0, 1900.0), Vector2(2240.0, 1980.0)]
 
 ## `PresentVisit.Kind`.
 var kind: int = PresentVisit.Kind.NONE
 var villager: VillagerData
 var think_state: Think = Think.WAIT
+## `mHS_get_arrange_idx`: which of the four house plots this visit is at.
+var house_index: int = 0
+var _exit_points: Array[Vector3] = []
 var _exit_time: float = 0.0
 var _umbrella: HeldUmbrella
 var _umb_carry: ToolCarry
@@ -88,38 +102,91 @@ func think(delta: float) -> void:
 				think_state = Think.TALK
 				if not begin_talk(player_node()):
 					_leave()
-		Think.EXIT:
+		Think.EXIT_TURN:
+			_hold_player()
 			_exit_time -= delta
-			if _exit_time <= 0.0 or not is_moving():
-				_retire()
-				queue_free()
+			var to: Vector3 = _exit_points[0] - global_position
+			if turn_to(atan2(to.x, to.z), delta) or _exit_time <= 0.0:
+				think_state = Think.EXIT
+				_run_next()
+
+
+func _physics_process(delta: float) -> void:
+	super._physics_process(delta)
+	## `move_to` runs instead of `think` while the run goes; the player stays held all the way.
+	if think_state == Think.EXIT:
+		_hold_player()
+		_exit_time -= delta
+		if _exit_time <= 0.0:
+			_retire()
 
 
 func talk_ended(_script: BankTalk) -> void:
 	_leave()
 
 
-## `aPRD_retire_npc_wait`: once Tortimer has gone, the player holds up the golden rod or
-## net (`mPlib_request_main_demo_get_golden_item2_type1`).
+## `aPRD_present_wait_init` (`mPlib_request_main_demo_wait_type1`): the player stands still
+## while the visitor leaves.
+func _hold_player() -> void:
+	var p := player_node() as Player
+	if p != null and not p.is_busy():
+		p.set_busy(true)
+
+
+## `aPST_exit`: on to the next point, or gone after the last.
+func _run_next() -> void:
+	if _exit_points.is_empty():
+		_retire()
+		return
+	move_to(_exit_points.pop_front(), RUN_SPEED, "npc_1_run1")
+
+
+func arrived() -> void:
+	super.arrived()
+	if think_state == Think.EXIT:
+		_run_next()
+
+
+## `aPRD_retire_npc_wait`, once the visitor is gone: the player is let go, and for Tortimer's
+## visit the trophy is set and the player holds up the golden rod or net
+## (`mPlib_request_main_demo_get_golden_item2_type1`).
 func _retire() -> void:
+	if is_queued_for_deletion():
+		return
+	stop_moving()
+	queue_free()
+	var p := player_node() as Player
+	if p != null:
+		p.set_busy(false)
 	if kind != PresentVisit.Kind.GOLDEN_ROD and kind != PresentVisit.Kind.GOLDEN_NET:
 		return
-	var p := player_node() as Player
+	PresentVisit.retire(kind)
 	if p != null:
 		p.get_golden_item(PresentVisit.present_for(kind))
 
 
-## Away from the door, the way it came.
+## `aPST_exit_turn_init`: turn to the path between the houses, then run along it.
 func _leave() -> void:
-	think_state = Think.EXIT
+	think_state = Think.EXIT_TURN
 	collision_layer = 0
-	var away := Vector3(sin(home_yaw), 0.0, cos(home_yaw))
-	_exit_time = EXIT_RUN / RUN_SPEED + 1.0
-	move_to(global_position - away * EXIT_RUN, RUN_SPEED, "npc_1_run1")
+	_exit_time = EXIT_TIMEOUT
+	_hold_player()
+	_exit_points = exit_points(global_position, house_index)
+
+
+## The exit run in world space: the decomp's points as offsets from the visitor's stand, so
+## they follow the stand wherever the house plot is.
+static func exit_points(stand: Vector3, house: int) -> Array[Vector3]:
+	var from: Vector2 = SET_GX[clampi(house, 0, 3)]
+	var points: Array[Vector3] = []
+	for gx: Vector2 in (EXIT_NORTH_GX if from.y <= 1540.0 else EXIT_SOUTH_GX):
+		var d: Vector2 = (gx - from) * FieldCatalog.GX_TO_METERS
+		points.append(Vector3(stand.x + d.x, stand.y, stand.z + d.y))
+	return points
 
 
 ## Put the visitor `PresentVisit.STAND_GX` in front of `stand` along `yaw`, facing back.
-static func spawn(parent: Node, kind: int, stand: Vector3, yaw: float) -> Node3D:
+static func spawn(parent: Node, kind: int, stand: Vector3, yaw: float, house: int = 0) -> Node3D:
 	var packed: PackedScene = load("res://scenes/world/present_npc.tscn") as PackedScene
 	if packed == null or parent == null or kind == PresentVisit.Kind.NONE:
 		return null
@@ -131,6 +198,7 @@ static func spawn(parent: Node, kind: int, stand: Vector3, yaw: float) -> Node3D
 			return null
 	npc.call("assign", kind, who)
 	npc.set("home_yaw", yaw + PI)
+	npc.set("house_index", house)
 	parent.add_child(npc)
 	(npc as Node3D).global_position = stand + Vector3(sin(yaw), 0.0, cos(yaw)) * PresentVisit.STAND_GX * FieldCatalog.GX_TO_METERS
 	return npc
