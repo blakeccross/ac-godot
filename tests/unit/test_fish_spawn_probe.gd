@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## half-month ramp, the sub-area retry, the per-species unit filter, and the one-attempt-
 ## per-acre-entry / cull loop in `FishSchool`.
 
-const S := preload("res://scripts/systems/fishing/fish_spawn_scheduler.gd")
+const S := preload("res://features/fishing/fish_spawn_scheduler.gd")
 
 
 func before_test() -> void:

@@ -966,7 +966,7 @@ func test_cast_spawns_a_bobber_and_drops_it_with_the_line() -> void:
 
 
 func test_bobber_attaches_the_pipeline_uki() -> void:
-	var bobber: Node3D = auto_free(load("res://scenes/world/bobber.tscn").instantiate()) as Node3D
+	var bobber: Node3D = auto_free(load("res://features/fishing/bobber.tscn").instantiate()) as Node3D
 	add_child(bobber)
 	await get_tree().process_frame
 	var pivot: Node3D = bobber.get_node_or_null("Float") as Node3D
@@ -979,7 +979,7 @@ func test_bobber_attaches_the_pipeline_uki() -> void:
 
 
 func test_bobber_tilt_eases_to_each_proc_target() -> void:
-	var script: GDScript = load("res://scenes/world/bobber.gd")
+	var script: GDScript = load("res://features/fishing/bobber.gd")
 	## It eases all the way there in a few seconds, the same at any frame rate.
 	var a: float = script.PITCH_FLAT
 	var b: float = script.PITCH_FLAT
@@ -1132,7 +1132,7 @@ func test_a_bite_pulls_the_bobber_under_and_a_strike_yanks_it_up_and_round() -> 
 func test_the_bobber_turns_blue_under_water_and_white_above() -> void:
 	## `aUKI_color`: past 3 GX under, (100, 100, 128); `aUKI_chase_color` steps 26 / 26 / 21 a
 	## tick, so a sixtieth of a second in it has moved one step.
-	var script: GDScript = load("res://scenes/world/bobber.gd")
+	var script: GDScript = load("res://features/fishing/bobber.gd")
 	var rgb := Vector3.ONE
 	rgb = script.chase_color(rgb, true, 1.0 / 60.0)
 	assert_vector(rgb * 255.0).is_equal_approx(Vector3(229, 229, 234), Vector3.ONE * 0.01)

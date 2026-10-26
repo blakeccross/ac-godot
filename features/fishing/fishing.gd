@@ -15,7 +15,7 @@ extends RefCounted
 
 enum State { IDLE, CAST, FLOAT, BITE }
 
-const SCENE := "res://scenes/world/bobber.tscn"
+const SCENE := "res://features/fishing/bobber.tscn"
 ## `m_player_main_ready_rod`: the bobber lands a fixed 100 GX straight ahead of the player's
 ## facing. You aim by turning — there is no charge-up and no variable-length cast, so this
 ## is the whole of the cast's reach.

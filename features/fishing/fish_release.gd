@@ -7,7 +7,7 @@ extends Node3D
 ## the splash SE 0x437. Runs on `delta` in metres: the arc is closed form and it splashes at
 ## the moment it reaches the surface.
 
-const SCENE_PATH := "res://scenes/world/fish_release.tscn"
+const SCENE_PATH := "res://features/fishing/fish_release.tscn"
 const SPLASH_SE := &"437"
 const GX := FieldCatalog.GX_TO_METERS
 ## `CreatureRelease` speeds are GX per 30 fps frame moved half a frame a tick, under −0.25 a

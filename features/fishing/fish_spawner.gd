@@ -5,7 +5,7 @@ extends Node3D
 ## `delta`, and keeps a `Fish` scene in the water for each shadow and each escape puff,
 ## adding and freeing them as they come and go.
 
-const FISH_SCENE := preload("res://scenes/world/fish/fish.tscn")
+const FISH_SCENE := preload("res://features/fishing/fish.tscn")
 const GROUP := &"fish_spawner"
 ## `aGYO_KAGE`'s own ring at `delete_timer == 96`, four ticks in.
 const KAGE_RIPPLE_SEC := 4.0 / DecompTime.TICK_HZ
