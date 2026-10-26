@@ -35,14 +35,17 @@ const _AREA_E := 1
 const _AREA_S := 2
 const _AREA_W := 3
 
-## Per-cell wall segments for the active WorldData. Cleared when the layout instance changes.
-static var _seg_data_id: int = 0
-static var _cell_segs: Dictionary = {}
-static var _nearby_segs: Dictionary = {}
-## `mCoBG_SetPluss5PointOffset` overlay (cell → corner offsets + slate).
-static var _plus: Dictionary = {}
-## `mCoBG_SetAttribute` overlay (cell → unit attribute), e.g. the station platform gate.
-static var _attr_override: Dictionary = {}
+
+## What one layout's collision adds at runtime on top of its baked units, kept on the layout
+## itself (`WorldData.collision`, see `overlay`), so it goes with the town it describes.
+class Overlay extends RefCounted:
+	## `mCoBG_SetPluss5PointOffset` (cell → corner offsets + slate): structure pads.
+	var plus: Dictionary = {}
+	## `mCoBG_SetAttribute` (cell → unit attribute), e.g. the station platform gate.
+	var attr_override: Dictionary = {}
+	## Per-cell wall segments built from all of the above, and the near-a-move lookup.
+	var cell_segs: Dictionary = {}
+	var nearby_segs: Dictionary = {}
 
 ## `mCoBG_forbid_vector_idx[attr − 27]` → `mCoBG_make_vector_table` walls for attributes
 ## 27…62 (`mCoBG_MakeForbidVectorData`, built for every actor checked with `attr_wall`).
@@ -59,18 +62,23 @@ const FORBID_WALLS: Array = [
 ]
 
 
-static func clear_caches() -> void:
-	_seg_data_id = 0
-	_cell_segs.clear()
-	_nearby_segs.clear()
-	_plus.clear()
-	_attr_override.clear()
+## `data`'s runtime overlay, made on first use.
+static func overlay(data: WorldData) -> Overlay:
+	if data.collision == null:
+		data.collision = Overlay.new()
+	return data.collision
+
+
+## Start `data` over with no pads, attribute changes or built walls (the world is rebuilt).
+static func reset(data: WorldData) -> void:
+	if data != null:
+		data.collision = Overlay.new()
 
 
 ## `mCoBG_SetAttribute`: change one unit's attribute at runtime (walls rebuild).
-static func set_attr_override(cell: Vector2i, attr: int) -> void:
-	_attr_override[cell] = attr
-	invalidate_segments()
+static func set_attr_override(data: WorldData, cell: Vector2i, attr: int) -> void:
+	overlay(data).attr_override[cell] = attr
+	invalidate_segments(data)
 
 
 ## Walls a unit's attribute forbids (`FORBID_WALLS` ids), none outside 27…62.
@@ -80,26 +88,26 @@ static func forbid_walls(attr: int) -> Array:
 	return FORBID_WALLS[attr - FORBID_ATTR_MIN]
 
 
-static func clear_plus() -> void:
-	_plus.clear()
-	invalidate_segments()
+static func clear_plus(data: WorldData) -> void:
+	overlay(data).plus.clear()
+	invalidate_segments(data)
 
 
-static func invalidate_segments() -> void:
-	_seg_data_id = 0
-	_cell_segs.clear()
-	_nearby_segs.clear()
+static func invalidate_segments(data: WorldData) -> void:
+	var o: Overlay = overlay(data)
+	o.cell_segs.clear()
+	o.nearby_segs.clear()
 
 
-static func set_plus(cell: Vector2i, ofs: Dictionary) -> void:
-	_plus[cell] = ofs
+static func set_plus(data: WorldData, cell: Vector2i, ofs: Dictionary) -> void:
+	overlay(data).plus[cell] = ofs
 
 
-static func is_raised_plus(cell: Vector2i) -> bool:
+static func is_raised_plus(data: WorldData, cell: Vector2i) -> bool:
 	## Non-zero `SetPluss5PointOffset` body / skirt — porch zeros stay walkable.
-	if not _plus.has(cell):
+	if data == null or not overlay(data).plus.has(cell):
 		return false
-	var ofs: Dictionary = _plus[cell]
+	var ofs: Dictionary = overlay(data).plus[cell]
 	return (
 		int(ofs.get("c", 0)) > 0
 		or int(ofs.get("nw", 0)) > 0
@@ -178,7 +186,7 @@ static func unit_attr_at_cell(data: WorldData, cell: Vector2i) -> int:
 	var unit: Dictionary = _catalog_unit(data, cell, false)
 	if unit.is_empty():
 		return -1
-	return int(unit["a"])  ## `_catalog_unit` applies `_attr_override`.
+	return int(unit["a"])  ## `_catalog_unit` applies the overlay's attribute changes.
 
 
 static func acre_type_at(data: WorldData, cell: Vector2i) -> int:
@@ -540,16 +548,17 @@ static func _catalog_unit(data: WorldData, cell: Vector2i, with_plus: bool = tru
 		base = FieldCatalog.unit_at(
 			visual, posmod(cell.x, WorldGenerator.UT), posmod(cell.y, WorldGenerator.UT)
 		)
-	if _attr_override.has(cell) and not base.is_empty():
+	var o: Overlay = overlay(data)
+	if o.attr_override.has(cell) and not base.is_empty():
 		base = base.duplicate()
-		base["a"] = int(_attr_override[cell])
-	if not with_plus or not data.is_in_bounds(cell) or not _plus.has(cell):
+		base["a"] = int(o.attr_override[cell])
+	if not with_plus or not data.is_in_bounds(cell) or not o.plus.has(cell):
 		return base
 	if base.is_empty():
 		var k: int = FieldCatalog.LAND_COUNTS
 		base = {"c": k, "nw": k, "sw": k, "se": k, "ne": k, "s": 0, "a": 0}
 	var keep: int = int(base["c"])
-	var ofs: Dictionary = _plus[cell]
+	var ofs: Dictionary = o.plus[cell]
 	var out: Dictionary = base.duplicate()
 	out["c"] = clampi(keep + int(ofs.get("c", 0)), 0, FieldCatalog.HEIGHT_MAX)
 	out["nw"] = clampi(keep + int(ofs.get("nw", 0)), 0, FieldCatalog.HEIGHT_MAX)
@@ -560,26 +569,17 @@ static func _catalog_unit(data: WorldData, cell: Vector2i, with_plus: bool = tru
 	return out
 
 
-static func _ensure_seg_cache(data: WorldData) -> void:
-	var data_id: int = data.get_instance_id()
-	if data_id == _seg_data_id:
-		return
-	_seg_data_id = data_id
-	_cell_segs.clear()
-	_nearby_segs.clear()
-
-
 static func _nearby_segments(
 	data: WorldData, grid: WorldGrid, from: Vector3, to: Vector3
 ) -> Array[Vector4]:
-	_ensure_seg_cache(data)
+	var nearby: Dictionary = overlay(data).nearby_segs
 	var fa: Vector2i = grid.world_to_cell(from)
 	var ta: Vector2i = grid.world_to_cell(to)
 	var key := Vector4i(fa.x, fa.y, ta.x, ta.y)
-	if _nearby_segs.has(key):
-		return _nearby_segs[key]
-	if _nearby_segs.size() > 4096:
-		_nearby_segs.clear()
+	if nearby.has(key):
+		return nearby[key]
+	if nearby.size() > 4096:
+		nearby.clear()
 	var seen: Dictionary = {}
 	var segs: Array[Vector4] = []
 	for p: Vector3 in [from, to]:
@@ -591,16 +591,17 @@ static func _nearby_segments(
 					continue
 				seen[cell] = true
 				segs.append_array(_segments_for_cell(data, grid, cell))
-	_nearby_segs[key] = segs
+	nearby[key] = segs
 	return segs
 
 
 static func _segments_for_cell(data: WorldData, grid: WorldGrid, cell: Vector2i) -> Array[Vector4]:
-	if _cell_segs.has(cell):
-		return _cell_segs[cell]
+	var cells: Dictionary = overlay(data).cell_segs
+	if cells.has(cell):
+		return cells[cell]
 	var segs: Array[Vector4] = []
 	_append_cell_segments(segs, data, grid, cell)
-	_cell_segs[cell] = segs
+	cells[cell] = segs
 	return segs
 
 

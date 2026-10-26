@@ -198,10 +198,9 @@ func test_structure_offset_raises_the_2x2_tower() -> void:
 	data.buildings.append(b)
 	StructureOffset.apply(data)
 	for cell: Vector2i in [Vector2i(10, 10), Vector2i(11, 10), Vector2i(10, 11), Vector2i(11, 11)]:
-		assert_bool(FieldCollision.is_raised_plus(cell)).is_true()
+		assert_bool(FieldCollision.is_raised_plus(data, cell)).is_true()
 	## The door stand north of the tower stays walkable.
-	assert_bool(FieldCollision.is_raised_plus(Vector2i(10, 9))).is_false()
-	FieldCollision.clear_plus()
+	assert_bool(FieldCollision.is_raised_plus(data, Vector2i(10, 9))).is_false()
 
 
 ## --- Switch room ----------------------------------------------------------------------

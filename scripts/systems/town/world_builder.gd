@@ -10,7 +10,7 @@ func build(world: Node3D, data: WorldData, grid: WorldGrid) -> void:
 	WorldObjectRegistry.ensure()
 	data.bake()
 	grid.configure_from_world(data)
-	FieldCollision.clear_caches()
+	FieldCollision.reset(data)
 	StructureOffset.apply(data)
 	var terrain_root: Node3D = world.get_node_or_null("Terrain") as Node3D
 	var objects_root: Node3D = world.get_node_or_null("Objects") as Node3D

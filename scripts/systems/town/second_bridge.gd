@@ -168,14 +168,14 @@ static func apply_collision(layout: WorldData, grid: WorldGrid, spot: Vector3i) 
 		var row: Array = REWRITE[u.y]
 		if u.y == 5 and is_equal_approx(FieldCollision.height_at(layout, cell, false), centre_y):
 			row = REWRITE[0]
-		FieldCollision.set_plus(cell, {"c": row[1], "nw": row[2], "sw": row[3], "se": row[4], "ne": row[5], "s": row[6]})
-		FieldCollision.set_attr_override(cell, int(row[0]))
+		FieldCollision.set_plus(layout, cell, {"c": row[1], "nw": row[2], "sw": row[3], "se": row[4], "ne": row[5], "s": row[6]})
+		FieldCollision.set_attr_override(layout, cell, int(row[0]))
 		## `_forbids_enter` reads the layout: the deck is a path now, not the river.
 		if layout.is_in_bounds(cell):
 			layout.set_terrain_cell(cell, WorldGrid.Terrain.PATH)
 		if grid != null and grid.is_in_bounds(cell):
 			grid.set_terrain(cell, WorldGrid.Terrain.PATH)
-	FieldCollision.invalidate_segments()
+	FieldCollision.invalidate_segments(layout)
 
 
 ## The bridge in place, when it stands.

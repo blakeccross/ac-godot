@@ -4,14 +4,6 @@ extends GdUnitTestSuite
 ## Unit heightfield analog of `mCoBG` (terraces + slate ramps), not `grd_*` triangles.
 
 
-func before_test() -> void:
-	FieldCollision.clear_caches()
-
-
-func after_test() -> void:
-	FieldCollision.clear_caches()
-
-
 func test_horizontal_cliff_is_high_north() -> void:
 	assert_float(FieldCollision.unit_rel_at(0, false, 8.0, 2.0)).is_equal(1.0)
 	assert_float(FieldCollision.unit_rel_at(0, false, 8.0, 14.0)).is_equal(0.0)
@@ -550,7 +542,6 @@ func test_corner_does_not_trap_circle() -> void:
 
 
 func test_player_house_plus_offset_leaves_porch() -> void:
-	FieldCollision.clear_caches()
 	var data: WorldData = _house_data()
 	var b := BuildingPlacement.new()
 	b.id = &"player_house"
@@ -571,7 +562,6 @@ func test_player_house_plus_offset_leaves_porch() -> void:
 
 
 func test_west_player_house_porch_is_south_east() -> void:
-	FieldCollision.clear_caches()
 	var data: WorldData = _house_data()
 	var b := BuildingPlacement.new()
 	b.id = &"player_house"
@@ -590,7 +580,6 @@ func test_west_player_house_porch_is_south_east() -> void:
 
 
 func test_npc_house_south_center_is_the_door() -> void:
-	FieldCollision.clear_caches()
 	var data: WorldData = _house_data()
 	var b := BuildingPlacement.new()
 	b.id = &"npc_house_0"
@@ -608,7 +597,6 @@ func test_npc_house_south_center_is_the_door() -> void:
 
 
 func test_museum_plus_offset_raises_footprint() -> void:
-	FieldCollision.clear_caches()
 	var data: WorldData = _house_data()
 	var b := BuildingPlacement.new()
 	b.id = &"museum"
@@ -629,7 +617,6 @@ func test_museum_plus_offset_raises_footprint() -> void:
 
 
 func test_able_sisters_plus_offset_leaves_corners() -> void:
-	FieldCollision.clear_caches()
 	var data: WorldData = _house_data()
 	var b := BuildingPlacement.new()
 	b.id = &"able_sisters"
@@ -647,7 +634,6 @@ func test_able_sisters_plus_offset_leaves_corners() -> void:
 
 
 func test_police_plus_offset_raises_3x3() -> void:
-	FieldCollision.clear_caches()
 	var data: WorldData = _house_data()
 	var b := BuildingPlacement.new()
 	b.id = &"police"
@@ -666,7 +652,6 @@ func test_police_plus_offset_raises_3x3() -> void:
 
 func test_door_walk_uses_keep_h_not_structure_plus() -> void:
 	## Door AnimationMove keeps yard Y; plus-offsets are walls, not a raised path.
-	FieldCollision.clear_caches()
 	var data: WorldData = _house_data()
 	var b := BuildingPlacement.new()
 	b.id = &"museum"
@@ -688,7 +673,6 @@ func test_door_walk_uses_keep_h_not_structure_plus() -> void:
 
 func test_museum_exit_stand_clears_plus_offset() -> void:
 	## Exit at +120 GX is south of the 7×5 raised block (ends at +2 units / +80 GX).
-	FieldCollision.clear_caches()
 	var data: WorldData = _house_data()
 	var b := BuildingPlacement.new()
 	b.id = &"museum"
@@ -724,7 +708,6 @@ func test_museum_exit_stand_clears_plus_offset() -> void:
 
 
 func test_shop_plus_offset_leaves_corners() -> void:
-	FieldCollision.clear_caches()
 	var data: WorldData = _house_data()
 	var b := BuildingPlacement.new()
 	b.id = &"acre_shop"
@@ -742,7 +725,6 @@ func test_shop_plus_offset_leaves_corners() -> void:
 
 
 func test_post_office_plus_offset_matches_able() -> void:
-	FieldCollision.clear_caches()
 	var data: WorldData = _house_data()
 	var b := BuildingPlacement.new()
 	b.id = &"post_office"
@@ -776,3 +758,18 @@ func _visual_at(data: WorldData, cell: Vector2i) -> StringName:
 		if bx >= 1 and bx <= 5 and bz >= 1 and bz <= 6:
 			return StringName(data.acre_visuals[bz * TownFieldGenerator.BLOCK_X + bx])
 	return data.acre_visual
+
+
+## Pads and attribute changes belong to the layout they were set on: another town (or a
+## rebuilt one) starts without them.
+func test_overlays_stay_with_their_layout() -> void:
+	var a := WorldData.new()
+	var b := WorldData.new()
+	var cell := Vector2i(3, 4)
+	FieldCollision.set_plus(a, cell, {"c": 4})
+	FieldCollision.set_attr_override(a, cell, 7)
+	assert_bool(FieldCollision.is_raised_plus(a, cell)).is_true()
+	assert_bool(FieldCollision.is_raised_plus(b, cell)).is_false()
+	assert_bool(FieldCollision.overlay(b).attr_override.is_empty()).is_true()
+	FieldCollision.reset(a)
+	assert_bool(FieldCollision.is_raised_plus(a, cell)).is_false()

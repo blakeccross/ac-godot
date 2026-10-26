@@ -150,10 +150,10 @@ func _effects() -> Node:
 ## `mCoBG_SetAttribute(doorway, STONE | 0x20)`.
 static func set_station_gate(tree: SceneTree, open: bool) -> void:
 	var world := World.find(tree)
-	if world == null or world.grid == null:
+	if world == null or world.grid == null or world.layout == null:
 		return
 	var cell: Vector2i = world.grid.world_to_cell(TownSpace.gx_to_world(STATION_GATE_GX))
-	FieldCollision.set_attr_override(cell, ATTR_STONE if open else ATTR_PLATFORM_EDGE)
+	FieldCollision.set_attr_override(world.layout, cell, ATTR_STONE if open else ATTR_PLATFORM_EDGE)
 
 
 func _place(car: Node3D, x_gx: float) -> void:

@@ -48,7 +48,7 @@ static func amount_for(days: int) -> int:
 static func can_grow(grid: WorldGrid, layout: WorldData, cell: Vector2i) -> bool:
 	if grid == null or not grid.is_in_bounds(cell) or grid.is_occupied(cell):
 		return false
-	if FieldCollision.is_raised_plus(cell):
+	if FieldCollision.is_raised_plus(layout, cell):
 		return false
 	if layout != null:
 		var attr: int = FieldCollision.unit_attr_at_cell(layout, cell)

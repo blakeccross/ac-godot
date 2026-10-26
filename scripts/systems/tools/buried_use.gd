@@ -425,7 +425,7 @@ static func _can_deposit(
 		return false
 	if grid.is_occupied(cell):
 		return false
-	if FieldCollision.is_raised_plus(cell):
+	if FieldCollision.is_raised_plus(layout, cell):
 		return false
 	if layout != null:
 		var acre_type: int = FieldCollision.acre_type_at(layout, cell)

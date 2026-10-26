@@ -4,14 +4,6 @@ extends GdUnitTestSuite
 ## `ef_footprint` gate, fade curve, and slope fit.
 
 
-func before_test() -> void:
-	FieldCollision.clear_caches()
-
-
-func after_test() -> void:
-	FieldCollision.clear_caches()
-
-
 func test_sand_and_wave_mark_in_every_season() -> void:
 	for season: Clock.Season in [
 		Clock.Season.SPRING, Clock.Season.SUMMER, Clock.Season.AUTUMN, Clock.Season.WINTER

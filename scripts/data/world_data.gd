@@ -42,6 +42,9 @@ const GRASS_PATTERN_COUNT := 3
 @export var acre_heights: PackedByteArray = PackedByteArray()
 ## Per-block `grd_*` visual ids (70 entries, parallel to acre_types). Empty string = no mesh.
 @export var acre_visuals: PackedStringArray = PackedStringArray()
+## Collision added at runtime (structure pads, attribute changes, built walls): not saved,
+## made on first use (`FieldCollision.overlay`).
+var collision: FieldCollision.Overlay
 
 
 static func clamp_grass_pattern(value: int) -> int:

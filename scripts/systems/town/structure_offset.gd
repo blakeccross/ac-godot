@@ -36,9 +36,9 @@ const _LIGHTHOUSE_UNITS: Array[Vector2i] = [
 
 
 static func apply(data: WorldData) -> void:
-	FieldCollision.clear_plus()
 	if data == null:
 		return
+	FieldCollision.clear_plus(data)
 	for b: BuildingPlacement in data.buildings:
 		if b == null:
 			continue
@@ -59,7 +59,7 @@ static func apply(data: WorldData) -> void:
 			_apply_lighthouse(data, b)
 		elif b.kind == &"house":
 			_apply_npc(data, b)
-	FieldCollision.invalidate_segments()
+	FieldCollision.invalidate_segments(data)
 
 
 ## FG unit (`actor.home`): the SE cell of the 2×2 footprint (`nw_off` −1,−1).
@@ -76,7 +76,7 @@ static func _apply_lighthouse(data: WorldData, placement: BuildingPlacement) -> 
 	for offset: Vector2i in _LIGHTHOUSE_UNITS:
 		var cell: Vector2i = home + offset
 		if data.is_in_bounds(cell):
-			FieldCollision.set_plus(cell, body.duplicate())
+			FieldCollision.set_plus(data, cell, body.duplicate())
 
 
 static func player_home_cell(placement: BuildingPlacement) -> Vector2i:
@@ -125,7 +125,7 @@ static func _apply_player(data: WorldData, placement: BuildingPlacement) -> void
 			if not data.is_in_bounds(cell):
 				continue
 			var row: Array = tbl[zi * 4 + xi]
-			FieldCollision.set_plus(cell, _row(row, SMALL_BODY))
+			FieldCollision.set_plus(data, cell, _row(row, SMALL_BODY))
 
 
 static func _apply_npc(data: WorldData, placement: BuildingPlacement) -> void:
@@ -136,7 +136,7 @@ static func _apply_npc(data: WorldData, placement: BuildingPlacement) -> void:
 			if not data.is_in_bounds(cell):
 				continue
 			var row: Array = _NPC_TBL[zi * 3 + xi]
-			FieldCollision.set_plus(cell, _row(row, NPC_BODY))
+			FieldCollision.set_plus(data, cell, _row(row, NPC_BODY))
 
 
 static func _apply_museum(data: WorldData, placement: BuildingPlacement) -> void:
@@ -148,7 +148,7 @@ static func _apply_museum(data: WorldData, placement: BuildingPlacement) -> void
 			var cell := Vector2i(home.x + ox, home.y + oz)
 			if not data.is_in_bounds(cell):
 				continue
-			FieldCollision.set_plus(cell, body.duplicate())
+			FieldCollision.set_plus(data, cell, body.duplicate())
 
 
 static func _apply_4x4_open_corners(data: WorldData, home: Vector2i, tbl: Array) -> void:
@@ -162,7 +162,7 @@ static func _apply_4x4_open_corners(data: WorldData, home: Vector2i, tbl: Array)
 			if not data.is_in_bounds(cell):
 				continue
 			var row: Array = tbl[idx]
-			FieldCollision.set_plus(cell, _row(row, 11))
+			FieldCollision.set_plus(data, cell, _row(row, 11))
 
 
 static func _apply_police(data: WorldData, placement: BuildingPlacement) -> void:
@@ -174,7 +174,7 @@ static func _apply_police(data: WorldData, placement: BuildingPlacement) -> void
 			if not data.is_in_bounds(cell):
 				continue
 			var row: Array = _POLICE_TBL[zi * 3 + xi]
-			FieldCollision.set_plus(cell, _row(row, POLICE_BODY))
+			FieldCollision.set_plus(data, cell, _row(row, POLICE_BODY))
 
 
 static func _row(row: Array, body: int) -> Dictionary:

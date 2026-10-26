@@ -110,7 +110,6 @@ func test_the_deck_carries_you_over_the_river_at_bank_height() -> void:
 	var data: WorldData = WorldGenerator.generate(12345)
 	if data.bridge_spots.is_empty():
 		return
-	FieldCollision.clear_caches()
 	var spot: Vector3i = data.bridge_spots[0]
 	var centre := Vector2i(spot.x, spot.y)
 	var bed: float = FieldCollision.height_at(data, centre)
@@ -118,4 +117,3 @@ func test_the_deck_carries_you_over_the_river_at_bank_height() -> void:
 	assert_float(FieldCollision.height_at(data, centre)).is_greater(bed)
 	assert_bool(FieldCatalog.is_wood_bridge_attr(FieldCollision.unit_attr_at_cell(data, centre))).is_true()
 	assert_bool(FieldCollision._forbids_enter(data, centre)).is_false()
-	FieldCollision.clear_caches()

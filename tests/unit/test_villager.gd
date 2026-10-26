@@ -9,13 +9,11 @@ func before_test() -> void:
 	Clock.paused = true
 	Game.reset_session()
 	VillagerWalk.reset()
-	FieldCollision.clear_caches()
 
 
 func after_test() -> void:
 	Game.reset_session()
 	VillagerWalk.reset()
-	FieldCollision.clear_caches()
 	Clock.reset_to_default()
 	Clock.paused = false
 
@@ -1191,7 +1189,6 @@ func test_circle_revise_clamps_to_roam_radius() -> void:
 func test_structure_plus_body_is_not_standable() -> void:
 	## FG occupancy blocks house cells; CheckNpc still allows grass attrs under
 	## plus-offsets outside the FG footprint (decomp walks in and avoid_wall steers).
-	FieldCollision.clear_caches()
 	var data: WorldData = _plot_with_house()
 	data.buildings[0].footprint = Vector2i(2, 2)
 	data.buildings[0].visual_id = &"obj_s_museum"
@@ -1200,7 +1197,7 @@ func test_structure_plus_body_is_not_standable() -> void:
 	data.buildings[0].cell = Vector2i(6, 6)
 	StructureOffset.apply(data)
 	var home: Vector2i = StructureOffset.museum_home_cell(data.buildings[0])
-	assert_bool(FieldCollision.is_raised_plus(home)).is_true()
+	assert_bool(FieldCollision.is_raised_plus(data, home)).is_true()
 	## Occupied FG footprint stays unstandable; raised grass outside FG can be a dest.
 	assert_bool(VillagerWalk.is_standable(data, home)).is_false()
 	assert_bool(VillagerWalk.is_standable(data, Vector2i(1, 1))).is_true()
