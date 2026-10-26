@@ -7,7 +7,6 @@ const ANIM_STRUM := IntroKkStage.ANIM_STRUM
 const ANIM_LOOK_UP := IntroKkStage.ANIM_LOOK_UP
 
 var _anim: AnimationPlayer
-var _tree: AnimationTree
 var _active: String = ""
 var _face: NpcFace = NpcFace.new()
 
@@ -76,9 +75,6 @@ func _snap_posed_to_floor() -> void:
 
 func _setup_player() -> void:
 	_anim = VisualAnimation.find_animation_player(self)
-	_tree = get_node_or_null("AnimationTree") as AnimationTree
-	if _tree != null:
-		_tree.active = false
 
 
 func _play(suffix: String, loop: bool, speed: float, blend: float = 0.0) -> bool:
@@ -89,8 +85,6 @@ func _play(suffix: String, loop: bool, speed: float, blend: float = 0.0) -> bool
 	var clip: String = IntroKkStage.resolve_clip(_anim, suffix)
 	if clip.is_empty():
 		return false
-	if _tree != null:
-		_tree.active = false
 	if _active == clip and _anim.is_playing():
 		_anim.speed_scale = speed
 		return true

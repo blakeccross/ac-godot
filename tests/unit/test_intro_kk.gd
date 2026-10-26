@@ -43,50 +43,84 @@ func test_kk_opening_dialogue_exists() -> void:
 	assert_that(choice.get("type")).is_equal("choice")
 
 
-func test_stage_strum_then_talk_then_fade() -> void:
-	var stage := IntroKkStage.new()
-	var talked := [false]
-	var faded := [false]
-	stage.ready_for_talk.connect(func() -> void: talked[0] = true)
-	stage.fade_finished.connect(func() -> void: faded[0] = true)
-	## Cover the decomp 440-frame strum window (plus a frame of float slack).
-	stage.tick(float(IntroKkStage.STRUM_FRAMES) / DecompTime.TICK_HZ + 0.05)
-	assert_that(stage.phase).is_equal(IntroKkStage.Phase.TALK)
-	assert_that(stage.pose).is_equal(IntroKkStage.Pose.LOOK_UP)
-	assert_bool(talked[0]).is_true()
-	stage.begin_fade()
-	assert_that(stage.phase).is_equal(IntroKkStage.Phase.FADE)
-	assert_that(stage.pose).is_equal(IntroKkStage.Pose.STRUM)
-	stage.tick(float(IntroKkStage.FADE_FRAMES) / DecompTime.TICK_HZ + 0.05)
-	assert_that(stage.phase).is_equal(IntroKkStage.Phase.DONE)
-	assert_bool(faded[0]).is_true()
-	assert_float(stage.fade_alpha).is_equal_approx(1.0, 0.001)
+## The decomp's counts, in 60 Hz ticks: `aNPS_schedule_init_proc` strum, `aNPS_talk_end_chk`
+## silent wait, and after the talk `strum_timer` / `bgm_stop_timer` / the `< 70` fade ramp.
+const STRUM_TICKS := 440
+const SILENT_TICKS := 600
+const OUTRO_TICKS := 150
+const MUSIC_STOP_TICKS := 80
+const FADE_RAMP_TICKS := 70
+const S := DecompTime.TICK_SEC
 
 
-func test_stage_silent_idle_looks_then_resumes_strum() -> void:
-	var stage := IntroKkStage.new()
-	stage.tick(float(IntroKkStage.STRUM_FRAMES) / DecompTime.TICK_HZ + 0.05)
-	assert_that(stage.pose).is_equal(IntroKkStage.Pose.LOOK_UP)
-	## Still typing / not awaiting — silent counter resets; stay on look-up.
-	stage.tick(1.0, false)
-	assert_that(stage.pose).is_equal(IntroKkStage.Pose.LOOK_UP)
-	## ~10 s unanswered → TALK1 remaps to default_animation 4haku (resume playing).
-	stage.tick(float(IntroKkStage.SILENT_FRAMES) / DecompTime.TICK_HZ + 0.05, true)
-	assert_that(stage.pose).is_equal(IntroKkStage.Pose.STRUM)
-	## Stay strumming while still unanswered past the threshold.
-	stage.tick(0.5, true)
-	assert_that(stage.pose).is_equal(IntroKkStage.Pose.STRUM)
-	## Advancing (silent reset) while strumming → look up again.
-	stage.tick(0.05, false)
-	assert_that(stage.pose).is_equal(IntroKkStage.Pose.LOOK_UP)
-	assert_str(IntroKkStage.anim_for_pose(IntroKkStage.Pose.LOOK_UP)).is_equal("npc_1_wait_e1")
-	assert_str(IntroKkStage.anim_for_pose(IntroKkStage.Pose.STRUM)).is_equal("npc_1_4haku_e1")
-	assert_float(IntroKkStage.morph_for_pose(IntroKkStage.Pose.LOOK_UP)).is_equal_approx(
-		5.0 / 30.0, 0.001
-	)
-	assert_float(IntroKkStage.morph_for_pose(IntroKkStage.Pose.STRUM)).is_equal_approx(
-		3.0 / 30.0, 0.001
-	)
+func test_timing_nodes_match_the_decomp() -> void:
+	var scene: Node3D = await _scene()
+	var talk_delay := scene.get_node("%TalkDelay") as Timer
+	assert_float(talk_delay.wait_time).is_equal_approx(STRUM_TICKS * S, 0.001)
+	assert_bool(talk_delay.one_shot).is_true()
+	## `autostart` clears itself once the timer is in the tree; it is running.
+	assert_bool(talk_delay.is_stopped()).is_false()
+	var silent := scene.get_node("%SilentTimer") as Timer
+	assert_float(silent.wait_time).is_equal_approx(SILENT_TICKS * S, 0.001)
+	assert_bool(silent.one_shot).is_true()
+	var outro: Animation = (scene.get_node("%Outro") as AnimationPlayer).get_animation(&"outro")
+	assert_float(outro.length).is_equal_approx(OUTRO_TICKS * S, 0.001)
+	var fade: int = outro.find_track(^"UI/FadeRect:modulate:a", Animation.TYPE_VALUE)
+	assert_int(fade).is_not_equal(-1)
+	assert_float(float(outro.value_track_interpolate(fade, 0.0))).is_equal_approx(0.0, 0.001)
+	var ramp_from: int = OUTRO_TICKS - FADE_RAMP_TICKS
+	assert_float(float(outro.value_track_interpolate(fade, ramp_from * S))).is_equal_approx(0.0, 0.001)
+	## Linear over the ramp: halfway through, half dark.
+	var halfway: float = (ramp_from + FADE_RAMP_TICKS * 0.5) * S
+	assert_float(float(outro.value_track_interpolate(fade, halfway))).is_equal_approx(0.5, 0.01)
+	assert_float(float(outro.value_track_interpolate(fade, OUTRO_TICKS * S))).is_equal_approx(1.0, 0.001)
+	var calls: int = outro.find_track(^".", Animation.TYPE_METHOD)
+	assert_int(outro.track_get_key_count(calls)).is_equal(1)
+	assert_float(outro.track_get_key_time(calls, 0)).is_equal_approx(MUSIC_STOP_TICKS * S, 0.001)
+	assert_str(String(outro.method_track_get_name(calls, 0))).is_equal("_stop_music")
+
+
+func test_talk_looks_up_then_idle_resumes_strum() -> void:
+	var scene: Node3D = await _scene()
+	var silent := scene.get_node("%SilentTimer") as Timer
+	var dialogue := scene.get_node("%DialogueOverlay") as DialogueOverlay
+	(scene.get_node("%TalkDelay") as Timer).timeout.emit()
+	assert_that(scene.get("pose")).is_equal(IntroKkStage.Pose.LOOK_UP)
+	## Left waiting on the player: the silent wait starts, and runs out into strumming.
+	dialogue.awaiting_input_changed.emit(true)
+	assert_bool(silent.is_stopped()).is_false()
+	silent.timeout.emit()
+	assert_that(scene.get("pose")).is_equal(IntroKkStage.Pose.STRUM)
+	assert_bool(Audio.arm_muted).is_false()
+	## The talk moves on: look up again, the wait reset.
+	dialogue.awaiting_input_changed.emit(false)
+	assert_that(scene.get("pose")).is_equal(IntroKkStage.Pose.LOOK_UP)
+	assert_bool(Audio.arm_muted).is_true()
+	assert_bool(silent.is_stopped()).is_true()
+
+
+func test_outro_strums_and_stops_the_music() -> void:
+	var scene: Node3D = await _scene()
+	(scene.get_node("%TalkDelay") as Timer).timeout.emit()
+	scene.call("_begin_fade")
+	assert_that(scene.get("pose")).is_equal(IntroKkStage.Pose.STRUM)
+	var outro := scene.get_node("%Outro") as AnimationPlayer
+	assert_bool(outro.is_playing()).is_true()
+	## Short of the end: finishing changes scene to the train.
+	outro.advance(MUSIC_STOP_TICKS * S + 0.05)
+	## Just into the ramp: barely darkened yet.
+	assert_float((scene.get_node("%FadeRect") as ColorRect).modulate.a).is_less(0.1)
+	## Method keys run deferred (`ANIMATION_CALLBACK_MODE_METHOD_DEFERRED`).
+	await get_tree().process_frame
+	assert_that(Audio.current_id).is_equal(&"")
+	outro.stop()
+
+
+func _scene() -> Node3D:
+	var scene: Node3D = auto_free((load("res://scenes/ui/intro_kk.tscn") as PackedScene).instantiate()) as Node3D
+	add_child(scene)
+	await get_tree().process_frame
+	return scene
 
 
 func test_camera_and_spawn_match_decomp() -> void:

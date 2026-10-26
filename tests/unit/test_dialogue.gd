@@ -546,3 +546,17 @@ func test_mid_page_btn_waits_then_writes_on() -> void:
 		overlay._type(T)
 	assert_int(overlay._cursor).is_equal(5)
 	assert_str(String(overlay.runner().node_id)).is_equal("a")
+
+
+## `awaiting_input_changed` fires once as the page finishes typing, and `false` on close.
+func test_awaiting_input_signal_fires_on_each_edge() -> void:
+	var overlay := _open_line("Ab")
+	var seen: Array[bool] = []
+	overlay.awaiting_input_changed.connect(func(awaiting: bool) -> void: seen.append(awaiting))
+	overlay._process(T)
+	assert_that(seen).is_empty()
+	for _i in 10:
+		overlay._process(T)
+	assert_that(seen).is_equal([true] as Array[bool])
+	overlay.close(true)
+	assert_that(seen).is_equal([true, false] as Array[bool])

@@ -12,33 +12,30 @@ const DIALOGUE_FALLBACK := &"kk_opening"
 @onready var _fade: ColorRect = %FadeRect
 @onready var _missing_banner: Label = %MissingBanner
 @onready var _dialogue: DialogueOverlay = %DialogueOverlay
+@onready var _silent_timer: Timer = %SilentTimer
+@onready var _auto_advance: Timer = %AutoAdvance
+@onready var _outro: AnimationPlayer = %Outro
 
-var _stage: IntroKkStage = IntroKkStage.new()
+var pose: IntroKkStage.Pose = IntroKkStage.Pose.STRUM
+var _fading: bool = false
 var _finishing: bool = false
 var _dialogue_started: bool = false
 ## The saved town's player select (`ac_npc_p_sel2`) when there is one.
 var _select: PlayerSelectTalk
-var auto_advance_dialogue: bool = false
-var _auto_advance_timer: float = 0.0
 
 
 func _ready() -> void:
 	if _cmdline_has("--record-intro"):
-		auto_advance_dialogue = true
+		_auto_advance.start()
 	Game.notify_intro_ready()
 	## Fade in from the title's black wipe-out (`WIPE_TYPE_FADE_BLACK`).
 	SceneTransition.play_wipe_in_if_pending()
 	## Start unmuted — opening pose is strum (`Na_TTKK_ARM(FALSE)` while playing).
 	Audio.set_ttkk_arm(false)
 	Audio.play_bgm(IntroKkStage.BGM_ID)
-	_stage.reset()
-	_stage.ready_for_talk.connect(_on_ready_for_talk)
-	_stage.fade_finished.connect(_on_fade_finished)
-	_stage.pose_changed.connect(_on_pose_changed)
-	if _dialogue.has_signal("event_fired") and not _dialogue.event_fired.is_connected(_on_dialogue_event):
-		_dialogue.event_fired.connect(_on_dialogue_event)
-	if _dialogue.has_signal("closed") and not _dialogue.closed.is_connected(_on_dialogue_closed):
-		_dialogue.closed.connect(_on_dialogue_closed)
+	_dialogue.event_fired.connect(_on_dialogue_event)
+	_dialogue.closed.connect(_on_dialogue_closed)
+	_dialogue.awaiting_input_changed.connect(_on_awaiting_input_changed)
 	_setup_stage_look()
 	_setup_camera()
 	_refresh_missing()
@@ -80,32 +77,55 @@ func _setup_stage_look() -> void:
 
 
 func _process(delta: float) -> void:
-	var awaiting: bool = (
-		_dialogue_started
-		and _dialogue != null
-		and _dialogue.is_awaiting_input()
-	)
-	_stage.tick(delta, awaiting)
 	if _kk != null:
-		var uttering: bool = (
-			_dialogue != null
-			and _dialogue.is_uttering()
-		)
-		_kk.tick_face(delta, uttering)
-	if _fade != null:
-		_fade.modulate.a = _stage.fade_alpha
-	if auto_advance_dialogue and not _finishing and _dialogue_started:
-		_auto_advance_timer += delta
-		if _auto_advance_timer >= 0.35:
-			_auto_advance_timer = 0.0
-			_dialogue.fast_advance()
+		_kk.tick_face(delta, _dialogue != null and _dialogue.is_uttering())
 
 
-func _on_pose_changed(pose: int) -> void:
-	## Guitar stem on while strumming; mute on look-up (`Na_TTKK_ARM`).
+## One way into a pose: K.K.'s clip, and the guitar stem on while he strums, muted while he
+## looks up (`Na_TTKK_ARM`).
+func _set_pose(next: IntroKkStage.Pose) -> void:
+	if pose == next:
+		return
+	pose = next
 	Audio.set_ttkk_arm(pose != IntroKkStage.Pose.STRUM)
 	if _kk != null:
 		_kk.apply_pose(pose)
+
+
+## `aNPS_talk_end_chk`: K.K. looks up while the text runs and, left waiting on the player
+## (`silent_counter` climbing on MainNormal / choice), goes back to playing after a while.
+func _on_awaiting_input_changed(awaiting: bool) -> void:
+	if not _dialogue_started or _fading:
+		return
+	if awaiting:
+		_silent_timer.start()
+		return
+	_silent_timer.stop()
+	_set_pose(IntroKkStage.Pose.LOOK_UP)
+
+
+func _on_silent_timeout() -> void:
+	_set_pose(IntroKkStage.Pose.STRUM)
+
+
+func _on_auto_advance() -> void:
+	if not _finishing and _dialogue_started:
+		_dialogue.fast_advance()
+
+
+## After the talk: K.K. plays on while the `Outro` clip stops the music and fades to black.
+func _begin_fade() -> void:
+	if _fading:
+		return
+	_fading = true
+	_silent_timer.stop()
+	_set_pose(IntroKkStage.Pose.STRUM)
+	_outro.play(&"outro")
+
+
+## `Outro` method key: `bgm_stop_timer` runs out (`mBGMPsComp_make_ps_wipe(0x421C)`).
+func _stop_music() -> void:
+	Audio.stop_bgm()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -137,15 +157,18 @@ func _refresh_missing() -> void:
 		)
 
 
-func _on_ready_for_talk() -> void:
+## `TalkDelay`: the strum is over and K.K. talks (`aNPS_talk_end_chk` leaves 4haku for
+## wait_e1 as soon as the talk runs).
+func _on_talk_delay_timeout() -> void:
 	if _dialogue_started or _finishing:
 		return
+	_set_pose(IntroKkStage.Pose.LOOK_UP)
 	var data: DialogueData = DialogueCatalog.conversation(DIALOGUE_ID)
 	if data == null:
 		data = DialogueCatalog.conversation(DIALOGUE_FALLBACK)
 	if data == null:
 		## Still advance without authored lines so the train stays reachable.
-		_stage.begin_fade()
+		_begin_fade()
 		return
 	_dialogue_started = true
 	if Game.player_select_mode and _begin_player_select():
@@ -187,29 +210,21 @@ func _on_dialogue_event(event: Dictionary) -> void:
 	var op := String(event.get("op", event.get("type", "")))
 	match op:
 		"finish_kk_opening":
-			if _kk != null:
-				_kk.play_strum()
-			_stage.begin_fade()
+			_begin_fade()
 		"kk_wait":
 			## Farewell: look up (wait_e1).
-			if _kk != null:
-				_kk.play_look_up()
-			_stage.request_look_up()
+			_set_pose(IntroKkStage.Pose.LOOK_UP)
 		"kk_strum":
-			if _kk != null:
-				_kk.play_strum()
-			_stage.request_strum()
+			_set_pose(IntroKkStage.Pose.STRUM)
 
 
 func _on_dialogue_closed() -> void:
 	## Safety if the graph ends without `finish_kk_opening`.
-	if _finishing:
-		return
-	if _stage.phase == IntroKkStage.Phase.TALK or _stage.phase == IntroKkStage.Phase.STRUM:
-		_stage.begin_fade()
+	if not _finishing:
+		_begin_fade()
 
 
-func _on_fade_finished() -> void:
+func _on_outro_finished(_clip: StringName) -> void:
 	if _finishing:
 		return
 	_finishing = true

@@ -1,26 +1,12 @@
 class_name IntroKkStage
 extends RefCounted
 
-## K.K. opening (`ac_npc_p_sel` / `SCENE_PLAYERSELECT`) before the train.
-## Timers are decomp frame counts at 60 Hz.
+## K.K. opening (`ac_npc_p_sel` / `SCENE_PLAYERSELECT`) before the train: the stage's
+## numbers. The timing lives on the scene's nodes (`intro_kk.tscn`: `TalkDelay`,
+## `SilentTimer`, the `Outro` clip), each citing its decomp count.
 
-signal ready_for_talk
-signal fade_finished
-signal pose_changed(pose: int)
-
-enum Phase { STRUM, TALK, FADE, DONE }
 ## `aNPS_talk_end_chk` demo orders: 4haku → wait_e1 (253); 255=`TALK1` → default_animation 4haku.
 enum Pose { STRUM, LOOK_UP }
-
-## `aNPS_schedule_init_proc`: strum before first talk request.
-const STRUM_FRAMES := 440
-## After talk ends: `strum_timer = 150`, `bgm_stop_timer = 80`.
-const FADE_FRAMES := 150
-const BGM_STOP_FRAMES := 80
-## Fade alpha ramps while `strum_timer < 70`.
-const FADE_RAMP_FRAMES := 70
-## Idle on MainNormal / choice before `aNPC_MANPU_CODE_RESET` (255 → TALK1 → 4haku).
-const SILENT_FRAMES := 600
 
 ## cKF morph_counter −N → |N|/30 s crossfade (same as train Rover).
 const MORPH_STRUM := 3.0 / DecompTime.FRAME_HZ
@@ -88,37 +74,6 @@ static func resolve_clip(anim: AnimationPlayer, suffix: String) -> String:
 	return best
 
 
-## Test-only: no in-game callers; kept for tests.
-static func anim_for_pose(pose: Pose) -> String:
-	match pose:
-		Pose.LOOK_UP:
-			return ANIM_LOOK_UP
-		_:
-			return ANIM_STRUM
-
-
-## Test-only: no in-game callers; kept for tests.
-static func morph_for_pose(pose: Pose) -> float:
-	## Destination clip's `morph_counter` magnitude / 30 Hz.
-	match pose:
-		Pose.LOOK_UP:
-			return MORPH_LOOK_UP
-		_:
-			return MORPH_STRUM
-
-
-var phase: Phase = Phase.STRUM
-var pose: Pose = Pose.STRUM
-var fade_alpha: float = 0.0
-
-var _strum_left: float = float(STRUM_FRAMES) / DecompTime.TICK_HZ
-var _fade_left: float = float(FADE_FRAMES) / DecompTime.TICK_HZ
-var _bgm_stop_left: float = -1.0
-var _silent_frames: float = 0.0
-var _talk_signaled: bool = false
-var _fade_done: bool = false
-
-
 static func gx_to_meters(gx: Vector3) -> Vector3:
 	return gx * FieldCatalog.GX_TO_METERS
 
@@ -139,93 +94,3 @@ static func sun_basis() -> Basis:
 	## Light travels opposite the decomp “toward sun” vector.
 	var travel := -SUN_DIR_GX.normalized()
 	return Basis.looking_at(travel, Vector3.RIGHT if absf(travel.y) > 0.95 else Vector3.UP)
-
-
-func reset() -> void:
-	phase = Phase.STRUM
-	pose = Pose.STRUM
-	fade_alpha = 0.0
-	_strum_left = float(STRUM_FRAMES) / DecompTime.TICK_HZ
-	_fade_left = float(FADE_FRAMES) / DecompTime.TICK_HZ
-	_bgm_stop_left = -1.0
-	_silent_frames = 0.0
-	_talk_signaled = false
-	_fade_done = false
-
-
-func begin_fade() -> void:
-	if phase == Phase.FADE or phase == Phase.DONE:
-		return
-	phase = Phase.FADE
-	_fade_left = float(FADE_FRAMES) / DecompTime.TICK_HZ
-	_bgm_stop_left = float(BGM_STOP_FRAMES) / DecompTime.TICK_HZ
-	fade_alpha = 0.0
-	_set_pose(Pose.STRUM)
-
-
-func tick(delta: float, awaiting_input: bool = false) -> void:
-	match phase:
-		Phase.STRUM:
-			_strum_left = maxf(_strum_left - delta, 0.0)
-			if _strum_left <= 0.0 and not _talk_signaled:
-				_talk_signaled = true
-				phase = Phase.TALK
-				## `aNPS_talk_end_chk`: leave 4haku → wait_e1 as soon as talk runs.
-				_set_pose(Pose.LOOK_UP)
-				ready_for_talk.emit()
-		Phase.TALK:
-			_tick_talk_idle(delta, awaiting_input)
-		Phase.FADE:
-			_tick_fade(delta)
-		_:
-			pass
-
-
-func _tick_talk_idle(delta: float, awaiting_input: bool) -> void:
-	## `silent_counter` only climbs on MainNormal / choice; resets while text lays in.
-	if awaiting_input:
-		_silent_frames = minf(_silent_frames + delta * DecompTime.TICK_HZ, float(SILENT_FRAMES))
-	else:
-		_silent_frames = 0.0
-	## Mirrors `aNPS_talk_end_chk` order 253 / 255:
-	## silent < 600 + 4haku → wait_e1; silent >= 600 + not 4haku → TALK1 → default 4haku.
-	if _silent_frames >= float(SILENT_FRAMES):
-		if pose != Pose.STRUM:
-			_set_pose(Pose.STRUM)
-	elif pose == Pose.STRUM:
-		_set_pose(Pose.LOOK_UP)
-
-
-func _set_pose(next: Pose) -> void:
-	if pose == next:
-		return
-	pose = next
-	pose_changed.emit(pose)
-
-
-func request_strum() -> void:
-	_set_pose(Pose.STRUM)
-
-
-func request_look_up() -> void:
-	_set_pose(Pose.LOOK_UP)
-
-
-func _tick_fade(delta: float) -> void:
-	if _bgm_stop_left > 0.0:
-		_bgm_stop_left -= delta
-		if _bgm_stop_left <= 0.0:
-			_bgm_stop_left = -1.0
-			## `mBGMPsComp_make_ps_wipe(0x421C)` — crossfade out intro_kk.
-			Audio.stop_bgm()
-	_fade_left = maxf(_fade_left - delta, 0.0)
-	var frames_left: float = _fade_left * DecompTime.TICK_HZ
-	if frames_left < float(FADE_RAMP_FRAMES):
-		fade_alpha = clampf(1.0 - frames_left / float(FADE_RAMP_FRAMES), 0.0, 1.0)
-	else:
-		fade_alpha = 0.0
-	if _fade_left <= 0.0 and not _fade_done:
-		_fade_done = true
-		fade_alpha = 1.0
-		phase = Phase.DONE
-		fade_finished.emit()
