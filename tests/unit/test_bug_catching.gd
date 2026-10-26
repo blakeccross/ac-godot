@@ -340,7 +340,7 @@ func test_npc_on_line_uses_the_villager_pipe() -> void:
 	add_child(actor)
 	var ctx := InteractionContext.new()
 	ctx.actor = actor
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	add_child(villager)
 	## Villagers stay hidden until the roster places them.
 	villager.visible = true

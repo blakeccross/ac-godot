@@ -37,7 +37,7 @@ static func ensure() -> void:
 	register(&"waterfall", "res://scenes/world/waterfall.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS)
 	register(&"furniture", "res://scenes/world/furniture.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS, true)
 	register(&"door", "res://scenes/world/door.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS)
-	register(&"villager", "res://scenes/actors/villager.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_CHARACTERS)
+	register(&"villager", "res://features/villagers/villager.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_CHARACTERS)
 	register(&"tortimer", "res://scenes/world/tortimer.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_CHARACTERS)
 	register(&"copper", "res://scenes/world/copper.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_CHARACTERS)
 	register(&"house", "res://scenes/world/house.tscn", WorldGrid.PlaceKind.BUILDING, GROUP_BUILDINGS)

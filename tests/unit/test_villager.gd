@@ -138,7 +138,7 @@ func test_roster_save_round_trip() -> void:
 
 
 func test_scene_composition() -> void:
-	var villager: Node = auto_free(load("res://scenes/actors/villager.tscn").instantiate())
+	var villager: Node = auto_free(load("res://features/villagers/villager.tscn").instantiate())
 	assert_that(villager.get_node_or_null("Model")).is_not_null()
 	assert_that(villager.get_node_or_null("Collision")).is_not_null()
 	assert_that(villager.get_node_or_null("NavigationAgent3D")).is_not_null()
@@ -164,7 +164,7 @@ func test_home_villager_stays_in_until_player_acre() -> void:
 	## `aSNMgr_check_move_npc_schedule`: FIELD only moves a villager already outside.
 	## One still `is_home` has no actor until the player's acre spawns it.
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	Game.villagers.get_or_create(&"filbert").is_home = true
 	assert_that(villager.current_activity()).is_equal(VillagerActivity.IN_HOUSE)
 	Game.villagers.get_or_create(&"filbert").is_home = false
@@ -177,7 +177,7 @@ func test_new_villager_starts_home() -> void:
 
 func test_scene_talks_when_in_field() -> void:
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	Game.villagers.get_or_create(&"filbert").is_home = false
 	assert_that(villager.current_activity()).is_equal(VillagerActivity.FIELD)
 	var actions: Array[Interaction] = villager.get_interactions(InteractionContext.new())
@@ -189,7 +189,7 @@ func test_scene_talks_when_in_field() -> void:
 func test_sustained_walk_builds_fatigue_and_forces_rest() -> void:
 	## `aNPC_calc_fatigue` (+1 walk / -2 wait per frame) → forced WAIT at 1600,
 	## held by `aNPC_act_wait` until fatigue drains under 200.
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	var moving := Vector3(1.5, 0.0, 0.0)
 	for _i: int in 4000:
 		villager._tick_fatigue(1.0 / 30.0, moving)
@@ -494,7 +494,7 @@ func test_at_door_stays_visible_then_hides_on_wake() -> void:
 func test_leave_home_appears_at_door_and_does_not_drift_home() -> void:
 	## `aNPC_think_leave_house_init_proc`: stand on the threshold, one metre back toward the
 	## house, facing out, then walk one unit out. `_motor.home` stays on the yard centre.
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	add_child(villager)
 	var home := Vector3(5, 0, 5)
 	villager.global_position = home
@@ -536,7 +536,7 @@ func test_schedule_changed_fires_once_per_real_transition() -> void:
 func test_mood_clears_when_schedule_leaves_sleep() -> void:
 	## `aNPC_sleep_schedule_chg_schedule`: mood is a session state, not timed —
 	## it resets to NORMAL exactly when the schedule stops being SLEEP.
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	villager._ensure_bound()
 	villager.state.mood = VillagerState.Mood.SLEEPY
 	villager.brain.on_schedule_changed(VillagerActivity.SLEEP, VillagerActivity.IN_HOUSE)
@@ -561,7 +561,7 @@ class _PlayerYawStub extends Node3D:
 func test_player_crowding_requires_distance_and_facing() -> void:
 	## `aNPC_check_uzai_cross`: within one field unit (2 m), and roughly facing
 	## the villager — not just standing nearby.
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	add_child(villager)
 	villager.global_position = Vector3.ZERO
 	var player: _PlayerYawStub = auto_free(_PlayerYawStub.new())
@@ -583,7 +583,7 @@ func test_player_crowding_requires_distance_and_facing() -> void:
 func test_net_hit_ignored_before_first_meeting() -> void:
 	## `aNPC_check_uzai` gates the scold counters on the animal-memory check —
 	## a villager the player has never talked to can't be annoyed yet.
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	villager._ensure_bound()
 	villager.register_net_hit()
 	assert_int(villager._uzai_tool).is_equal(0)
@@ -592,7 +592,7 @@ func test_net_hit_ignored_before_first_meeting() -> void:
 func test_net_hit_makes_any_villager_jump() -> void:
 	## `aNPC_check_uzai` returns TRUE on `uzai.flag == 1` before the memory check, so even a
 	## stranger does `aNPC_ACT_REACT_TOOL`; only the scold counter needs a meeting.
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	villager._ensure_bound()
 	villager.register_net_hit()
 	assert_int(villager._react).is_equal(Villager.React.SURPRISE)
@@ -603,7 +603,7 @@ func test_net_hit_makes_any_villager_jump() -> void:
 
 
 func test_net_hit_in_view_stares_then_annoyed_only_jumps() -> void:
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	add_child(villager)
 	villager._ensure_bound()
 	villager.global_position = Vector3.ZERO
@@ -629,7 +629,7 @@ func test_net_hit_in_view_stares_then_annoyed_only_jumps() -> void:
 func test_net_hits_trigger_then_tighten_to_a_second_annoyance() -> void:
 	## `max_uzai_tool = {3, 1}`: the first offense takes 3 hits; once `uzai.cross`
 	## is set, one more hit is enough, and patience escalates MILDLY_ANNOYED → ANNOYED.
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	villager._ensure_bound()
 	villager.state.last_spoke_day = "2001-01-01"
 	assert_that(villager.state.patience).is_equal(VillagerState.Patience.NORMAL)
@@ -647,7 +647,7 @@ func test_net_hits_trigger_then_tighten_to_a_second_annoyance() -> void:
 func test_annoyed_mood_decays_after_one_minute() -> void:
 	## `aNPC_set_feel_info(nactorx, feel, 1)`: the annoyed mood lasts exactly one
 	## real-time minute, unlike SLEEPY's indefinite `-1` sentinel.
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	villager._ensure_bound()
 	villager.state.last_spoke_day = "2001-01-01"
 	villager.state.mood = VillagerState.Mood.ANGRY
@@ -1542,7 +1542,7 @@ func test_talk_line_reaction_plays_clip_and_glyph() -> void:
 	## feel glyph; a reset code goes back to the talk hold.
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
 	Game.villagers.get_or_create(&"filbert").is_home = false
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	add_child(villager)
 	await get_tree().process_frame
 	if villager.animation_player() == null:
@@ -1563,7 +1563,7 @@ func test_leaving_home_steps_out_of_the_doorway_before_walking() -> void:
 	## the body out of the house) and the villager holds still until it stops.
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
 	Game.villagers.get_or_create(&"filbert").is_home = false
-	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var villager: Villager = auto_free(load("res://features/villagers/villager.tscn").instantiate()) as Villager
 	add_child(villager)
 	await get_tree().process_frame
 	assert_object(villager.animation_player()).is_not_null()

@@ -18,7 +18,7 @@ Use typed GDScript on every signature and member. Indent with tabs.
 
 - **Data:** scripts that `extend Resource` live in `scripts/data/` and declare `class_name`. Instances are `.tres` files under `data/` (`items/`, `furniture/`, `villagers/`, `personalities/`, `creatures/`, `plants/`, `dialogue/`, `schedules/`, `acres/`). Indoor field templates are built by `InteriorCatalog` (same resource types: `House`, `Room`, `FurniturePlacement`).
 - **Presentation:** `.tscn` scenes under `scenes/`. A scene is a physical or UI object, not a dump of game rules.
-- **Behavior:** systems under `scripts/systems/<area>/`; a new one goes in the folder of the area it serves. A feature moved to `features/<name>/` (so far `fishing` and `bugs`) holds its scenes and scripts together, and new work on it goes there. Scene scripts stay thin: they wire nodes and call systems.
+- **Behavior:** systems under `scripts/systems/<area>/`; a new one goes in the folder of the area it serves. A feature moved to `features/<name>/` (so far `fishing`, `bugs` and `villagers`) holds its scenes and scripts together, and new work on it goes there. Scene scripts stay thin: they wire nodes and call systems.
 - Prefer composition (child nodes, resources, systems) over deep inheritance.
 
 ### Scene-first authorship
@@ -88,7 +88,7 @@ Existing decomp-style names are renamed in plan § Phase 1, with the old names r
 
 ## Components
 
-A large actor splits by responsibility into child `Node`s declared in its `.tscn` (`player.tscn`: `Doors`, `Furniture`, `Tools`, `Net`, `Fishing`, `Snowball`, `Reports`; `villager.tscn`: `Mover`, `Conversation`, `Greeter`, `Brain`). The actor holds them as node exports assigned in the scene (`@export var doors: PlayerDoors`, `node_paths` in the `.tscn`), so they are set before any child's `_ready`. A component finds its actor on first use (`_player` / `_villager`, a getter on `get_parent()`), so scenes built in tests without a tree work. Components are parts of one actor: they may read its private state (`_motor`, `_anim`, `_busy`) and each other's through it. Code outside the actor goes through the component (`player.doors.begin_door_enter(…)`).
+A large actor splits by responsibility into child `Node`s declared in its `.tscn` (`player.tscn`: `Doors`, `Furniture`, `Tools`, `Net`, `Fishing`, `Snowball`, `Reports`; `features/villagers/villager.tscn`: `Mover`, `Conversation`, `Greeter`, `Brain`, under `components/`). The actor holds them as node exports assigned in the scene (`@export var doors: PlayerDoors`, `node_paths` in the `.tscn`), so they are set before any child's `_ready`. A component finds its actor on first use (`_player` / `_villager`, a getter on `get_parent()`), so scenes built in tests without a tree work. Components are parts of one actor: they may read its private state (`_motor`, `_anim`, `_busy`) and each other's through it. Code outside the actor goes through the component (`player.doors.begin_door_enter(…)`).
 
 ## Saved state
 

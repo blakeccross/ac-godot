@@ -243,7 +243,7 @@ func test_scene_hosts_offer_expected_verbs() -> void:
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
 	## A villager still at home waits for the player's acre (`aSNMgr_check_move_npc_schedule`);
 	## one already outside talks.
-	var out_villager: Node = auto_free(load("res://scenes/actors/villager.tscn").instantiate())
+	var out_villager: Node = auto_free(load("res://features/villagers/villager.tscn").instantiate())
 	out_villager.call("current_activity")
 	(out_villager.get("state") as VillagerState).is_home = false
 	var talk: Interaction = Interaction.primary(out_villager.get_interactions(ctx))
@@ -423,7 +423,7 @@ func test_shop_hours_follow_clock() -> void:
 
 
 func test_villager_offers_no_talk_while_sleeping() -> void:
-	var villager: Node = auto_free(load("res://scenes/actors/villager.tscn").instantiate())
+	var villager: Node = auto_free(load("res://features/villagers/villager.tscn").instantiate())
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 7, "minute": 0 })
 	assert_str(String(villager.current_activity())).is_equal("sleep")
 	## Already outside, so FIELD is not held back for the player's acre.
