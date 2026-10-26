@@ -5,7 +5,7 @@ extends RefCounted
 ## Anchors and active/relax windows come from `ac_museum_insect`; motion is a lighter
 ## museum-idle version of field `BugActor` programs so wings still flap on schedule.
 
-const BEETLE_HEIGHT := 1.75  ## 35 GX
+const BEETLE_HEIGHT := 35.0 * FieldCatalog.GX_TO_METERS
 
 var bug: BugData = null
 var type_index: int = -1
@@ -37,7 +37,7 @@ static func create(p_bug: BugData, grid: WorldGrid, rng: RandomNumberGenerator) 
 	actor._pose_pattern = BugData.pose_pattern(p_bug.model_flap)
 	if actor.type_index >= 0 and actor.type_index < MuseumDisplay.INSECT_SCALES.size():
 		actor._draw_scale = MuseumDisplay.INSECT_SCALES[actor.type_index]
-	actor._home = MuseumDisplay.gx_to_world(grid, _anchor_gx(p_bug))
+	actor._home = WorldGrid.room_point(grid, _anchor(p_bug))
 	actor.position = actor._home
 	actor.height = _start_height(p_bug)
 	actor.yaw = actor._rng.randf() * TAU
@@ -46,7 +46,7 @@ static func create(p_bug: BugData, grid: WorldGrid, rng: RandomNumberGenerator) 
 	return actor
 
 
-static func _anchor_gx(bug: BugData) -> Vector3:
+static func _anchor(bug: BugData) -> Vector3:
 	match bug.program:
 		BugData.Program.BUTTERFLY, BugData.Program.LADYBUG:
 			if bug.id == &"purple_butterfly":
@@ -98,7 +98,7 @@ func pose_index() -> int:
 	return _pose_pattern[_pose_frame % _pose_pattern.size()]
 
 
-func tick(delta: float) -> void:
+func advance(delta: float) -> void:
 	if bug == null:
 		return
 	active = MuseumDisplay.insect_is_active(type_index, Clock.hour, Clock.minute)

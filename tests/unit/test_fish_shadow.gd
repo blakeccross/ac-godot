@@ -105,7 +105,7 @@ func test_shadow_alpha_is_120_and_the_whale_50() -> void:
 func test_whale_shadow_never_wiggles() -> void:
 	## `dec_step` is 0.0 for `aGYO_SIZE_WHALE`, so its shadow is frozen.
 	var shadow: FishShadow = _shadow(FishData.SizeClass.WHALE, 4, 3, Vector3.ZERO)
-	shadow.tick(1.0, FishShadow.Sense.new())
+	shadow.advance(1.0, FishShadow.Sense.new())
 	assert_int(shadow.anim_frame()).is_equal(0)
 
 
@@ -243,7 +243,7 @@ func test_a_fish_nibbles_several_times_before_it_commits() -> void:
 	var nibbles: int = 0
 	var elapsed: float = 0.0
 	while elapsed < 30.0 and shadow.action != FishShadow.Action.BITE:
-		shadow.tick(STEP, sense)
+		shadow.advance(STEP, sense)
 		if shadow.nibbled:
 			nibbles += 1
 		elapsed += STEP
@@ -266,16 +266,16 @@ func test_a_dashing_player_scares_a_fish_into_a_puff() -> void:
 	## `aGTT_player_near`: walking past is fine, dashing is not.
 	sense.player_position = _at(Vector2i(8, 9))
 	sense.player_dashing = false
-	school.tick(STEP, sense)
+	school.advance(STEP, sense)
 	assert_int(school.shadow_count()).is_equal(1)
 	assert_int(school.puffs.size()).is_equal(0)
 	sense.player_dashing = true
-	school.tick(STEP, sense)
+	school.advance(STEP, sense)
 	assert_int(school.shadow_count()).is_equal(0)
 	## `aGTT_kage_make_actor`: it leaves a fading shadow darting away behind it.
 	assert_int(school.puffs.size()).is_equal(1)
 	assert_float(school.puffs[0].alpha()).is_greater(0.0)
-	school.tick(FishSize.puff_seconds() + 0.1, sense)
+	school.advance(FishSize.puff_seconds() + 0.1, sense)
 	assert_int(school.puffs.size()).is_equal(0)
 
 
@@ -288,7 +288,7 @@ func test_school_stocks_the_acre_the_player_enters_once() -> void:
 	sense.player_position = _at(Vector2i(8, 8))
 	## `aSOG_gyoei_set` runs on acre entry: one attempt, one fish at most per acre.
 	for _i: int in 400:
-		school.tick(STEP * 4.0, sense)
+		school.advance(STEP * 4.0, sense)
 		assert_int(school.shadow_count()).is_less_equal(1)
 	for shadow: FishShadow in school.shadows:
 		assert_that(shadow.fish).is_not_null()
@@ -305,7 +305,7 @@ func test_a_school_with_no_water_never_spawns() -> void:
 	var sense := FishShadow.Sense.new()
 	sense.player_position = Vector3.ZERO
 	for _i: int in 100:
-		school.tick(STEP * 4.0, sense)
+		school.advance(STEP * 4.0, sense)
 	assert_int(school.shadow_count()).is_equal(0)
 
 
@@ -316,7 +316,7 @@ func test_shadows_move_half_their_speed_a_tick() -> void:
 	var sense: FishShadow.Sense = _bobber_sense(at + Vector3(0.0, 0.0, 1.5))
 	shadow._set_angle(0.0)
 	shadow._enter(FishShadow.Action.NEAR)
-	shadow.tick(1.0 / 60.0, sense)
+	shadow.advance(1.0 / 60.0, sense)
 	var moved: float = shadow.position.distance_to(at)
 	assert_float(moved).is_equal_approx(FishSize.SPEED_GX[FishData.SizeClass.M] * 0.5 * FishSize.GX, 0.0001)
 
@@ -338,7 +338,7 @@ func test_a_pond_fish_holds_station_facing_north_and_a_river_fish_upstream() -> 
 	shadow._set_angle(PI)
 	shadow._rng = RandomNumberGenerator.new()
 	shadow._enter(FishShadow.Action.WAIT)
-	shadow.tick(1.0 / 60.0, FishShadow.Sense.new())
+	shadow.advance(1.0 / 60.0, FishShadow.Sense.new())
 	assert_float(absf(wrapf(shadow.yaw - PI, -PI, PI))).is_equal_approx(FishShadow.FLOW_TURN_FAST / 60.0, 0.0001)
 
 
@@ -349,11 +349,11 @@ func test_an_escape_runs_a_hundred_ticks_then_holds_station() -> void:
 	shadow._enter(FishShadow.Action.ESCAPE)
 	var sense := FishShadow.Sense.new()
 	for _i: int in 99:
-		shadow.tick(1.0 / 60.0, sense)
+		shadow.advance(1.0 / 60.0, sense)
 	assert_that(shadow.action).is_equal(FishShadow.Action.ESCAPE)
 	## Eased off by 0.02 GX a frame each tick from 2.0.
-	assert_float(shadow.speed).is_equal_approx(FishSize.gx_per_frame_to_mps(FishSize.ESCAPE_SPEED_GX - 0.02 * 99.0), 0.0001)
-	shadow.tick(1.0 / 60.0 + 0.001, sense)
+	assert_float(shadow.speed).is_equal_approx(FishSize.ESCAPE_SPEED - 0.02 * FishSize.GX_FRAME * 99.0, 0.0001)
+	shadow.advance(1.0 / 60.0 + 0.001, sense)
 	assert_that(shadow.action).is_equal(FishShadow.Action.WAIT)
 
 
@@ -367,12 +367,12 @@ func test_a_scared_fish_leaves_a_puff_darting_south() -> void:
 	var sense := FishShadow.Sense.new()
 	sense.player_position = _at(Vector2i(10, 8))
 	sense.player_dashing = true
-	school.tick(STEP, sense)
+	school.advance(STEP, sense)
 	assert_int(school.puffs.size()).is_equal(1)
 	var puff: FishSchool.Puff = school.puffs[0]
 	var start: Vector3 = puff.position
 	sense.player_dashing = false
-	school.tick(STEP * 10.0, sense)
+	school.advance(STEP * 10.0, sense)
 	assert_float(puff.position.z - start.z).is_greater(0.0)
 	assert_float(absf(puff.position.x - start.x)).is_less(0.0001)
 	assert_bool(shadow.finished).is_true()
@@ -396,14 +396,14 @@ func test_a_puff_turns_off_the_bank_and_keeps_slowing() -> void:
 	var sense := FishShadow.Sense.new()
 	sense.player_position = _at(Vector2i(10, 11))
 	sense.player_dashing = true
-	school.tick(STEP, sense)
+	school.advance(STEP, sense)
 	assert_int(school.puffs.size()).is_equal(1)
 	var puff: FishSchool.Puff = school.puffs[0]
 	sense.player_dashing = false
 	var turned: bool = false
 	for _i in 100:
 		var speed: float = puff.speed
-		school.tick(STEP, sense)
+		school.advance(STEP, sense)
 		if school.puffs.is_empty():
 			break
 		assert_bool(_pond.contains(_grid.world_to_cell(puff.position))).is_true()
@@ -429,7 +429,7 @@ func test_a_claimed_bobber_is_invisible_to_the_other_shadow() -> void:
 	var sense: FishShadow.Sense = _bobber_sense(bobber)
 	sense.accepts_bite = false
 	for _i: int in 20:
-		school.tick(STEP, sense)
+		school.advance(STEP, sense)
 		assert_bool(second.is_engaged()).is_false()
 	assert_bool(first.is_engaged()).is_true()
 
@@ -448,10 +448,10 @@ func test_a_shadow_far_off_in_another_acre_is_culled() -> void:
 	var shadow: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), school.bodies[0], grid.cell_to_world(Vector2i(3, 5)))
 	var sense := FishShadow.Sense.new()
 	sense.player_position = grid.cell_to_world(Vector2i(8, 5))
-	school.tick(STEP, sense)
+	school.advance(STEP, sense)
 	assert_int(school.shadow_count()).is_equal(1)
 	sense.player_position = grid.cell_to_world(Vector2i(60, 5))
-	school.tick(STEP, sense)
+	school.advance(STEP, sense)
 	assert_int(school.shadow_count()).is_equal(0)
 	assert_bool(school.shadows.has(shadow)).is_false()
 	assert_int(school.puffs.size()).is_equal(0)
@@ -488,7 +488,7 @@ func _bobber_sense(at: Vector3) -> FishShadow.Sense:
 func _run(shadow: FishShadow, sense: FishShadow.Sense, seconds: float) -> void:
 	var elapsed: float = 0.0
 	while elapsed < seconds:
-		shadow.tick(STEP, sense)
+		shadow.advance(STEP, sense)
 		elapsed += STEP
 
 
@@ -504,8 +504,8 @@ func test_a_shadow_swims_the_same_course_at_a_low_frame_rate() -> void:
 	b._enter(FishShadow.Action.SWIM)
 	var sense := FishShadow.Sense.new()
 	for _i: int in 120:
-		a.tick(1.0 / 60.0, sense)
+		a.advance(1.0 / 60.0, sense)
 	for _i: int in 30:
-		b.tick(1.0 / 15.0, sense)
+		b.advance(1.0 / 15.0, sense)
 	assert_that(b.action).is_equal(a.action)
 	assert_vector(b.position).is_equal_approx(a.position, Vector3.ONE * 0.03)

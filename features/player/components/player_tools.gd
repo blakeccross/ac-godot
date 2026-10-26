@@ -151,12 +151,10 @@ func tick_balloon(delta: float) -> void:
 	if _balloon_hand == Vector3.INF:
 		_balloon_hand = hand
 	if delta > 0.0:
-		## The hand's speed, GX a 30 fps frame.
-		var frames: float = delta * DecompTime.FRAME_HZ
-		var moved: Vector3 = (hand - _balloon_hand) / FieldCatalog.GX_TO_METERS / frames
+		var hand_velocity: Vector3 = (hand - _balloon_hand) / delta
 		var walking: bool = _player._motor.gait() == PlayerLocomotion.Gait.WALK or _player._motor.gait() == PlayerLocomotion.Gait.RUN
-		var speed_gx: float = Vector2(_player.velocity.x, _player.velocity.z).length() / FieldCatalog.GX_TO_METERS / DecompTime.FRAME_HZ
-		_balloon.step(delta, moved, _player._motor.facing, walking, speed_gx)
+		var speed: float = Vector2(_player.velocity.x, _player.velocity.z).length()
+		_balloon.step(delta, hand_velocity, _player._motor.facing, walking, speed)
 		_balloon_hand = hand
 	_balloon.apply(_player._motor.facing)
 

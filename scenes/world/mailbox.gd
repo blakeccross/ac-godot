@@ -27,8 +27,8 @@ const ANIM_FLAG_UP_WAIT := "obj_s_post_flag_on_wait1"
 const ANIM_FLAG_LOWER := "obj_s_post_flag_off1"
 const ANIM_OPEN := "obj_s_post_open1"
 
-## `aMBX_pl_wait` `posX` / `pos.z`.
-const STAND_GX := 24.0
+## `aMBX_pl_wait` `posX` / `pos.z` (24 GX).
+const STAND := 24.0 * FieldCatalog.GX_TO_METERS
 
 var _has_mesh: bool = false
 var _anim: AnimationPlayer
@@ -134,7 +134,7 @@ func stand_spot(from: Vector3) -> Array:
 		front = Vector3.BACK
 	var right := Vector3(front.z, 0.0, -front.x)
 	var side: float = 1.0 if PlayerHouse.plot_of(String(occupant_id)) % 2 == 0 else -1.0
-	var spot: Vector3 = global_position + (front + right * side) * STAND_GX * FieldCatalog.GX_TO_METERS
+	var spot: Vector3 = global_position + (front + right * side) * STAND
 	spot.y = from.y
 	var back: Vector3 = global_position - spot
 	return [spot, atan2(back.x, back.z)]

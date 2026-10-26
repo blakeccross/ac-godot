@@ -21,8 +21,9 @@ extends Node3D
 const SKELETON := &"mnk_1"
 const WAIT_CLIP := "npc_1_wait1"
 const WALK_CLIP := "npc_1_walk1"
-## Block (3, 1) unit (5, 4), unit centre: 3·640 + 5·40 + 20, 1·640 + 4·40 + 20.
-const TITLE_GX := Vector3(2140.0, 0.0, 820.0)
+## Block (3, 1) unit (5, 4), unit centre: 3·640 + 5·40 + 20, 1·640 + 4·40 + 20 GX. Field
+## positions (`TownSpace`).
+const TITLE := Vector3(2140.0, 0.0, 820.0) * FieldCatalog.GX_TO_METERS
 ## `chase_angle` scales its step by `game_GameFrame_2F` (frame × 0.5), so a chase-angle turn is
 ## `step × 30` per second at any frame rate: `0x800`, in radians a second.
 static var TURN_RATE: float = NpcPointMove.turn_rate(NpcPointMove.SPIN_TURN)
@@ -30,11 +31,11 @@ const LOOK_CONE := deg_to_rad(67.5)
 ## `aSTM_think_init_proc` (first intro): `rotation.y += DEG2SHORT_ANGLE2(-90)` from angle 0.
 const INTRO_YAW := -PI * 0.5
 ## `aSTM_interrupt_*_init`: one unit (`mFI_UT_WORLDSIZE_X_F`) east of where he stands.
-const STEP_EAST_GX := 40.0
+const STEP_EAST := 40.0 * FieldCatalog.GX_TO_METERS
 ## Normal play: the title spot, one unit east (`mEv_IsNotTitleDemo`).
-const TOWN_GX := TITLE_GX + Vector3(STEP_EAST_GX, 0.0, 0.0)
+const TOWN := TITLE + Vector3(STEP_EAST, 0.0, 0.0)
 ## Where a traveller steps off the train: the platform two units west of him.
-const ARRIVE_GX := TOWN_GX + Vector3(-80.0, 0.0, 0.0)
+const ARRIVE := TOWN + Vector3(-2.0 * STEP_EAST, 0.0, 0.0)
 
 enum Mode { LOOK, TURN_EAST, WALK_EAST }
 
@@ -142,7 +143,7 @@ func is_idle() -> bool:
 
 ## `aSTM_talk_end_chk` → `INTERRUPT_TURN` → `INTERRUPT_MOVE`: turn to and walk one unit east.
 func begin_step_east() -> void:
-	_goal = global_position + Vector3(STEP_EAST_GX * FieldCatalog.GX_TO_METERS, 0.0, 0.0)
+	_goal = global_position + Vector3(STEP_EAST, 0.0, 0.0)
 	_mode = Mode.TURN_EAST
 	_turning = false
 	_move.reset(facing)
@@ -173,7 +174,7 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	if not visible:
 		return
-	_face.tick(delta, speaking and DialogueOverlay.uttering_in(get_tree()))
+	_face.advance(delta, speaking and DialogueOverlay.uttering_in(get_tree()))
 
 
 func _advance(delta: float) -> void:
@@ -210,9 +211,8 @@ func _advance(delta: float) -> void:
 
 ## `aNPC_act_to_point_move` (WALK) for the one-unit step.
 func _walk(delta: float) -> void:
-	var gx: float = FieldCatalog.GX_TO_METERS
-	var pos: Vector3 = global_position / gx
-	var goal: Vector3 = _goal / gx
+	var pos: Vector3 = global_position
+	var goal: Vector3 = _goal
 	if NpcPointMove.arrived(pos, goal):
 		## `aSTM_interrupt_move` → `THINK_4`: `aSTM_intro_demo_wait_init` turns to the player
 		## and sets the unit he now stands on back to `mCoBG_ATTRIBUTE_32`.
@@ -226,8 +226,8 @@ func _walk(delta: float) -> void:
 	_move.facing = facing
 	var next: Vector3 = _move.step_to(delta, pos, goal, false)
 	facing = _move.facing
-	global_position.x = next.x * gx
-	global_position.z = next.z * gx
+	global_position.x = next.x
+	global_position.z = next.z
 
 
 func _yaw_to(world: Vector3) -> float:

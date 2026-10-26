@@ -31,9 +31,13 @@ const LEG_ANGLE := 4000.0 / 65536.0 * TAU
 const TRIP_CHANCE := 0.04
 ## The shrine sits at the centre of unit (7, 7) of its acre.
 const CENTER_UNIT := Vector2i(7, 7)
-## `aTKC_clip_next_run`: the finish, from the centre, per lane (GX).
-const FINISH_GX := Vector2(220.0, -130.0)
-const FINISH_LANE_GX := Vector2(-60.0, 60.0)
+## Lengths in metres, from the decomp's GX.
+const GX := FieldCatalog.GX_TO_METERS
+## `aTKC_clip_next_run`: the finish, from the centre, per lane.
+const FINISH := Vector2(220.0, -130.0) * GX
+const FINISH_LANE := Vector2(-60.0, 60.0) * GX
+## A runner's `aNPC` run speed (GX a frame) on the field: about 6 GX a frame is 4.5 m/s.
+const RUN_MPS_PER_GX_FRAME := 0.75
 const CLIP_WARMUP := "npc_1_warmup1"
 const CLIP_READY := "npc_1_ready1"
 const CLIP_RUN := "npc_1_run1"
@@ -119,15 +123,16 @@ func done_laps(lane: int) -> bool:
 
 
 ## `aTKC_clip_next_run`: the next point round, from `angle` (radians, from the centre), and the
-## run speed (GX a frame). Returns `[point_offset_gx: Vector2, new_angle, speed_gx]`.
+## run speed. Returns `[point_offset: Vector2 (metres), new_angle, speed (m/s)]`.
 func next_leg(lane: int, angle: float, rng: RandomNumberGenerator) -> Array:
 	var leg: float = LEG_ANGLE + rng.randf_range(0.0, LEG_ANGLE)
 	var a: float = angle + leg
-	var radius: float = 160.0 + rng.randf_range(0.0, 20.0) - float(lane) * 35.0
-	var speed: float = 4.0 + radius / 90.0 - float(lane) * 0.5
+	## 160–180 GX out, 35 GX in on the inside lane; 4 + radius / 90 GX a frame, 0.5 less inside.
+	var radius: float = (160.0 + rng.randf_range(0.0, 20.0) - float(lane) * 35.0) * GX
+	var speed: float = (4.0 + radius / (90.0 * GX) - float(lane) * 0.5) * RUN_MPS_PER_GX_FRAME
 	travelled[lane] += leg
 	return [Vector2(cos(a), -sin(a)) * radius, a, speed]
 
 
 static func finish_offset(lane: int) -> Vector2:
-	return FINISH_GX + FINISH_LANE_GX * float(lane)
+	return FINISH + FINISH_LANE * float(lane)

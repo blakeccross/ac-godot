@@ -15,12 +15,14 @@ const PEAK: Array[float] = [0.012, 0.011, 0.010, 0.009]
 const COLOR: Array[Color] = [
 	Color8(255, 255, 0), Color8(200, 255, 255), Color8(255, 100, 100), Color8(100, 255, 100),
 ]
-## `aDOU_setEffect_sub` (GX, from the statue's spot).
+## `aDOU_setEffect_sub` (from the statue's spot, written in GX).
 const OFFSET: Array[Vector3] = [
-	Vector3(1.0, 68.0, 14.0), Vector3(1.0, 62.0, 12.0), Vector3(1.0, 56.0, 10.0), Vector3(1.0, 50.0, 8.0),
+	Vector3(1.0, 68.0, 14.0) * FieldCatalog.GX_TO_METERS, Vector3(1.0, 62.0, 12.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(1.0, 56.0, 10.0) * FieldCatalog.GX_TO_METERS, Vector3(1.0, 50.0, 8.0) * FieldCatalog.GX_TO_METERS,
 ]
 const SPREAD: Array[Vector3] = [
-	Vector3(26.0, 42.0, 0.0), Vector3(23.0, 38.0, 0.0), Vector3(20.0, 34.0, 0.0), Vector3(17.0, 30.0, 0.0),
+	Vector3(26.0, 42.0, 0.0) * FieldCatalog.GX_TO_METERS, Vector3(23.0, 38.0, 0.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(20.0, 34.0, 0.0) * FieldCatalog.GX_TO_METERS, Vector3(17.0, 30.0, 0.0) * FieldCatalog.GX_TO_METERS,
 ]
 ## `aDOU_setEffect`: seconds to the next glint, `b + r · rand` (5 + 10 · rand ticks for gold).
 const WAIT_BASE: Array[float] = [5.0 / 60.0, 15.0 / 60.0, 20.0 / 60.0, 30.0 / 60.0]
@@ -43,11 +45,11 @@ static func spawn(host: Node, base: Vector3, p_rank: int, rng: RandomNumberGener
 	var fx := StatueSparkle.new()
 	fx.rank = r
 	host.add_child(fx)
-	fx.global_position = base + offset_gx(r, rng) * FieldCatalog.GX_TO_METERS
+	fx.global_position = base + offset(r, rng)
 	return fx
 
 
-static func offset_gx(r: int, rng: RandomNumberGenerator) -> Vector3:
+static func offset(r: int, rng: RandomNumberGenerator) -> Vector3:
 	var s: Vector3 = SPREAD[r]
 	return OFFSET[r] + Vector3(s.x * (rng.randf() - 0.5), s.y * (rng.randf() - 0.5), s.z * (rng.randf() - 0.5))
 

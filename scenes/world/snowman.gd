@@ -39,8 +39,8 @@ var _down: bool = false
 func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group("snowman")
-	var rb: float = SnowmanRules.radius_m(body)
-	var rh: float = SnowmanRules.radius_m(head)
+	var rb: float = SnowmanRules.radius(body)
+	var rh: float = SnowmanRules.radius(head)
 	var body_node := $Body as Node3D
 	body_node.position.y = rb
 	body_node.scale = Vector3.ONE * SnowmanRules.actor_scale(body) * VISUAL_PER_SCALE

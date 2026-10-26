@@ -7,8 +7,8 @@ extends AudioStreamPlayer
 
 ## The catalog's level id (`lev_<hex>`).
 @export var level_id: int = 0
-## Where the sound sits on its host, in GX (the waterfall's is 40 up).
-@export var offset_gx: Vector3 = Vector3.ZERO
+## Where the sound sits on its host (the waterfall's is 40 GX, 2 m, up).
+@export var offset: Vector3 = Vector3.ZERO
 
 var _host: Node3D
 
@@ -23,7 +23,7 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if _host == null or not is_inside_tree():
 		return
-	var at: Vector3 = _host.global_position + offset_gx * FieldCatalog.GX_TO_METERS
+	var at: Vector3 = _host.global_position + offset
 	var placed: Vector2 = Audio.field_placement_at(get_tree(), at)
 	if placed.x <= 0.0:
 		if playing:

@@ -112,7 +112,7 @@ func test_pick_takes_the_nearest_sounding_insects_in_range() -> void:
 	assert_int(picked.size()).is_equal(2)
 	assert_object(picked[0][0]).is_same(near)
 	assert_object(picked[1][0]).is_same(far)
-	assert_float(float(picked[0][1])).is_equal_approx(100.0, 0.5)
+	assert_float(float(picked[0][1])).is_equal_approx(100.0 * gx, 0.5 * gx)
 	assert_int(BugSounds.pick([far, near], Vector3.ZERO, 1).size()).is_equal(1)
 
 

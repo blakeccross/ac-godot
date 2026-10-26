@@ -17,19 +17,19 @@ extends RefCounted
 ## `manekin_pos` z=100, `umbrella_pos` z=180, 40 GX apart). `rom_tailor` keeps the acre
 ## origin, so these map straight through `gx_to_world`. (`y=40` in decomp is a
 ## model-draw offset; the displays stand on the floor.)
-const MANNEQUIN_GX: Array = [
-	Vector3(180, 0, 100), Vector3(220, 0, 100), Vector3(260, 0, 100), Vector3(300, 0, 100),
+const MANNEQUIN: Array = [
+	Vector3(180, 0, 100) * FieldCatalog.GX_TO_METERS, Vector3(220, 0, 100) * FieldCatalog.GX_TO_METERS, Vector3(260, 0, 100) * FieldCatalog.GX_TO_METERS, Vector3(300, 0, 100) * FieldCatalog.GX_TO_METERS,
 ]
-const UMBRELLA_GX: Array = [
-	Vector3(180, 0, 180), Vector3(220, 0, 180), Vector3(260, 0, 180), Vector3(300, 0, 180),
+const UMBRELLA: Array = [
+	Vector3(180, 0, 180) * FieldCatalog.GX_TO_METERS, Vector3(220, 0, 180) * FieldCatalog.GX_TO_METERS, Vector3(260, 0, 180) * FieldCatalog.GX_TO_METERS, Vector3(300, 0, 180) * FieldCatalog.GX_TO_METERS,
 ]
 ## Sable sits north of the shell's baked machine (`_schedule.c_inc` x=87, z≈home.z+13,
 ## facing south); `NEEDLEWORK_MABEL_GX` is Mabel's roam home near the door.
-const SABLE_GX := Vector3(87, 0, 108)
-const MABEL_GX := Vector3(210, 0, 250)
+const SABLE := Vector3(87, 0, 108) * FieldCatalog.GX_TO_METERS
+const MABEL := Vector3(210, 0, 250) * FieldCatalog.GX_TO_METERS
 ## Back-wall pendulum clock centre (`needlework_clock.gd` recentres the AABB on the
 ## host). `aHC_position_data[SCENE_NEEDLEWORK]` is `{0,0,0}` (unplaced) in decomp.
-const CLOCK_GX := Vector3(200.0, 46.0, 46.0)
+const CLOCK := Vector3(200.0, 46.0, 46.0) * FieldCatalog.GX_TO_METERS
 
 
 func present(root: Node3D, interior: IndoorSession) -> void:

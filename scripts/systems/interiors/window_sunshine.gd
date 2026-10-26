@@ -14,16 +14,18 @@ const SCENE := preload("res://scenes/world/interiors/room_sunshine.tscn")
 const VISUAL_L := &"room_lightL"
 const VISUAL_R := &"room_lightR"
 
-## `NEEDLEWORK` / `npc_room01` / `player_room_{s,m,l,ll1,ll2}` actor positions (GX).
-const NEEDLEWORK: Array[Vector3] = [Vector3(40, 0, 160), Vector3(360, 0, 160)]
-const NPC_ROOM: Array[Vector3] = [Vector3(40, 0, 160), Vector3(282, 0, 160)]
+## `NEEDLEWORK` / `npc_room01` / `player_room_{s,m,l,ll1,ll2}` actor positions, in metres
+## from the decomp's GX.
+const GX := FieldCatalog.GX_TO_METERS
+const NEEDLEWORK: Array[Vector3] = [Vector3(40, 0, 160) * GX, Vector3(360, 0, 160) * GX]
+const NPC_ROOM: Array[Vector3] = [Vector3(40, 0, 160) * GX, Vector3(282, 0, 160) * GX]
 const PLAYER_MAIN: Array[Array] = [
-	[Vector3(40, 0, 120), Vector3(200, 0, 120)],
-	[Vector3(40, 0, 160), Vector3(280, 0, 160)],
-	[Vector3(40, 0, 200), Vector3(360, 0, 200)],
-	[Vector3(40, 0, 200), Vector3(360, 0, 200)],
+	[Vector3(40, 0, 120) * GX, Vector3(200, 0, 120) * GX],
+	[Vector3(40, 0, 160) * GX, Vector3(280, 0, 160) * GX],
+	[Vector3(40, 0, 200) * GX, Vector3(360, 0, 200) * GX],
+	[Vector3(40, 0, 200) * GX, Vector3(360, 0, 200) * GX],
 ]
-const PLAYER_UPPER: Array[Vector3] = [Vector3(40, 0, 160), Vector3(280, 0, 160)]
+const PLAYER_UPPER: Array[Vector3] = [Vector3(40, 0, 160) * GX, Vector3(280, 0, 160) * GX]
 
 ## `mEnv_NPC_LIGHTS_OFF_TIME` / `_ON_TIME`, and the default switch state the player's
 ## rooms start in (`mRmTp_SetDefaultLightSwitchData(0)`): lights on 18:00–05:00.
@@ -59,10 +61,10 @@ static func has_light_switch(room: Room) -> bool:
 
 
 ## `Ef_Room_Sunshine_actor_ct`: every non-zero `actor_specific` first steps −1 X, then
-## case 2 nets −1 more and case 3 nets +1. Y is `1 + BgY` and the draw adds 0.1.
-static func anchor_gx(actor_gx: Vector3, left: bool) -> Vector3:
-	var x: float = actor_gx.x - 1.0 + (-1.0 if left else 1.0)
-	return Vector3(x, actor_gx.y + 1.1, actor_gx.z)
+## case 2 nets −1 more and case 3 nets +1 (GX). Y is `1 + BgY` and the draw adds 0.1.
+static func anchor(actor: Vector3, left: bool) -> Vector3:
+	var x: float = actor.x + (-2.0 if left else 0.0) * GX
+	return Vector3(x, actor.y + 1.1 * GX, actor.z)
 
 
 ## X stretch of a beam; 0 hides it. The west beam shows at night 00–04 and in the
@@ -109,4 +111,4 @@ static func add(root: Node3D, grid: WorldGrid, room: Room, house: House = null) 
 			node.set("left", left)
 			node.set("light_switch", has_light_switch(room))
 			root.add_child(node)
-		node.position = MuseumDisplay.gx_to_world(grid, anchor_gx(actors[i], left))
+		node.position = WorldGrid.room_point(grid, anchor(actors[i], left))

@@ -8,7 +8,7 @@ extends RefCounted
 
 const WALL_HEIGHT := 3.0
 ## Door opening half-width (~1.5 UT). Matches walk-in sensors better than 1 UT.
-const MUSEUM_DOOR_HALF_GX := 60.0
+const MUSEUM_DOOR_HALF := 60.0 * FieldCatalog.GX_TO_METERS
 
 
 static func paint_shell(root: Node3D, room: Room, grid: WorldGrid) -> void:
@@ -396,7 +396,7 @@ static func stair_bay_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
 	for stair: RoomStair in room.stairs:
 		if stair == null:
 			continue
-		var landing: Vector2i = grid.world_to_cell(MuseumDisplay.gx_to_world(grid, stair.landing_gx))
+		var landing: Vector2i = grid.world_to_cell(WorldGrid.room_point(grid, stair.landing))
 		var x0: int = mini(stair.cell.x, landing.x)
 		var x1: int = maxi(stair.cell.x, landing.x) + 1
 		var lo: float = grid.cell_corner(Vector2i(x0, 0)).x
@@ -431,12 +431,12 @@ static func museum_door_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
 		return out
 	var sensors: Array[Vector3] = []
 	if room.id == &"museum_entrance":
-		sensors.append(MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX)
+		sensors.append(MuseumDisplay.ENTRANCE_EXIT_SENSOR)
 		for link: Dictionary in MuseumDisplay.ENTRANCE_WING_DOORS:
 			sensors.append(link["sensor"] as Vector3)
 	elif MuseumDisplay.WING_EXIT_DOORS.has(room.id):
 		sensors.append(MuseumDisplay.WING_EXIT_DOORS[room.id]["sensor"] as Vector3)
-	var half: float = MUSEUM_DOOR_HALF_GX * FieldCatalog.GX_TO_METERS
+	var half: float = MUSEUM_DOOR_HALF
 	for sensor: Vector3 in sensors:
 		var gap: Dictionary = _museum_gap_for_sensor(grid, sensor, half)
 		if not gap.is_empty():
@@ -445,7 +445,7 @@ static func museum_door_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
 
 
 static func _museum_gap_for_sensor(grid: WorldGrid, sensor: Vector3, half: float) -> Dictionary:
-	var world: Vector3 = MuseumDisplay.gx_to_world(grid, sensor)
+	var world: Vector3 = WorldGrid.room_point(grid, sensor)
 	var side: StringName = museum_door_side(sensor)
 	match side:
 		&"north", &"south":
@@ -475,23 +475,26 @@ static func _gaps_on_side(gaps: Array, side: StringName) -> Array[Dictionary]:
 ## North/south walls: wide in X. East/west walls: wide in Z.
 ## Corner sensors (insect/fish z=560 + x=80/560) must use X thresholds — z-only
 ## heuristics mistook them for south doors and swallowed the enter spawn.
-static func museum_door_box(sensor_gx: Vector3) -> Vector3:
-	var wide: float = MUSEUM_DOOR_HALF_GX * 2.0 * FieldCatalog.GX_TO_METERS
-	var deep: float = 40.0 * FieldCatalog.GX_TO_METERS
+static func museum_door_box(sensor: Vector3) -> Vector3:
+	var wide: float = MUSEUM_DOOR_HALF * 2.0
+	var deep: float = MuseumDisplay.UNIT
 	var tall: float = 2.6
-	var side: StringName = museum_door_side(sensor_gx)
+	var side: StringName = museum_door_side(sensor)
 	var along_x: bool = side == &"north" or side == &"south"
 	return Vector3(wide, tall, deep) if along_x else Vector3(deep, tall, wide)
 
 
-static func museum_door_side(sensor_gx: Vector3) -> StringName:
+## `sensor` is a room position in metres; the thresholds are 120 and 400 GX.
+static func museum_door_side(sensor: Vector3) -> StringName:
 	## Same rules as `_museum_gap_for_sensor`.
-	if sensor_gx.z <= 120.0:
+	var near: float = 120.0 * FieldCatalog.GX_TO_METERS
+	var far: float = 400.0 * FieldCatalog.GX_TO_METERS
+	if sensor.z <= near:
 		return &"north"
-	if sensor_gx.z >= 400.0 and sensor_gx.x > 120.0 and sensor_gx.x < 400.0:
+	if sensor.z >= far and sensor.x > near and sensor.x < far:
 		return &"south"
-	if sensor_gx.x <= 120.0:
+	if sensor.x <= near:
 		return &"west"
-	if sensor_gx.x >= 400.0:
+	if sensor.x >= far:
 		return &"east"
 	return &"south"

@@ -27,21 +27,21 @@ static func team_of(slot: int) -> int:
 	return 0 if ((slot - 1) & 2) == 0 else 1
 
 
-## `aTMN1_Next_move`: a spot round the basket, `[angle, distance]` in radians / GX.
+## `aTMN1_Next_move`: a spot round the basket, 70–90 GX out (positions in metres).
 static func next_spot(basket_xz: Vector2, me_xz: Vector2, rng: RandomNumberGenerator) -> Vector2:
 	var away: float = atan2(me_xz.x - basket_xz.x, me_xz.y - basket_xz.y)
 	var turn: float = (rng.randf_range(0.0, 1500.0) + 2000.0) / 65536.0 * TAU
 	if rng.randf() < 0.5:
 		turn = -turn
 	var angle: float = away + turn
-	var dist: float = rng.randf_range(0.0, 20.0) + 70.0
+	var dist: float = (rng.randf_range(0.0, 20.0) + 70.0) * FieldCatalog.GX_TO_METERS
 	return basket_xz + Vector2(sin(angle), cos(angle)) * dist
 
 
-## `eTamaire_ct` launch: elevation 67.5° + up to ~16°, speed 4.9–6.4 GX a frame.
+## `eTamaire_ct` launch: elevation 67.5° + up to ~16°, speed 4.9–6.4 GX a frame (in m/s).
 static func launch_rise(rng: RandomNumberGenerator) -> float:
 	return deg_to_rad(67.5) + rng.randf_range(0.0, 3000.0) / 65536.0 * TAU
 
 
 static func launch_speed(rng: RandomNumberGenerator) -> float:
-	return rng.randf_range(0.0, 1.5) + 4.9
+	return (rng.randf_range(0.0, 1.5) + 4.9) * TossBall.FRAME

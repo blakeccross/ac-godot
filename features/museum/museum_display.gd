@@ -57,12 +57,12 @@ const FISH_TANKS: Array[int] = [
 ]
 
 ## `suisou_pos` tank centers (GX). Y is the water-line used by swim init (`_0C`).
-const TANK_POS_GX: Array[Vector3] = [
-	Vector3(220.0, 40.0, 220.0),
-	Vector3(420.0, 40.0, 220.0),
-	Vector3(220.0, 40.0, 460.0),
-	Vector3(420.0, 40.0, 460.0),
-	Vector3(320.0, 40.0, 20.0),
+const TANK_POS: Array[Vector3] = [
+	Vector3(220.0, 40.0, 220.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(420.0, 40.0, 220.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(220.0, 40.0, 460.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(420.0, 40.0, 460.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(320.0, 40.0, 20.0) * FieldCatalog.GX_TO_METERS,
 ]
 
 ## `cKF_bs_r_act_mus_*` stems in `aGYO_TYPE_*` order. Empty = no museum mesh (jellyfish).
@@ -112,35 +112,35 @@ const FISH_MUS_STEMS: PackedStringArray = [
 ## Approximate tank half-extents used for wander clamps (GX).
 ## Player-blocking glass half-extent (visual `obj_suisou1` ~60 GX). Swim AI uses
 ## per-fish `54 + _28` via `MuseumFishActor` — not this constant.
-const TANK_HALF_GX := Vector3(60.0, 0.0, 60.0)
-const SEA_TANK_HALF_GX := Vector3(189.0, 0.0, 40.0)
+const TANK_HALF := Vector3(60.0, 0.0, 60.0) * FieldCatalog.GX_TO_METERS
+const SEA_TANK_HALF := Vector3(189.0, 0.0, 40.0) * FieldCatalog.GX_TO_METERS
 
 ## Entrance → wing doors (`MUSEUM_ENTRANCE_door_data`).
 ## `spawn`/`facing` = appear in the wing. `sensor` = wall threshold in the entrance
-## (one cell behind the return spawn so walk-in does not re-fire).
+## (one cell behind the return spawn so walk-in does not re-fire). Room positions in metres.
 const ENTRANCE_WING_DOORS: Array[Dictionary] = [
 	{
 		"room": &"museum_painting",
-		"sensor": Vector3(160.0, 0.0, 80.0),
-		"spawn": Vector3(280.0, 0.0, 480.0),
+		"sensor": Vector3(160.0, 0.0, 80.0) * FieldCatalog.GX_TO_METERS,
+		"spawn": Vector3(280.0, 0.0, 480.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.NORTH,
 	},
 	{
 		"room": &"museum_fossil",
-		"sensor": Vector3(320.0, 0.0, 80.0),
-		"spawn": Vector3(280.0, 0.0, 480.0),
+		"sensor": Vector3(320.0, 0.0, 80.0) * FieldCatalog.GX_TO_METERS,
+		"spawn": Vector3(280.0, 0.0, 480.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.NORTH,
 	},
 	{
 		"room": &"museum_insect",
-		"sensor": Vector3(80.0, 0.0, 280.0),
-		"spawn": Vector3(520.0, 0.0, 560.0),
+		"sensor": Vector3(80.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS,
+		"spawn": Vector3(520.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.WEST,
 	},
 	{
 		"room": &"museum_fish",
-		"sensor": Vector3(400.0, 0.0, 280.0),
-		"spawn": Vector3(120.0, 0.0, 560.0),
+		"sensor": Vector3(400.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS,
+		"spawn": Vector3(120.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.EAST,
 	},
 ]
@@ -149,67 +149,69 @@ const ENTRANCE_WING_DOORS: Array[Dictionary] = [
 const WING_EXIT_DOORS: Dictionary = {
 	&"museum_painting":
 	{
-		"sensor": Vector3(280.0, 0.0, 520.0),
-		"spawn": Vector3(160.0, 0.0, 120.0),
+		"sensor": Vector3(280.0, 0.0, 520.0) * FieldCatalog.GX_TO_METERS,
+		"spawn": Vector3(160.0, 0.0, 120.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.SOUTH,
 	},
 	&"museum_fossil":
 	{
-		"sensor": Vector3(280.0, 0.0, 520.0),
-		"spawn": Vector3(320.0, 0.0, 120.0),
+		"sensor": Vector3(280.0, 0.0, 520.0) * FieldCatalog.GX_TO_METERS,
+		"spawn": Vector3(320.0, 0.0, 120.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.SOUTH,
 	},
 	&"museum_insect":
 	{
-		"sensor": Vector3(560.0, 0.0, 560.0),
-		"spawn": Vector3(120.0, 0.0, 280.0),
+		"sensor": Vector3(560.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS,
+		"spawn": Vector3(120.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.EAST,
 	},
 	&"museum_fish":
 	{
-		"sensor": Vector3(80.0, 0.0, 560.0),
-		"spawn": Vector3(360.0, 0.0, 280.0),
+		"sensor": Vector3(80.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS,
+		"spawn": Vector3(360.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.WEST,
 	},
 }
 
 ## Outdoor → entrance (`aMsm_museum_enter_data`). Not scene `MUSEUM_ENTRANCE_player_data` (240,0,200).
-const ENTRANCE_SPAWN_GX := Vector3(240.0, 0.0, 440.0)
+const ENTRANCE_SPAWN := Vector3(240.0, 0.0, 440.0) * FieldCatalog.GX_TO_METERS
 const ENTRANCE_SPAWN_FACING := WorldGrid.Facing.NORTH
 ## Entrance → outdoors. South threshold on the same X as the outdoor enter stand.
-const ENTRANCE_EXIT_SENSOR_GX := Vector3(240.0, 0.0, 500.0)
+const ENTRANCE_EXIT_SENSOR := Vector3(240.0, 0.0, 500.0) * FieldCatalog.GX_TO_METERS
 ## Blathers stand (`museum_entrance_actable` ut 6,5 → cell center 260,220;
 ## `ac_npc_curator` then adds +20 GX on X). Faces south (spawn rot 0).
-const BLATHERS_STAND_GX := Vector3(280.0, 0.0, 220.0)
+const BLATHERS_STAND := Vector3(280.0, 0.0, 220.0) * FieldCatalog.GX_TO_METERS
 const BLATHERS_FACING := WorldGrid.Facing.SOUTH
 ## `HOUSE_CLOCK` / `obj_clock_museum1`. Decomp actor pos is `(0,0,0)`
 ## (`aHC_position_data`); skeleton root is `(240,70,150)` GX — mid-body, so the
 ## mesh floats. We keep joint XZ and snap the AABB to the floor.
-const CLOCK_GX := Vector3(240.0, 0.0, 150.0)
+const CLOCK := Vector3(240.0, 0.0, 150.0) * FieldCatalog.GX_TO_METERS
 const CLOCK_VISUAL := &"obj_clock_museum1"
 
 ## Window beams. `MUSEUM_ENTRANCE_actor_data` lists four `ef_room_sunshine_museum`
 ## actors (arg 2 west, arg 3 east) under the stained-glass windows; `MUSEUM_INSECT_actor_data`
 ## two `ef_room_sunshine_minsect` ones. Both effects share the police box beam's timing,
 ## alpha and mirrored east beam, and neither culls by camera.
-const ENTRANCE_SUNSHINE_GX: Array[Vector3] = [
-	Vector3(123, 0, 180), Vector3(360, 0, 180), Vector3(123, 0, 380), Vector3(360, 0, 380),
+const ENTRANCE_SUNSHINE: Array[Vector3] = [
+	Vector3(123, 0, 180) * FieldCatalog.GX_TO_METERS, Vector3(360, 0, 180) * FieldCatalog.GX_TO_METERS, Vector3(123, 0, 380) * FieldCatalog.GX_TO_METERS, Vector3(360, 0, 380) * FieldCatalog.GX_TO_METERS,
 ]
 const ENTRANCE_SUNSHINE_VISUAL := &"obj_museum1_shine"
-const INSECT_SUNSHINE_GX: Array[Vector3] = [Vector3(40, 0, 280), Vector3(520, 0, 280)]
+const INSECT_SUNSHINE: Array[Vector3] = [Vector3(40, 0, 280) * FieldCatalog.GX_TO_METERS, Vector3(520, 0, 280) * FieldCatalog.GX_TO_METERS]
 const INSECT_SUNSHINE_VISUAL := &"obj_museum4_shine"
 
 
 ## `Ef_Room_Sunshine_Museum_actor_ct`: the police box anchor (X −2 west / +0 east,
 ## `1 + BgY − 40`). `Ef_Room_Sunshine_Minsect` moves Y back to the actor's own 0 every
 ## frame, one GX lower.
-static func sunshine_anchor_gx(actor_gx: Vector3, left: bool, insect: bool) -> Vector3:
-	var anchor: Vector3 = PoliceDisplay.sunshine_anchor_gx(actor_gx, left)
+static func sunshine_anchor(actor: Vector3, left: bool, insect: bool) -> Vector3:
+	var anchor: Vector3 = PoliceDisplay.sunshine_anchor(actor, left)
 	if insect:
-		anchor.y = actor_gx.y - 40.0
+		anchor.y = actor.y - 40.0 * FieldCatalog.GX_TO_METERS
 	return anchor
 ## `aMP_DrawOneArt` hang height (GX).
-const ART_HANG_Y_GX := 40.0
+const ART_HANG_Y := 40.0 * FieldCatalog.GX_TO_METERS
+## One unit (40 GX, a grid cell) of the room, in metres.
+const UNIT := 40.0 * FieldCatalog.GX_TO_METERS
 
 ## Museum wall meshes (`obj_art*` / `obj_art_dummy*`), not house `int_sum_art*` FTR.
 const ART_MUSEUM_VISUALS: Array[StringName] = [
@@ -440,38 +442,38 @@ const ART_VISUALS: Array[StringName] = [
 	&"int_sum_art15",
 ]
 
-## Insect museum anchors (`flower_pos`, `tree_pos`, …) in GX.
+## Insect museum anchors (`flower_pos`, `tree_pos`, …), room positions in metres from GX.
 const INSECT_FLOWER_POS: Array[Vector3] = [
-	Vector3(147.0, 66.0, 169.0),
-	Vector3(238.0, 66.0, 201.0),
-	Vector3(264.0, 66.0, 164.0),
-	Vector3(165.0, 66.0, 219.0),
-	Vector3(181.0, 66.0, 235.0),
-	Vector3(199.0, 66.0, 188.0),
-	Vector3(327.5, 66.0, 154.0),
-	Vector3(410.0, 66.0, 190.0),
+	Vector3(147.0, 66.0, 169.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(238.0, 66.0, 201.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(264.0, 66.0, 164.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(165.0, 66.0, 219.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(181.0, 66.0, 235.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(199.0, 66.0, 188.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(327.5, 66.0, 154.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(410.0, 66.0, 190.0) * FieldCatalog.GX_TO_METERS,
 ]
 
 const INSECT_TREE_POS: Array[Vector3] = [
-	Vector3(92.0, 0.0, -15.0),
-	Vector3(168.0, 0.0, 5.0),
-	Vector3(244.0, 0.0, -15.0),
-	Vector3(316.0, 0.0, 5.0),
-	Vector3(392.0, 0.0, -15.0),
-	Vector3(468.0, 0.0, 5.0),
-	Vector3(360.0, 0.0, 245.0),
-	Vector3(165.0, 0.0, 485.0),
+	Vector3(92.0, 0.0, -15.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(168.0, 0.0, 5.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(244.0, 0.0, -15.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(316.0, 0.0, 5.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(392.0, 0.0, -15.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(468.0, 0.0, 5.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(360.0, 0.0, 245.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(165.0, 0.0, 485.0) * FieldCatalog.GX_TO_METERS,
 ]
 
 const INSECT_ROCK_POS: Array[Vector3] = [
-	Vector3(225.0, 0.0, 388.5),
-	Vector3(385.0, 0.0, 485.0),
+	Vector3(225.0, 0.0, 388.5) * FieldCatalog.GX_TO_METERS,
+	Vector3(385.0, 0.0, 485.0) * FieldCatalog.GX_TO_METERS,
 ]
 
-const INSECT_OHMURASAKI_TREE := Vector3(360.0, 85.0, 265.0)
-const INSECT_AMENBO_CENTER := Vector3(289.0, 25.0, 218.0)
-const INSECT_OKERA_BASE := Vector3(235.0, 45.0, 445.0)
-const INSECT_GENJI_BASE := Vector3(258.0, 62.0, 258.5)
+const INSECT_OHMURASAKI_TREE := Vector3(360.0, 85.0, 265.0) * FieldCatalog.GX_TO_METERS
+const INSECT_AMENBO_CENTER := Vector3(289.0, 25.0, 218.0) * FieldCatalog.GX_TO_METERS
+const INSECT_OKERA_BASE := Vector3(235.0, 45.0, 445.0) * FieldCatalog.GX_TO_METERS
+const INSECT_GENJI_BASE := Vector3(258.0, 62.0, 258.5) * FieldCatalog.GX_TO_METERS
 
 ## `minsect_scale_tbl`.
 const INSECT_SCALES: Array[float] = [
@@ -511,20 +513,20 @@ const INSECT_PLAQUE_GROUPS: Array = [
 ]
 
 const FISH_PLAQUE_POS: Array[Vector3] = [
-	Vector3(260.0, 40.0, 300.0),
-	Vector3(460.0, 40.0, 300.0),
-	Vector3(260.0, 40.0, 540.0),
-	Vector3(460.0, 40.0, 540.0),
-	Vector3(500.0, 40.0, 60.0),
+	Vector3(260.0, 40.0, 300.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(460.0, 40.0, 300.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(260.0, 40.0, 540.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(460.0, 40.0, 540.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(500.0, 40.0, 60.0) * FieldCatalog.GX_TO_METERS,
 ]
 
 const INSECT_PLAQUE_POS: Array[Vector3] = [
-	Vector3(140.0, 40.0, 60.0),
-	Vector3(420.0, 40.0, 60.0),
-	Vector3(220.0, 40.0, 300.0),
-	Vector3(380.0, 40.0, 300.0),
-	Vector3(180.0, 40.0, 540.0),
-	Vector3(340.0, 40.0, 540.0),
+	Vector3(140.0, 40.0, 60.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(420.0, 40.0, 60.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(220.0, 40.0, 300.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(380.0, 40.0, 300.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(180.0, 40.0, 540.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(340.0, 40.0, 540.0) * FieldCatalog.GX_TO_METERS,
 ]
 
 ## Already-collected catch report (`mSM_CHECK_LAST_FISH_GET` → 0x1349).
@@ -561,7 +563,7 @@ static func museum_fish_model_path(index: int) -> String:
 
 ## Test-only: no in-game callers; kept for tests.
 static func tank_half(tank: int) -> Vector3:
-	return SEA_TANK_HALF_GX if tank == 4 else TANK_HALF_GX
+	return SEA_TANK_HALF if tank == 4 else TANK_HALF
 
 
 ## Per-species museum swim params from `mfish_init_data` (scale, ofs_y, depth, speeds…).
@@ -628,11 +630,6 @@ static func fish_init(index: int) -> Dictionary:
 		"turn_deg": float(row[13]),
 	}
 
-
-static func gx_to_world(grid: WorldGrid, gx: Vector3) -> Vector3:
-	if grid == null:
-		return gx * FieldCatalog.GX_TO_METERS
-	return grid.origin + gx * FieldCatalog.GX_TO_METERS
 
 
 static func map_item(item: ItemData) -> Dictionary:

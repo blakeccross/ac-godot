@@ -12,7 +12,7 @@ const SPAWN_CELL := Vector2i(3, 7)
 
 ## Outdoor enter (`aPOFF_post_office_door_data`): GX {160,0,300}, orient 4 = `mSc_DIRECT_NORTH`.
 ## Not scene `POST_OFFICE_player_data` {100,0,200} / rot 0.
-const SPAWN_GX := Vector3(160.0, 0.0, 300.0)
+const SPAWN := Vector3(160.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS
 const SPAWN_FACING := WorldGrid.Facing.NORTH
 
 ## Day Pelly `pga` (7:00–19:00); night Phyllis `pgb` (`bg_post_item` post_girl_npc_type).
@@ -23,24 +23,24 @@ const PELLY_DAY_START_HOUR := 7
 const PELLY_DAY_END_HOUR := 19
 
 ## Desk slab between lobby and clerk (shell mesh has no physics). Center + half-extents GX.
-const DESK_CENTER_GX := Vector3(160.0, 0.0, 140.0)
+const DESK_CENTER := Vector3(160.0, 0.0, 140.0) * FieldCatalog.GX_TO_METERS
 
 ## `POST_OFFICE_actor_data` window beams (`ef_room_sunshine_posthouse`): arg 2 (west) and
 ## arg 3 (east). The police box effect with its own model, a 0.05 scale and no camera cull.
-const SUNSHINE_L_GX := Vector3(40.0, 0.0, 160.0)
-const SUNSHINE_R_GX := Vector3(280.0, 0.0, 160.0)
+const SUNSHINE_L := Vector3(40.0, 0.0, 160.0) * FieldCatalog.GX_TO_METERS
+const SUNSHINE_R := Vector3(280.0, 0.0, 160.0) * FieldCatalog.GX_TO_METERS
 const SUNSHINE_VISUAL := &"obj_yubinkyoku_shine"
 
 
 ## `Ef_Room_Sunshine_Posthouse_actor_ct`: the police anchor (net −2 / 0 X) without the
 ## police box's −40 Y: the beam stands `1 + BgY` on the floor.
-static func sunshine_anchor_gx(actor_gx: Vector3, left: bool) -> Vector3:
-	var x: float = actor_gx.x - 1.0 + (-1.0 if left else 1.0)
-	return Vector3(x, actor_gx.y + 1.0, actor_gx.z)
+static func sunshine_anchor(actor: Vector3, left: bool) -> Vector3:
+	var x: float = actor.x + (-2.0 if left else 0.0) * FieldCatalog.GX_TO_METERS
+	return Vector3(x, actor.y + 1.0 * FieldCatalog.GX_TO_METERS, actor.z)
 
 
 ## `POST_OFFICE_actor_data` PTerminal GX {60,0,240}; talk probe near {60,40,220}.
-const PTERMINAL_GX := Vector3(60.0, 0.0, 240.0)
+const PTERMINAL := Vector3(60.0, 0.0, 240.0) * FieldCatalog.GX_TO_METERS
 const PTERMINAL_MSG := 15854
 const PTERMINAL_NO_GBA_MSG := 15859
 
@@ -142,6 +142,3 @@ static func is_etm_connect_msg(msg_id: StringName) -> bool:
 	var key := String(msg_id)
 	return key == "msg_15855" or key == "msg_15858"
 
-
-static func gx_to_world(grid: WorldGrid, gx: Vector3) -> Vector3:
-	return MuseumDisplay.gx_to_world(grid, gx)

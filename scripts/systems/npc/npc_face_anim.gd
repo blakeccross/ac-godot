@@ -227,7 +227,7 @@ static func hold_seconds(units: float, ticks_per_unit: float) -> float:
 ## Advance by `delta` seconds. `uttering` is `mMsg_Check_NowUtter` — see
 ## `aNPC_check_kutipaku`. Returns true when either pattern changed, so the caller can skip
 ## redundant rebinding.
-func tick(delta: float, uttering: bool) -> bool:
+func advance(delta: float, uttering: bool) -> bool:
 	var before := Vector2i(eye_pattern, mouth_pattern)
 	var step: float = clampf(delta, 0.0, MAX_STEP)
 	_step_eye(step)

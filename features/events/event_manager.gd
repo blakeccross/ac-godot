@@ -140,7 +140,7 @@ func _physics_process(delta: float) -> void:
 			_title_retry = 0.0
 			refresh()
 	for id: Variant in _running:
-		(_running[id] as EventPresenter).tick(delta)
+		(_running[id] as EventPresenter).advance(delta)
 
 
 ## `event_at_oclock`: start what went active, stop what ended.

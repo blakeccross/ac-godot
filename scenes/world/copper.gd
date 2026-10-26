@@ -24,7 +24,7 @@ const NEMU_LOOPS := 5
 const SPECIAL_CHANCE := 0.05
 ## `DEG2SHORT_ANGLE2(67.5f)`: the player counts as "in front" inside this.
 const FRONT_ANGLE := deg_to_rad(67.5)
-const NEMU_WAKE_GX := 60.0
+const NEMU_WAKE := 60.0 * FieldCatalog.GX_TO_METERS
 ## Default wait length when the clip is missing (one `aNPC_ACT_WAIT` cycle).
 const WAIT_CYCLE_FALLBACK := 2.0
 ## `aNPC_ACT_TURN` at the turn-in-place rate (0x0800 × 30 → 337.5°/s).
@@ -66,7 +66,7 @@ func _process(delta: float) -> void:
 	var uttering: bool = false
 	if _talking and get_tree() != null:
 		uttering = DialogueOverlay.uttering_in(get_tree())
-	_face.tick(delta, uttering)
+	_face.advance(delta, uttering)
 
 
 func _physics_process(delta: float) -> void:
@@ -101,7 +101,7 @@ func _physics_process(delta: float) -> void:
 				else:
 					_timer = _clip_seconds(_clip)
 		Mode.NEMU:
-			if _player_dist_gx(player) < NEMU_WAKE_GX:
+			if _player_dist(player) < NEMU_WAKE:
 				_set_mode(Mode.WAIT)
 			elif _timer <= 0.0:
 				_loops_left -= 1
@@ -141,7 +141,7 @@ func _think(player: Node3D) -> void:
 			_set_mode(Mode.TAISOU)
 			return
 	elif hour >= 2 and hour < 4:
-		if _player_dist_gx(player) >= NEMU_WAKE_GX and _rng.randf() < SPECIAL_CHANCE:
+		if _player_dist(player) >= NEMU_WAKE and _rng.randf() < SPECIAL_CHANCE:
 			_set_mode(Mode.NEMU)
 			return
 	_set_mode(Mode.WAIT)
@@ -188,11 +188,11 @@ func _player_in_front(player: Node3D) -> bool:
 	return absf(angle_difference(rotation.y, atan2(to.x, to.z))) <= FRONT_ANGLE
 
 
-func _player_dist_gx(player: Node3D) -> float:
+func _player_dist(player: Node3D) -> float:
 	if player == null:
 		return INF
 	var to: Vector3 = player.global_position - global_position
-	return Vector2(to.x, to.z).length() / FieldCatalog.GX_TO_METERS
+	return Vector2(to.x, to.z).length()
 
 
 func _wants_exit_greeting() -> bool:
@@ -213,8 +213,8 @@ static func away_for_event() -> bool:
 func _same_block(player: Node3D) -> bool:
 	if player == null:
 		return false
-	var mine := TownSpace.block_of(TownSpace.world_to_gx(global_position))
-	return TownSpace.block_of(TownSpace.world_to_gx(player.global_position)) == mine
+	var mine := TownSpace.block_of(TownSpace.world_to_field(global_position))
+	return TownSpace.block_of(TownSpace.world_to_field(player.global_position)) == mine
 
 
 func _player_free(player: Node3D) -> bool:

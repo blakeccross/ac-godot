@@ -11,7 +11,7 @@ extends RefCounted
 ## tears, petals, leaves, bubbles, sparkles) are `Part`s with their own life.
 ##
 ## Advanced by `delta`. Times stay in the original's 60ths of a second (`TICK`), because every
-## keyframe in these effects is written in them: `tick(delta)` moves them on `delta · 60`, scales
+## keyframe in these effects is written in them: `advance(delta)` moves them on `delta · 60`, scales
 ## each per-tick change by that, and fires the one-off moments (a spawn at tick 8, a petal
 ## every fourth tick) when the step passes them.
 ##
@@ -188,7 +188,7 @@ func release() -> void:
 
 
 ## `delta` seconds. False once the emitter and all its parts are gone.
-func tick(delta: float) -> bool:
+func advance(delta: float) -> bool:
 	loop_sound = &""
 	var n: float = maxf(delta, 0.0) * DecompTime.TICK_HZ
 	if alive:

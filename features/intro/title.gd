@@ -78,7 +78,7 @@ func _place_porter() -> void:
 	var grid: WorldGrid = _world.grid
 	if layout == null or grid == null:
 		return
-	var pos: Vector3 = TitleDemo.gx_to_world(layout, StationPorter.TITLE_GX)
+	var pos: Vector3 = TitleDemo.field_to_world(layout, StationPorter.TITLE)
 	var y: float = FieldCollision.ground_y_at(layout, grid, pos, 0.0, false)
 	if FieldCollision.has_floor(y):
 		pos.y = y

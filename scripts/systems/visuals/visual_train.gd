@@ -2,6 +2,12 @@ class_name VisualTrain
 extends RefCounted
 ## Train car shell fit, door materials, door placement and the closed-door snap.
 
+const GX := FieldCatalog.GX_TO_METERS
+## The `rom_train_in` verts that frame the vestibule cutout near aisle x=140 GX.
+const VESTIBULE_X := Vector2(115.0, 165.0) * GX
+const VESTIBULE_Z := Vector2(118.0, 132.0) * GX
+const VESTIBULE_Y := Vector2(10.0, 75.0) * GX
+
 
 static func fit_train_car_shell(pivot: Node3D) -> void:
 	## `rom_train_in` BG DLs use 16× acre verts + `Matrix_scale(0.0625)` (`ac_field_draw`).
@@ -74,27 +80,27 @@ static func apply_train_door_materials(node: Node) -> void:
 static func place_train_door_at_gateway(
 	host: Node3D,
 	pivot: Node3D,
-	gateway_gx: Vector3,
+	gateway: Vector3,
 	car_pivot: Node3D = null,
-	panel_z_bias_gx: float = 0.0
+	panel_z_bias: float = 0.0
 ) -> void:
-	## `obj_romtrain_door` is an actor — `gateway_gx` is the decomp spawn origin. When
+	## `obj_romtrain_door` is an actor — `gateway` is the decomp spawn origin (metres). When
 	## `car_pivot` is set, nudge Z so the closed door frame lines up with `rom_train_in`'s
-	## vestibule jambs; `panel_z_bias_gx` recesses toward the deck (negative = smaller Z).
+	## vestibule jambs; `panel_z_bias` recesses toward the deck (negative = smaller Z).
 	if host == null or pivot == null:
 		return
 	host.global_transform = Transform3D.IDENTITY
-	host.global_position = gateway_gx * FieldCatalog.GX_TO_METERS
+	host.global_position = gateway
 	if car_pivot == null:
 		return
-	var opening_z: float = train_vestibule_opening_z_gx(car_pivot)
+	var opening_z: float = train_vestibule_opening_z(car_pivot)
 	if opening_z <= 0.0:
 		return
-	var panel_z: float = train_door_panel_center_gx(host, pivot).z
-	host.global_position.z += (opening_z + panel_z_bias_gx - panel_z) * FieldCatalog.GX_TO_METERS
+	var panel_z: float = train_door_panel_center(pivot).z
+	host.global_position.z += opening_z + panel_z_bias - panel_z
 
 
-static func train_vestibule_opening_z_gx(car_pivot: Node3D) -> float:
+static func train_vestibule_opening_z(car_pivot: Node3D) -> float:
 	## Mid-Z of `rom_train_in` verts in the vestibule cutout near aisle x=140.
 	if car_pivot == null:
 		return 0.0
@@ -103,7 +109,7 @@ static func train_vestibule_opening_z_gx(car_pivot: Node3D) -> float:
 	if zs.is_empty():
 		return 0.0
 	zs.sort()
-	return zs[zs.size() / 2] / FieldCatalog.GX_TO_METERS
+	return zs[zs.size() / 2]
 
 
 static func _collect_train_vestibule_z(node: Node, xf: Transform3D, zs: Array[float]) -> void:
@@ -116,14 +122,11 @@ static func _collect_train_vestibule_z(node: Node, xf: Transform3D, zs: Array[fl
 			return
 		for v: Vector3 in arrays[Mesh.ARRAY_VERTEX]:
 			var w: Vector3 = xf * v
-			var x_gx: float = w.x / FieldCatalog.GX_TO_METERS
-			if x_gx < 115.0 or x_gx > 165.0:
+			if w.x < VESTIBULE_X.x or w.x > VESTIBULE_X.y:
 				continue
-			var z_gx: float = w.z / FieldCatalog.GX_TO_METERS
-			if z_gx < 118.0 or z_gx > 132.0:
+			if w.z < VESTIBULE_Z.x or w.z > VESTIBULE_Z.y:
 				continue
-			var y_gx: float = w.y / FieldCatalog.GX_TO_METERS
-			if y_gx < 10.0 or y_gx > 75.0:
+			if w.y < VESTIBULE_Y.x or w.y > VESTIBULE_Y.y:
 				continue
 			zs.append(w.z)
 	for child: Node in node.get_children():
@@ -131,7 +134,7 @@ static func _collect_train_vestibule_z(node: Node, xf: Transform3D, zs: Array[fl
 			_collect_train_vestibule_z(child, xf * (child as Node3D).transform, zs)
 
 
-static func train_door_panel_center_gx(host: Node3D, pivot: Node3D) -> Vector3:
+static func train_door_panel_center(pivot: Node3D) -> Vector3:
 	if pivot == null:
 		return Vector3.ZERO
 	var panel: AABB = VisualFit.world_aabb_named(pivot, "door")
@@ -139,7 +142,7 @@ static func train_door_panel_center_gx(host: Node3D, pivot: Node3D) -> Vector3:
 		panel = VisualFit.world_aabb_named(pivot, "")
 	if panel.size == Vector3.ZERO:
 		return Vector3.ZERO
-	return panel.get_center() / FieldCatalog.GX_TO_METERS
+	return panel.get_center()
 
 
 static func prepare_outdoor_train(node: Node) -> void:
@@ -154,17 +157,17 @@ static func prepare_outdoor_train(node: Node) -> void:
 	snap_train_doors_closed(anim)
 
 
-static func center_train_visual(host: Node3D, center_gx: Vector3) -> void:
+static func center_train_visual(host: Node3D, center: Vector3) -> void:
 	## Keep the actor origin on the decomp track point; shift only the mesh so the
-	## car body sits on the rails (pipeline AABBs are off-origin).
+	## car body sits on the rails (pipeline AABBs are off-origin). `center` is in model units.
 	if host == null:
 		return
 	var vis: Node3D = host.get_node_or_null("GeneratedVisual") as Node3D
 	if vis == null:
 		return
 	var s: float = vis.scale.x if vis.scale.x > 0.0 else FieldCatalog.actor_uniform_scale()
-	vis.position.x = -center_gx.x * s
-	vis.position.z = -center_gx.z * s
+	vis.position.x = -center.x * s
+	vis.position.z = -center.z * s
 
 
 static func snap_train_doors_closed(anim_player: AnimationPlayer) -> void:

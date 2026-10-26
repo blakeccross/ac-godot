@@ -17,7 +17,7 @@ var actor: BugActor = null
 var display_actor: MuseumInsectActor = null
 ## The range the insect registers with the net this frame (`aINS_get_catch_range`), GX;
 ## 0 while it cannot be caught.
-var catch_range_gx: float = 0.0
+var catch_range: float = 0.0
 
 
 ## Binds the field insect this scene shows. Call once it is in the tree.
@@ -40,10 +40,10 @@ func sync(delta: float, player_position: Vector3) -> void:
 	)
 	## The catch sphere is the insect's registered range; the net's own reach is the
 	## sphere the net queries with, so overlap is the decomp's `reach + range` test.
-	catch_range_gx = row.range_gx if row != null else 0.0
+	catch_range = row.catch_range if row != null else 0.0
 	_catch_shape.disabled = row == null
 	if row != null:
-		(_catch_shape.shape as SphereShape3D).radius = catch_range_gx * FieldCatalog.GX_TO_METERS
+		(_catch_shape.shape as SphereShape3D).radius = catch_range
 
 
 ## Binds a museum case insect. Call once it is in the tree.
@@ -60,7 +60,7 @@ func _process(delta: float) -> void:
 
 
 func _follow_display(delta: float) -> void:
-	display_actor.tick(delta)
+	display_actor.advance(delta)
 	global_position = display_actor.position
 	model.sync_display(display_actor)
 

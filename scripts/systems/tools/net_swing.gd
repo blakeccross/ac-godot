@@ -48,18 +48,19 @@ const FRAME_SPEED := 0.5
 const CATCH_AFTER_FRAME := 6.0
 
 ## `Player_actor_Item_CheckLocalCapture_forNet`: the net's reach added to the insect's own
-## catch range (21 for the golden net). `net_top_col_pos` and
+## catch range (15 GX, 21 for the golden net). `net_top_col_pos` and
 ## `net_bot_col_pos` are the same point, so the capsule test reduces to a sphere.
-const CATCH_REACH_GX := 15.0
-const GOLDEN_REACH_GX := 21.0
+const CATCH_REACH := 15.0 * FieldCatalog.GX_TO_METERS
+const GOLDEN_REACH := 21.0 * FieldCatalog.GX_TO_METERS
 const GOLDEN_NET := &"golden_net"
 
 ## `Player_actor_Item_draw_net`: the net's points, off the hand matrix after
-## `Matrix_rotateXYZ(0, 3000, 0)`, at these model-space Z offsets × the player's 0.01 scale.
+## `Matrix_rotateXYZ(0, 3000, 0)`, at these model-space Z offsets × the player's 0.01 scale
+## (−24, 55 and 40 GX).
 const NET_YAW_S16 := 3000.0
-const NET_START_GX := -24.0
-const NET_END_GX := 55.0
-const NET_POS_GX := 40.0
+const NET_START := -24.0 * FieldCatalog.GX_TO_METERS
+const NET_END := 55.0 * FieldCatalog.GX_TO_METERS
+const NET_POS := 40.0 * FieldCatalog.GX_TO_METERS
 
 ## Brakes, m/s² (`Player_actor_Movement_Base_Braking_common`: 0.23925 / 0.32625 GX a tick).
 const READY_BRAKE := 0.23925 * PlayerLocomotion.GX_ACCEL
@@ -92,16 +93,16 @@ class Probe:
 	var candidates: Array[Candidate] = []
 
 
-## One `Set_Item_net_catch_request_table` row.
+## One `Set_Item_net_catch_request_table` row; `catch_range` in metres.
 class Candidate:
 	var target: Object = null
 	var position: Vector3 = Vector3.ZERO
-	var range_gx: float = 0.0
+	var catch_range: float = 0.0
 
 	func _init(p_target: Object = null, p_position: Vector3 = Vector3.ZERO, p_range: float = 0.0) -> void:
 		target = p_target
 		position = p_position
-		range_gx = p_range
+		catch_range = p_range
 
 
 var state: State = State.NONE
@@ -158,7 +159,7 @@ func cancel() -> void:
 ## Steps `delta` seconds. `stick` is `move_pR`, `wish_yaw` the stick's world angle,
 ## `axes_active` `move_pX || move_pY`, `over_norm` the uphill speed divisor and `wall_ratio`
 ## how much of the last step the walls let through (1 = free).
-func tick(
+func advance(
 	delta: float,
 	a_held: bool,
 	stick: float,
@@ -185,20 +186,20 @@ func tick(
 
 
 ## World position of a point on the net's shaft, from the hand joint's world transform.
-static func net_point(hand: Transform3D, along_gx: float) -> Vector3:
+static func net_point(hand: Transform3D, along: float) -> Vector3:
 	var basis: Basis = hand.basis.orthonormalized() * Basis(Vector3.UP, MathUtil.s16_to_rad(NET_YAW_S16))
-	return hand.origin + basis * Vector3(0.0, 0.0, along_gx * FieldCatalog.GX_TO_METERS)
+	return hand.origin + basis * Vector3(0.0, 0.0, along)
 
 
-## The net head's own reach, GX: 15, or 21 for the golden net.
-static func reach_gx() -> float:
+## The net head's own reach: `CATCH_REACH`, or `GOLDEN_REACH` for the golden net.
+static func reach() -> float:
 	var golden: bool = Game != null and Game.inventory != null and Game.inventory.equipment_id == GOLDEN_NET
-	return GOLDEN_REACH_GX if golden else CATCH_REACH_GX
+	return GOLDEN_REACH if golden else CATCH_REACH
 
 
 ## `Player_actor_Item_CheckLocalCapture_forNet` with coincident top and bottom points.
-static func in_reach(net_pos: Vector3, target: Vector3, range_gx: float) -> bool:
-	var reach: float = (reach_gx() + range_gx) * FieldCatalog.GX_TO_METERS
+static func in_reach(net_pos: Vector3, target: Vector3, catch_range: float) -> bool:
+	var reach: float = reach() + catch_range
 	return net_pos.distance_squared_to(target) <= reach * reach
 
 
@@ -320,7 +321,7 @@ func _catch_check(delta: float, probe: Probe) -> int:
 	for candidate: Candidate in probe.candidates:
 		if candidate == null or candidate.target == null:
 			continue
-		if in_reach(probe.net_pos, candidate.position, candidate.range_gx):
+		if in_reach(probe.net_pos, candidate.position, candidate.catch_range):
 			caught = candidate.target
 			events.append(&"get")
 			return 1

@@ -78,16 +78,19 @@ const TRASH_CHANCE := 20.0
 ## `aGTT_wait_init`: `work0 = (100 + RANDOM_F(30)) * 2`, `speed = -0.15 + RANDOM2_F(0.2)`.
 const WAIT_FRAMES := 100.0
 const WAIT_FRAMES_JITTER := 30.0
-const DRIFT_SPEED_GX := -0.15
-const DRIFT_JITTER_GX := 0.2
-## `aGTT_escape_init`: bolt at 2.0 for 100 frames, easing off by 0.02 a frame.
-const ESCAPE_SPEED_GX := 2.0
+## GX a frame in m/s.
+const GX_FRAME := GX * DecompTime.FRAME_HZ
+const DRIFT_SPEED := -0.15 * GX_FRAME
+const DRIFT_JITTER := 0.2 * GX_FRAME
+## `aGTT_escape_init`: bolt at 2.0 GX a frame for 100 frames, easing off by 0.02 a frame.
+const ESCAPE_SPEED := 2.0 * GX_FRAME
 const ESCAPE_FRAMES := 100.0
-const ESCAPE_DECAY_GX := 0.02
+## The ease-off, m/s lost a second (0.02 GX a frame every tick).
+const ESCAPE_DECAY := 0.02 * GX_FRAME * DecompTime.TICK_HZ
 const SWEEP_DEG_PER_FRAME := 2.5
 ## `aGTT_player_near`: a dashing player scares fish from 110 GX, a swung tool from 150.
-const SCARE_DASH_GX := 110.0
-const SCARE_TOOL_GX := 150.0
+const SCARE_DASH := 110.0 * GX
+const SCARE_TOOL := 150.0 * GX
 ## `aGTT_Get_water_surface_position_y`: the shadow rides 8 GX under the surface.
 const DEPTH := 0.4  ## 8 GX
 
@@ -133,7 +136,7 @@ static func back_speed(size: FishData.SizeClass) -> float:
 
 
 static func escape_speed() -> float:
-	return gx_per_frame_to_mps(ESCAPE_SPEED_GX)
+	return ESCAPE_SPEED
 
 
 static func touch_distance(size: FishData.SizeClass) -> float:

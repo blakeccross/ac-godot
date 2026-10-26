@@ -78,7 +78,7 @@ func set_action(next: Action, with_se: bool = true) -> void:
 
 ## `aTUMB_actor_move` for `delta` seconds: take-out turns into opening straight away; frames
 ## advance 0.5 per tick up to the action's end.
-func tick(delta: float) -> void:
+func advance(delta: float) -> void:
 	if action == Action.TAKEOUT_BEFORE:
 		set_action(Action.OPENING)
 	var last: float = MAX_FRAME[int(action)]

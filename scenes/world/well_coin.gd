@@ -13,8 +13,8 @@ const GX := FieldCatalog.GX_TO_METERS
 const FLY_TIME := 100.0 * DecompTime.TICK_SEC
 ## Gone 300 ticks after the splash, fading all the way.
 const SINK_TIME := 300.0 * DecompTime.TICK_SEC
-## Thrown from this far off the player (GX).
-const START_GX := Vector3(9.0, 11.0, -15.0)
+## Thrown from this far off the player ((9, 11, −15) GX).
+const START := Vector3(9.0, 11.0, -15.0) * GX
 ## 5.5 GX a tick up, 0.77 across, under 0.2 GX/tick² of gravity.
 const SPEED_UP := 5.5 * GX * 60.0
 const SPEED_ACROSS := 0.77 * GX * 60.0
@@ -49,7 +49,7 @@ static func toss(parent: Node, from: Vector3, base_y: float, rng: RandomNumberGe
 
 
 func setup(from: Vector3, base_y: float, rng: RandomNumberGenerator) -> void:
-	_start = from + START_GX * GX
+	_start = from + START
 	var jitter: float = rng.randf() * 768.0 if rng.randi_range(0, 9) & 1 == 1 else -rng.randf() * 1024.0
 	var angle: float = (jitter / 65536.0) * TAU + deg_to_rad(192.65625)
 	_velocity = Vector3(sin(angle) * SPEED_ACROSS, SPEED_UP, cos(angle) * SPEED_ACROSS)

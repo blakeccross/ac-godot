@@ -104,7 +104,7 @@ func test_train_demo_init_matches_decomp() -> void:
 	assert_int(state).is_equal(TrainControl.STATE_DEMO)
 	assert_int(control.action).is_equal(TrainControl.Action.BEGIN_SLOWDOWN)
 	assert_float(control.speed).is_equal(TrainControl.SLOW_SPEED)
-	assert_float(control.x_gx).is_equal_approx(2037.0 + TrainControl.SLOW_SPEED * DecompTime.TICK_SEC, 0.0001)
+	assert_float(control.x).is_equal_approx(TrainControl.DEMO_X + TrainControl.SLOW_SPEED * DecompTime.TICK_SEC, 0.0001)
 	assert_int(control.start_timer).is_equal(36000 - 290)
 	## Runs through the stop into WAIT_STOPPED, then leaves once the dwell is over.
 	var frames: int = 0
@@ -123,14 +123,17 @@ func test_npc_point_move_run_speed_and_arrival() -> void:
 	## `aNPC_spd_data` run: max 3.0 GX a frame (90 a second), accel 0.3 × 0.5 a tick.
 	var move := NpcPointMove.new()
 	move.reset(0.0)
+	var gx: float = FieldCatalog.GX_TO_METERS
+	var goal := Vector3(0.0, 0.0, 400.0) * gx
 	var pos := Vector3.ZERO
-	pos = move.step_to(1.0 / 60.0, pos, Vector3(0.0, 0.0, 400.0), true)
+	pos = move.step_to(1.0 / 60.0, pos, goal, true)
 	assert_float(move.frame_speed()).is_equal_approx(0.15, 0.0001)
 	for i: int in 100:
-		pos = move.step_to(1.0 / 60.0, pos, Vector3(0.0, 0.0, 400.0), true)
+		pos = move.step_to(1.0 / 60.0, pos, goal, true)
 	assert_float(move.speed).is_equal_approx(NpcPointMove.RUN_MAX, 0.0001)
-	assert_that(NpcPointMove.arrived(Vector3(0.0, 0.0, 391.6), Vector3(0.0, 0.0, 400.0))).is_true()
-	assert_that(NpcPointMove.arrived(Vector3(0.0, 0.0, 391.4), Vector3(0.0, 0.0, 400.0))).is_false()
+	## Arrival radius: 72 GX², i.e. within √72 ≈ 8.49 GX.
+	assert_that(NpcPointMove.arrived(Vector3(0.0, 0.0, 391.6) * gx, goal)).is_true()
+	assert_that(NpcPointMove.arrived(Vector3(0.0, 0.0, 391.4) * gx, goal)).is_false()
 
 
 func test_npc_point_move_turn_rate() -> void:
@@ -147,13 +150,14 @@ func test_npc_point_move_turn_rate() -> void:
 
 func test_intro_wade_border_moves_in_one_unit() -> void:
 	## `mCoBG_BLOCK_BGCHECK_MODE_INTRO_DEMO`: player-house acre walled 18 + 40 from its edges.
-	var old := Vector3(1920.0 + 100.0, 0.0, 1280.0 + 100.0)
-	var held: Vector3 = AcreWade.confine(old, Vector3(1920.0 + 30.0, 0.0, 1280.0 + 100.0), 40.0)
-	assert_float(held.x).is_equal(1920.0 + 58.0)
+	var gx: float = FieldCatalog.GX_TO_METERS
+	var old := Vector3(1920.0 + 100.0, 0.0, 1280.0 + 100.0) * gx
+	var held: Vector3 = AcreWade.confine(old, Vector3(1920.0 + 30.0, 0.0, 1280.0 + 100.0) * gx, AcreWade.INTRO_INSET)
+	assert_float(held.x).is_equal_approx((1920.0 + 58.0) * gx, 0.0001)
 	## Unable to wade: the direction is reported even when landing is refused.
-	var at_east := Vector3(1920.0 + 640.0 - 50.0, 0.0, 1280.0 + 300.0)
+	var at_east := Vector3(1920.0 + 640.0 - 50.0, 0.0, 1280.0 + 300.0) * gx
 	var no_land := func(_d: AcreWade.Dir) -> bool: return false
-	assert_int(AcreWade.direction(at_east, PI * 0.5, Vector2(1.0, 0.0), no_land, 40.0, true)).is_equal(
+	assert_int(AcreWade.direction(at_east, PI * 0.5, Vector2(1.0, 0.0), no_land, AcreWade.INTRO_INSET, true)).is_equal(
 		AcreWade.Dir.RIGHT
 	)
 	assert_int(AcreWade.direction(at_east, PI * 0.5, Vector2(1.0, 0.0), no_land, 0.0, true)).is_equal(

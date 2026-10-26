@@ -30,12 +30,12 @@ func test_sitdown_snaps_rover_landmarks() -> void:
 	add_child(rover)
 	stage.bind(rover, null, null, null, null)
 	for _i: int in 220:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.TALK:
 			break
 	stage.cue_sit()
 	for _i: int in 120:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.SITDOWN:
 			break
 	assert_vector(stage._pos_gx).is_equal_approx(IntroTrainStage.ROVER_SIT_GX, Vector3(0.001, 0.001, 0.001))
@@ -69,7 +69,7 @@ func test_bind_starts_enter_and_emits_talk_without_mesh() -> void:
 	assert_that(stage.action).is_equal(IntroTrainStage.Action.ENTER)
 	## No AnimationPlayer → enter finishes immediately; walk 160 GX @ 1 GX/tick.
 	for _i: int in 220:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if talked[0]:
 			break
 	assert_that(talked[0]).is_true()
@@ -106,7 +106,7 @@ func test_approach_keeps_rover_in_aisle() -> void:
 	add_child(rover)
 	stage.bind(rover, null, null, null, null)
 	for _i: int in 200:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.TALK:
 			break
 	assert_that(stage.action).is_equal(IntroTrainStage.Action.TALK)
@@ -173,22 +173,22 @@ func test_return_flow_reaches_aisle_talk_after_phone_done() -> void:
 	add_child(rover)
 	stage.bind(rover, null, null, null, null)
 	for _i: int in 220:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.TALK:
 			break
 	stage.cue_sit()
 	for _i: int in 120:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.SEATED:
 			break
 	stage.cue_phone()
 	for _i: int in 400:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.KEITAI_TALK:
 			break
 	stage.end_phone_talk()
 	for _i: int in 400:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.TALK:
 			break
 	assert_that(stage.action).is_equal(IntroTrainStage.Action.TALK)
@@ -203,17 +203,17 @@ func test_cue_return_does_not_skip_to_open_door_mid_walk() -> void:
 	add_child(rover)
 	stage.bind(rover, null, null, null, null)
 	for _i: int in 220:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.TALK:
 			break
 	stage.cue_sit()
 	for _i: int in 120:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.SEATED:
 			break
 	stage.cue_phone()
 	for _i: int in 30:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 	stage.end_phone_talk()
 	assert_that(stage.action).is_not_equal(IntroTrainStage.Action.OPEN_DOOR)
 	rover.queue_free()
@@ -262,12 +262,12 @@ func test_dialogue_gate_blocks_phone_until_keitai_talk() -> void:
 	stage.bind(rover, null, null, null, null)
 	stage.cue_phone()
 	for _i: int in 20:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 	assert_that(stage.can_advance_dialogue(&"phone_lead", &"phone_stage")).is_true()
 	assert_that(stage.stage_wait_met("keitai_talk")).is_false()
 	assert_that(stage.can_advance_dialogue(&"phone_stage", &"phone_call")).is_false()
 	for _i: int in 400:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.KEITAI_TALK:
 			break
 	assert_that(stage.stage_wait_met("keitai_talk")).is_true()
@@ -313,7 +313,7 @@ func test_stage_wait_seated_after_sit() -> void:
 	stage.cue_sit()
 	assert_that(stage.stage_wait_met("seated")).is_false()
 	for _i: int in 30:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.SEATED:
 			break
 	assert_that(stage.stage_wait_met("seated")).is_true()
@@ -326,13 +326,13 @@ func test_cue_sit_snaps_to_seat_and_sits() -> void:
 	add_child(rover)
 	stage.bind(rover, null, null, null, null)
 	for _i: int in 220:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.TALK:
 			break
 	stage.cue_sit()
 	assert_that(stage.action).is_equal(IntroTrainStage.Action.SITDOWN)
 	for _i: int in 8:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.SEATED:
 			break
 	assert_that(stage.action).is_equal(IntroTrainStage.Action.SEATED)
@@ -350,14 +350,14 @@ func test_first_talk_morphs_from_default_then_locks() -> void:
 	add_child(rover)
 	stage.bind(rover, null, null, null, null)
 	for _i: int in 400:
-		stage.tick(1.0 / 60.0)
+		stage.advance(1.0 / 60.0)
 		if stage.action == IntroTrainStage.Action.TALK:
 			break
 	assert_that(stage.action).is_equal(IntroTrainStage.Action.TALK)
 	assert_that(stage.lock_camera).is_false()
 	assert_that(stage._cam.morphing).is_true()
 	for _i: int in 40:
-		stage.tick(1.0 / 60.0)
+		stage.advance(1.0 / 60.0)
 	assert_that(stage.lock_camera).is_true()
 	var look: Vector3 = stage.current_look_gx()
 	assert_float(look.x).is_equal_approx(IntroTrainStage.ROVER_TALK_GX.x, 0.01)
@@ -503,7 +503,7 @@ func test_keitai_talk_chains_talk1_into_looping_talk2() -> void:
 	stage._set_action(IntroTrainStage.Action.KEITAI_TALK)
 	assert_str(String(anim.current_animation)).is_equal(IntroTrainStage.ANIM_KEITAI_TALK)
 	anim.stop()
-	stage.tick(1.0 / 60.0)
+	stage.advance(1.0 / 60.0)
 	assert_str(String(anim.current_animation)).is_equal(IntroTrainStage.ANIM_KEITAI_TALK2)
 	assert_int(anim.get_animation(IntroTrainStage.ANIM_KEITAI_TALK2).loop_mode).is_equal(
 		Animation.LOOP_LINEAR

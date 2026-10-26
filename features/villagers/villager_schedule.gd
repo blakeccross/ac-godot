@@ -29,7 +29,7 @@ func clear_force() -> void:
 	_publish()
 
 
-func tick(now_sec: int) -> StringName:
+func advance(now_sec: int) -> StringName:
 	if table == null:
 		saved = VillagerActivity.FIELD
 	else:

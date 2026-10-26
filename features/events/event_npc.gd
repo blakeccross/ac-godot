@@ -85,7 +85,7 @@ func _process(delta: float) -> void:
 	var uttering: bool = false
 	if talking and get_tree() != null:
 		uttering = DialogueOverlay.uttering_in(get_tree())
-	_face.tick(delta, uttering)
+	_face.advance(delta, uttering)
 
 
 func _physics_process(delta: float) -> void:

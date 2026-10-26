@@ -178,7 +178,7 @@ func turn_toward(delta: float, from: Vector3, look_at: Vector3) -> void:
 	_chase_facing(yaw, SPIN_TURN * delta)
 
 
-func tick(delta: float, from: Vector3, _next: Vector3, moving: bool) -> Vector3:
+func advance(delta: float, from: Vector3, _next: Vector3, moving: bool) -> Vector3:
 	## Decomp frame order: move along *current* facing, then chase `mv_angl` after think.
 	if not moving:
 		has_target = false

@@ -68,19 +68,19 @@ func push_snowball(
 ## (`mCoBG_UniqueWallCheck`). At the wall with the stick across and the body within 5°,
 ## the player and the ball wade together (`WADE_SNOWBALL`); otherwise the push lets go.
 func _snowball_border(before: Vector3, input_dir: Vector2, bg: Array) -> bool:
-	var old_gx: Vector3 = TownSpace.world_to_gx(before)
-	var now_gx: Vector3 = TownSpace.world_to_gx(_player.global_position)
-	var held: Vector3 = AcreWade.confine(old_gx, now_gx)
-	if held.x == now_gx.x and held.z == now_gx.z:
+	var old_at: Vector3 = TownSpace.world_to_field(before)
+	var now_at: Vector3 = TownSpace.world_to_field(_player.global_position)
+	var held: Vector3 = AcreWade.confine(old_at, now_at)
+	if held.x == now_at.x and held.z == now_at.z:
 		return false
-	var back: Vector3 = TownSpace.gx_to_world(held)
+	var back: Vector3 = TownSpace.field_to_world(held)
 	_player.global_position.x = back.x
 	_player.global_position.z = back.z
 	_player._snap_to_bg()
-	var pos_gx: Vector3 = TownSpace.world_to_gx(_player.global_position)
+	var field_at: Vector3 = TownSpace.world_to_field(_player.global_position)
 	var dir: AcreWade.Dir = AcreWade.direction(
-		pos_gx, _player._motor.facing, Vector2(input_dir.x, -input_dir.y),
-		func(d: AcreWade.Dir) -> bool: return _player._can_land(pos_gx, d, bg),
+		field_at, _player._motor.facing, Vector2(input_dir.x, -input_dir.y),
+		func(d: AcreWade.Dir) -> bool: return _player._can_land(field_at, d, bg),
 		0.0, _player.unable_wade, AcreWade.SNOWBALL_ANGLE_RANGE,
 	)
 	if dir == AcreWade.Dir.NONE or _player.unable_wade:
@@ -88,7 +88,7 @@ func _snowball_border(before: Vector3, input_dir: Vector2, bg: Array) -> bool:
 		return true
 	var ball: Node3D = _player._snowball
 	var ofs: Vector3 = ball.global_position - _player.global_position
-	_player._begin_wade(pos_gx, dir)
+	_player._begin_wade(field_at, dir)
 	_player._wade["ball"] = ball
 	_player._wade["ball_ofs"] = ofs
 	## Still leaning on it through the scroll (`Wade_snowball` keeps the push pose).

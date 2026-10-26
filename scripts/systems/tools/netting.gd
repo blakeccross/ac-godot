@@ -165,15 +165,15 @@ static func probe(
 	var start: Vector3
 	var end: Vector3
 	if has_hand:
-		out.net_pos = NetSwing.net_point(hand, NetSwing.NET_POS_GX)
-		start = NetSwing.net_point(hand, NetSwing.NET_START_GX)
-		end = NetSwing.net_point(hand, NetSwing.NET_END_GX)
+		out.net_pos = NetSwing.net_point(hand, NetSwing.NET_POS)
+		start = NetSwing.net_point(hand, NetSwing.NET_START)
+		end = NetSwing.net_point(hand, NetSwing.NET_END)
 	else:
 		var fwd := Vector3(sin(yaw), 0.0, cos(yaw))
 		var at_hand: Vector3 = player_pos + Vector3(0.0, 20.0 * FieldCatalog.GX_TO_METERS, 0.0)
-		out.net_pos = at_hand + fwd * (NetSwing.NET_POS_GX * FieldCatalog.GX_TO_METERS)
-		start = at_hand + fwd * (NetSwing.NET_START_GX * FieldCatalog.GX_TO_METERS)
-		end = at_hand + fwd * (NetSwing.NET_END_GX * FieldCatalog.GX_TO_METERS)
+		out.net_pos = at_hand + fwd * NetSwing.NET_POS
+		start = at_hand + fwd * NetSwing.NET_START
+		end = at_hand + fwd * NetSwing.NET_END
 	out.candidates = bugs_in_reach(ctx, out.net_pos)
 	_bee_candidate(ctx, player_pos, out)
 	out.hit_actor = npc_on_line(ctx, start, end)
@@ -189,7 +189,7 @@ static func bugs_in_reach(ctx: InteractionContext, net_pos: Vector3) -> Array[Ne
 	if ctx == null or ctx.actor == null or not ctx.actor.is_inside_tree():
 		return out
 	var sphere := SphereShape3D.new()
-	sphere.radius = NetSwing.reach_gx() * FieldCatalog.GX_TO_METERS
+	sphere.radius = NetSwing.reach()
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = sphere
 	query.transform = Transform3D(Basis.IDENTITY, net_pos)
@@ -207,7 +207,7 @@ static func bugs_in_reach(ctx: InteractionContext, net_pos: Vector3) -> Array[Ne
 		bugs.sort_custom(func(a: Bug, b: Bug) -> bool:
 			return field.actors.find(a.actor) < field.actors.find(b.actor))
 	for bug: Bug in bugs:
-		out.append(NetSwing.Candidate.new(bug.actor, bug.actor.position, bug.catch_range_gx))
+		out.append(NetSwing.Candidate.new(bug.actor, bug.actor.position, bug.catch_range))
 	return out
 
 
@@ -222,7 +222,7 @@ static func _bee_candidate(ctx: InteractionContext, player_pos: Vector3, out: Ne
 	var to: Vector3 = swarm.global_position - player_pos
 	if Vector2(to.x, to.z).length() < BeeSwarm.FORCE_CATCH:
 		out.forced = swarm
-	out.candidates.append(NetSwing.Candidate.new(swarm, swarm.global_position, BeeSwarm.NET_RANGE_GX))
+	out.candidates.append(NetSwing.Candidate.new(swarm, swarm.global_position, BeeSwarm.NET_RANGE))
 
 
 ## `Player_actor_Check_OBJtoLine_forItem_net`: the net's triangle (start, end, end + 10 GX up)

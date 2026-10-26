@@ -25,29 +25,43 @@ const SNAG_SEC := 18000.0 / FRAME_HZ
 const HOLD_SEC := 10.0 / FRAME_HZ
 ## A bump wobbles it for 12 frames, flipping its tilt every 4.
 const WOBBLE_SEC := 12.0 / FRAME_HZ
-const HEIGHT_GX := 110.0
-const HEIGHT_MAX_GX := 300.0
-const BIRTH_HEIGHT_GX := 200.0
-const LEAVE_HEIGHT_GX := 500.0
+## Lengths in metres, from the decomp's GX.
+const GX := FieldCatalog.GX_TO_METERS
+const HEIGHT := 110.0 * GX
+const HEIGHT_MAX := 300.0 * GX
+const BIRTH_HEIGHT := 200.0 * GX
+const LEAVE_HEIGHT := 500.0 * GX
 ## The bob turns 250 binangle a frame.
 const BOB_RATE := 250.0 * FRAME_HZ
-const BOB_GX := 10.0
-## `add_calc(…, 1 - sqrt(0.7), 0.5, 0)` a frame, as a half-life and a top speed (GX a second).
+const BOB := 10.0 * GX
+## `add_calc(…, 1 - sqrt(0.7), 0.5, 0)` a frame, as a half-life and a top speed (0.5 GX a frame).
 static var EASE_HALF_LIFE: float = Motion.half_life_from_fraction(0.16333997, FRAME_HZ)
-const EASE_MAX_SPEED := 0.5 * FRAME_HZ
+const EASE_MAX_SPEED := 0.5 * GX * FRAME_HZ
 ## Over a wall it climbs 0.05 GX a frame; back in the open it sinks 0.005.
-const CLIMB_SPEED := 0.05 * FRAME_HZ
-const SINK_SPEED := 0.005 * FRAME_HZ
+const CLIMB_SPEED := 0.05 * GX * FRAME_HZ
+const SINK_SPEED := 0.005 * GX * FRAME_HZ
 ## Escaping, it rises faster by 0.5 GX a frame each frame, up to 5 GX a frame.
-const RISE_ACCEL := 0.5 * FRAME_HZ * FRAME_HZ
-const RISE_MAX := 5.0 * FRAME_HZ
-## Map-edge box (GX) past which a drifting balloon gives up.
+const RISE_ACCEL := 0.5 * GX * FRAME_HZ * FRAME_HZ
+const RISE_MAX := 5.0 * GX * FRAME_HZ
+## `Actor_position_moveF` downwind: 1 GX a frame, half a GX more at full wind.
+const DRIFT_SPEED := 1.0 * GX * FRAME_HZ
+## How near a snaggable crown it has to drift (22 GX for a cedar, 15 for others, within 15
+## up or down), and how close it has to come to sit still on it.
+const SNAG_REACH_CEDAR := 22.0 * GX
+const SNAG_REACH := 15.0 * GX
+const SNAG_HEIGHT := 15.0 * GX
+const PERCH_SETTLE := 2.0 * GX
+## `mCoBG_BgCheckControll(…, 12, …)`: a wall is the ground 12 GX ahead stepping up 20.
+const WALL_LOOK := 12.0 * GX
+const WALL_STEP := 20.0 * GX
+## The map tables below are decomp field positions (GX), converted where they are read.
+## Map-edge box past which a drifting balloon gives up.
 const EDGE_MIN := 660.0
 const EDGE_MAX_X := 3820.0
 const EDGE_MAX_Z := 4460.0
 ## Station box inside its acre (GX from the acre corner): x 120–520, z 160–320.
 const STATION_BOX := Rect2(120.0, 160.0, 400.0, 160.0)
-const LOOK_AHEAD_GX := 80.0
+const LOOK_AHEAD := 80.0 * GX
 const TURN_CHECKS: Array[int] = [-2500, 0, 2500]
 ## `birth_pos_data` / `birth_pos_random_data`, indexed by `data_index_data[angle >> 12]`.
 const BIRTH_INDEX: Array[int] = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 0]
@@ -90,11 +104,11 @@ static var _head_shader: Shader
 signal gone(look_up: bool)
 
 var action: Action = Action.BIRTH
-## Position in GX; `pos.y` absolute.
+## World position (metres).
 var pos: Vector3 = Vector3.ZERO
 var heading: int = 0
 var type_idx: int = 0
-var y_offset: float = HEIGHT_GX
+var y_offset: float = HEIGHT
 ## Seconds left drifting (or snagged) before it gives up.
 var escape_time: float = DRIFT_SEC
 var look_up: bool = false
@@ -104,7 +118,7 @@ var _hold: float = HOLD_SEC
 var _bob: float = 0.0
 var _turned: bool = false
 var _count: int = 0
-## Rising speed while escaping, GX a second.
+## Rising speed while escaping, m/s.
 var _rise: float = 0.0
 var _wobble: float = 0.0
 var _rng := RandomNumberGenerator.new()
@@ -195,7 +209,8 @@ func _birth() -> void:
 		p.y += signf(spread.y) * _rng.randf() * absf(spread.y)
 	else:
 		p.x += signf(spread.x) * _rng.randf() * absf(spread.x)
-	pos = Vector3(p.x, _ground(Vector2(p.x, p.y)) + BIRTH_HEIGHT_GX, p.y)
+	var at: Vector3 = _field_to_world(p)
+	pos = Vector3(at.x, _ground(at) + BIRTH_HEIGHT, at.z)
 	_tint()
 	action = Action.MOVING
 
@@ -204,8 +219,7 @@ func _birth() -> void:
 func start_near(world: Vector3) -> void:
 	if _world == null:
 		return
-	var gx: Vector3 = _to_gx(world)
-	pos = Vector3(gx.x, _ground(Vector2(gx.x, gx.z)) + HEIGHT_GX, gx.z)
+	pos = Vector3(world.x, _ground(world) + HEIGHT, world.z)
 	escape_time = DRIFT_SEC
 	_hold = 0.0
 	_place()
@@ -231,7 +245,7 @@ func _step(delta: float) -> void:
 		_hold = maxf(_hold - delta, 0.0)
 	elif action != Action.WOOD_STOP:
 		## `Actor_position_moveF`: 1–1.5 GX a frame downwind.
-		var speed: float = (Game.wind.power() * 0.5 + 1.0) * FRAME_HZ if action == Action.MOVING else 0.0
+		var speed: float = (Game.wind.power() * 0.5 + 1.0) * DRIFT_SPEED if action == Action.MOVING else 0.0
 		var yaw: float = float(heading & 0xFFFF) / 65536.0 * TAU
 		pos.x += sin(yaw) * speed * delta
 		pos.z += cos(yaw) * speed * delta
@@ -248,18 +262,18 @@ func _moving(delta: float) -> void:
 		_start_escape(false)
 		return
 	_bob = fmod(_bob + BOB_RATE * delta, 65536.0)
-	var want: float = _ground(Vector2(pos.x, pos.z)) + y_offset + sin(_bob / 65536.0 * TAU) * BOB_GX
+	var want: float = _ground(pos) + y_offset + sin(_bob / 65536.0 * TAU) * BOB
 	pos.y = _ease(pos.y, want, delta)
 	if _hits_wall():
-		y_offset = minf(y_offset + CLIMB_SPEED * delta, HEIGHT_MAX_GX)
-	elif y_offset > HEIGHT_GX:
-		y_offset = maxf(y_offset - SINK_SPEED * delta, HEIGHT_GX)
-	var here: Node3D = _tree_at(Vector2(pos.x, pos.z))
+		y_offset = minf(y_offset + CLIMB_SPEED * delta, HEIGHT_MAX)
+	elif y_offset > HEIGHT:
+		y_offset = maxf(y_offset - SINK_SPEED * delta, HEIGHT)
+	var here: Node3D = _tree_at(pos)
 	if here != null:
-		var perch: Vector3 = _perch_gx(here)
+		var perch: Vector3 = _perch(here)
 		var d := Vector2(perch.x - pos.x, perch.z - pos.z)
-		var r2: float = 484.0 if _is_cedar(here) else 225.0
-		if d.length_squared() < r2 and (perch.y - pos.y) * (perch.y - pos.y) < 225.0:
+		var reach: float = SNAG_REACH_CEDAR if _is_cedar(here) else SNAG_REACH
+		if d.length() < reach and absf(perch.y - pos.y) < SNAG_HEIGHT:
 			tree = here
 			_start_snag()
 		return
@@ -267,7 +281,7 @@ func _moving(delta: float) -> void:
 		for off: int in TURN_CHECKS:
 			var a: int = heading + off
 			var yaw: float = float(a & 0xFFFF) / 65536.0 * TAU
-			var ahead := Vector2(pos.x + sin(yaw) * LOOK_AHEAD_GX, pos.z + cos(yaw) * LOOK_AHEAD_GX)
+			var ahead := Vector3(pos.x + sin(yaw) * LOOK_AHEAD, 0.0, pos.z + cos(yaw) * LOOK_AHEAD)
 			if _tree_at(ahead) != null:
 				heading = a
 				_turned = true
@@ -289,8 +303,8 @@ func _wood_stop(delta: float) -> void:
 	if escape_time <= ESCAPE_SEC or tree == null or not is_instance_valid(tree):
 		_start_escape(false)
 		return
-	var perch: Vector3 = _perch_gx(tree)
-	if Vector2(pos.x - perch.x, pos.z - perch.z).length() > 2.0:
+	var perch: Vector3 = _perch(tree)
+	if Vector2(pos.x - perch.x, pos.z - perch.z).length() > PERCH_SETTLE:
 		pos.x = _ease(pos.x, perch.x, delta)
 		pos.y = _ease(pos.y, perch.y, delta)
 		pos.z = _ease(pos.z, perch.z, delta)
@@ -332,7 +346,7 @@ func _escape(delta: float) -> void:
 	_rise = minf(_rise + RISE_ACCEL * delta, RISE_MAX)
 	var ramp: float = (_rise - start) / RISE_ACCEL
 	pos.y += 0.5 * (start + _rise) * ramp + _rise * (delta - ramp)
-	if pos.y > _ground(Vector2(pos.x, pos.z)) + LEAVE_HEIGHT_GX:
+	if pos.y > _ground(pos) + LEAVE_HEIGHT:
 		gone.emit(look_up)
 		queue_free()
 
@@ -352,7 +366,8 @@ static func true_present(r: RandomNumberGenerator) -> StringName:
 
 
 func _out_of_town() -> bool:
-	if pos.x <= EDGE_MIN or pos.x >= EDGE_MAX_X or pos.z <= EDGE_MIN or pos.z >= EDGE_MAX_Z:
+	var field: Vector2 = _world_to_field(pos)
+	if field.x <= EDGE_MIN or field.x >= EDGE_MAX_X or field.y <= EDGE_MIN or field.y >= EDGE_MAX_Z:
 		return true
 	var mgr: EventManager = EventManager.find(get_tree())
 	if mgr == null:
@@ -360,50 +375,53 @@ func _out_of_town() -> bool:
 	var station: Vector2i = mgr.block_of("station")
 	if station.x < 0:
 		return false
-	var local := Vector2(pos.x - station.x * 640.0, pos.z - station.y * 640.0)
+	var local := Vector2(field.x - station.x * 640.0, field.y - station.y * 640.0)
 	return STATION_BOX.has_point(local)
 
 
-## --- Map helpers (GX ↔ world) -------------------------------------------------------------
+## --- Map edge: decomp field positions (GX) ↔ the world ---------------------------------------
+## The field counts from its border ring, 16 units (640 GX) in from the grid's corner.
 
 
-func _cell_of(gx: Vector2) -> Vector2i:
-	return Vector2i(floori(gx.x / 40.0) - 16, floori(gx.y / 40.0) - 16)
-
-
-func _to_world(gx: Vector3) -> Vector3:
+func _field_to_world(field: Vector2) -> Vector3:
 	if _world == null or _world.grid == null:
-		return gx * FieldCatalog.GX_TO_METERS
+		return Vector3(field.x, 0.0, field.y) * GX
 	var cs: float = _world.grid.cell_size
-	return _world.grid.origin + Vector3((gx.x / 40.0 - 16.0) * cs, gx.y * FieldCatalog.GX_TO_METERS, (gx.z / 40.0 - 16.0) * cs)
+	return _world.grid.origin + Vector3((field.x / 40.0 - 16.0) * cs, 0.0, (field.y / 40.0 - 16.0) * cs)
 
 
-func _to_gx(world: Vector3) -> Vector3:
+func _world_to_field(world: Vector3) -> Vector2:
+	if _world == null or _world.grid == null:
+		return Vector2(world.x, world.z) / GX
 	var cs: float = _world.grid.cell_size
 	var rel: Vector3 = world - _world.grid.origin
-	return Vector3((rel.x / cs + 16.0) * 40.0, world.y / FieldCatalog.GX_TO_METERS, (rel.z / cs + 16.0) * 40.0)
+	return Vector2((rel.x / cs + 16.0) * 40.0, (rel.z / cs + 16.0) * 40.0)
 
 
-## `mCoBG_GetBalloonGroundY` (the sea counts as one unit up).
-func _ground(gx: Vector2) -> float:
+func _cell_of(world: Vector3) -> Vector2i:
+	return _world.grid.world_to_cell(world)
+
+
+## `mCoBG_GetBalloonGroundY` (the sea counts as one unit up), metres.
+func _ground(world: Vector3) -> float:
 	if _world == null or _world.layout == null:
 		return 0.0
-	var cell: Vector2i = _cell_of(gx)
+	var cell: Vector2i = _cell_of(world)
 	if not _world.layout.is_in_bounds(cell):
 		cell = Vector2i(clampi(cell.x, 0, _world.grid.columns - 1), clampi(cell.y, 0, _world.grid.rows - 1))
-	return FieldCollision.ground_y(_world.layout, cell) / FieldCatalog.GX_TO_METERS
+	return FieldCollision.ground_y(_world.layout, cell)
 
 
-## `mCoBG_BgCheckControll(…, 12, …)` hitting a wall: the ground 12 GX ahead steps up (a cliff).
+## `mCoBG_BgCheckControll(…, 12, …)` hitting a wall: the ground just ahead steps up (a cliff).
 func _hits_wall() -> bool:
 	var yaw: float = float(heading & 0xFFFF) / 65536.0 * TAU
-	var here: float = _ground(Vector2(pos.x, pos.z))
-	var ahead: float = _ground(Vector2(pos.x + sin(yaw) * 12.0, pos.z + cos(yaw) * 12.0))
-	return ahead > here + 20.0
+	var here: float = _ground(pos)
+	var ahead: float = _ground(pos + Vector3(sin(yaw), 0.0, cos(yaw)) * WALL_LOOK)
+	return ahead > here + WALL_STEP
 
 
 ## `mFI_GetUnitFG` is a tree the balloon can snag on (cells cached, re-read every 2 s).
-func _tree_at(gx: Vector2) -> Node3D:
+func _tree_at(world: Vector3) -> Node3D:
 	if _world == null or _world.grid == null:
 		return null
 	var now: int = Time.get_ticks_msec()
@@ -413,7 +431,7 @@ func _tree_at(gx: Vector2) -> Node3D:
 		for node: Node in get_tree().get_nodes_in_group("plant"):
 			if node is Node3D and node.has_method("can_catch_balloon"):
 				_trees[_world.grid.world_to_cell((node as Node3D).global_position)] = node
-	var n: Variant = _trees.get(_cell_of(gx))
+	var n: Variant = _trees.get(_cell_of(world))
 	if n == null or not is_instance_valid(n) or not bool((n as Node3D).call("can_catch_balloon")):
 		return null
 	return n as Node3D
@@ -423,12 +441,12 @@ func _is_cedar(t: Node3D) -> bool:
 	return t.has_method("_family") and int(t.call("_family")) == PlantData.Family.CEDAR
 
 
-func _perch_gx(t: Node3D) -> Vector3:
-	return _to_gx(t.call("balloon_perch"))
+func _perch(t: Node3D) -> Vector3:
+	return t.call("balloon_perch")
 
 
 func _place() -> void:
-	global_position = _to_world(pos)
+	global_position = pos
 	## The tilt flips every 4 frames of the wobble.
 	var wobble_frame: int = int(_wobble * FRAME_HZ)
 	rotation.z = deg_to_rad(2.7) * (1.0 if wobble_frame & 4 == 0 else -1.0) if _wobble > 0.0 else 0.0

@@ -21,9 +21,9 @@ func test_gold_glints_more_often_and_higher_than_jade() -> void:
 		assert_float(gold).is_between(5.0 / 60.0, 15.0 / 60.0)
 		var jade: float = StatueSparkle.next_wait(3, rng)
 		assert_float(jade).is_between(0.5, 1.5)
-		var at: Vector3 = StatueSparkle.offset_gx(0, rng)
+		var at: Vector3 = StatueSparkle.offset(0, rng) / FieldCatalog.GX_TO_METERS
 		assert_float(at.y).is_between(68.0 - 21.0, 68.0 + 21.0)
-		assert_float(at.z).is_equal(14.0)
+		assert_float(at.z).is_equal_approx(14.0, 0.0001)
 
 
 func test_a_glint_frees_itself() -> void:

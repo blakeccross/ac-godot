@@ -86,7 +86,7 @@ func bind(visual: Node3D, actor: Node3D = null) -> bool:
 ## distance / cone gates and `skip_look`. `skip_look`: `aNPC_COND_DEMO_SKIP_HEAD_LOOKAT`
 ## (asleep in bed, walking in the door), which drops the priority-1 player request so the
 ## head eases back to the animation. `sleepy`: the sleepy feel freezes the head where it is.
-func tick(
+func advance(
 	delta: float,
 	player: Node3D,
 	body_yaw: float,

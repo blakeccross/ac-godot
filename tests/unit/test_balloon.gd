@@ -51,3 +51,24 @@ func test_the_wind_is_the_sessions_and_a_new_session_brings_a_new_one() -> void:
 	Game.reset_session()
 	assert_that(Game.wind).is_not_null()
 	assert_that(Game.wind).is_not_same(before)
+
+
+## Over the town a balloon cruises 110 GX up (bobbing 10) and drifts downwind at 1–1.5 GX a
+## frame, so in metres it moves 1.5–2.25 m a second.
+func test_a_balloon_drifts_downwind_at_cruising_height() -> void:
+	var world: World = auto_free(load("res://scenes/world/world.tscn").instantiate()) as World
+	add_child(world)
+	await get_tree().process_frame
+	var balloon := Balloon.new()
+	world.add_child(balloon)
+	auto_free(balloon)
+	var start: Vector3 = world.grid.cell_to_world(Vector2i(world.grid.columns / 2, world.grid.rows / 2))
+	balloon.start_near(start)
+	balloon.heading = 0
+	var from: Vector3 = balloon.pos
+	for _i: int in 120:
+		balloon._step(1.0 / 60.0)
+	var flat: float = Vector2(balloon.pos.x - from.x, balloon.pos.z - from.z).length()
+	assert_float(flat).is_between(1.5 * 2.0 * 0.9, 2.25 * 2.0 * 1.1)
+	var ground: float = FieldCollision.ground_y(world.layout, world.grid.world_to_cell(balloon.pos))
+	assert_float(balloon.pos.y - ground).is_between(Balloon.HEIGHT - Balloon.BOB - 0.5, Balloon.HEIGHT + Balloon.BOB + 0.5)

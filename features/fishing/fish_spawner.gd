@@ -46,8 +46,8 @@ func _process(delta: float) -> void:
 	## The shadows move first and the bobber reads what they did, the way the actors take
 	## turns.
 	var sense: FishShadow.Sense = _make_sense()
-	_school.tick(delta, sense)
-	_school.line.tick(delta, _school)
+	_school.advance(delta, sense)
+	_school.line.advance(delta, _school)
 	_sync()
 
 

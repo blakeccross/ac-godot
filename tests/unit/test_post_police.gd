@@ -58,7 +58,7 @@ func test_post_girl_talk_msg_matches_decomp_status() -> void:
 	assert_bool(
 		String(data.id).begins_with("msg_") or data.id == PostDisplay.FALLBACK_GREETING_ID
 	).is_true()
-	assert_vector(PostDisplay.PTERMINAL_GX).is_equal(Vector3(60.0, 0.0, 240.0))
+	assert_vector(PostDisplay.PTERMINAL).is_equal_approx(Vector3(3.0, 0.0, 12.0), Vector3.ONE * 0.0001)
 
 
 func test_post_book_desk_capacity() -> void:
@@ -132,7 +132,7 @@ func test_post_office_shell_has_door_gap_and_desk() -> void:
 	assert_int(bodies).is_greater(2)
 	assert_that(root.get_node_or_null("Furniture/PostDesk")).is_not_null()
 	assert_that(root.get_node_or_null("Furniture/PostTerminal")).is_not_null()
-	assert_vector(PostDisplay.DESK_CENTER_GX).is_equal(Vector3(160.0, 0.0, 140.0))
+	assert_vector(PostDisplay.DESK_CENTER).is_equal_approx(Vector3(8.0, 0.0, 7.0), Vector3.ONE * 0.0001)
 
 
 func test_enter_sets_decomp_spawns() -> void:
@@ -142,16 +142,16 @@ func test_enter_sets_decomp_spawns() -> void:
 	var post_room: Room = InteriorCatalog.room_template(&"post_office")
 	assert_that(post_room).is_not_null()
 	## Mirror `Game.try_enter_interior` spawn branches.
-	Game.arrival.stand_gx = PostDisplay.SPAWN_GX
+	Game.arrival.stand = PostDisplay.SPAWN
 	Game.arrival.stand_yaw = WorldGrid.yaw_for_facing(PostDisplay.SPAWN_FACING)
 	Game.arrival.has_stand = true
-	assert_vector(Game.arrival.stand_gx).is_equal(PostDisplay.SPAWN_GX)
+	assert_vector(Game.arrival.stand).is_equal(PostDisplay.SPAWN)
 	assert_float(Game.arrival.stand_yaw).is_equal_approx(
 		WorldGrid.yaw_for_facing(PostDisplay.SPAWN_FACING), 0.01
 	)
-	Game.arrival.stand_gx = PoliceDisplay.SPAWN_GX
+	Game.arrival.stand = PoliceDisplay.SPAWN
 	Game.arrival.stand_yaw = WorldGrid.yaw_for_facing(PoliceDisplay.SPAWN_FACING)
-	assert_vector(Game.arrival.stand_gx).is_equal(PoliceDisplay.SPAWN_GX)
+	assert_vector(Game.arrival.stand).is_equal(PoliceDisplay.SPAWN)
 	assert_float(Game.arrival.stand_yaw).is_equal_approx(
 		WorldGrid.yaw_for_facing(PoliceDisplay.SPAWN_FACING), 0.01
 	)
@@ -162,20 +162,20 @@ func test_police_spawn_maps_onto_exit_strip() -> void:
 	var police: Room = InteriorCatalog.room_template(&"police_box")
 	var police_session := IndoorSession.new()
 	police_session.bind(police)
-	var police_world: Vector3 = PoliceDisplay.gx_to_world(
-		police_session.grid, PoliceDisplay.SPAWN_GX
+	var police_world: Vector3 = WorldGrid.room_point(
+		police_session.grid, PoliceDisplay.SPAWN
 	)
 	var police_cell: Vector2i = police_session.grid.world_to_cell(police_world)
 	assert_bool(police.is_exit_cell(police_cell)).is_false()
 	assert_int(police_cell.y).is_equal(PoliceDisplay.SPAWN_CELL.y)
-	var stale_exit: Vector3 = PoliceDisplay.gx_to_world(
-		police_session.grid, Vector3(200.0, 0.0, 400.0)
+	var stale_exit: Vector3 = WorldGrid.room_point(
+		police_session.grid, Vector3(200.0, 0.0, 400.0) * FieldCatalog.GX_TO_METERS
 	)
 	assert_bool(police.is_exit_cell(police_session.grid.world_to_cell(stale_exit))).is_true()
 	var post: Room = InteriorCatalog.room_template(&"post_office")
 	var post_session := IndoorSession.new()
 	post_session.bind(post)
-	var post_world: Vector3 = PostDisplay.gx_to_world(post_session.grid, PostDisplay.SPAWN_GX)
+	var post_world: Vector3 = WorldGrid.room_point(post_session.grid, PostDisplay.SPAWN)
 	assert_bool(post.is_exit_cell(post_session.grid.world_to_cell(post_world))).is_false()
 
 

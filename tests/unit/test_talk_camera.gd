@@ -16,7 +16,7 @@ func test_talk_frame_is_closer_than_follow() -> void:
 	var center: Vector3 = framed["center"] as Vector3
 	var dist: float = float(framed["distance"])
 	assert_float(dist).is_less(620.0 * PlayerLocomotion.UNIT_METERS)
-	assert_float(dist).is_greater(TalkCamera.BASE_DIST_GX * FieldCatalog.GX_TO_METERS * 0.9)
+	assert_float(dist).is_greater(TalkCamera.BASE_DIST * 0.9)
 	assert_float(eye.distance_to(center)).is_equal_approx(dist, 0.05)
 	## Flatter than the 45° follow camera (inv pitch ~24°).
 	var rise: float = eye.y - center.y

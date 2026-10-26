@@ -61,17 +61,17 @@ const TREE_FACE_YAW := PI
 
 class Sense:
 	var player_position: Vector3 = Vector3.INF
-	## Player planar speed as GX per 30 Hz decomp frame (`Player.insect_stress_move_gx`).
-	## Stress uses the per-60 Hz-tick move (`world - last_world_position`); this is only
-	## the fallback when no move is observed between ticks, halved to that unit.
-	var player_move_gx: float = 0.0
+	## Player planar speed, m/s (`Player.planar_speed`). Stress uses the per-60 Hz-tick move
+	## (`world - last_world_position`); this is only the fallback when no move is observed
+	## between ticks.
+	var player_speed: float = 0.0
 	var player_dashing: bool = false
 	var player_yaw: float = 0.0
 	var player_swung_tool: bool = false
 	## `aINS_get_stress` also reads the NPC actor list: every villager on the field (metres)
-	## and how far it moved this 30 Hz frame (GX), index-aligned.
+	## and its planar speed (m/s), index-aligned.
 	var npc_positions: PackedVector3Array = PackedVector3Array()
-	var npc_moves_gx: PackedFloat32Array = PackedFloat32Array()
+	var npc_speeds: PackedFloat32Array = PackedFloat32Array()
 	## `mPlib_Check_StopNet`: true for the one frame the player's swing stops or pulls in,
 	## with `net_swing_origin` the net's position (metres).
 	var net_swing_origin: Vector3 = Vector3.INF
@@ -330,7 +330,7 @@ func net_candidate(player_position_m: Vector3) -> NetSwing.Candidate:
 	var range_gx: float = net_catch_range_gx(player_position_m)
 	if is_zero_approx(range_gx):
 		return null
-	return NetSwing.Candidate.new(self, position, range_gx)
+	return NetSwing.Candidate.new(self, position, range_gx * GX_M)
 
 
 # ---- the step -------------------------------------------------------------
@@ -463,9 +463,9 @@ func _calc_stress(sense: Sense) -> float:
 	var stress: float = 0.0
 	if sense.has_player():
 		stress = _stress_from(sense.player_position / GX_M, _player_frame_move_gx(sense))
-	## `npc_moves_gx` is per 30 Hz frame; the decomp's frame move is per 60 Hz tick.
-	for i: int in mini(sense.npc_positions.size(), sense.npc_moves_gx.size()):
-		var move: float = sense.npc_moves_gx[i] / DecompTime.TICKS_PER_FRAME
+	## The decomp's frame move is per 60 Hz tick.
+	for i: int in mini(sense.npc_positions.size(), sense.npc_speeds.size()):
+		var move: float = sense.npc_speeds[i] / GX_M / DecompTime.TICK_HZ
 		stress = maxf(stress, _stress_from(sense.npc_positions[i] / GX_M, move))
 	return stress
 
@@ -495,8 +495,8 @@ func _player_frame_move_gx(sense: Sense) -> float:
 			sense.player_position.x / GX_M - _last_player_gx.x,
 			sense.player_position.z / GX_M - _last_player_gx.z
 		).length() / maxf(n, 0.0001)
-	if observed <= 0.0 and sense.player_move_gx > 0.0:
-		observed = sense.player_move_gx / DecompTime.TICKS_PER_FRAME
+	if observed <= 0.0 and sense.player_speed > 0.0:
+		observed = sense.player_speed / GX_M / DecompTime.TICK_HZ
 	return observed
 
 

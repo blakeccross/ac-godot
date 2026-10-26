@@ -16,10 +16,9 @@ const SE_RIVER := &"lev_b"
 const SE_SEA := &"lev_1c"
 const SE_POND := &"lev_16"
 const SE_FROG := &"lev_a1"
-const SEA_OFS_Z_GX := 175.0
-const SOURCE_LIFT_GX := 40.0
-const UT_GX := 40.0
-const BLOCK_GX := 640.0
+const SEA_OFS_Z := 175.0 * FieldCatalog.GX_TO_METERS
+const SOURCE_LIFT := 40.0 * FieldCatalog.GX_TO_METERS
+const UT := 40.0 * FieldCatalog.GX_TO_METERS
 ## `aFD_block_offset_table`: current, west, east, then the rest of the 3×3.
 const SEARCH: Array[Vector2i] = [
 	Vector2i(0, 0), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, -1),
@@ -38,7 +37,7 @@ func _ready() -> void:
 		_players.append(p)
 
 
-## Sound sources of decomp block `block` in GX, `[kind, Vector3]`.
+## Sound sources of decomp block `block` as field positions (`TownSpace`), `[kind, Vector3]`.
 static func block_sources(layout: WorldData, block: Vector2i) -> Array:
 	var out: Array = []
 	if layout == null or layout.acre_visuals.size() != TownFieldGenerator.BLOCK_TOTAL:
@@ -49,7 +48,7 @@ static func block_sources(layout: WorldData, block: Vector2i) -> Array:
 	var raw: PackedInt32Array = FieldCatalog.acre_sounds(visual)
 	for i: int in range(0, raw.size() - 2, 3):
 		var pos := Vector3(
-			block.x * BLOCK_GX + raw[i + 1] * UT_GX + UT_GX * 0.5, 0.0, block.y * BLOCK_GX + raw[i + 2] * UT_GX + UT_GX * 0.5
+			block.x * TownSpace.BLOCK + raw[i + 1] * UT + UT * 0.5, 0.0, block.y * TownSpace.BLOCK + raw[i + 2] * UT + UT * 0.5
 		)
 		out.append([raw[i], pos])
 	return out
@@ -90,15 +89,15 @@ func _process(_delta: float) -> void:
 		_silence()
 		return
 	var layout: WorldData = world.layout
-	var player_gx: Vector3 = TownSpace.world_to_gx(player.global_position)
-	var mic: Vector3 = player_gx + SoundEmitter.MIC_OFFSET_GX
-	var block: Vector2i = TownSpace.block_of(player_gx)
+	var player_at: Vector3 = TownSpace.world_to_field(player.global_position)
+	var mic: Vector3 = player_at + SoundEmitter.MIC_OFFSET
+	var block: Vector2i = TownSpace.block_of(player_at)
 	var sources: Array = []
 	if is_marine(layout, block):
-		for p: Vector3 in nearest_two(layout, block, KIND_SEA, ROW_SEARCH, player_gx):
-			sources.append([SE_SEA, p + Vector3(0.0, 0.0, SEA_OFS_Z_GX)])
+		for p: Vector3 in nearest_two(layout, block, KIND_SEA, ROW_SEARCH, player_at):
+			sources.append([SE_SEA, p + Vector3(0.0, 0.0, SEA_OFS_Z)])
 	else:
-		for p: Vector3 in nearest_two(layout, block, KIND_RIVER, SEARCH.size(), player_gx):
+		for p: Vector3 in nearest_two(layout, block, KIND_RIVER, SEARCH.size(), player_at):
 			sources.append([SE_RIVER, p])
 	for src: Array in block_sources(layout, block):
 		if int(src[0]) != KIND_POND:
@@ -106,7 +105,7 @@ func _process(_delta: float) -> void:
 		var pond: Vector3 = src[1]
 		sources.append([SE_POND, pond])
 		if frogs_sing(Clock.month, Clock.hour):
-			sources.append([SE_FROG, pond + Vector3(UT_GX * 0.5, 0.0, UT_GX * 0.5)])
+			sources.append([SE_FROG, pond + Vector3(UT * 0.5, 0.0, UT * 0.5)])
 		break
 	for i: int in _players.size():
 		var p: AudioStreamPlayer = _players[i]
@@ -115,7 +114,7 @@ func _process(_delta: float) -> void:
 			continue
 		var id: StringName = sources[i][0]
 		var at: Vector3 = sources[i][1]
-		at.y = player_gx.y + SOURCE_LIFT_GX
+		at.y = player_at.y + SOURCE_LIFT
 		var vol: float = SoundEmitter.volume(mic.distance_to(at))
 		if vol <= 0.0:
 			p.stop()

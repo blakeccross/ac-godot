@@ -15,7 +15,7 @@ func _run(
 	var left: float = seconds
 	while left > 0.00001:
 		var dt: float = minf(step, left)
-		motor.tick(dt, wish, stick, dash, false)
+		motor.advance(dt, wish, stick, dash, false)
 		left -= dt
 
 
@@ -140,7 +140,7 @@ func test_locked_action_brakes() -> void:
 	var motor := PlayerLocomotion.new()
 	_frames(motor, 60, Vector3.BACK, 1.0)
 	var before: float = motor.speed
-	motor.tick(FRAME, Vector3.BACK, 1.0, true, true)
+	motor.advance(FRAME, Vector3.BACK, 1.0, true, true)
 	assert_float(motor.speed).is_less(before)
 
 

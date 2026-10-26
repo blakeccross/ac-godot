@@ -60,7 +60,8 @@ static func create(p_fish: FishData, index: int, grid: WorldGrid, rng: RandomNum
 	actor._drag = float(init.get("drag", 0.98995))
 	actor._turn_limit = deg_to_rad(float(init.get("turn_deg", 70.0)))
 	## `_0C` is absolute swim Y in GX. Shell floors snap authored Y=40 GX to world 0.
-	actor._water_line_gx = MuseumDisplay.TANK_POS_GX[actor.tank].y
+	## The tank swim runs in the decomp's GX; the water line comes in from the room layout.
+	actor._water_line_gx = MuseumDisplay.TANK_POS[actor.tank].y / FieldCatalog.GX_TO_METERS
 	var swim_gx: float = float(init.get("depth", 70.0))
 	actor._swim_y = (swim_gx - actor._water_line_gx) * FieldCatalog.GX_TO_METERS
 	actor._speed = actor._speed_min * FieldCatalog.GX_TO_METERS * DecompTime.TICK_HZ
@@ -68,8 +69,8 @@ static func create(p_fish: FishData, index: int, grid: WorldGrid, rng: RandomNum
 	var active_min: int = int(init.get("active_min", 120))
 	var active_range: int = int(init.get("active_range", 120))
 	actor._activity = float(active_min + actor._rng.randi_range(0, maxi(active_range, 0))) / DecompTime.TICK_HZ
-	var center_gx: Vector3 = MuseumDisplay.TANK_POS_GX[actor.tank]
-	actor._tank_center = MuseumDisplay.gx_to_world(grid, Vector3(center_gx.x, 0.0, center_gx.z))
+	var center_gx: Vector3 = MuseumDisplay.TANK_POS[actor.tank]
+	actor._tank_center = WorldGrid.room_point(grid, Vector3(center_gx.x, 0.0, center_gx.z))
 	## Start inside the tightest BGCheck half (`54 + _28`).
 	var half: Vector3 = actor._swim_half_gx(1.0, 1.0) * FieldCatalog.GX_TO_METERS
 	var jitter: float = actor._rng.randf_range(-0.5, 0.5) * FieldCatalog.GX_TO_METERS * 10.0
@@ -89,7 +90,7 @@ func render_scale() -> float:
 	return _init_scale / FieldCatalog.PIPELINE_SCALE * FieldCatalog.GX_TO_METERS
 
 
-func tick(delta: float) -> void:
+func advance(delta: float) -> void:
 	if fish == null:
 		return
 	_activity -= delta

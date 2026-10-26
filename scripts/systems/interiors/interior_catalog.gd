@@ -18,13 +18,13 @@ const NPC_INNER_SIZE := Vector2i(6, 6)
 ## `fgnpcdata` EXIT_DOOR pair + `aHUS_npc_house_door_data` enter stand.
 const NPC_HOUSE_DOOR_CELL := Vector2i(3, 8)
 const NPC_HOUSE_SPAWN_CELL := Vector2i(3, 7)
-const NPC_HOUSE_SPAWN_GX := Vector3(160.0, 0.0, 300.0)
+const NPC_HOUSE_SPAWN := Vector3(160.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS
 ## Able Sisters outdoor enter (`aNW_needlework_shop_door_data`): same stand / NORTH.
 ## `aNW_needlework_shop_door_data` GX {160,0,300}, orient 4 (north) — you enter AND
 ## leave at the door. `rom_tailor.col.json` (16×16 units @ 40 GX) puts this on the
 ## porch cell (4,7); `block_auto_enter_doors` keeps you from re-exiting until you
 ## step off it into the shop.
-const ABLE_SPAWN_GX := Vector3(160.0, 0.0, 300.0)
+const ABLE_SPAWN := Vector3(160.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS
 const ABLE_SPAWN_FACING := WorldGrid.Facing.NORTH
 ## Small player main (`l_proom_s_tmp`, `rom_myhome1_*`): 4×4 walkable, same NW origin.
 const PLAYER_INNER_ORIGIN := Vector2i(1, 1)
@@ -32,7 +32,7 @@ const PLAYER_INNER_SIZE := Vector2i(4, 4)
 ## `l_proom_s_tmp` EXIT_DOOR + `aMHS_goto_next_pl_scene` startX/Z[HOMESIZE_S].
 const PLAYER_SMALL_DOOR_CELL := Vector2i(2, 7)
 const PLAYER_SMALL_SPAWN_CELL := Vector2i(2, 5)
-const PLAYER_SMALL_SPAWN_GX := Vector3(120.0, 0.0, 220.0)
+const PLAYER_SMALL_SPAWN := Vector3(120.0, 0.0, 220.0) * FieldCatalog.GX_TO_METERS
 ## `l_mHm_player_room_default_data[0]`: stone wall & old flooring.
 const PLAYER_START_WALL := 3
 const PLAYER_START_FLOOR := 38

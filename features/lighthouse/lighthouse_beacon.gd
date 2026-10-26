@@ -61,12 +61,12 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	tick(delta)
+	advance(delta)
 	_apply()
 
 
 ## `aTOU_actor_move` over `delta` seconds.
-func tick(delta: float) -> void:
+func advance(delta: float) -> void:
 	if follow_clock and Game != null and Game.lighthouse != null and Clock != null:
 		lit = Game.lighthouse.lamp_on_now()
 	var before: float = frame

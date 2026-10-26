@@ -18,7 +18,7 @@ func _moods(kind: StringName, view_diff: float = 0.0) -> NpcFeelMoods:
 
 func _run(m: NpcFeelMoods, ticks: int) -> void:
 	for _i: int in ticks:
-		m.tick(1.0 / 60.0)
+		m.advance(1.0 / 60.0)
 
 
 func test_each_reaction_family_names_its_effect() -> void:
@@ -148,7 +148,7 @@ func test_shivering_flicks_between_two_frames() -> void:
 	var widths: Array[float] = []
 	for _i: int in 4:
 		widths.append(absf(m._body.node.scale.x))
-		m.tick(1.0 / 60.0)
+		m.advance(1.0 / 60.0)
 	assert_bool(widths.max() > widths.min()).is_true()
 
 
@@ -214,11 +214,11 @@ func test_effects_spawn_the_same_at_a_low_frame_rate() -> void:
 		var seen_fine: Dictionary = {}
 		var seen_coarse: Dictionary = {}
 		for _i: int in 120:
-			fine.tick(1.0 / 60.0)
+			fine.advance(1.0 / 60.0)
 			for p: NpcFeelMoods.Part in fine.parts:
 				seen_fine[p] = true
 		for _i: int in 30:
-			coarse.tick(1.0 / 15.0)
+			coarse.advance(1.0 / 15.0)
 			for p: NpcFeelMoods.Part in coarse.parts:
 				seen_coarse[p] = true
 		var made_fine: int = seen_fine.size()

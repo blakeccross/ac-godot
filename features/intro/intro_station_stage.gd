@@ -141,11 +141,11 @@ const CAM_FAR_METERS := 80.0
 const LOCO_YAW := 0.0
 const MID_YAW := 0.0
 const CABOOSE_YAW := 0.0
-## Unscaled mesh AABB centers (GX / pipeline units) at yaw 0 — applied on the
+## Unscaled mesh AABB centers (model units) at yaw 0 — applied on the
 ## GeneratedVisual child so the car body sits on the track actor point.
-const LOCO_MESH_CENTER_GX := Vector3(0.25, 0.0, 0.0)
-const MID_MESH_CENTER_GX := Vector3(0.75, 0.0, 0.0)
-const CABOOSE_MESH_CENTER_GX := Vector3(0.0, 0.0, 0.98)
+const LOCO_MESH_CENTER := Vector3(0.25, 0.0, 0.0)
+const MID_MESH_CENTER := Vector3(0.75, 0.0, 0.0)
+const CABOOSE_MESH_CENTER := Vector3(0.0, 0.0, 0.98)
 
 const NOOK_WAIT_CLIP := "npc_1_wait1"
 const NOOK_WALK_CLIP := "npc_1_walk1"
@@ -261,8 +261,8 @@ func reset() -> void:
 		_control = TrainControl.new()
 		_control.demo_init(Clock.now_sec(), Clock.day)
 		_cars = TrainCars.new()
-		_cars.spawn(_control.x_gx)
-		_rail_y_gx = ground_y_gx(_control.x_gx - BLOCK_ORIGIN_GX.x, TRACK_Z_GX)
+		_cars.spawn(_control.x)
+		_rail_y_gx = ground_y_gx(_loco_x_gx() - BLOCK_ORIGIN_GX.x, TRACK_Z_GX)
 		_start_loco_wheels()
 		VisualTrain.snap_train_doors_closed(_caboose_anim)
 		_place_own_train()
@@ -309,7 +309,7 @@ func missing_assets() -> PackedStringArray:
 	return missing
 
 
-func tick(delta: float) -> void:
+func advance(delta: float) -> void:
 	_advance(delta)
 	if _player_may_move():
 		_debug_player_control(delta)
@@ -714,13 +714,15 @@ func _step_nook_to(delta: float, goal: Vector3, run: bool) -> bool:
 		return true
 	## `aNPC_position_move` runs every frame on the actor's speed; the action's arrival check
 	## only ends the action — a new point he is already inside is simply run past.
+	## `NpcPointMove` runs in metres; the stage keeps GX.
+	var gx: float = FieldCatalog.GX_TO_METERS
 	var pos: Vector3 = _node_gx(_nook)
 	_nook_move.facing = _nook.rotation.y
-	var next: Vector3 = _nook_move.step_to(delta, pos, goal, run)
+	var next: Vector3 = _nook_move.step_to(delta, pos * gx, goal * gx, run) / gx
 	_set_node_gx(_nook, _with_ground(next))
 	_nook_face(_nook_move.facing)
 	_play_clip(_nook_anim, NOOK_RUN_CLIP if run else NOOK_WALK_CLIP, true)
-	return NpcPointMove.arrived(next, goal)
+	return NpcPointMove.arrived(next * gx, goal * gx)
 
 
 func _nook_face(yaw: float) -> void:
@@ -778,7 +780,7 @@ func _debug_player_control(delta: float) -> void:
 		return
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var stick: float = clampf(input_dir.length(), 0.0, 1.0)
-	var planar: Vector3 = _motor.tick(
+	var planar: Vector3 = _motor.advance(
 		delta, _camera_wish(input_dir), stick, Input.is_action_pressed("sprint"), false
 	)
 	var pos: Vector3 = _player_gx()
@@ -803,7 +805,7 @@ func _step_own_train(delta: float) -> void:
 	_control.advance(delta, Clock.now_sec(), Clock.day)
 	if _control.action == TrainControl.Action.NONE:
 		return
-	var door: Dictionary = _cars.advance(delta, _control.x_gx, _control.speed, _control.action, false)
+	var door: Dictionary = _cars.advance(delta, _control.x, _control.speed, _control.action, false)
 	if not door.is_empty():
 		FieldTrain.apply_door(_caboose_anim, door)
 	if _loco_anim != null:
@@ -811,19 +813,24 @@ func _step_own_train(delta: float) -> void:
 	_place_own_train()
 
 
+## `TrainControl` / `TrainCars` run in field metres; the stage places in decomp GX.
+func _loco_x_gx() -> float:
+	return _control.x / FieldCatalog.GX_TO_METERS
+
+
 func _place_own_train() -> void:
-	var loco_gx := Vector3(_control.x_gx - BLOCK_ORIGIN_GX.x, _rail_y_gx, TRACK_Z_GX)
+	var loco_gx := Vector3(_loco_x_gx() - BLOCK_ORIGIN_GX.x, _rail_y_gx, TRACK_Z_GX)
 	_set_node_gx(_loco, loco_gx)
 	_face_yaw(_loco, LOCO_YAW)
-	VisualTrain.center_train_visual(_loco, LOCO_MESH_CENTER_GX)
-	_set_node_gx(_mid, Vector3(_cars.mid_x - BLOCK_ORIGIN_GX.x, _rail_y_gx, TRACK_Z_GX))
+	VisualTrain.center_train_visual(_loco, LOCO_MESH_CENTER)
+	_set_node_gx(_mid, Vector3(_cars.mid_x / FieldCatalog.GX_TO_METERS - BLOCK_ORIGIN_GX.x, _rail_y_gx, TRACK_Z_GX))
 	_face_yaw(_mid, MID_YAW)
-	VisualTrain.center_train_visual(_mid, MID_MESH_CENTER_GX)
-	_set_node_gx(_caboose, Vector3(_cars.caboose_x - BLOCK_ORIGIN_GX.x, _rail_y_gx, TRACK_Z_GX))
+	VisualTrain.center_train_visual(_mid, MID_MESH_CENTER)
+	_set_node_gx(_caboose, Vector3(_cars.caboose_x / FieldCatalog.GX_TO_METERS - BLOCK_ORIGIN_GX.x, _rail_y_gx, TRACK_Z_GX))
 	_face_yaw(_caboose, CABOOSE_YAW)
-	VisualTrain.center_train_visual(_caboose, CABOOSE_MESH_CENTER_GX)
+	VisualTrain.center_train_visual(_caboose, CABOOSE_MESH_CENTER)
 	if _engineer != null:
-		_set_node_gx(_engineer, loco_gx + FieldTrain.ENGINEER_OFF_GX)
+		_set_node_gx(_engineer, loco_gx + FieldTrain.ENGINEER_OFF / FieldCatalog.GX_TO_METERS)
 		_face_yaw(_engineer, FieldTrain.ENGINEER_YAW)
 
 
@@ -838,7 +845,7 @@ func _snap_player_to_ride() -> void:
 
 func _caboose_gx() -> Vector3:
 	if _own_train:
-		return Vector3(_cars.caboose_x - BLOCK_ORIGIN_GX.x, _rail_y_gx, TRACK_Z_GX)
+		return Vector3(_cars.caboose_x / FieldCatalog.GX_TO_METERS - BLOCK_ORIGIN_GX.x, _rail_y_gx, TRACK_Z_GX)
 	if _field_train == null or not _field_train.is_spawned():
 		return Vector3.INF
 	return _world_to_gx(_field_train.caboose_world())

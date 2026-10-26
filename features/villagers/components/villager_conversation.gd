@@ -99,7 +99,7 @@ func hold_talk(delta: float) -> void:
 
 func tick_face(delta: float) -> void:
 	sync_face_mood(false)
-	_villager._face.tick(delta, _dialogue_uttering())
+	_villager._face.advance(delta, _dialogue_uttering())
 
 
 func sync_face_mood(force: bool) -> void:

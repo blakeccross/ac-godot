@@ -74,19 +74,19 @@ func test_one_more_every_tenth_minute() -> void:
 	var world := _world()
 	var rng := RandomNumberGenerator.new()
 	var none := Vector2i(-1, -1)
-	ShellUse.tick(world, 3, none, rng)
+	ShellUse.advance(world, 3, none, rng)
 	assert_int(Game.shells_owed).is_equal(0)
 	var before: int = Game.town.shells.size()
 	## Pick one up so there is room again.
 	var first: String = str(Game.town.shells.keys()[0])
 	world.grid.remove(StringName(first))
 	assert_bool(ShellUse.picked(StringName(first))).is_true()
-	ShellUse.tick(world, 10, none, rng)
+	ShellUse.advance(world, 10, none, rng)
 	assert_int(Game.town.shells.size()).is_equal(before)
 	## Same tenth minute: nothing more owed.
 	world.grid.remove(StringName(str(Game.town.shells.keys()[0])))
 	ShellUse.picked(StringName(str(Game.town.shells.keys()[0])))
-	ShellUse.tick(world, 10, none, rng)
+	ShellUse.advance(world, 10, none, rng)
 	assert_int(Game.town.shells.size()).is_equal(before - 1)
 
 

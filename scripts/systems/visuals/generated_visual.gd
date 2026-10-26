@@ -308,7 +308,7 @@ static func attach_special_npc(host: Node3D, skel_id: StringName) -> Node3D:
 	pivot.add_child(packed.instantiate())
 	host.add_child(pivot)
 	VisualFit.apply_actor_scale(pivot, skel_id)
-	VisualFit.align_actor_to_height_gx(pivot, 0.0)
+	VisualFit.align_actor_to_height(pivot, 0.0)
 	apply_preview_materials(pivot)
 	VisualAnimation.stop_autoplay(pivot)
 	return pivot

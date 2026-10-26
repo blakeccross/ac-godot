@@ -24,14 +24,14 @@ func _ready() -> void:
 		_players.append(p)
 
 
-## The nearest `count` sounding actors as `[actor, distance_gx]`, nearest first, from the
+## The nearest `count` sounding actors as `[actor, distance]`, nearest first, from the
 ## mic at `mic_m` (metres). Sources past `SoundEmitter.AREA` are dropped.
 static func pick(actors: Array, mic_m: Vector3, count: int = VOICES) -> Array:
 	var out: Array = []
 	for a: BugActor in actors:
 		if a == null or a.finished or a.loop_sound < 0:
 			continue
-		var d: float = a.position.distance_to(mic_m) / FieldCatalog.GX_TO_METERS
+		var d: float = a.position.distance_to(mic_m)
 		if d > SoundEmitter.AREA:
 			continue
 		out.append([a, d])
@@ -49,7 +49,7 @@ func _process(_delta: float) -> void:
 	if world == null or player == null or world.bugs == null or Game.current_room_id != &"" or Game.title_demo_active:
 		_silence()
 		return
-	var mic_m: Vector3 = player.global_position + SoundEmitter.MIC_OFFSET_GX * FieldCatalog.GX_TO_METERS
+	var mic_m: Vector3 = player.global_position + SoundEmitter.MIC_OFFSET
 	for a: BugActor in world.bugs.actors:
 		for id: StringName in a.one_shot_sounds:
 			_trigger(id, a.position, mic_m)
@@ -86,7 +86,7 @@ func _process(_delta: float) -> void:
 
 ## `Na_OngenTrgStart`: a one-shot, silent past `SoundEmitter.AREA`.
 func _trigger(id: StringName, at_m: Vector3, mic_m: Vector3) -> void:
-	var vol: float = SoundEmitter.volume(at_m.distance_to(mic_m) / FieldCatalog.GX_TO_METERS)
+	var vol: float = SoundEmitter.volume(at_m.distance_to(mic_m))
 	if vol > 0.0:
 		Audio.play_se(id, Audio, 1.0, linear_to_db(vol))
 

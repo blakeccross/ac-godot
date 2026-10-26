@@ -16,8 +16,8 @@ func test_size_grows_on_snow_and_wears_off_elsewhere() -> void:
 	assert_float(SnowmanRules.roll(100.0, 4.0, false)).is_equal(97.0)
 	assert_float(SnowmanRules.roll(6399.0, 3.0, true)).is_equal(SnowmanRules.MOVE_DIST_MAX)
 	assert_float(SnowmanRules.roll(1.0, 4.0, false)).is_equal(0.0)
-	assert_float(SnowmanRules.radius_gx(0.0)).is_equal(10.0)
-	assert_float(SnowmanRules.radius_gx(1.0)).is_equal(30.0)
+	assert_float(SnowmanRules.radius(0.0)).is_equal_approx(10.0 * SnowmanRules.GX, 0.0001)
+	assert_float(SnowmanRules.radius(1.0)).is_equal_approx(30.0 * SnowmanRules.GX, 0.0001)
 	assert_float(SnowmanRules.actor_scale(1.0)).is_equal_approx(0.03, 0.0001)
 
 

@@ -34,7 +34,7 @@ const ANIM_MOVE_COUNTER_GETOFF := 5.0
 ## `Player_actor_setup_main_Knock_door`.
 const KNOCK_MOVE_COUNTER := 5.0
 ## Demo `size_adj` floor when house_info.size is 0 (`aMHS_set_demo_info`).
-const APPROACH_GX := 20.0
+const APPROACH := 20.0 * FieldCatalog.GX_TO_METERS
 ## `cKF_ba_r_ply_1_go_out_o1` frames 25→end (door-close-only emerge).
 const LEAVE_SEC := 34.0 / DecompTime.FRAME_HZ
 ## `cKF_ba_r_ply_1_into_s1` frame count (indoor door / exit walk / outdoor walk-in).
@@ -44,21 +44,21 @@ const OPEN1_SEC := 65.0 / DecompTime.FRAME_HZ
 ## `cKF_ba_r_ply_1_outtrain1` frame count (~28 @ 30 fps).
 const OUTTRAIN_SEC := 28.0 / DecompTime.FRAME_HZ
 ## Indoor exit walks this far south past the door cell center.
-const INTO_GX := 30.0
-## `rewrite_out_data` spawn offsets (GX from actor). Outside structure plus-offsets.
-const MUSEUM_EXIT_GX := Vector2(0.0, 120.0)
-const ABLE_EXIT_GX := Vector2(-64.0, 64.0)
-const SHOP_EXIT_GX := Vector2(-68.29, 68.29)
-const POLICE_EXIT_GX := Vector2(60.0, 60.0)
-const NPC_HOUSE_EXIT_GX := Vector2(0.0, 60.0)
+const INTO := 30.0 * FieldCatalog.GX_TO_METERS
+## `rewrite_out_data` spawn offsets from the actor (written in GX). Outside structure plus-offsets.
+const MUSEUM_EXIT := Vector2(0.0, 120.0) * FieldCatalog.GX_TO_METERS
+const ABLE_EXIT := Vector2(-64.0, 64.0) * FieldCatalog.GX_TO_METERS
+const SHOP_EXIT := Vector2(-68.29, 68.29) * FieldCatalog.GX_TO_METERS
+const POLICE_EXIT := Vector2(60.0, 60.0) * FieldCatalog.GX_TO_METERS
+const NPC_HOUSE_EXIT := Vector2(0.0, 60.0) * FieldCatalog.GX_TO_METERS
 ## `aTOU_rewrite_door`: leave 70 GX north of the tower, facing north (`exit_orientation` 4).
-const LIGHTHOUSE_EXIT_GX := Vector2(0.0, -70.0)
+const LIGHTHOUSE_EXIT := Vector2(0.0, -70.0) * FieldCatalog.GX_TO_METERS
 ## `mPlib_request_main_door_type1` at the tower −60 GX Z: the INTO_S1 walk-in stand.
-const LIGHTHOUSE_APPROACH_GX := Vector2(0.0, -60.0)
-## `wait_door_start` walk stands (GX). Player: size 0 → 20·√2 ≈ 28.28 on the porch
+const LIGHTHOUSE_APPROACH := Vector2(0.0, -60.0) * FieldCatalog.GX_TO_METERS
+## `wait_door_start` walk stands (written in GX). Player: size 0 → 20·√2 ≈ 28.28 on the porch
 ## diagonal (`mSc_NE`/`NW` raw index → SE/SW demo vector). Villager: size 40 → +40 Z.
-const PLAYER_APPROACH_GX := Vector2(-28.28, 28.28)
-const NPC_HOUSE_APPROACH_GX := Vector2(0.0, 40.0)
+const PLAYER_APPROACH := Vector2(-28.28, 28.28) * FieldCatalog.GX_TO_METERS
+const NPC_HOUSE_APPROACH := Vector2(0.0, 40.0) * FieldCatalog.GX_TO_METERS
 
 
 ## `Player_actor_Check_NecessaryDoorKnock`: a villager's house, or the player houses while
@@ -218,13 +218,12 @@ static func find_near(from: Node, pos: Vector3, max_dist: float = 8.0) -> Node3D
 
 static func approach_position(root: Node3D) -> Vector3:
 	## Demo walks the player to `actor + size_adj * direct` (`wait_door_start`).
-	## Houses use authored approach GX (check ≠ exit). Others: sensor, then ~20 GX in.
+	## Houses use authored approach stands (check ≠ exit). Others: sensor, then ~20 GX in.
 	if root == null:
 		return Vector3.ZERO
-	var local_gx: Vector2 = approach_offset_gx(_visual_id(root))
-	if local_gx != Vector2.ZERO:
-		var s: float = FieldCatalog.GX_TO_METERS
-		var local := Vector3(local_gx.x * s, 0.0, local_gx.y * s)
+	var offset: Vector2 = approach_offset(_visual_id(root))
+	if offset != Vector2.ZERO:
+		var local := Vector3(offset.x, 0.0, offset.y)
 		var world: Vector3 = root.global_position + root.global_transform.basis * local
 		world.y = root.global_position.y
 		return world
@@ -237,30 +236,30 @@ static func approach_position(root: Node3D) -> Vector3:
 	if into.length_squared() < 0.0001:
 		into = Vector3(0.0, 0.0, -1.0)
 	into = into.normalized()
-	var target: Vector3 = door + into * (APPROACH_GX * FieldCatalog.GX_TO_METERS)
+	var target: Vector3 = door + into * APPROACH
 	target.y = door.y
 	return target
 
 
-static func approach_offset_gx(visual_id: StringName) -> Vector2:
-	## Local GX walk stand. Empty → sensor − APPROACH_GX heuristic (into the shell).
+static func approach_offset(visual_id: StringName) -> Vector2:
+	## Local walk stand (m). Empty → sensor − APPROACH heuristic (into the shell).
 	## Houses: porch demo stands. Walk-in / public check stands stay south of the
-	## raised StructureOffset block — walking +APPROACH_GX into museum cells snaps
+	## raised StructureOffset block — walking +APPROACH into museum cells snaps
 	## the player onto the roof once `keep_h` ends.
 	if HostCollision.is_player_house(visual_id):
-		return PLAYER_APPROACH_GX
+		return PLAYER_APPROACH
 	if HostCollision.is_villager_house(visual_id):
-		return NPC_HOUSE_APPROACH_GX
+		return NPC_HOUSE_APPROACH
 	if HostCollision.is_museum(visual_id):
-		return HostCollision.MUSEUM_DOOR_GX
+		return HostCollision.MUSEUM_DOOR
 	if HostCollision.is_police(visual_id):
-		return HostCollision.POLICE_DOOR_GX
+		return HostCollision.POLICE_DOOR
 	if HostCollision.is_shop(visual_id):
-		return HostCollision.SHOP_DOOR_GX
+		return HostCollision.SHOP_DOOR
 	if HostCollision.is_able_sisters(visual_id) or HostCollision.is_post_office(visual_id):
-		return HostCollision.ABLE_DOOR_GX
+		return HostCollision.ABLE_DOOR
 	if HostCollision.is_lighthouse(visual_id):
-		return LIGHTHOUSE_APPROACH_GX
+		return LIGHTHOUSE_APPROACH
 	return Vector2.ZERO
 
 
@@ -269,34 +268,33 @@ static func exit_stand(root: Node3D) -> Vector3:
 	## Y is acre keep_h (`mCoBG_GetBgY_OnlyCenter_FromWpos2`), snapped by the player.
 	if root == null:
 		return Vector3.ZERO
-	var local_gx: Vector2 = exit_offset_gx(_visual_id(root))
-	if local_gx == Vector2.ZERO:
+	var offset: Vector2 = exit_offset(_visual_id(root))
+	if offset == Vector2.ZERO:
 		## Fallback: door sensor (player house / unknown).
 		return _door_sensor_world(root)
-	var s: float = FieldCatalog.GX_TO_METERS
-	var local := Vector3(local_gx.x * s, 0.0, local_gx.y * s)
+	var local := Vector3(offset.x, 0.0, offset.y)
 	var world: Vector3 = root.global_position + root.global_transform.basis * local
 	world.y = root.global_position.y
 	return world
 
 
-static func exit_offset_gx(visual_id: StringName) -> Vector2:
-	## Local GX from actor; rotated by mesh yaw. Empty → use door sensor.
+static func exit_offset(visual_id: StringName) -> Vector2:
+	## Local offset (m) from actor; rotated by mesh yaw. Empty → use door sensor.
 	if HostCollision.is_museum(visual_id):
-		return MUSEUM_EXIT_GX
+		return MUSEUM_EXIT
 	if HostCollision.is_able_sisters(visual_id) or HostCollision.is_post_office(visual_id):
-		return ABLE_EXIT_GX
+		return ABLE_EXIT
 	if HostCollision.is_shop(visual_id):
-		return SHOP_EXIT_GX
+		return SHOP_EXIT
 	if HostCollision.is_police(visual_id):
-		return POLICE_EXIT_GX
+		return POLICE_EXIT
 	if HostCollision.is_lighthouse(visual_id):
-		return LIGHTHOUSE_EXIT_GX
+		return LIGHTHOUSE_EXIT
 	if HostCollision.is_player_house(visual_id):
 		## `aMHS_rewrite_pl_out_data`: local SW; west plots rotate with mesh.
-		return Vector2(-HostCollision.PLAYER_DOOR_GX, HostCollision.PLAYER_DOOR_GX)
+		return Vector2(-HostCollision.PLAYER_DOOR, HostCollision.PLAYER_DOOR)
 	if HostCollision.is_villager_house(visual_id):
-		return NPC_HOUSE_EXIT_GX
+		return NPC_HOUSE_EXIT
 	return Vector2.ZERO
 
 

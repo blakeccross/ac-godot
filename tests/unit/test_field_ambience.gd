@@ -21,8 +21,9 @@ func test_river_sources_come_from_the_acre_data() -> void:
 	var data := _layout("grd_s_r1_p_1", 0)
 	var srcs: Array = FieldAmbience.block_sources(data, Vector2i(2, 2))
 	assert_int(srcs.size()).is_greater(0)
-	## [1, 5, 1]: unit (5, 1) of acre (2, 2), unit centre.
-	assert_that(srcs[0][1]).is_equal(Vector3(2 * 640 + 5 * 40 + 20, 0, 2 * 640 + 1 * 40 + 20))
+	## [1, 5, 1]: unit (5, 1) of acre (2, 2), unit centre (GX).
+	var want := Vector3(2 * 640 + 5 * 40 + 20, 0, 2 * 640 + 1 * 40 + 20) * FieldCatalog.GX_TO_METERS
+	assert_vector(srcs[0][1] as Vector3).is_equal_approx(want, Vector3.ONE * 0.0001)
 	var near: Array[Vector3] = FieldAmbience.nearest_two(data, Vector2i(2, 2), FieldAmbience.KIND_RIVER, 9, srcs[0][1])
 	assert_int(near.size()).is_equal(2)
 	assert_that(near[0]).is_equal(srcs[0][1])

@@ -2,7 +2,7 @@ class_name TestBugBehaviors
 extends GdUnitTestSuite
 
 ## Per-program movement state machines (`ac_ins_*.c`). Each `BugActor` is driven at
-## 30 Hz via `frame()`; `tick(1.0/30.0, ...)` is the standalone equivalent.
+## 30 Hz via `frame()`; `advance(1.0/30.0, ...)` is the standalone equivalent.
 
 var _rng: RandomNumberGenerator = null
 
@@ -77,7 +77,7 @@ func test_common_butterfly_does_not_panic_flee_from_a_runner() -> void:
 	var s := BugActor.Sense.new()
 	for i in 200:
 		s.player_position = b.position + Vector3(sin(i * 0.3) * 0.3, 0.0, cos(i * 0.3) * 0.3)
-		s.player_move_gx = 7.5
+		s.player_speed = 7.5 * PlayerLocomotion.GX_SPEED
 		b.advance(DecompTime.TICK_SEC, s)
 		assert_int(b.action).is_not_equal(Butterfly.AVOID)
 		assert_int(b.action).is_not_equal(Butterfly.LET_ESCAPE)
@@ -207,7 +207,7 @@ func test_beetle_net_scare_range_is_angular() -> void:
 	assert_object(b.net_candidate(b.position + Vector3(0.0, 0.0, -1.0))).is_null()
 	var row: NetSwing.Candidate = b.net_candidate(b.position + Vector3(0.0, 0.0, 1.0))
 	assert_object(row.target).is_same(b)
-	assert_float(row.range_gx).is_equal(24.0)
+	assert_float(row.catch_range).is_equal_approx(24.0 * FieldCatalog.GX_TO_METERS, 0.0001)
 
 
 # ---- every program: smoke ----------------------------------------
@@ -250,7 +250,7 @@ func test_every_species_ticks_without_crashing() -> void:
 		var origin: Vector3 = a.position
 		for i in 300:
 			s.player_position = a.position + Vector3(sin(i * 0.11) * 1.5, 0.0, cos(i * 0.11) * 1.5)
-			s.player_move_gx = 3.0
+			s.player_speed = 3.0 * PlayerLocomotion.GX_SPEED
 			a.advance(DecompTime.TICK_SEC, s)
 			if a.finished:
 				break
@@ -575,7 +575,7 @@ func test_stressed_firefly_veers_away_from_the_player() -> void:
 	a.patience = 95.0
 	var s := BugActor.Sense.new()
 	s.player_position = a.position + Vector3(0.0, 0.0, 2.0)  ## player due south
-	s.player_move_gx = 0.0
+	s.player_speed = 0.0
 	for _i: int in 200:
 		a.patience = 95.0
 		a.advance(DecompTime.TICK_SEC, s)
@@ -759,8 +759,8 @@ func test_released_insect_heads_the_way_the_player_faces() -> void:
 
 
 func test_stress_fallback_speed_counts_per_tick() -> void:
-	## `player_move_gx` is per 30 Hz frame; stress uses the per-60 Hz-tick move, so a 6 GX
-	## frame speed stresses like a player seen moving 3 GX a tick.
+	## Stress uses the per-60 Hz-tick move, so a player at 6 GX a frame (`player_speed`)
+	## stresses like one seen moving 3 GX a tick.
 	var at := Vector3(4.0, 0.0, 4.0)
 	var by_speed := _make(&"drone_beetle", BugData.Habitat.TREE, at)
 	var by_move := _make(&"drone_beetle", BugData.Habitat.TREE, at)
@@ -769,7 +769,7 @@ func test_stress_fallback_speed_counts_per_tick() -> void:
 	var r: float = 3.0   ## m (60 GX)
 	for i in 8:
 		s1.player_position = at + Vector3(r, 0.0, 0.0)
-		s1.player_move_gx = 6.0
+		s1.player_speed = 6.0 * PlayerLocomotion.GX_SPEED
 		by_speed.advance(DecompTime.TICK_SEC, s1)
 		var ang: float = float(i) * 3.0 / 60.0
 		s2.player_position = at + Vector3(cos(ang) * r, 0.0, sin(ang) * r)

@@ -67,7 +67,7 @@ static func attach(visual: Node, skeleton_code: StringName) -> MouthFlap:
 	return flap
 
 
-func tick(delta: float, uttering: bool) -> void:
+func advance(delta: float, uttering: bool) -> void:
 	if uttering:
 		_tail = TAIL_SECONDS
 	elif _tail > 0.0:

@@ -178,11 +178,10 @@ func field_placement(at: Node) -> Vector2:
 func field_placement_at(tree: SceneTree, pos: Vector3) -> Vector2:
 	if tree == null or Game.is_indoors() or not TownSpace.is_outdoor_town():
 		return Vector2(1.0, 0.0)
-	var mic: Vector3 = SoundEmitter.field_mic_gx(tree)
+	var mic: Vector3 = SoundEmitter.field_mic(tree)
 	if mic == Vector3.INF:
 		return Vector2(1.0, 0.0)
-	var source: Vector3 = TownSpace.world_to_gx(pos)
-	return Vector2(SoundEmitter.volume(mic.distance_to(source)), SoundEmitter.pan(mic, source))
+	return Vector2(SoundEmitter.volume(mic.distance_to(pos)), SoundEmitter.pan(mic, pos))
 
 
 ## The SFX sub-bus panned nearest `pan` (−1 left … 1 right), made on first use.

@@ -40,7 +40,7 @@ func note_weather_change(previous: StringName, now: StringName, on_month: int, o
 
 
 ## `mEnv_rainbow_power_calc` over `delta` seconds (field scenes only; the caller checks).
-func tick(on_month: int, on_day: int, now_sec: int, summer: bool, delta: float) -> void:
+func advance(on_month: int, on_day: int, now_sec: int, summer: bool, delta: float) -> void:
 	if reserved and on_month == month and on_day == day and now_sec >= TIME_START and now_sec < TIME_END and summer:
 		## `chase_f` lands exactly on the target and reports it.
 		opacity = minf(1.0, opacity + delta / FADE_IN_SEC)

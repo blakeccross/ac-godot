@@ -37,11 +37,11 @@ const MAIN_EXIT: Array[Vector2i] = [
 	Vector2i(2, 7), Vector2i(3, 9), Vector2i(4, 11), Vector2i(4, 11)
 ]
 ## `aMHS_goto_next_pl_scene` startX/Z — where you stand after walking in from outside.
-const MAIN_ENTER_GX: Array[Vector3] = [
-	Vector3(120.0, 0.0, 220.0),
-	Vector3(160.0, 0.0, 300.0),
-	Vector3(200.0, 0.0, 380.0),
-	Vector3(200.0, 0.0, 380.0),
+const MAIN_ENTER: Array[Vector3] = [
+	Vector3(120.0, 0.0, 220.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(160.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(200.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(200.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS,
 ]
 ## `DOOR0` unit on each main layout (stairs down to the basement). Small has one in the
 ## template but no slope, so it never fires (`Player_actor_check_bg_for_next_goto`).
@@ -49,33 +49,33 @@ const MAIN_BASEMENT_DOOR: Array[Vector2i] = [
 	Vector2i(6, 5), Vector2i(7, 7), Vector2i(8, 9), Vector2i(8, 9)
 ]
 ## `aMI_size_dsp_table[kind].size` step anchor (`aMI_DrawMyStep`), per house tier.
-const STEP_ANCHOR_GX: Array[Vector3] = [
-	Vector3(120.0, 0.0, 220.0),
-	Vector3(160.0, 0.0, 300.0),
-	Vector3(200.0, 0.0, 380.0),
-	Vector3(200.0, 0.0, 380.0),
+const STEP_ANCHOR: Array[Vector3] = [
+	Vector3(120.0, 0.0, 220.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(160.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(200.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(200.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS,
 ]
 
 ## `l_proom_l_tmp` `DOOR1` — LL1 stairs up.
 const UPPER_STAIR_DOOR := Vector2i(1, 9)
-const UPPER_ARRIVE_GX := Vector3(60.0, 0.0, 300.0)
+const UPPER_ARRIVE := Vector3(60.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS
 ## `l_player_room_2_utinfo` `DOOR0` — LL2 stairs down; anchor is the medium size.
 const UPPER_INNER := Vector2i(6, 6)
 const UPPER_DOWN_DOOR := Vector2i(0, 7)
-const UPPER_DOWN_ARRIVE_GX := Vector3(100.0, 0.0, 380.0)
-const UPPER_ANCHOR_GX := Vector3(160.0, 0.0, 300.0)
+const UPPER_DOWN_ARRIVE := Vector3(100.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS
+const UPPER_ANCHOR := Vector3(160.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS
 
 ## `l_player_room_bm_utinfo`.
 const BASEMENT_INNER := Vector2i(8, 8)
 const BASEMENT_UP_DOOR := Vector2i(8, 9)
-const BASEMENT_ARRIVE_GX := Vector3(300.0, 0.0, 380.0)
-const BASEMENT_ANCHOR_GX := Vector3(200.0, 0.0, 380.0)
+const BASEMENT_ARRIVE := Vector3(300.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS
+const BASEMENT_ANCHOR := Vector3(200.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS
 ## `P_ROOM_BM_*_door_data` exit position per tier (back up to the main floor).
-const BASEMENT_EXIT_GX: Array[Vector3] = [
-	Vector3(220.0, 0.0, 220.0),
-	Vector3(260.0, 0.0, 300.0),
-	Vector3(300.0, 0.0, 380.0),
-	Vector3(300.0, 0.0, 380.0),
+const BASEMENT_EXIT: Array[Vector3] = [
+	Vector3(220.0, 0.0, 220.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(260.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(300.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(300.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS,
 ]
 
 ## `aMR_GetSceneFurnitureMax`: furniture actors a floor can hold — small 32, medium 48, large
@@ -127,8 +127,8 @@ static func _configure_main(room: Room, tier: int, basement: bool) -> void:
 			_stair(
 				MAIN_BASEMENT_DOOR[tier],
 				BASEMENT,
-				BASEMENT_ARRIVE_GX,
-				BASEMENT_EXIT_GX[tier],
+				BASEMENT_ARRIVE,
+				BASEMENT_EXIT[tier],
 				WorldGrid.Facing.WEST,
 				RoomStair.Dir.DOWN,
 				"Basement"
@@ -139,8 +139,8 @@ static func _configure_main(room: Room, tier: int, basement: bool) -> void:
 			_stair(
 				UPPER_STAIR_DOOR,
 				UPPER,
-				UPPER_ARRIVE_GX,
-				UPPER_DOWN_ARRIVE_GX,
+				UPPER_ARRIVE,
+				UPPER_DOWN_ARRIVE,
 				WorldGrid.Facing.EAST,
 				RoomStair.Dir.UP,
 				"Upstairs"
@@ -160,8 +160,8 @@ static func _configure_upper(room: Room, _tier: int) -> void:
 		_stair(
 			UPPER_DOWN_DOOR,
 			MAIN,
-			UPPER_DOWN_ARRIVE_GX,
-			UPPER_ARRIVE_GX,
+			UPPER_DOWN_ARRIVE,
+			UPPER_ARRIVE,
 			WorldGrid.Facing.EAST,
 			RoomStair.Dir.DOWN,
 			"Downstairs"
@@ -180,8 +180,8 @@ static func _configure_basement(room: Room, tier: int) -> void:
 		_stair(
 			BASEMENT_UP_DOOR,
 			MAIN,
-			BASEMENT_EXIT_GX[tier],
-			BASEMENT_ARRIVE_GX,
+			BASEMENT_EXIT[tier],
+			BASEMENT_ARRIVE,
 			WorldGrid.Facing.WEST,
 			RoomStair.Dir.UP,
 			"Upstairs"
@@ -192,8 +192,8 @@ static func _configure_basement(room: Room, tier: int) -> void:
 static func _stair(
 	cell: Vector2i,
 	target: StringName,
-	spawn_gx: Vector3,
-	landing_gx: Vector3,
+	spawn: Vector3,
+	landing: Vector3,
 	facing: WorldGrid.Facing,
 	dir: RoomStair.Dir,
 	label: String
@@ -201,20 +201,20 @@ static func _stair(
 	var stair := RoomStair.new()
 	stair.cell = cell
 	stair.target_room_id = target
-	stair.spawn_gx = spawn_gx
-	stair.landing_gx = landing_gx
+	stair.spawn = spawn
+	stair.landing = landing
 	stair.spawn_facing = facing
 	stair.dir = dir
 	stair.label = label
 	return stair
 
 
-## `aMHS_goto_next_pl_scene` stand for the current size.
-static func enter_gx(house: House) -> Vector3:
-	return MAIN_ENTER_GX[tier_of(house)]
+## `aMHS_goto_next_pl_scene` stand for the current size (metres from the room's corner).
+static func enter_point(house: House) -> Vector3:
+	return MAIN_ENTER[tier_of(house)]
 
 
-## `obj_myhome_step_*` draws for a room: each is `{ "visual", "gx", "mirror" }`
+## `obj_myhome_step_*` draws for a room: each is `{ "visual", "at" (metres), "mirror" }`
 ## (`aMI_MakeStepData` + `aMI_DrawMyStep`).
 static func step_draws(room: Room, house: House) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
@@ -224,13 +224,13 @@ static func step_draws(room: Room, house: House) -> Array[Dictionary]:
 	match room.id:
 		MAIN:
 			if house != null and house.has_basement and tier >= int(House.SizeTier.MEDIUM):
-				out.append({"visual": STEP_DOWN, "gx": STEP_ANCHOR_GX[tier], "mirror": false})
+				out.append({"visual": STEP_DOWN, "at": STEP_ANCHOR[tier], "mirror": false})
 			if tier >= int(House.SizeTier.UPPER):
-				out.append({"visual": STEP_UP, "gx": STEP_ANCHOR_GX[tier], "mirror": false})
+				out.append({"visual": STEP_UP, "at": STEP_ANCHOR[tier], "mirror": false})
 		UPPER:
-			out.append({"visual": STEP_DOWN, "gx": UPPER_ANCHOR_GX, "mirror": true})
+			out.append({"visual": STEP_DOWN, "at": UPPER_ANCHOR, "mirror": true})
 		BASEMENT:
-			out.append({"visual": STEP_UP, "gx": BASEMENT_ANCHOR_GX, "mirror": true})
+			out.append({"visual": STEP_UP, "at": BASEMENT_ANCHOR, "mirror": true})
 	return out
 
 

@@ -6,7 +6,9 @@ extends EventNpc
 ## is not out at all once the stock is gone, or after the player has been inside
 ## (`broker.hide_npc`).
 
-const ENTER_DIST := 3.0  ## 60 GX
+const ENTER_DIST := 60.0 * FieldCatalog.GX_TO_METERS
+## `aNPC_ACT_WALK` in: 1 GX a frame.
+const ENTER_SPEED := 1.0 * FieldCatalog.GX_TO_METERS * DecompTime.FRAME_HZ
 
 enum Act { WAIT, TURN, ENTER, HIDDEN }
 
@@ -50,7 +52,7 @@ func think(delta: float) -> void:
 				act = Act.ENTER
 				_enter_from = global_position
 				var forward := Vector3(sin(rotation.y), 0.0, cos(rotation.y))
-				move_to(global_position + forward * ENTER_DIST, 1.0 * 30.0 * FieldCatalog.GX_TO_METERS)
+				move_to(global_position + forward * ENTER_DIST, ENTER_SPEED)
 
 
 func arrived() -> void:

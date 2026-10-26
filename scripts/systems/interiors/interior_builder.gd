@@ -60,7 +60,7 @@ static func add_player_steps(root: Node3D, grid: WorldGrid, room: Room) -> void:
 	for step: Dictionary in PlayerHouse.step_draws(room, house):
 		var holder := Node3D.new()
 		holder.name = "Step_%s" % String(step["visual"])
-		holder.position = MuseumDisplay.gx_to_world(grid, step["gx"] as Vector3)
+		holder.position = WorldGrid.room_point(grid, step["at"] as Vector3)
 		root.add_child(holder)
 		GeneratedVisual.attach_datum(holder, step["visual"] as StringName, bool(step["mirror"]))
 

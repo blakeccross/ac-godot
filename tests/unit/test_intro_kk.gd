@@ -124,16 +124,18 @@ func _scene() -> Node3D:
 
 
 func test_camera_and_spawn_match_decomp() -> void:
-	assert_vector(IntroKkStage.CAM_CENTER_GX).is_equal(Vector3(100.0, 20.0, 60.0))
-	assert_vector(IntroKkStage.CAM_EYE_GX).is_equal(Vector3(100.0, 90.0, 210.0))
-	assert_vector(IntroKkStage.KK_SPAWN_GX).is_equal(Vector3(100.0, 0.0, 60.0))
+	var gx: float = FieldCatalog.GX_TO_METERS
+	var eps := Vector3.ONE * 0.0001
+	assert_vector(IntroKkStage.CAM_CENTER).is_equal_approx(Vector3(100.0, 20.0, 60.0) * gx, eps)
+	assert_vector(IntroKkStage.CAM_EYE).is_equal_approx(Vector3(100.0, 90.0, 210.0) * gx, eps)
+	assert_vector(IntroKkStage.KK_SPAWN).is_equal_approx(Vector3(100.0, 0.0, 60.0) * gx, eps)
 	assert_float(IntroKkStage.CAM_FOV).is_equal(40.0)
-	assert_vector(IntroKkStage.SUN_DIR_GX).is_equal(Vector3(0.0, 89.0, 79.0))
+	assert_vector(IntroKkStage.SUN_DIR).is_equal(Vector3(0.0, 89.0, 79.0))
 	## Literal GX near (5 m) clips the seated mesh; use the train-style short near.
-	assert_float(IntroKkStage.CAM_NEAR_METERS).is_equal_approx(0.1, 0.0001)
+	assert_float(IntroKkStage.CAM_NEAR).is_equal_approx(0.1, 0.0001)
 	## DirectionalLight shines along −Z; that should match −sun_dir (light travel).
 	assert_that(
-		(-IntroKkStage.sun_basis().z).dot((-IntroKkStage.SUN_DIR_GX).normalized())
+		(-IntroKkStage.sun_basis().z).dot((-IntroKkStage.SUN_DIR).normalized())
 	).is_greater(0.99)
 
 

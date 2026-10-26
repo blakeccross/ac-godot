@@ -17,7 +17,8 @@ extends Node3D
 @export var auto_enter: bool = false
 ## Optional decomp spawn when following `linked_room_id`.
 @export var has_linked_spawn: bool = false
-@export var linked_spawn_gx: Vector3 = Vector3.ZERO
+## Where the linked room puts the player (metres from its corner).
+@export var linked_spawn: Vector3 = Vector3.ZERO
 @export var linked_spawn_yaw: float = 0.0
 
 
@@ -91,7 +92,7 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 		await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
 		var entered: bool = false
 		if has_linked_spawn:
-			entered = Game.try_enter_interior(linked_room_id, linked_spawn_gx, linked_spawn_yaw)
+			entered = Game.try_enter_interior(linked_room_id, linked_spawn, linked_spawn_yaw)
 		else:
 			entered = Game.try_enter_interior(linked_room_id)
 		return entered

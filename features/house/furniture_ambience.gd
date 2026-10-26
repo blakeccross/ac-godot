@@ -195,13 +195,13 @@ func _process(delta: float) -> void:
 		return
 	_steam(host, session, delta)
 	_frame_sounds(host, session)
-	var mic_m: Vector3 = player.global_position + SoundEmitter.MIC_OFFSET_GX * FieldCatalog.GX_TO_METERS
+	var mic_m: Vector3 = player.global_position + SoundEmitter.MIC_OFFSET
 	var heard: Array = []
 	for src: Array in sources(session):
 		var node: Node3D = host.call("furniture_node", src[0]) as Node3D
 		if node == null:
 			continue
-		var d: float = node.global_position.distance_to(mic_m) / FieldCatalog.GX_TO_METERS
+		var d: float = node.global_position.distance_to(mic_m)
 		if d <= SoundEmitter.AREA:
 			heard.append([src[0], src[1], d])
 	heard.sort_custom(func(x: Array, y: Array) -> bool: return float(x[2]) < float(y[2]))

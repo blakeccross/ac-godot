@@ -33,8 +33,8 @@ const UNITS_A1: Array[Vector3i] = [
 	Vector3i(0, 0, 0), Vector3i(0, 4, -1), Vector3i(1, 4, 0), Vector3i(-1, 2, 0), Vector3i(0, 2, 1),
 	Vector3i(-1, 5, -1), Vector3i(1, 5, 1),
 ]
-## `aBridgeA_actor_ct`: `world.position.y += 1.5`.
-const LIFT_GX := 1.5
+## `aBridgeA_actor_ct`: `world.position.y += 1.5` GX.
+const LIFT := 1.5 * FieldCatalog.GX_TO_METERS
 ## `aESC_time_talk` / `aESC_owari_message` / pending lines.
 const MSG_MORNING := 0x2F33
 const MSG_DAY := 0x2F34
@@ -197,7 +197,7 @@ static func restore(world: Node, layout: WorldData, grid: WorldGrid) -> Node3D:
 	host.add_to_group(GROUP)
 	objects.add_child(host)
 	var pos: Vector3 = grid.cell_to_world(centre) if grid != null else Vector3.ZERO
-	pos.y = y + LIFT_GX * FieldCatalog.GX_TO_METERS
+	pos.y = y + LIFT
 	host.global_position = pos
 	host.rotation.y = deg_to_rad(-90.0) if spot.z == 1 else 0.0
 	return host

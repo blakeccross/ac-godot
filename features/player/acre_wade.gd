@@ -1,7 +1,8 @@
 class_name AcreWade
 extends RefCounted
 
-## Crossing between acres (`mPlayer_INDEX_WADE`, `m_player_common.c_inc`). Pure, in decomp GX.
+## Crossing between acres (`mPlayer_INDEX_WADE`, `m_player_common.c_inc`). Pure; positions are
+## `TownSpace` field positions (metres).
 ##
 ## Outdoors the player is walled inside the current acre, 18 GX in from each edge
 ## (`Player_actor_CorrectWadeBlockBorder` → `mCoBG_UniqueWallCheck`). The only way out is a
@@ -13,14 +14,17 @@ extends RefCounted
 
 enum Dir { NONE, RIGHT, LEFT, UP, DOWN }
 
-const BLOCK_GX := TownSpace.BLOCK_GX
-const EDGE_GX := 18.00001
-const WALL_GX := 18.0
+const BLOCK := TownSpace.BLOCK
+const WALL := 18.0 * FieldCatalog.GX_TO_METERS
+## The decomp's wade edge is 18.00001 GX, a hair past the wall so a player held against it
+## counts as at the edge. In metres that hair is under `Vector3`'s float precision, so it is
+## 0.1 mm here.
+const EDGE := WALL + 0.0001
 const STICK_RANGE := 0.65
 const ANGLE_RANGE := 40.0
 ## `mCoBG_BLOCK_BGCHECK_MODE_INTRO_DEMO` (while Nook shows the houses): player-house acres
 ## are walled one unit further in, and the wade trigger border moves in by the same unit.
-const INTRO_INSET_GX := 40.0
+const INTRO_INSET := 40.0 * FieldCatalog.GX_TO_METERS
 ## Ticks (1/60 s): 36 = 0.6 s.
 const TICKS := 36.0
 ## The crossing in seconds.
@@ -37,11 +41,11 @@ const SNOWBALL_ANGLE_RANGE := 5.0
 ## `mCoBG_UniqueWallCheck` → `mCoBG_ScopeWallCheck(block, 640, 640, 18)`: keep the new
 ## position inside the acre the player was in, 18 GX from its edges. `inset` is the intro
 ## BG-check mode's extra unit on player-house acres (`block_base + 40`, size `640 − 80`).
-static func confine(old_gx: Vector3, new_gx: Vector3, inset: float = 0.0) -> Vector3:
-	var base: Vector2 = TownSpace.block_base(TownSpace.block_of(old_gx))
-	var out := new_gx
-	var lo: float = WALL_GX + inset
-	var hi: float = BLOCK_GX - WALL_GX - inset
+static func confine(old: Vector3, moved: Vector3, inset: float = 0.0) -> Vector3:
+	var base: Vector2 = TownSpace.block_base(TownSpace.block_of(old))
+	var out := moved
+	var lo: float = WALL + inset
+	var hi: float = BLOCK - WALL - inset
 	out.x = clampf(out.x, base.x + lo, base.x + hi)
 	out.z = clampf(out.z, base.y + lo, base.y + hi)
 	return out
@@ -54,7 +58,7 @@ static func confine(old_gx: Vector3, new_gx: Vector3, inset: float = 0.0) -> Vec
 ## reported without the landing check, and the caller cancels the wade
 ## (`excute_cancel_wade`).
 static func direction(
-	pos_gx: Vector3,
+	pos: Vector3,
 	facing: float,
 	stick: Vector2,
 	can_land: Callable,
@@ -62,10 +66,10 @@ static func direction(
 	unable: bool = false,
 	angle_range: float = ANGLE_RANGE,
 ) -> Dir:
-	var local := Vector2(fposmod(pos_gx.x, BLOCK_GX), fposmod(pos_gx.z, BLOCK_GX))
+	var local := Vector2(fposmod(pos.x, BLOCK), fposmod(pos.z, BLOCK))
 	var deg: float = rad_to_deg(wrapf(facing, -PI, PI))
-	var near: float = EDGE_GX + inset
-	var far: float = BLOCK_GX - EDGE_GX - inset
+	var near: float = EDGE + inset
+	var far: float = BLOCK - EDGE - inset
 	if stick.x > STICK_RANGE and absf(deg - 90.0) < angle_range:
 		return _at(Dir.RIGHT, local.x >= far, can_land, unable)
 	if stick.x < -STICK_RANGE and absf(deg + 90.0) < angle_range:
@@ -80,17 +84,17 @@ static func direction(
 ## `Player_actor_CheckAbleMoveDemoWadeBlock` (a demo walk that is moving): wade whichever
 ## edge the body faces into once within 18 GX of it — no stick, angle cone or landing check,
 ## only `mFI_ScrollCheck` (`can_scroll(dir)`: the next acre is part of the field).
-static func demo_direction(pos_gx: Vector3, facing: float, can_scroll: Callable) -> Dir:
-	var local := Vector2(fposmod(pos_gx.x, BLOCK_GX), fposmod(pos_gx.z, BLOCK_GX))
+static func demo_direction(pos: Vector3, facing: float, can_scroll: Callable) -> Dir:
+	var local := Vector2(fposmod(pos.x, BLOCK), fposmod(pos.z, BLOCK))
 	var dir_x: float = sin(facing)
 	var dir_z: float = cos(facing)
-	if dir_x > 0.0 and local.x >= BLOCK_GX - EDGE_GX and bool(can_scroll.call(Dir.RIGHT)):
+	if dir_x > 0.0 and local.x >= BLOCK - EDGE and bool(can_scroll.call(Dir.RIGHT)):
 		return Dir.RIGHT
-	if dir_x < 0.0 and local.x <= EDGE_GX and bool(can_scroll.call(Dir.LEFT)):
+	if dir_x < 0.0 and local.x <= EDGE and bool(can_scroll.call(Dir.LEFT)):
 		return Dir.LEFT
-	if dir_z < 0.0 and local.y <= EDGE_GX and bool(can_scroll.call(Dir.UP)):
+	if dir_z < 0.0 and local.y <= EDGE and bool(can_scroll.call(Dir.UP)):
 		return Dir.UP
-	if dir_z > 0.0 and local.y >= BLOCK_GX - EDGE_GX and bool(can_scroll.call(Dir.DOWN)):
+	if dir_z > 0.0 and local.y >= BLOCK - EDGE and bool(can_scroll.call(Dir.DOWN)):
 		return Dir.DOWN
 	return Dir.NONE
 
@@ -119,39 +123,39 @@ static func _at(dir: Dir, at_edge: bool, can_land: Callable, unable: bool) -> Di
 
 
 ## `Player_actor_CheckAbleMoveWadeBG`'s probe: 18 GX past the border, same cross position.
-static func landing_probe(pos_gx: Vector3, dir: Dir) -> Vector3:
-	var base: Vector2 = TownSpace.block_base(TownSpace.block_of(pos_gx))
-	var out := pos_gx
+static func landing_probe(pos: Vector3, dir: Dir) -> Vector3:
+	var base: Vector2 = TownSpace.block_base(TownSpace.block_of(pos))
+	var out := pos
 	match dir:
 		Dir.RIGHT:
-			out.x = base.x + BLOCK_GX + EDGE_GX
+			out.x = base.x + BLOCK + EDGE
 		Dir.LEFT:
-			out.x = base.x - EDGE_GX
+			out.x = base.x - EDGE
 		Dir.UP:
-			out.z = base.y - EDGE_GX
+			out.z = base.y - EDGE
 		Dir.DOWN:
-			out.z = base.y + BLOCK_GX + EDGE_GX
+			out.z = base.y + BLOCK + EDGE
 	return out
 
 
 ## `Player_actor_Culc_wade_end_pos`: 18 GX into the next acre; the cross coordinate is kept
 ## 18 GX clear of that acre's side edges.
-static func end_pos(pos_gx: Vector3, dir: Dir) -> Vector3:
-	var base: Vector2 = TownSpace.block_base(TownSpace.block_of(pos_gx))
-	var out := pos_gx
+static func end_pos(pos: Vector3, dir: Dir) -> Vector3:
+	var base: Vector2 = TownSpace.block_base(TownSpace.block_of(pos))
+	var out := pos
 	if dir == Dir.RIGHT or dir == Dir.LEFT:
-		out.z = clampf(out.z, base.y + EDGE_GX, base.y + BLOCK_GX - EDGE_GX)
+		out.z = clampf(out.z, base.y + EDGE, base.y + BLOCK - EDGE)
 	else:
-		out.x = clampf(out.x, base.x + EDGE_GX, base.x + BLOCK_GX - EDGE_GX)
+		out.x = clampf(out.x, base.x + EDGE, base.x + BLOCK - EDGE)
 	match dir:
 		Dir.RIGHT:
-			out.x = base.x + EDGE_GX + BLOCK_GX
+			out.x = base.x + EDGE + BLOCK
 		Dir.LEFT:
-			out.x = base.x - EDGE_GX
+			out.x = base.x - EDGE
 		Dir.UP:
-			out.z = base.y - EDGE_GX
+			out.z = base.y - EDGE
 		_:
-			out.z = base.y + EDGE_GX + BLOCK_GX
+			out.z = base.y + EDGE + BLOCK
 	return out
 
 

@@ -10,13 +10,13 @@ enum Dir { DOWN, UP }
 
 @export var cell: Vector2i = Vector2i.ZERO
 @export var target_room_id: StringName = &""
-## `Door_data_c.exit_position` in disc GX units.
-@export var spawn_gx: Vector3 = Vector3.ZERO
+## `Door_data_c.exit_position` (metres from the target room's corner).
+@export var spawn: Vector3 = Vector3.ZERO
 ## `Door_data_c.exit_orientation` mapped onto the four grid facings.
 @export var spawn_facing: WorldGrid.Facing = WorldGrid.Facing.NORTH
 ## Where you land in this room when you come up or down these stairs: the other room's
-## `Door_data_c.exit_position` back here, in disc GX units. The stair bay is open from
-## here to `cell`.
-@export var landing_gx: Vector3 = Vector3.ZERO
+## `Door_data_c.exit_position` back here, in metres. The stair bay is open from here to
+## `cell`.
+@export var landing: Vector3 = Vector3.ZERO
 @export var dir: Dir = Dir.DOWN
 @export var label: String = "Stairs"

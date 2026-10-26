@@ -5,10 +5,12 @@ extends RefCounted
 ## shop tables). Shell meshes carry no physics and `InteriorShellBuilder.add_shell_collision`
 ## only builds the floor slab, the outer walls and the door gaps, so raised furniture and
 ## inner wall runs (police shelves, Able's counters, the Cranny's south wall and tables)
-## need these. Heights are GX above the room floor.
+## need these. Heights are metres above the room floor.
 
 ## Blocking walls stand as tall as the shell's collision walls.
-const WALL_GX := InteriorShellBuilder.WALL_HEIGHT / FieldCatalog.GX_TO_METERS
+const WALL := InteriorShellBuilder.WALL_HEIGHT
+## One `mCoBG` height count is 10 GX.
+const COUNT_HEIGHT := 10.0 * FieldCatalog.GX_TO_METERS
 
 static var _bg_cache: Dictionary = {}
 
@@ -31,9 +33,9 @@ static func bg_counts(shell_id: StringName) -> PackedInt32Array:
 	return out
 
 
-## Units in `rect` whose BG height differs from the floor: unit → height in GX. Raised
-## furniture keeps its own height (`mCoBG` counts × 10); walls (`wall_counts` and up) and
-## sunken units get `WALL_GX`.
+## Units in `rect` whose BG height differs from the floor: unit → height in metres. Raised
+## furniture keeps its own height (`mCoBG` counts × 10 GX); walls (`wall_counts` and up) and
+## sunken units get `WALL`.
 static func blocked_from_bg(
 	shell_id: StringName, floor_counts: int, wall_counts: int, rect: Rect2i
 ) -> Dictionary:
@@ -49,9 +51,9 @@ static func blocked_from_bg(
 			if c == floor_counts:
 				continue
 			if c > floor_counts and c < wall_counts:
-				out[Vector2i(x, z)] = float(c - floor_counts) * 10.0
+				out[Vector2i(x, z)] = float(c - floor_counts) * COUNT_HEIGHT
 			else:
-				out[Vector2i(x, z)] = WALL_GX
+				out[Vector2i(x, z)] = WALL
 	return out
 
 
@@ -71,20 +73,18 @@ static func add_hulls(
 	var cells: Array = blocked.keys()
 	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
 	for cell: Vector2i in cells:
-		var h_gx: float = blocked[cell]
-		if blocked.get(cell - Vector2i(1, 0), -1.0) == h_gx:
+		var h: float = blocked[cell]
+		if blocked.get(cell - Vector2i(1, 0), -1.0) == h:
 			continue
 		var run := 1
-		while blocked.get(cell + Vector2i(run, 0), -1.0) == h_gx:
+		while blocked.get(cell + Vector2i(run, 0), -1.0) == h:
 			run += 1
-		var h: float = h_gx * FieldCatalog.GX_TO_METERS
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size = Vector3(grid.cell_size * run, h, grid.cell_size)
 		shape.shape = box
-		var west: Vector3 = MuseumDisplay.gx_to_world(
-			grid, Vector3(float(cell.x) * 40.0, 0.0, float(cell.y) * 40.0 + 20.0)
-		)
+		## The west edge of the run, halfway down the unit.
+		var west: Vector3 = grid.cell_corner(cell) + Vector3(0.0, 0.0, grid.cell_size * 0.5)
 		shape.position = west + Vector3(grid.cell_size * run * 0.5, h * 0.5, 0.0)
 		body.add_child(shape)
 	return body

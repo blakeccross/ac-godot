@@ -408,10 +408,10 @@ func test_nook_cranny_display_helpers() -> void:
 	assert_that(ShopDisplay.nook_species(1)).is_equal(&"rcc")
 	assert_that(ShopDisplay.nook_species(2)).is_equal(&"rcs")
 	assert_that(ShopDisplay.nook_species(3)).is_equal(&"rcd")
-	assert_that(ShopDisplay.nook_stand_gx(0)).is_equal(ShopDisplay.NOOK_STAND_GX)
-	assert_that(ShopDisplay.nook_stand_gx(1)).is_equal(Vector3(300.0, 0.0, 220.0))
-	assert_that(ShopDisplay.nook_stand_gx(2)).is_equal(Vector3(340.0, 0.0, 380.0))
-	assert_that(ShopDisplay.nook_stand_gx(3)).is_equal(Vector3(300.0, 0.0, 460.0))
+	assert_that(ShopDisplay.nook_stand(0)).is_equal(ShopDisplay.NOOK_STAND)
+	assert_that(ShopDisplay.nook_stand(1)).is_equal_approx(Vector3(300.0, 0.0, 220.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
+	assert_that(ShopDisplay.nook_stand(2)).is_equal_approx(Vector3(340.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
+	assert_that(ShopDisplay.nook_stand(3)).is_equal_approx(Vector3(300.0, 0.0, 460.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_that(ShopDisplay.display_visual_for_item(&"shovel")).is_equal(&"obj_item_shovel")
 	assert_that(ShopDisplay.display_visual_for_item(&"wall_blue")).is_equal(&"obj_item_wall")
 	assert_that(ShopDisplay.display_visual_for_item(&"floor_tile")).is_equal(&"obj_item_carpet")
@@ -427,11 +427,11 @@ func test_nook_cranny_display_helpers() -> void:
 	assert_that(cells[3]).is_equal(Vector2i(5, 1))
 	assert_that(cells[4]).is_equal(Vector2i(1, 3))
 	var placements: Array[Dictionary] = ShopDisplay.stock_placements_for_goods(goods)
-	assert_float(float(placements[0]["y_gx"])).is_equal(0.0)
-	assert_float(float(placements[1]["y_gx"])).is_equal(ShopDisplay.CRANNY_SHELF_Y_GX)
-	assert_float(float(placements[3]["y_gx"])).is_equal(ShopDisplay.CRANNY_SHELF_Y_GX)
+	assert_float(float(placements[0]["y"])).is_equal(0.0)
+	assert_float(float(placements[1]["y"])).is_equal(ShopDisplay.CRANNY_SHELF_Y)
+	assert_float(float(placements[3]["y"])).is_equal(ShopDisplay.CRANNY_SHELF_Y)
 	assert_that(ShopDisplay.nook_clock_visual(0)).is_equal(&"obj_clock_shop1")
-	assert_vector(ShopDisplay.CLOCK_GX).is_equal(Vector3(200.0, 40.0, 40.0))
+	assert_vector(ShopDisplay.CLOCK).is_equal_approx(Vector3(200.0, 40.0, 40.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	var greeting: DialogueData = DialogueCatalog.conversation(&"nook_greeting")
 	assert_that(greeting).is_not_null()
 	assert_that(greeting.id).is_equal(&"nook_greeting")
@@ -787,15 +787,15 @@ func test_museum_entrance_sets_spawn_without_arrive() -> void:
 	Game.arrival.has_stand = false
 	var room_id: StringName = InteriorCatalog.resolve_entry(&"museum")
 	assert_that(room_id).is_equal(&"museum_entrance")
-	Game.arrival.stand_gx = MuseumDisplay.ENTRANCE_SPAWN_GX
+	Game.arrival.stand = MuseumDisplay.ENTRANCE_SPAWN
 	Game.arrival.stand_yaw = WorldGrid.yaw_for_furniture(MuseumDisplay.ENTRANCE_SPAWN_FACING)
 	Game.arrival.has_stand = true
 	Game.arrival.walks_in = false
-	assert_vector(Game.arrival.stand_gx).is_equal(MuseumDisplay.ENTRANCE_SPAWN_GX)
+	assert_vector(Game.arrival.stand).is_equal(MuseumDisplay.ENTRANCE_SPAWN)
 	assert_float(Game.arrival.stand_yaw).is_equal_approx(
 		WorldGrid.yaw_for_furniture(MuseumDisplay.ENTRANCE_SPAWN_FACING), 0.01
 	)
-	assert_float(MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX.z).is_greater(MuseumDisplay.ENTRANCE_SPAWN_GX.z)
+	assert_float(MuseumDisplay.ENTRANCE_EXIT_SENSOR.z).is_greater(MuseumDisplay.ENTRANCE_SPAWN.z)
 	assert_bool(Game.arrival.walks_in).is_false()
 	Game.arrival.has_stand = false
 
@@ -872,32 +872,32 @@ func test_museum_entrance_doors_match_decomp() -> void:
 	var insect: Dictionary = MuseumDisplay.ENTRANCE_WING_DOORS[2]
 	var fish: Dictionary = MuseumDisplay.ENTRANCE_WING_DOORS[3]
 	assert_that(paint["room"]).is_equal(&"museum_painting")
-	assert_vector(paint["sensor"] as Vector3).is_equal(Vector3(160.0, 0.0, 80.0))
-	assert_vector(paint["spawn"] as Vector3).is_equal(Vector3(280.0, 0.0, 480.0))
+	assert_vector(paint["sensor"] as Vector3).is_equal_approx(Vector3(160.0, 0.0, 80.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
+	assert_vector(paint["spawn"] as Vector3).is_equal_approx(Vector3(280.0, 0.0, 480.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_that(paint["facing"]).is_equal(WorldGrid.Facing.NORTH)
 	assert_that(fossil["room"]).is_equal(&"museum_fossil")
-	assert_vector(fossil["sensor"] as Vector3).is_equal(Vector3(320.0, 0.0, 80.0))
-	assert_vector(fossil["spawn"] as Vector3).is_equal(Vector3(280.0, 0.0, 480.0))
+	assert_vector(fossil["sensor"] as Vector3).is_equal_approx(Vector3(320.0, 0.0, 80.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
+	assert_vector(fossil["spawn"] as Vector3).is_equal_approx(Vector3(280.0, 0.0, 480.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_that(fossil["facing"]).is_equal(WorldGrid.Facing.NORTH)
 	assert_that(insect["room"]).is_equal(&"museum_insect")
-	assert_vector(insect["sensor"] as Vector3).is_equal(Vector3(80.0, 0.0, 280.0))
-	assert_vector(insect["spawn"] as Vector3).is_equal(Vector3(520.0, 0.0, 560.0))
+	assert_vector(insect["sensor"] as Vector3).is_equal_approx(Vector3(80.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
+	assert_vector(insect["spawn"] as Vector3).is_equal_approx(Vector3(520.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_that(insect["facing"]).is_equal(WorldGrid.Facing.WEST)
 	assert_that(fish["room"]).is_equal(&"museum_fish")
-	assert_vector(fish["spawn"] as Vector3).is_equal(Vector3(120.0, 0.0, 560.0))
+	assert_vector(fish["spawn"] as Vector3).is_equal_approx(Vector3(120.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_that(fish["facing"]).is_equal(WorldGrid.Facing.EAST)
 	## Return spawns sit one cell inside the matching entrance opening.
-	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_painting"]["spawn"] as Vector3).is_equal(
-		Vector3(160.0, 0.0, 120.0)
+	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_painting"]["spawn"] as Vector3).is_equal_approx(
+		Vector3(160.0, 0.0, 120.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001
 	)
-	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_fossil"]["spawn"] as Vector3).is_equal(
-		Vector3(320.0, 0.0, 120.0)
+	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_fossil"]["spawn"] as Vector3).is_equal_approx(
+		Vector3(320.0, 0.0, 120.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001
 	)
-	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_insect"]["spawn"] as Vector3).is_equal(
-		Vector3(120.0, 0.0, 280.0)
+	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_insect"]["spawn"] as Vector3).is_equal_approx(
+		Vector3(120.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001
 	)
-	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_fish"]["spawn"] as Vector3).is_equal(
-		Vector3(360.0, 0.0, 280.0)
+	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_fish"]["spawn"] as Vector3).is_equal_approx(
+		Vector3(360.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001
 	)
 	assert_that(MuseumDisplay.WING_EXIT_DOORS[&"museum_fish"]["facing"]).is_equal(
 		WorldGrid.Facing.WEST
@@ -906,12 +906,12 @@ func test_museum_entrance_doors_match_decomp() -> void:
 	assert_float(
 		WorldGrid.yaw_for_furniture(fish["facing"] as WorldGrid.Facing)
 	).is_equal_approx(PI * 0.5, 0.0001)
-	assert_vector(MuseumDisplay.ENTRANCE_SPAWN_GX).is_equal(Vector3(240.0, 0.0, 440.0))
-	assert_vector(MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX).is_equal(Vector3(240.0, 0.0, 500.0))
-	assert_float(MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX.x).is_equal_approx(
-		MuseumDisplay.ENTRANCE_SPAWN_GX.x, 0.01
+	assert_vector(MuseumDisplay.ENTRANCE_SPAWN).is_equal_approx(Vector3(12.0, 0.0, 22.0), Vector3.ONE * 0.0001)
+	assert_vector(MuseumDisplay.ENTRANCE_EXIT_SENSOR).is_equal_approx(Vector3(12.0, 0.0, 25.0), Vector3.ONE * 0.0001)
+	assert_float(MuseumDisplay.ENTRANCE_EXIT_SENSOR.x).is_equal_approx(
+		MuseumDisplay.ENTRANCE_SPAWN.x, 0.01
 	)
-	assert_float(MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX.z).is_greater(MuseumDisplay.ENTRANCE_SPAWN_GX.z)
+	assert_float(MuseumDisplay.ENTRANCE_EXIT_SENSOR.z).is_greater(MuseumDisplay.ENTRANCE_SPAWN.z)
 
 
 func test_museum_grid_keeps_acre_nw_at_origin() -> void:
@@ -920,7 +920,7 @@ func test_museum_grid_keeps_acre_nw_at_origin() -> void:
 	var session := IndoorSession.new()
 	session.bind(room)
 	assert_vector(session.grid.origin).is_equal(Vector3.ZERO)
-	assert_vector(MuseumDisplay.gx_to_world(session.grid, MuseumDisplay.ENTRANCE_SPAWN_GX)).is_equal(
+	assert_vector(WorldGrid.room_point(session.grid, MuseumDisplay.ENTRANCE_SPAWN)).is_equal(
 		Vector3(12.0, 0.0, 22.0)
 	)
 	var home: Room = InteriorCatalog.room_template(&"player_main")
@@ -939,7 +939,7 @@ func test_museum_entrance_exit_sensor_matches_enter_x() -> void:
 	InteriorBuilder.build(root, session)
 	var exit_door: Node3D = root.get_node_or_null("Doors/Exit") as Node3D
 	assert_that(exit_door).is_not_null()
-	var expected: Vector3 = MuseumDisplay.gx_to_world(session.grid, MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX)
+	var expected: Vector3 = WorldGrid.room_point(session.grid, MuseumDisplay.ENTRANCE_EXIT_SENSOR)
 	assert_float(exit_door.position.x).is_equal_approx(expected.x, 0.05)
 	assert_float(exit_door.position.z).is_equal_approx(expected.z, 0.05)
 	## Not the generic room-center south cell (would be ~340 GX / cell 8).
@@ -985,12 +985,8 @@ func test_house_exit_door_gap_opens_south_wall() -> void:
 	InteriorBuilder.build(root, session)
 	var terrain: Node3D = root.get_node("Terrain") as Node3D
 	## Spawn GX and EXIT mid must not be inside a solid south-wall box.
-	var spawn_gx: Vector3 = InteriorCatalog.PLAYER_SMALL_SPAWN_GX
-	var spawn_world := Vector3(
-		session.grid.origin.x + spawn_gx.x * FieldCatalog.GX_TO_METERS,
-		0.0,
-		session.grid.origin.z + spawn_gx.z * FieldCatalog.GX_TO_METERS
-	)
+	var spawn: Vector3 = InteriorCatalog.PLAYER_SMALL_SPAWN
+	var spawn_world := Vector3(session.grid.origin.x + spawn.x, 0.0, session.grid.origin.z + spawn.z)
 	var exit_mid: Vector3 = (
 		session.grid.cell_to_world(room.door_cell)
 		+ session.grid.cell_to_world(room.door_cell + Vector2i(1, 0))
@@ -1026,29 +1022,29 @@ func _point_in_box_xz(point: Vector3, center: Vector3, size: Vector3) -> bool:
 
 func test_house_enter_spawn_matches_decomp() -> void:
 	## Outdoor→NPC house uses `aHUS_npc_house_door_data`, not cell-center south edge.
-	assert_vector(InteriorCatalog.NPC_HOUSE_SPAWN_GX).is_equal(Vector3(160.0, 0.0, 300.0))
-	assert_vector(InteriorCatalog.PLAYER_SMALL_SPAWN_GX).is_equal(Vector3(120.0, 0.0, 220.0))
+	assert_vector(InteriorCatalog.NPC_HOUSE_SPAWN).is_equal_approx(Vector3(8.0, 0.0, 15.0), Vector3.ONE * 0.0001)
+	assert_vector(InteriorCatalog.PLAYER_SMALL_SPAWN).is_equal_approx(Vector3(6.0, 0.0, 11.0), Vector3.ONE * 0.0001)
 	var npc: Room = InteriorCatalog.room_template(&"npc_filbert")
 	assert_that(npc.door_cell).is_equal(InteriorCatalog.NPC_HOUSE_DOOR_CELL)
 	assert_that(npc.spawn_cell).is_equal(InteriorCatalog.NPC_HOUSE_SPAWN_CELL)
-	## Spawn GX sits on the EXIT mid-X / one cell north (ut z=7 center = 300).
-	assert_float(InteriorCatalog.NPC_HOUSE_SPAWN_GX.x).is_equal_approx(160.0, 0.01)
-	assert_float(InteriorCatalog.NPC_HOUSE_SPAWN_GX.z).is_equal_approx(
-		float(InteriorCatalog.NPC_HOUSE_SPAWN_CELL.y) * 40.0 + 20.0, 0.01
+	## Spawn sits on the EXIT mid-X / one cell north (ut z=7 center = 300 GX = 15 m).
+	assert_float(InteriorCatalog.NPC_HOUSE_SPAWN.x).is_equal_approx(8.0, 0.01)
+	assert_float(InteriorCatalog.NPC_HOUSE_SPAWN.z).is_equal_approx(
+		float(InteriorCatalog.NPC_HOUSE_SPAWN_CELL.y) * 2.0 + 1.0, 0.01
 	)
 	var player: Room = InteriorCatalog.room_template(&"player_main")
 	assert_that(player.door_cell).is_equal(InteriorCatalog.PLAYER_SMALL_DOOR_CELL)
-	assert_float(InteriorCatalog.PLAYER_SMALL_SPAWN_GX.z).is_equal_approx(
-		float(InteriorCatalog.PLAYER_SMALL_SPAWN_CELL.y) * 40.0 + 20.0, 0.01
+	assert_float(InteriorCatalog.PLAYER_SMALL_SPAWN.z).is_equal_approx(
+		float(InteriorCatalog.PLAYER_SMALL_SPAWN_CELL.y) * 2.0 + 1.0, 0.01
 	)
 
 
 func test_indoor_exit_walks_further_south() -> void:
 	## INTO_S1 target is south of the door cell (+Z), facing SOUTH yaw 0.
-	assert_float(StructureDoor.INTO_GX).is_greater(0.0)
+	assert_float(StructureDoor.INTO).is_greater(0.0)
 	assert_float(WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH)).is_equal_approx(0.0, 0.01)
 	var door_pos := Vector3(4.0, 0.1, 8.0)
-	var target: Vector3 = door_pos + Vector3(0.0, 0.0, StructureDoor.INTO_GX * FieldCatalog.GX_TO_METERS)
+	var target: Vector3 = door_pos + Vector3(0.0, 0.0, StructureDoor.INTO)
 	assert_float(target.z).is_greater(door_pos.z)
 
 

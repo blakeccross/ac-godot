@@ -77,10 +77,10 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if not preview_seated_daylight:
-		_stage.tick(delta)
+		_stage.advance(delta)
 	_lighting.advance_sunlight(delta, _world_env, _train_car)
 	_sync_rover_clip_face()
-	_rover_face.tick(delta, _dialogue_uttering())
+	_rover_face.advance(delta, _dialogue_uttering())
 	_poll_dialogue_stage_wait()
 	if auto_advance_dialogue and not _finishing:
 		_auto_advance_timer += delta
@@ -118,7 +118,7 @@ func _poll_dialogue_stage_wait() -> void:
 
 
 func _apply_rover_look() -> void:
-	_rover_look.tick(get_process_delta_time())
+	_rover_look.advance(get_process_delta_time())
 
 
 func _unhandled_input(event: InputEvent) -> void:

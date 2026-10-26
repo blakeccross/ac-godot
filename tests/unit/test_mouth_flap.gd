@@ -38,14 +38,14 @@ func test_owl_beak_flaps_while_uttering_then_shuts() -> void:
 
 	flap._process_modification()
 	var shut := skel.get_bone_pose_rotation(bone)
-	flap.tick(0.1, true)
+	flap.advance(0.1, true)
 	flap._process_modification()
 	assert_float(skel.get_bone_pose_rotation(bone).angle_to(shut)).is_greater(0.01)
 
-	flap.tick(MouthFlap.TAIL_SECONDS * 0.5, false)
+	flap.advance(MouthFlap.TAIL_SECONDS * 0.5, false)
 	assert_bool(flap.is_flapping()).is_true()
-	flap.tick(MouthFlap.TAIL_SECONDS, false)
-	flap.tick(0.016, false)
+	flap.advance(MouthFlap.TAIL_SECONDS, false)
+	flap.advance(0.016, false)
 	assert_bool(flap.is_flapping()).is_false()
 	flap._process_modification()
 	assert_float(skel.get_bone_pose_rotation(bone).angle_to(shut)).is_less(0.001)
@@ -60,7 +60,7 @@ func test_npc_face_drives_nooks_snout() -> void:
 	var flaps: Array[Node] = host.find_children("*", "MouthFlap", true, false)
 	assert_int(flaps.size()).is_equal(1)
 	var flap := flaps[0] as MouthFlap
-	face.tick(0.1, true)
+	face.advance(0.1, true)
 	assert_bool(flap.is_flapping()).is_true()
 
 

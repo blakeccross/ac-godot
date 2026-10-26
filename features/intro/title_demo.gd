@@ -12,9 +12,6 @@ const LENGTH_SEC := 3600.0 / DecompTime.TICK_HZ
 ## `mTD_tdemo_button_ok_check`: START is ignored from tick 3530 on.
 const BUTTON_LOCKOUT_SEC := 3530.0 / DecompTime.TICK_HZ
 const DATA_PATH := "res://assets/generated/titledemo/demos.json"
-## World XZ is measured from the outer map corner; the playable town starts one 640-GX
-## border block in (`mFI` block 1).
-const BORDER_GX := 640.0
 
 ## `tradeday_table` (m_trademark.c `mTM_demotime_set`), one row per demo.
 const TRADE_DAYS: Array[Dictionary] = [
@@ -185,13 +182,14 @@ static func keys_for(index: int) -> PackedInt32Array:
 	return keys
 
 
-## Head-table spawn position in GX.
-static func spawn_gx(index: int) -> Vector3:
+## Head-table spawn position (decomp GX in the data) as a field position (`TownSpace`).
+static func spawn_point(index: int) -> Vector3:
 	var pos: Variant = demo(index).get("pos", [])
+	var gx := Vector3(2240.0, 0.0, 1600.0)
 	if pos is Array and (pos as Array).size() == 3:
 		var p: Array = pos as Array
-		return Vector3(float(p[0]), float(p[1]), float(p[2]))
-	return Vector3(2240.0, 0.0, 1600.0)
+		gx = Vector3(float(p[0]), float(p[1]), float(p[2]))
+	return gx * FieldCatalog.GX_TO_METERS
 
 
 ## Head-table facing. Decomp angle 0 faces +Z, increasing toward +X: yaw = atan2(x, z).
@@ -203,10 +201,10 @@ static func tool_item_id(index: int) -> StringName:
 	return TOOLS.get(int(demo(index).get("tool", 0)), &"") as StringName
 
 
-## Decomp town position (GX) → world metres inside a generated town.
-static func gx_to_world(town: WorldData, gx: Vector3) -> Vector3:
-	var local := Vector3(gx.x - BORDER_GX, 0.0, gx.z - BORDER_GX) * FieldCatalog.GX_TO_METERS
-	return town.origin() + local
+## A field position (`TownSpace`, metres from the outer map corner) → world metres inside a
+## generated town, on y 0. The playable town starts one border block in (`mFI` block 1).
+static func field_to_world(town: WorldData, field: Vector3) -> Vector3:
+	return town.origin() + Vector3(field.x - TownSpace.BORDER, 0.0, field.z - TownSpace.BORDER)
 
 
 ## `mPr_RandomSetPlayerData_title_demo`: `RANDOM(4) & 1` gender, random shirt and face.
@@ -246,7 +244,7 @@ static func begin(index: int) -> void:
 	layout.columns = WorldGenerator.FG_X * WorldGenerator.UT
 	layout.rows = WorldGenerator.FG_Z * WorldGenerator.UT
 	layout.cell_size = 2.0
-	resident.player_position = gx_to_world(layout, spawn_gx(index))
+	resident.player_position = field_to_world(layout, spawn_point(index))
 	resident.player_yaw = spawn_yaw(index)
 
 

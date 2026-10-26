@@ -113,7 +113,7 @@ func take_bite() -> bool:
 	return bit
 
 
-func tick(delta: float, sense: BugActor.Sense) -> void:
+func advance(delta: float, sense: BugActor.Sense) -> void:
 	if _tool_swing > 0.0:
 		sense.player_swung_tool = true
 	_tool_swing = maxf(_tool_swing - delta, 0.0)

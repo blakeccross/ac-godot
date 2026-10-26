@@ -18,5 +18,5 @@ func stop() -> void:
 
 
 ## Called every physics frame while the event runs (festival choreography, timers).
-func tick(_delta: float) -> void:
+func advance(_delta: float) -> void:
 	pass

@@ -23,21 +23,21 @@ func test_water_ahead_needs_its_corners_wet_too() -> void:
 
 
 func test_a_far_throw_crosses_in_sixty_ticks() -> void:
-	var vel: Vector3 = CreatureRelease.launch_velocity(Vector3.ZERO, Vector3(0.0, -10.0, 90.0))
-	## dist / 60 / 0.5 across, (dy + 450) / 60 up.
-	assert_float(vel.z).is_equal_approx(3.0, 0.0001)
-	assert_float(vel.y).is_equal_approx(440.0 / 60.0, 0.0001)
+	var vel: Vector3 = CreatureRelease.launch_velocity(Vector3.ZERO, Vector3(0.0, -10.0, 90.0) * GX)
+	## dist / 60 / 0.5 GX a frame across (the gap in a second), (dy + 450) / 60 GX a frame up.
+	assert_float(vel.z).is_equal_approx(90.0 * GX, 0.0001)
+	assert_float(vel.y).is_equal_approx(440.0 / 60.0 * GX * 30.0, 0.0001)
 	## Sixty ticks is one second of flight at `FishRelease`'s speed.
 	var node := (load(FishRelease.SCENE_PATH) as PackedScene).instantiate() as FishRelease
 	node.aim(Vector3.ZERO, Vector3(0.0, -10.0, 90.0) * GX)
 	for i: int in 60:
 		node.advance(1.0 / 60.0)
-	assert_float(node.position_gx().z).is_equal_approx(90.0, 0.01)
+	assert_float(node.current_position().z / GX).is_equal_approx(90.0, 0.01)
 	node.free()
 	## A near throw (inside one unit) is a short lob.
-	var near: Vector3 = CreatureRelease.launch_velocity(Vector3.ZERO, Vector3(0.0, 0.0, 30.0))
-	assert_float(near.z).is_equal_approx(2.5, 0.0001)
-	assert_float(near.y).is_equal_approx(30.0 * 0.18, 0.0001)
+	var near: Vector3 = CreatureRelease.launch_velocity(Vector3.ZERO, Vector3(0.0, 0.0, 30.0) * GX)
+	assert_float(near.z).is_equal_approx(2.5 * GX * 30.0, 0.0001)
+	assert_float(near.y).is_equal_approx(30.0 * 0.18 * GX * 30.0, 0.0001)
 
 
 func test_it_shrinks_away_past_140_ticks() -> void:

@@ -12,24 +12,24 @@ const TREE_HEIGHT := 2.2
 const ROCK_HEIGHT := 1.1
 const SENSOR_PAD := 0.25
 const SENSOR_Y := 1.0
-## `aMHS_rewrite_pl_out_data` restart offset (GX). Local SW; west plots rotate with mesh yaw.
-const PLAYER_DOOR_GX := 48.29
+## `aMHS_rewrite_pl_out_data` restart offset (48.29 GX). Local SW; west plots rotate with mesh yaw.
+const PLAYER_DOOR := 48.29 * FieldCatalog.GX_TO_METERS
 ## `aMHS_check_player_sub` center: mesh + (−20,+20) local (`arg0_f`/`arg1_f` after yaw).
 ## Exit stay at ±48.29; interact sensor is the check, not the emerge stand.
-const PLAYER_DOOR_CHECK_GX := Vector2(-20.0, 20.0)
+const PLAYER_DOOR_CHECK := Vector2(-20.0, 20.0) * FieldCatalog.GX_TO_METERS
 ## Villager home porch / `wait_door_start` stand (`size` 40 → size_adj 40 south).
 ## Exit is `home.z + 60` (`aHUS_rewrite_out_data`); do not use the 3×3 AABB south face.
-const NPC_HOUSE_DOOR_GX := Vector2(0.0, 40.0)
-## Door approach stands (GX from actor world / mesh). Angled doors are not south-face boxes.
+const NPC_HOUSE_DOOR := Vector2(0.0, 40.0) * FieldCatalog.GX_TO_METERS
+## Door approach stands (from actor world / mesh, written in GX). Angled doors are not south-face boxes.
 ## Shop: `aSHOP` request (−50,+50). Able/post check (−40,+50). Police request (+50,+50).
 ## Museum check/request (0,+100).
-const SHOP_DOOR_GX := Vector2(-50.0, 50.0)
-const ABLE_DOOR_GX := Vector2(-40.0, 50.0)
-const POLICE_DOOR_GX := Vector2(50.0, 50.0)
-const MUSEUM_DOOR_GX := Vector2(0.0, 100.0)
+const SHOP_DOOR := Vector2(-50.0, 50.0) * FieldCatalog.GX_TO_METERS
+const ABLE_DOOR := Vector2(-40.0, 50.0) * FieldCatalog.GX_TO_METERS
+const POLICE_DOOR := Vector2(50.0, 50.0) * FieldCatalog.GX_TO_METERS
+const MUSEUM_DOOR := Vector2(0.0, 100.0) * FieldCatalog.GX_TO_METERS
 ## `aTOU_check_door_pos`: |dx| < 20 and −65 < dz < 0 from the tower — the door is on the
 ## **north** face (the tower stands on the beach facing town). Centre of that window.
-const LIGHTHOUSE_DOOR_GX := Vector2(0.0, -32.5)
+const LIGHTHOUSE_DOOR := Vector2(0.0, -32.5) * FieldCatalog.GX_TO_METERS
 ## That window as a sensor box (m): 40 GX wide, 65 GX deep.
 const LIGHTHOUSE_DOOR_BOX := Vector3(2.0, 2.0, 3.25)
 ## House interact boxes — cover the check radius (~40 GX) without a thin south strip.
@@ -89,11 +89,11 @@ static func uses_structure_offset(visual_id: StringName) -> bool:
 
 static func player_door_offset() -> Vector3:
 	## Interact / A-check stand (`aMHS_check_player_sub`), not the exit restart.
-	return _door_from_gx(PLAYER_DOOR_CHECK_GX)
+	return _door_at(PLAYER_DOOR_CHECK)
 
 
 static func npc_house_door_offset() -> Vector3:
-	return _door_from_gx(NPC_HOUSE_DOOR_GX)
+	return _door_at(NPC_HOUSE_DOOR)
 
 
 static func is_villager_house(visual_id: StringName) -> bool:
@@ -108,15 +108,15 @@ static func door_offset(visual_id: StringName) -> Vector3:
 	if is_villager_house(visual_id):
 		return npc_house_door_offset()
 	if is_shop(visual_id):
-		return _door_from_gx(SHOP_DOOR_GX)
+		return _door_at(SHOP_DOOR)
 	if is_able_sisters(visual_id) or is_post_office(visual_id):
-		return _door_from_gx(ABLE_DOOR_GX)
+		return _door_at(ABLE_DOOR)
 	if is_police(visual_id):
-		return _door_from_gx(POLICE_DOOR_GX)
+		return _door_at(POLICE_DOOR)
 	if is_museum(visual_id):
-		return _door_from_gx(MUSEUM_DOOR_GX)
+		return _door_at(MUSEUM_DOOR)
 	if is_lighthouse(visual_id):
-		return _door_from_gx(LIGHTHOUSE_DOOR_GX)
+		return _door_at(LIGHTHOUSE_DOOR)
 	return Vector3.ZERO
 
 
@@ -255,7 +255,7 @@ static func resize_interact_box(host: Node3D, size: Vector3) -> void:
 static func apply_shop(host: Node3D, occupancy: Vector2i, cell_size: float) -> void:
 	## Nook shop walk walls are `StructureOffset` (`aSHOP_set_bgOffset`).
 	disable_body(host)
-	place_door_sensor(host, _door_from_gx(SHOP_DOOR_GX), Vector3(1.6, 2.0, 1.6))
+	place_door_sensor(host, _door_at(SHOP_DOOR), Vector3(1.6, 2.0, 1.6))
 
 
 static func place_door_sensor(host: Node3D, offset: Vector3, box_size: Vector3 = Vector3.ZERO) -> void:
@@ -297,9 +297,8 @@ static func place_south_sensor(host: Node3D, footprint: Vector2i, cell_size: flo
 			n.position = Vector3(n.position.x, n.position.y, z)
 
 
-static func _door_from_gx(xz: Vector2) -> Vector3:
-	var s: float = FieldCatalog.GX_TO_METERS
-	return Vector3(xz.x * s, SENSOR_Y, xz.y * s)
+static func _door_at(xz: Vector2) -> Vector3:
+	return Vector3(xz.x, SENSOR_Y, xz.y)
 
 
 static func _body_shape(host: Node) -> CollisionShape3D:

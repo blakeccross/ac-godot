@@ -24,9 +24,9 @@ func _ready() -> void:
 		VisualTrain.place_train_door_at_gateway(
 			self,
 			vis,
-			IntroTrainStage.DOOR_GATE_GX,
+			IntroTrainStage.DOOR_GATE_GX * FieldCatalog.GX_TO_METERS,
 			car_vis,
-			IntroTrainStage.DOOR_PANEL_Z_BIAS_GX
+			IntroTrainStage.DOOR_PANEL_Z_BIAS_GX * FieldCatalog.GX_TO_METERS
 		)
 
 

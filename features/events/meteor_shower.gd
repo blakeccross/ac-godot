@@ -12,12 +12,14 @@ extends Node3D
 ## Those frames are ticks (60ths of a second); stars keep their age in seconds and read the
 ## timetable at `age * TICK_HZ`.
 
-const SET_LIFT_GX := 20.0
+## Lengths in metres, from the decomp's GX.
+const GX := FieldCatalog.GX_TO_METERS
+const SET_LIFT := 20.0 * GX
 const STAR_LIFE := 320
 const KIRA_AT := 76
 const KIRA_LIFE := 42
-const KIRA_RUN_GX := 115.0
-const SCATTER_GX := 80.0
+const KIRA_RUN := 115.0 * GX
+const SCATTER := 80.0 * GX
 ## `Matrix_scale(0.01, 0.01, 0.01 · len)`.
 const STAR_SCALE := 0.01
 ## After the pond water (`VisualWaterMaterials`, priority 2), like `PondMoon`.
@@ -89,7 +91,7 @@ func _process(delta: float) -> void:
 
 func _set_position() -> Vector3:
 	var c: Vector3 = pond_center if pond_center != Vector3.INF else global_position
-	return c + Vector3(0.0, SET_LIFT_GX * FieldCatalog.GX_TO_METERS, 0.0)
+	return c + Vector3(0.0, SET_LIFT, 0.0)
 
 
 ## `check_lookat_block_proc`: the camera follows the player, so the player is in the pond acre.
@@ -115,7 +117,7 @@ func _launch(toward_player: bool = true) -> void:
 		pos.x = (pos.x + player.global_position.x) * 0.5
 		pos.z = (pos.z + player.global_position.z) * 0.5
 	## The decomp spreads both axes by the same cosine, so the scatter runs diagonally.
-	var spread: float = _rng.randf() * SCATTER_GX * FieldCatalog.GX_TO_METERS * cos(_rng.randf() * TAU)
+	var spread: float = _rng.randf() * SCATTER * cos(_rng.randf() * TAU)
 	pos.x += spread
 	pos.z += spread
 	var side: float = 1.0 if (_rng.randi_range(0, 9) & 1) == 1 else -1.0
@@ -143,7 +145,7 @@ func _step_star(star: Dictionary, delta: float) -> void:
 		return
 	## The stretch turns 256 binangle a tick.
 	var w: float = fposmod(256.0 * (t + 1.0), 65536.0) / 65536.0 * TAU
-	var s: float = STAR_SCALE * FieldCatalog.GX_TO_METERS / FieldCatalog.PIPELINE_SCALE
+	var s: float = STAR_SCALE * GX / FieldCatalog.PIPELINE_SCALE
 	var strip := star["strip"] as Node3D
 	## `RotateY(−w) · scale(1.035, 1, 1) · RotateY(w) · RotateY(yaw) · scale(…, len)`.
 	strip.basis = (Basis(Vector3.UP, -w) * Basis.from_scale(Vector3(1.035, 1.0, 1.0)) * Basis(Vector3.UP, w)
@@ -178,14 +180,14 @@ func _step_kira(star: Dictionary, delta: float) -> void:
 		scale = lerpf(0.0065, 0.00975, (c - m * 0.7) / (m * 0.17))
 	else:
 		scale = lerpf(0.00975, 0.0, clampf((c - m * 0.7) / (m * 0.3), 0.0, 1.0))
-	var run: float = KIRA_RUN_GX * float(star["len"]) * FieldCatalog.GX_TO_METERS
+	var run: float = KIRA_RUN * float(star["len"])
 	var yaw: float = float(star["yaw"])
 	var dir := Vector3(sin(yaw), 0.0, cos(yaw))
 	var at: Vector3 = (star["pos"] as Vector3) + dir * lerpf(-run, run, c / m)
 	var spin: float = c / m * 2.0 * TAU
 	var cam: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
 	var face: Basis = cam.global_basis if cam != null else Basis.IDENTITY
-	var s: float = scale * FieldCatalog.GX_TO_METERS / FieldCatalog.PIPELINE_SCALE
+	var s: float = scale * GX / FieldCatalog.PIPELINE_SCALE
 	node.global_transform = Transform3D(face * Basis(Vector3.BACK, spin) * Basis.from_scale(Vector3.ONE * s), at)
 	kira["age"] = float(kira["age"]) + delta
 

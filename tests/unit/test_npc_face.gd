@@ -11,7 +11,7 @@ func _run(face: NpcFaceAnim, frames: int, uttering: bool) -> Dictionary:
 	var eye_counts: Dictionary = {}
 	var mouth_counts: Dictionary = {}
 	for _i: int in frames:
-		face.tick(FRAME, uttering)
+		face.advance(FRAME, uttering)
 		eye_counts[face.eye_pattern] = int(eye_counts.get(face.eye_pattern, 0)) + 1
 		mouth_counts[face.mouth_pattern] = int(mouth_counts.get(face.mouth_pattern, 0)) + 1
 	return {"eye": eye_counts, "mouth": mouth_counts}
@@ -55,7 +55,7 @@ func test_eyes_never_stick_shut() -> void:
 	var shut_run := 0
 	var worst := 0
 	for _i: int in 1800:
-		face.tick(FRAME, false)
+		face.advance(FRAME, false)
 		if face.eye_pattern == NpcFaceAnim.EYE_SHUT:
 			shut_run += 1
 			worst = maxi(worst, shut_run)
@@ -67,7 +67,7 @@ func test_eyes_never_stick_shut() -> void:
 
 func test_long_frame_hitch_does_not_replay_the_whole_gap() -> void:
 	var face := NpcFaceAnim.new()
-	face.tick(5.0, false)
+	face.advance(5.0, false)
 	assert_bool(face.eye_pattern >= 0).is_true()
 	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_SHUT)
 
@@ -173,7 +173,7 @@ func test_bind_fails_without_face_quads_on_host() -> void:
 	var host := Node3D.new()
 	add_child(host)
 	assert_bool(face.bind(host, &"xct")).is_false()
-	face.tick(FRAME, true)
+	face.advance(FRAME, true)
 	host.queue_free()
 
 
@@ -254,18 +254,18 @@ func test_open_d1_mouth_follows_its_frame_table() -> void:
 	var face := NpcFaceAnim.new()
 	face.set_clip_face(NpcClipFace.for_clip("npc_1_open_d1"))
 	face.set_clip_frame(10)
-	face.tick(FRAME, false)
+	face.advance(FRAME, false)
 	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_SHUT)
 	## Frames 76–118 close onto mouth3 for the step down.
 	face.set_clip_frame(90)
-	face.tick(FRAME, false)
+	face.advance(FRAME, false)
 	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_ANGRY_SHUT)
 	## A fixed mouth ignores message flapping.
 	face.set_clip_frame(10)
-	face.tick(FRAME, true)
+	face.advance(FRAME, true)
 	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_SHUT)
 	face.set_clip_frame(125)
-	face.tick(FRAME, false)
+	face.advance(FRAME, false)
 	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_OPEN)
 
 
@@ -274,13 +274,13 @@ func test_open_d1_blinks_on_authored_frames() -> void:
 	face.set_clip_face(NpcClipFace.for_clip("npc_1_open_d1"))
 	for frame: int in [36, 73, 81, 100, 117]:
 		face.set_clip_frame(frame)
-		face.tick(FRAME, false)
+		face.advance(FRAME, false)
 		assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_HALF)
 		face.set_clip_frame(frame + 1)
-		face.tick(FRAME, false)
+		face.advance(FRAME, false)
 		assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_SHUT)
 	face.set_clip_frame(20)
-	face.tick(FRAME, false)
+	face.advance(FRAME, false)
 	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_OPEN)
 
 
@@ -288,7 +288,7 @@ func test_sitdown_clip_holds_eyes_open_without_blinking() -> void:
 	var face := NpcFaceAnim.new()
 	face.set_clip_face(NpcClipFace.for_clip("npc_1_sitdown_d1"))
 	for _i: int in 900:
-		face.tick(FRAME, false)
+		face.advance(FRAME, false)
 		assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_OPEN)
 
 
@@ -296,13 +296,13 @@ func test_blink_resumes_after_a_held_clip() -> void:
 	var face := NpcFaceAnim.new()
 	face.set_clip_face(NpcClipFace.for_clip("npc_1_keitai_talk1"))
 	face.set_clip_frame(5)
-	face.tick(FRAME, false)
+	face.advance(FRAME, false)
 	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_SHUT)
 	face.set_clip_face(NpcClipFace.for_clip("npc_1_keitai_talk2"))
 	var shut_run := 0
 	var worst := 0
 	for _i: int in 600:
-		face.tick(FRAME, false)
+		face.advance(FRAME, false)
 		shut_run = shut_run + 1 if face.eye_pattern == NpcFaceAnim.EYE_SHUT else 0
 		worst = maxi(worst, shut_run)
 	assert_int(worst).is_less(10)

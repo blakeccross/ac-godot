@@ -49,9 +49,9 @@ const POP_FADE_FROM := 64
 const POP_HOLD := 50
 const GIMONHU_VISUAL := &"ef_gimonhu01_00"
 const KANTANHU_VISUAL := &"ef_kantanhu01_00"
-## `eGM_init` / `eKT_init` offsets (GX, NPC frame).
-const GIMONHU_AT := Vector3(0.0, 15.0, 7.0)
-const KANTANHU_AT := Vector3(0.0, 15.0, -3.0)
+## `eGM_init` / `eKT_init` offsets (NPC frame, written in GX).
+const GIMONHU_AT := Vector3(0.0, 15.0, 7.0) * FieldCatalog.GX_TO_METERS
+const KANTANHU_AT := Vector3(0.0, 15.0, -3.0) * FieldCatalog.GX_TO_METERS
 ## `eAS2_*`: four sweat cards, a new one every four ticks, while the clip runs.
 const ASE_VISUALS: Array[StringName] = [&"ef_ase02_00", &"ef_ase02_01", &"ef_ase02_02", &"ef_ase02_03"]
 const ASE_MATRIX_SCALE := 0.006
@@ -61,18 +61,20 @@ const ASE_LIFE := 52
 const MUKA_VISUAL := &"ef_muka01_00"
 const MUKA_MATRIX_SCALE := 0.0075
 const MUKA_LIFE := 40
-const MUKA_AT := Vector3(10.0, 9.0, 23.0)
+const MUKA_AT := Vector3(10.0, 9.0, 23.0) * FieldCatalog.GX_TO_METERS
 ## `eLL2_*`: heart that rises (1.0 → 0.1 GX a tick over 28 ticks), grows over 30 and
 ## wobbles x/y out of phase, fading 96 → 112.
 const HEART_VISUAL := &"ef_lovelove02_00"
 const HEART_LIFE := 112
-const HEART_Y_GX := 16.0
+const HEART_Y := 16.0 * FieldCatalog.GX_TO_METERS
 const HEART_SPIN := 10.55
 ## `eSN_*`: heartbreak card set (0,10,7) in front of the NPC, rising 1.6 GX a tick for 8
 ## ticks; whole → cracking (tick 60) → split, wobbling like the heart, fading 108 → 128.
 const SITUREN_VISUALS: Array[StringName] = [&"ef_situren01_00", &"ef_situren01_01", &"ef_situren01_02"]
 const SITUREN_LIFE := 128
-const SITUREN_AT := Vector3(0.0, 10.0, 7.0)
+const SITUREN_AT := Vector3(0.0, 10.0, 7.0) * FieldCatalog.GX_TO_METERS
+## 1.6 GX a tick.
+const SITUREN_RISE := 1.6 * FieldCatalog.GX_TO_METERS
 const SITUREN_SPIN := 30.94
 
 ## Set by the owner before `play`: the NPC is turned toward the camera (`eMK_ct` side).
@@ -193,19 +195,19 @@ func play(kind: StringName) -> void:
 		&"gimonhu", &"kantanhu":
 			var question: bool = kind == &"gimonhu"
 			_set_visual(GIMONHU_VISUAL if question else KANTANHU_VISUAL, POP_MATRIX_SCALE)
-			_mesh_host.position = (GIMONHU_AT if question else KANTANHU_AT) * FieldCatalog.GX_TO_METERS
+			_mesh_host.position = GIMONHU_AT if question else KANTANHU_AT
 			Audio.play_se(&"2f" if question else &"14b", self)
 			_tick_pop()
 		&"ase":
 			_set_visual(ASE_VISUALS[0], ASE_MATRIX_SCALE)
 		&"muka":
 			_set_visual(MUKA_VISUAL, MUKA_MATRIX_SCALE)
-			_mesh_host.position = MUKA_AT * FieldCatalog.GX_TO_METERS
+			_mesh_host.position = MUKA_AT
 			Audio.play_se(&"137", self)
 			_tick_muka()
 		&"lovelove2":
 			_set_visual(HEART_VISUAL, 0.003)
-			_mesh_host.position = Vector3(0.0, HEART_Y_GX * FieldCatalog.GX_TO_METERS, 0.0)
+			_mesh_host.position = Vector3(0.0, HEART_Y, 0.0)
 			Audio.play_se(&"118", self)
 			_tick_heart()
 		&"situren":
@@ -247,7 +249,7 @@ func _tick_pose(delta: float) -> void:
 				_ambient._npc_yaw = npc_yaw
 				_ambient.pulse(data[0])
 		_pose_counter = fposmod(_pose_counter + climb, top)
-	_ambient.tick(delta)
+	_ambient.advance(delta)
 	for id: StringName in _ambient.one_shot_sounds:
 		Audio.play_se(id, self)
 	_ambient.one_shot_sounds.clear()
@@ -283,7 +285,7 @@ func _tick_moods(delta: float) -> void:
 	## effect back after a long reaction.
 	if _moods.t >= MOOD_MAX_TICKS:
 		_moods.release()
-	if not _moods.tick(delta):
+	if not _moods.advance(delta):
 		clear()
 		return
 	for id: StringName in _moods.one_shot_sounds:
@@ -306,10 +308,10 @@ func _hold_ongen(id: StringName) -> void:
 		_ongen_player.stop()
 		_ongen_player.stream = SoundEmitter.looped(SeCatalog.stream_for(id))
 		_ongen_player.set_meta(&"se", id)
-	var mic: Vector3 = SoundEmitter.field_mic_gx(get_tree())
+	var mic: Vector3 = SoundEmitter.field_mic(get_tree())
 	var vol: float = SoundEmitter.BASE_VOLUME
 	if mic != Vector3.INF:
-		vol = SoundEmitter.volume(mic.distance_to(TownSpace.world_to_gx(global_position)))
+		vol = SoundEmitter.volume(mic.distance_to(global_position))
 	_ongen_player.volume_db = linear_to_db(maxf(vol, 0.0001))
 	if _ongen_player.stream != null and not _ongen_player.playing:
 		_ongen_player.play()
@@ -470,7 +472,7 @@ func _tick_muka() -> void:
 		return
 	## `eMK_ct`: screen right of the head while the NPC faces the camera, left otherwise.
 	var side: float = 1.0 if faces_camera else -1.0
-	_mesh_host.position = Vector3(MUKA_AT.x * side, MUKA_AT.y, MUKA_AT.z) * FieldCatalog.GX_TO_METERS
+	_mesh_host.position = Vector3(MUKA_AT.x * side, MUKA_AT.y, MUKA_AT.z)
 	var c: Color = muka_color(t)
 	_tint_mesh(c)
 	_set_mesh_alpha(c.a)
@@ -489,12 +491,12 @@ static func heart_scale(t: int) -> Vector2:
 	)
 
 
-## Total GX the heart has risen by tick `t`.
+## How far (m) the heart has risen by tick `t`.
 static func heart_rise(t: int) -> float:
 	var y: float = 0.0
 	for i: int in t:
 		y += lerpf(1.0, 0.1, clampf(float(i) / 28.0, 0.0, 1.0))
-	return y
+	return y * FieldCatalog.GX_TO_METERS
 
 
 func _tick_heart() -> void:
@@ -505,7 +507,7 @@ func _tick_heart() -> void:
 	var sc: Vector2 = heart_scale(t)
 	var unit: float = _node_scale_for(1.0)
 	_mesh_host.scale = Vector3(sc.x * unit, sc.y * unit, lerpf(0.003, 0.014, clampf(float(t) / 30.0, 0.0, 1.0)) * unit)
-	_mesh_host.position.y = (HEART_Y_GX + heart_rise(t)) * FieldCatalog.GX_TO_METERS
+	_mesh_host.position.y = HEART_Y + heart_rise(t)
 	_set_mesh_alpha(1.0 - clampf(float(t - 96) / 16.0, 0.0, 1.0))
 
 
@@ -539,10 +541,10 @@ func _tick_situren() -> void:
 	var unit: float = _node_scale_for(1.0)
 	_mesh_host.scale = Vector3(sc.x * unit, sc.y * unit, 0.0075 * unit)
 	## World-space offset in front of the NPC, carried into the billboard's frame.
-	var rise: float = 1.6 * float(mini(t, 8))
+	var rise: float = SITUREN_RISE * float(mini(t, 8))
 	var world := Vector3(
 		sin(npc_yaw) * SITUREN_AT.z, SITUREN_AT.y + rise, cos(npc_yaw) * SITUREN_AT.z
-	) * FieldCatalog.GX_TO_METERS
+	)
 	_mesh_host.position = global_basis.orthonormalized().inverse() * world
 	_tint_mesh(Color(1.0, 200.0 / 255.0, 1.0))
 	_set_mesh_alpha(1.0 - clampf(float(t - 108) / 20.0, 0.0, 1.0))

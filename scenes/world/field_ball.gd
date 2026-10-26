@@ -15,8 +15,8 @@ extends Node3D
 
 const GROUP := &"field_ball"
 const VISUALS: Array[StringName] = [&"act_ball_b", &"act_ball_d", &"act_ball_s"]
-## `aBALL_CoInfoData` pipe radius.
-const RADIUS_GX := 13.0
+## `aBALL_CoInfoData` pipe radius (13 GX).
+const RADIUS := 13.0 * FieldCatalog.GX_TO_METERS
 ## `ac_ball` works in GX per 30 fps frame: one of those, in m/s.
 const FRAME := 1.5  ## 1 GX a 30 fps frame, in m/s
 ## Kicks top out at 11 GX a frame.
@@ -34,10 +34,10 @@ const ROLL_PER_METRE := ROLL_RATE / FieldCatalog.GX_TO_METERS
 ## `collider` stays the same one for this long (`unk20C`).
 const SAME_COLLIDER_TIME := 1.0
 ## `aNPC_check_ball`: within 200 GX and inside 67.5° of +z of the villager.
-const CHASE_GX := 200.0
+const CHASE := 200.0 * FieldCatalog.GX_TO_METERS
 const CHASE_CONE := deg_to_rad(67.5)
-## `aBALL_player_angle_distance_check`.
-const TOOL_REACH_GX := 60.0
+## `aBALL_player_angle_distance_check` (60 GX).
+const TOOL_REACH := 60.0 * FieldCatalog.GX_TO_METERS
 const TOOL_CONE := PI / 4.0
 const SE_KICK := &"25"
 const SE_WALL := &"8026"
@@ -45,9 +45,11 @@ const SE_DROP := &"43d"
 const SE_SPLASH := &"27"
 ## A lost ball drifts this long before it is gone.
 const SINK_SECONDS := 3.0
+## A drop of more than 20 GX plays the drop SE.
+const DROP_SE_HEIGHT := 20.0 * FieldCatalog.GX_TO_METERS
 
 var type: int = 0
-## Horizontal speed (GX / frame), heading (radians, 0 = +z) and vertical speed.
+## Horizontal speed (m/s), heading (radians, 0 = +z) and vertical speed (m/s).
 var speed: float = 0.0
 var heading: float = 0.0
 var vy: float = 0.0
@@ -69,15 +71,11 @@ static func find(tree: SceneTree) -> FieldBall:
 	return tree.get_first_node_in_group(GROUP) as FieldBall
 
 
-static func gx() -> float:
-	return FieldCatalog.GX_TO_METERS
-
-
 func _ready() -> void:
 	add_to_group(GROUP)
 	_roll = Node3D.new()
 	_roll.name = "Roll"
-	_roll.position.y = RADIUS_GX * gx()
+	_roll.position.y = RADIUS
 	add_child(_roll)
 	## The ball models are centred on their origin; the roll pivot is the centre.
 	var visual := Node3D.new()
@@ -86,7 +84,7 @@ func _ready() -> void:
 	var visual_id: StringName = VISUALS[clampi(type, 0, VISUALS.size() - 1)]
 	if GeneratedVisual.attach(visual, visual_id) == null:
 		var marker: MissingModel = GeneratedVisual.mark_missing(
-			visual, visual_id, MissingModel.DEFAULT_TINT, Vector3.ONE * RADIUS_GX * gx() * 2.0
+			visual, visual_id, MissingModel.DEFAULT_TINT, Vector3.ONE * RADIUS * 2.0
 		)
 		marker.grounded = false
 	_snap_ground()
@@ -117,7 +115,7 @@ func advance(delta: float) -> void:
 		## Drifts on 0.3 GX a frame as it sinks.
 		_sink += delta
 		global_position += Vector3(sin(heading), 0.0, cos(heading)) * 0.3 * FRAME * delta
-		_roll.position.y = lerpf(RADIUS_GX * gx(), 0.0, clampf(_sink / SINK_SECONDS, 0.0, 1.0))
+		_roll.position.y = lerpf(RADIUS, 0.0, clampf(_sink / SINK_SECONDS, 0.0, 1.0))
 		if _sink >= SINK_SECONDS:
 			queue_free()
 		return
@@ -158,7 +156,7 @@ func _contacts(delta: float) -> void:
 		if touched != null or in_hole:
 			continue
 		var d := Vector2(global_position.x - body.global_position.x, global_position.z - body.global_position.z)
-		var reach: float = RADIUS_GX * gx() + FieldCollision.ACTOR_RADIUS
+		var reach: float = RADIUS + FieldCollision.ACTOR_RADIUS
 		if d.length() >= reach or absf(global_position.y - body.global_position.y) > 1.5:
 			continue
 		touched = body
@@ -176,7 +174,7 @@ func _contacts(delta: float) -> void:
 			_collider = body
 		else:
 			## Still against the same one: pushed out along the overlap (`overlap` GX a frame).
-			var push: Vector2 = d.normalized() * (reach - d.length()) / gx() + _velocity() / FRAME
+			var push: Vector2 = d.normalized() * (reach - d.length()) / FieldCatalog.GX_TO_METERS + _velocity() / FRAME
 			speed = minf(push.length(), MAX_KICK / FRAME) * FRAME
 			if push.length() > 0.0001:
 				heading = atan2(push.x, push.y)
@@ -231,7 +229,7 @@ func _move_xz(step: Vector2) -> void:
 	if world == null or world.layout == null or world.grid == null:
 		global_position = to
 		return
-	var revised: Vector3 = FieldCollision.revise_xz(world.layout, world.grid, from, to, RADIUS_GX * gx())
+	var revised: Vector3 = FieldCollision.revise_xz(world.layout, world.grid, from, to, RADIUS)
 	var lost := Vector2(to.x - revised.x, to.z - revised.z)
 	global_position = Vector3(revised.x, from.y, revised.z)
 	if lost.length() > 0.0001:
@@ -261,7 +259,7 @@ func _land() -> void:
 	if not FieldCollision.has_floor(ground):
 		return
 	if global_position.y > ground + 0.001:
-		if on_ground and global_position.y - ground > 20.0 * gx():
+		if on_ground and global_position.y - ground > DROP_SE_HEIGHT:
 			Audio.play_se(SE_DROP, self)
 		if on_ground:
 			_bounces = 0
@@ -307,7 +305,7 @@ func _check_hole() -> void:
 	in_hole = true
 	speed = 0.0
 	vy = 0.0
-	_roll.position.y = RADIUS_GX * gx() * 0.2
+	_roll.position.y = RADIUS * 0.2
 
 
 func _spin(delta: float) -> void:
@@ -329,7 +327,7 @@ func _snap_ground() -> void:
 ## `aBALL_player_angle_distance_check`: within 60 GX and 45° of the player's facing.
 func in_front_of(pos: Vector3, yaw: float) -> bool:
 	var to := Vector2(global_position.x - pos.x, global_position.z - pos.z)
-	if to.length() >= TOOL_REACH_GX * gx():
+	if to.length() >= TOOL_REACH:
 		return false
 	return absf(angle_difference(yaw, atan2(to.x, to.y))) < TOOL_CONE
 
@@ -346,7 +344,7 @@ func hit_by_shovel(pos: Vector3, yaw: float) -> bool:
 	_bounces = 0
 	if in_hole:
 		in_hole = false
-		_roll.position.y = RADIUS_GX * gx()
+		_roll.position.y = RADIUS
 	return true
 
 
@@ -366,7 +364,7 @@ func hit_by_axe(pos: Vector3, yaw: float) -> bool:
 ## `aNPC_check_ball`: lying within 200 GX of a villager, inside 67.5° of +z from it.
 static func chase_from(npc_pos: Vector3, ball_pos: Vector3) -> bool:
 	var to := Vector2(ball_pos.x - npc_pos.x, ball_pos.z - npc_pos.z)
-	if to.length() >= CHASE_GX * gx():
+	if to.length() >= CHASE:
 		return false
 	return absf(atan2(to.x, to.y)) < CHASE_CONE
 

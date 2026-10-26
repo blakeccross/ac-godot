@@ -48,7 +48,7 @@ func _load(fish_index: int) -> bool:
 func _process(delta: float) -> void:
 	if actor == null:
 		return
-	actor.tick(delta)
+	actor.advance(delta)
 	_apply_actor_pose()
 
 

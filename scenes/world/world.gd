@@ -162,7 +162,7 @@ func _place_station_porter() -> void:
 	var porter := PORTER_SCENE.instantiate() as StationPorter
 	porter.name = "Porter"
 	$Characters.add_child(porter)
-	porter.place_in_town(_platform(StationPorter.TOWN_GX))
+	porter.place_in_town(_platform(StationPorter.TOWN))
 	if not _train_arrival:
 		return
 	_train_arrival = false
@@ -181,7 +181,7 @@ func _place_station_porter() -> void:
 		Game.town.mask_cat["cloth"] = int(shirt.trim_prefix("shirt_")) if shirt.begins_with("shirt_") else -1
 		var blanca: EventNpc = BLANCA_SCENE.instantiate()
 		blanca.set("on_train", true)
-		blanca.position = _platform(StationPorter.ARRIVE_GX + Vector3(-40.0, 0.0, 0.0))
+		blanca.position = _platform(StationPorter.ARRIVE - Vector3(StationPorter.STEP_EAST, 0.0, 0.0))
 		blanca.home_yaw = PI * 0.5
 		$Characters.add_child(blanca)
 		blanca.connect("done", welcome, CONNECT_ONE_SHOT)
@@ -189,9 +189,9 @@ func _place_station_porter() -> void:
 		welcome.call_deferred()
 
 
-## A platform spot (GX) on the ground.
-func _platform(gx: Vector3) -> Vector3:
-	var pos: Vector3 = TitleDemo.gx_to_world(layout, gx)
+## A platform spot (a `TownSpace` field position) on the ground.
+func _platform(field: Vector3) -> Vector3:
+	var pos: Vector3 = TitleDemo.field_to_world(layout, field)
 	var y: float = FieldCollision.ground_y_at(layout, grid, pos, 0.0, false)
 	if FieldCollision.has_floor(y):
 		pos.y = y
@@ -283,7 +283,7 @@ func _spawn_player() -> void:
 	if Game.arrive_by_train:
 		Game.arrive_by_train = false
 		_train_arrival = true
-		pos = _platform(StationPorter.ARRIVE_GX)
+		pos = _platform(StationPorter.ARRIVE)
 		yaw = 0.0
 	## `mSDI_StartInitFrom` → `SCENE_FG`: a continued game starts walking out of your house.
 	if Game.continue_from_house:
@@ -439,8 +439,8 @@ func _tick_mushrooms() -> void:
 	var block := Vector2i(-1, -1)
 	if player != null:
 		block = TownSpace.block_of_cell(grid.world_to_cell(player.global_position))
-	MushroomUse.tick(self, Clock.absolute_minute(), Clock.hour, Clock.minute, block, _field_rng())
-	ShellUse.tick(self, Clock.minute, block, _field_rng())
+	MushroomUse.advance(self, Clock.absolute_minute(), Clock.hour, Clock.minute, block, _field_rng())
+	ShellUse.advance(self, Clock.minute, block, _field_rng())
 
 
 func _field_rng() -> RandomNumberGenerator:

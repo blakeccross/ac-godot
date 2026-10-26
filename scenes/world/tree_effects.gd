@@ -11,9 +11,9 @@ enum Kind { LEAF, SNOW }
 const GX := FieldCatalog.GX_TO_METERS
 
 ## `EffectBG_Make_Leafs`: crown of a shaken tree, ±40 GX jitter (±30 for a medium cedar).
-const CROWN_GX := 90.0
-const SPREAD_GX := 40.0
-const SPREAD_CEDAR_MED_GX := 30.0
+const CROWN := 90.0 * GX
+const SPREAD := 40.0 * GX
+const SPREAD_CEDAR_MED := 30.0 * GX
 
 ## `eBushHappa_ct` arg1 4 (6 in cherry season) = shake leaf; scale 0.0106 on authored verts.
 const LEAF_SCALE := 0.0106
@@ -105,8 +105,8 @@ static func bush_snow(host: Node, pos: Vector3) -> void:
 
 ## `EffectBG_Make_Leafs` position: crown plus a random box around it.
 static func jitter(crown: Vector3, medium_cedar: bool) -> Vector3:
-	var spread: float = SPREAD_CEDAR_MED_GX if medium_cedar else SPREAD_GX
-	return crown + Vector3(_rand2(), _rand2(), _rand2()) * spread * GX
+	var spread: float = SPREAD_CEDAR_MED if medium_cedar else SPREAD
+	return crown + Vector3(_rand2(), _rand2(), _rand2()) * spread
 
 
 static func _rand() -> float:
@@ -123,7 +123,7 @@ func _setup_leaf(crown: Vector3, family: PlantData.Family, medium_cedar: bool) -
 	var hz: float = (-4.0 + _rand() * 8.0) * GX
 	drift_position = jitter(crown, medium_cedar) + Vector3(hz, 0.0, hz)
 	lifetime = LEAF_LIFE
-	_launch_leaf(Vector3(_rand2() * 2.0, _rand2(), _rand()))
+	_launch_leaf(_speed(Vector3(_rand2() * 2.0, _rand2(), _rand())))
 	_base_scale = LEAF_SCALE
 
 
@@ -141,7 +141,7 @@ func _setup_bush_leaf(pos: Vector3, arg1: int) -> void:
 		3:
 			v_speed *= 1.6
 	var spread: float = 32.0 if arg1 == 2 or arg1 == 3 else 20.0
-	_launch_leaf(FieldEffects.random_first_speed(v_speed, spread, spread))
+	_launch_leaf(_speed(FieldEffects.random_first_speed(v_speed, spread, spread)))
 	_base_scale = 0.010199999
 
 
@@ -150,29 +150,29 @@ func _setup_bush_snow(pos: Vector3) -> void:
 	var y: float = 1.5 + _rand() * 1.5
 	var offset: float = (-3.0 + 6.0 * _rand()) * GX
 	drift_position = pos + Vector3(offset, offset, 0.0)
-	_launch_snow(FieldEffects.random_first_speed(y, 45.0, 45.0))
+	_launch_snow(_speed(FieldEffects.random_first_speed(y, 45.0, 45.0)))
 
 
 func _setup_snow(crown: Vector3, medium_cedar: bool) -> void:
 	## `eBushYuki_ct`: ±3 GX more on X and Y.
 	var offset: float = (-3.0 + 6.0 * _rand()) * GX
 	drift_position = jitter(crown, medium_cedar) + Vector3(offset, offset, 0.0)
-	_launch_snow(Vector3(_rand2() * 2.0, _rand(), _rand()))
+	_launch_snow(_speed(Vector3(_rand2() * 2.0, _rand(), _rand())))
 
 
-## `eBushHappa_ct`: launch at `v_gx` (GX/tick), braked upward at a twentieth of the launch
-## climb until the leaf turns to fall.
-func _launch_leaf(v_gx: Vector3) -> void:
-	velocity = _speed(v_gx)
-	acceleration = _accel(Vector3(0.0, 0.5 * (0.1 * -v_gx.y), 0.0))
+## `eBushHappa_ct`: launch at `v` (m/s), braked upward at a twentieth of the launch climb a
+## tick until the leaf turns to fall.
+func _launch_leaf(v: Vector3) -> void:
+	velocity = v
+	acceleration = Vector3(0.0, -0.05 * v.y * DecompTime.TICK_HZ, 0.0)
 	time_left = lifetime
 	_spin_x = randf() * TAU
 	_spin_z = randf() * TAU
 	_sway = randf() * TAU
 
 
-func _launch_snow(v_gx: Vector3) -> void:
-	velocity = _speed(v_gx)
+func _launch_snow(v: Vector3) -> void:
+	velocity = v
 	acceleration = Vector3(0.0, -SNOW_GRAVITY, 0.0)
 	lifetime = SNOW_LIFE
 	time_left = lifetime
@@ -180,13 +180,8 @@ func _launch_snow(v_gx: Vector3) -> void:
 
 
 ## A decomp speed in GX per tick, as m/s.
-static func _speed(gx_per_tick: Vector3) -> Vector3:
-	return gx_per_tick * GX * 60.0
-
-
-## A decomp acceleration in GX per tick², as m/s².
-static func _accel(gx_per_tick2: Vector3) -> Vector3:
-	return gx_per_tick2 * GX * 3600.0
+static func _speed(per_tick: Vector3) -> Vector3:
+	return per_tick * GX * DecompTime.TICK_HZ
 
 
 func _attach_leaf_model(family: PlantData.Family) -> void:

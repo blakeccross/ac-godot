@@ -391,6 +391,13 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
     - Systems that compute in decomp units against tables written in them: insects and their behaviors, fish shadows, the ball, the glyphs, the train, bees.
     - The table loaders (`gx_to_world` and the like).
   - 146 scalar `_GX` constants feed that math. Converting it means rewriting each system's formulas in metres, so it is left for when each system is next changed, as this phase says. Making `GX_TO_METERS` private to the loaders waits on that.
+- **Phase 6, the GX → metres pass.** Every system outside the insect simulation and the train / station intro stages now works in metres, with the decomp figure kept beside each constant.
+  - Events, fishing, interiors (rooms, shells, doors, displays, the museum), sound (`SoundEmitter` volume and pan on metre distances, the mic a world position), the acre wade and camera, the town train, doors, villagers, nets, gyroids, trees, the ball, the K.K. intro and the small props.
+  - `TownSpace` holds decomp field positions in metres (`field_to_world` / `world_to_field`); `TitleDemo.field_to_world` does the same against a layout. `WorldGrid.room_point` replaced the six per-room `gx_to_world` helpers.
+  - Interfaces that crossed into the GX simulations take metres: `BugActor.Sense.player_speed` / `npc_speeds` (m/s), `NetSwing.Candidate.catch_range`, `TrainControl.x`. The insects and the intro stages convert at their edges.
+  - Classes something else steps run in `advance(delta)`, never `tick`.
+  - One fix the conversion turned up: the acre wade's edge was the decomp's 18.00001 GX against an 18 GX wall. In metres that 0.00001 GX margin is below `Vector3` float precision, so a player held at the wall never counted as at the edge. It is 0.1 mm past the wall now.
+  - Still in GX: the insect simulation (`features/bugs/`), `IntroTrainStage` / `IntroStationStage` and the scenes that drive their internals (`intro_train.gd`, `intro_station.gd`), the museum fish swim, and the `FishSize` tables (behind metre accessors). Dev audit scenes log decomp GX on purpose.
 
 Lessons from the weather particles:
 

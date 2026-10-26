@@ -59,11 +59,11 @@ func test_gx_maps_through_the_border_block_into_the_town() -> void:
 	town.cell_size = 2.0
 	## Default spawn (2240, 1600): (1600, 960) GX past the border = (80 m, 48 m) into a town
 	## whose origin is (−80, −96).
-	var p: Vector3 = TitleDemo.gx_to_world(town, Vector3(2240.0, 0.0, 1600.0))
+	var p: Vector3 = TitleDemo.field_to_world(town, Vector3(2240.0, 0.0, 1600.0) * FieldCatalog.GX_TO_METERS)
 	assert_float(p.x).is_equal_approx(0.0, 0.001)
 	assert_float(p.z).is_equal_approx(-48.0, 0.001)
 	## The town's near corner is exactly one border block in.
-	var corner: Vector3 = TitleDemo.gx_to_world(town, Vector3(640.0, 0.0, 640.0))
+	var corner: Vector3 = TitleDemo.field_to_world(town, Vector3(640.0, 0.0, 640.0) * FieldCatalog.GX_TO_METERS)
 	assert_vector(corner).is_equal_approx(town.origin(), Vector3.ONE * 0.001)
 
 
@@ -96,8 +96,9 @@ func test_extracted_demos_when_present() -> void:
 	assert_str(String(TitleDemo.tool_item_id(1))).is_equal("gelato_umbrella")
 	assert_str(String(TitleDemo.tool_item_id(0))).is_equal("")
 	## Head table = door data (m_trademark.c): demo 1 spawns at (2180, 200, 824).
-	assert_vector(TitleDemo.spawn_gx(0)).is_equal(Vector3(2180.0, 200.0, 824.0))
-	assert_vector(TitleDemo.spawn_gx(1)).is_equal(Vector3(3218.0, 40.0, 3074.0))
+	var gx: float = FieldCatalog.GX_TO_METERS
+	assert_vector(TitleDemo.spawn_point(0)).is_equal_approx(Vector3(2180.0, 200.0, 824.0) * gx, Vector3.ONE * 0.0001)
+	assert_vector(TitleDemo.spawn_point(1)).is_equal_approx(Vector3(3218.0, 40.0, 3074.0) * gx, Vector3.ONE * 0.0001)
 	## 0xB77D = 258.03° (the header comment).
 	assert_float(rad_to_deg(TitleDemo.spawn_yaw(0))).is_equal_approx(258.03, 0.01)
 	## Every recording covers the full 60 s at 30 Hz.

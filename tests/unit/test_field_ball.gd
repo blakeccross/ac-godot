@@ -46,7 +46,7 @@ func test_kick_is_capped_and_heads_away() -> void:
 
 
 func test_villagers_chase_a_ball_ahead_and_near() -> void:
-	var gx: float = FieldBall.gx()
+	var gx: float = FieldCatalog.GX_TO_METERS
 	assert_bool(FieldBall.chase_from(Vector3.ZERO, Vector3(0.0, 0.0, 100.0 * gx))).is_true()
 	## Too far, or behind (north of) them.
 	assert_bool(FieldBall.chase_from(Vector3.ZERO, Vector3(0.0, 0.0, 210.0 * gx))).is_false()
@@ -56,7 +56,7 @@ func test_villagers_chase_a_ball_ahead_and_near() -> void:
 
 func test_tools_reach_it_in_front() -> void:
 	var ball := _ball()
-	var gx: float = FieldBall.gx()
+	var gx: float = FieldCatalog.GX_TO_METERS
 	ball.global_position = Vector3(0.0, 0.0, 40.0 * gx)
 	assert_bool(ball.in_front_of(Vector3.ZERO, 0.0)).is_true()
 	assert_bool(ball.in_front_of(Vector3.ZERO, PI)).is_false()

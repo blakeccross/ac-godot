@@ -83,12 +83,12 @@ func bind(visual: Node3D, species: StringName, texture_set: StringName = &"") ->
 	return true
 
 
-func tick(delta: float, uttering: bool) -> void:
+func advance(delta: float, uttering: bool) -> void:
 	if _mouth_flap != null and is_instance_valid(_mouth_flap):
-		_mouth_flap.tick(delta, uttering)
+		_mouth_flap.advance(delta, uttering)
 	if _eye_mats.is_empty() and _mouth_mats.is_empty():
 		return
-	if _anim.tick(delta, uttering):
+	if _anim.advance(delta, uttering):
 		_apply()
 
 

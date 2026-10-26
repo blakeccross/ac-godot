@@ -42,7 +42,7 @@ func size_authored_doors() -> void:
 					_size_door(door, link["sensor"] as Vector3)
 			var exit_door: Node3D = doors.get_node_or_null("Exit") as Node3D
 			if exit_door != null:
-				_size_door(exit_door, MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX)
+				_size_door(exit_door, MuseumDisplay.ENTRANCE_EXIT_SENSOR)
 		_:
 			if not MuseumDisplay.WING_EXIT_DOORS.has(room_id):
 				return
@@ -52,5 +52,5 @@ func size_authored_doors() -> void:
 				_size_door(exit_door, link["sensor"] as Vector3)
 
 
-func _size_door(door: Node3D, sensor_gx: Vector3) -> void:
-	HostCollision.resize_interact_box(door, InteriorShellBuilder.museum_door_box(sensor_gx))
+func _size_door(door: Node3D, sensor: Vector3) -> void:
+	HostCollision.resize_interact_box(door, InteriorShellBuilder.museum_door_box(sensor))

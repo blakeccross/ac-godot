@@ -33,8 +33,6 @@ var _race_angle: float = 0.0
 var _race_trip: int = 0
 var _race_center: Vector3 = Vector3.INF
 var _race_to_finish: bool = false
-## `aNPC` run (≈6 GX a frame) is the field's 4.5 m/s.
-const RACE_MPS_PER_GX := 0.75
 ## New Year's queue (`ShrineQueue`): where this villager is on its column's round.
 enum Shrine { WALK, FRONT, SAISEN, OMAIRI, AFTER, BOW, BACK }
 var _well: Node3D
@@ -100,20 +98,19 @@ func setup() -> void:
 ## `aTNN0_birth` / `aTNN1_think_init_proc`: the referee steps aside and lays the rope; the
 ## pullers take their places along it, facing in.
 func _setup_tug() -> void:
-	var gx := FieldCatalog.GX_TO_METERS
 	_tug_rope = TugOfWar.join(get_parent())
 	if slot == 0:
 		_rope = Node3D.new()
 		_rope.name = "TugRope"
 		get_parent().add_child(_rope)
-		_rope_home = global_position + Vector3(TugOfWar.ROPE_OFS_GX.x, 0.0, TugOfWar.ROPE_OFS_GX.y) * gx
+		_rope_home = global_position + Vector3(TugOfWar.ROPE_OFFSET.x, 0.0, TugOfWar.ROPE_OFFSET.y)
 		_rope.global_position = _rope_home
 		GeneratedVisual.attach(_rope, &"tol_rope_1")
-		global_position += Vector3(TugOfWar.REFEREE_OFS_GX.x, 0.0, TugOfWar.REFEREE_OFS_GX.y) * gx
+		global_position += Vector3(TugOfWar.REFEREE_OFFSET.x, 0.0, TugOfWar.REFEREE_OFFSET.y)
 		play_clip(TugOfWar.CLIP_REFEREE, true)
 		return
 	var ofs: Vector2 = TugOfWar.puller_offset(slot)
-	global_position += Vector3(ofs.x, 0.0, ofs.y) * gx
+	global_position += Vector3(ofs.x, 0.0, ofs.y)
 	home_yaw = deg_to_rad(90.0 * float(TugOfWar.dir_of(slot)))
 	rotation.y = home_yaw
 
@@ -205,7 +202,7 @@ func _race(delta: float) -> void:
 				return
 			var leg: Array = _foot_race.next_leg(lane, _race_angle, rng())
 			_race_angle = float(leg[1])
-			move_to(_race_point(leg[0] as Vector2), float(leg[2]) * RACE_MPS_PER_GX, FootRace.CLIP_RUN)
+			move_to(_race_point(leg[0] as Vector2), float(leg[2]), FootRace.CLIP_RUN)
 		FootRace.Phase.GOAL:
 			if entered or (not is_moving() and clip_done()):
 				play_clip(FootRace.CLIP_WIN if _foot_race.finish[lane] == 1 else FootRace.CLIP_LOSE, true)
@@ -222,8 +219,8 @@ func arrived() -> void:
 	super.arrived()
 
 
-func _race_point(offset_gx: Vector2) -> Vector3:
-	return _race_center + Vector3(offset_gx.x, 0.0, offset_gx.y) * FieldCatalog.GX_TO_METERS
+func _race_point(offset: Vector2) -> Vector3:
+	return _race_center + Vector3(offset.x, 0.0, offset.y)
 
 
 ## `aTKN0`: load and raise the pistol while they take the line, fire, then watch the leader.
@@ -303,10 +300,9 @@ func _toss(delta: float) -> void:
 			_toss_clock -= delta
 			if _toss_clock <= 0.0:
 				var spot: Vector2 = BallToss.next_spot(
-					Vector2(_basket.x, _basket.z) / FieldCatalog.GX_TO_METERS,
-					Vector2(global_position.x, global_position.z) / FieldCatalog.GX_TO_METERS, rng())
+					Vector2(_basket.x, _basket.z), Vector2(global_position.x, global_position.z), rng())
 				_toss_step = BallToss.Step.RUN
-				move_to(Vector3(spot.x, 0.0, spot.y) * FieldCatalog.GX_TO_METERS + Vector3(0.0, global_position.y, 0.0), 3.0, BallToss.CLIP_RUN)
+				move_to(Vector3(spot.x, global_position.y, spot.y), 3.0, BallToss.CLIP_RUN)
 
 
 func _throw() -> void:
@@ -324,6 +320,7 @@ func _release_ball() -> void:
 	ball.add_to_group(&"toss_ball")
 	get_parent().add_child(ball)
 	var to: Vector3 = _basket - global_position
+	## Out of the hand 40 GX up.
 	ball.global_position = global_position + Vector3(0.0, 40.0 * FieldCatalog.GX_TO_METERS, 0.0)
 	ball.launch(atan2(to.x, to.z), BallToss.launch_rise(rng()), BallToss.launch_speed(rng()))
 
@@ -352,12 +349,11 @@ func _cheer(delta: float) -> void:
 ## One frame of the tug: the shared rope moves, the pullers move with it and pick their next
 ## heave when a clip ends; the referee keeps the rope where it is pulled to.
 func _tug(delta: float) -> void:
-	var gx := FieldCatalog.GX_TO_METERS
 	if slot == 0:
 		if _rope != null:
-			_rope.global_position = _rope_home + Vector3(_tug_rope.rope * gx, 0.0, 0.0)
+			_rope.global_position = _rope_home + Vector3(_tug_rope.rope, 0.0, 0.0)
 		return
-	global_position.x = _home.x + _tug_rope.rope_base * gx
+	global_position.x = _home.x + _tug_rope.rope_base
 	if clip_done():
 		play_clip(_tug_rope.clip_for(TugOfWar.dir_of(slot)), false)
 
@@ -456,7 +452,7 @@ func _arrive_leg() -> void:
 			play_clip(ShrineQueue.CLIP_SAISEN, false)
 		ShrineQueue.LEG_BACK:
 			## `aHN0_turn_aisatu_init`: turn to the other column and bow.
-			var across: Vector3 = ShrineQueue.to_world(_well, Vector2(0.0, 180.0)) - global_position
+			var across: Vector3 = ShrineQueue.to_world(_well, Vector2(0.0, 180.0) * ShrineQueue.GX) - global_position
 			rotation.y = atan2(across.x, across.z)
 			_sq_state = Shrine.BOW
 			var bow: String = ShrineQueue.BOW_CLIPS[clampi(_looks(), 0, 5)]

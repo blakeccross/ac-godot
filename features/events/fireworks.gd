@@ -70,10 +70,14 @@ const SHELLS: Dictionary = {
 	Shell.YANAGI: {"visual": &"ef_hanabi_y_00", "life": 110, "size": 0.06, "morph": [M_YANAGI_OUT],
 		"inner": M_YANAGI_IN, "light": [Color(0.353, 0.353, 0.176)], "se": &"hanabi3"},
 }
-## `eHanabiSet_SearchNicePos` / `eHanabiSet_mv`, in GX.
-const SET_LIFT_GX := 20.0
-const SET_BACK := 2.0  ## 40 GX
-const SCATTER_GX := 125.0
+## Lengths in metres, from the decomp's GX.
+const GX := FieldCatalog.GX_TO_METERS
+## `eHanabiSet_SearchNicePos` / `eHanabiSet_mv`.
+const SET_LIFT := 20.0 * GX
+const SET_BACK := 40.0 * GX
+const SCATTER := 125.0 * GX
+## The shell drifts round in a 2 GX circle as it spins.
+const DRIFT := 2.0 * GX
 const BANG_FRAME := 72
 const FLASH_FRAME := 10
 ## `add_calc2(&scale, size, CALC_EASE(0.2), 5)` a tick.
@@ -175,15 +179,14 @@ func launch_position() -> Vector3:
 	var at: Vector3 = center
 	if player != null:
 		at = (center + player.global_position) * 0.5
-	at.y = center.y + SET_LIFT_GX * FieldCatalog.GX_TO_METERS
+	at.y = center.y + SET_LIFT
 	at.z -= SET_BACK
 	return at
 
 
 func _fire(kind: int) -> void:
 	var data: Dictionary = SHELLS[kind]
-	var scatter: float = SCATTER_GX * FieldCatalog.GX_TO_METERS
-	var pos: Vector3 = launch_position() + Vector3(_rng.randf_range(-scatter, scatter), 0.0, _rng.randf_range(-scatter, scatter))
+	var pos: Vector3 = launch_position() + Vector3(_rng.randf_range(-SCATTER, SCATTER), 0.0, _rng.randf_range(-SCATTER, SCATTER))
 	var morphs: Array = data["morph"]
 	var sh: Dictionary = {
 		"kind": kind, "age": 0.0, "scale": 0.01, "pos": pos,
@@ -257,8 +260,8 @@ func _draw_shell(sh: Dictionary, data: Dictionary, t: float, life: float) -> voi
 	var spin: float = fposmod(SPIN_RATE * age, 65536.0) / 65536.0 * TAU
 	var wobble: float = (sin(fposmod(WOBBLE_RATE * age, 65536.0) / 65536.0 * TAU) + 1.0) * 0.5 * 0.14 + 0.93
 	var v2: float = float(sh["scale"]) + adjust(t, 0, life - 1, 0.0, 0.01)
-	var s: float = v2 * FieldCatalog.GX_TO_METERS / FieldCatalog.PIPELINE_SCALE
-	var drift := Vector3(sin(spin) * 2.0, 0.0, sin(-spin) * 2.0) * FieldCatalog.GX_TO_METERS
+	var s: float = v2 * GX / FieldCatalog.PIPELINE_SCALE
+	var drift := Vector3(sin(spin), 0.0, sin(-spin)) * DRIFT
 	var root := sh["node"] as Node3D
 	root.global_position = (sh["pos"] as Vector3) + drift
 	## `RotateX(270)` lays the disc flat; the spin and the wobble stretch act in its plane.

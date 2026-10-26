@@ -84,17 +84,17 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 func _physics_process(delta: float) -> void:
 	var player: Node3D = _player()
 	var player_yaw: float = _yaw
-	var dist_gx: float = INF
+	var dist: float = INF
 	if player != null:
 		var to: Vector3 = player.global_position - global_position
 		to.y = 0.0
-		dist_gx = to.length() / FieldCatalog.GX_TO_METERS
+		dist = to.length()
 		if to.length_squared() > 0.0001:
 			player_yaw = atan2(to.x, to.z)
 	## `aHNW_wait` / `aHNW_dance`.
-	if _action == GyroidTalk.Action.WAIT and dist_gx < GyroidTalk.DANCE_NEAR_GX:
+	if _action == GyroidTalk.Action.WAIT and dist < GyroidTalk.DANCE_NEAR:
 		_setup_action(GyroidTalk.Action.DANCE)
-	elif _action == GyroidTalk.Action.DANCE and dist_gx > GyroidTalk.DANCE_FAR_GX:
+	elif _action == GyroidTalk.Action.DANCE and dist > GyroidTalk.DANCE_FAR:
 		_setup_action(GyroidTalk.Action.WAIT)
 	_common_process(delta, player_yaw)
 
@@ -312,18 +312,17 @@ func _save_walk() -> void:
 	_setup_action(GyroidTalk.Action.PL_APPROACH_DOOR)
 	var player := Player.find(get_tree())
 	if player != null:
-		var gx: float = FieldCatalog.GX_TO_METERS
-		var speed: float = GyroidTalk.DOOR_WALK_SPEED_GX * DecompTime.FRAME_HZ * gx
-		var arrive: float = GyroidTalk.DOOR_ARRIVE_GX * gx
+		var speed: float = GyroidTalk.DOOR_WALK_SPEED
+		var arrive: float = GyroidTalk.DOOR_ARRIVE
 		var frames: float = 0.0
 		while is_instance_valid(player) and frames <= float(GyroidTalk.DOOR_WALK_FRAMES):
 			var offset := Vector2(
-				(player.global_position.x - global_position.x) / gx,
-				(player.global_position.z - global_position.z) / gx
+				player.global_position.x - global_position.x,
+				player.global_position.z - global_position.z
 			)
 			var stage: int = GyroidTalk.door_stage(house_idx, offset)
-			var goal_gx: Vector2 = GyroidTalk.door_goal_gx(house_idx, stage)
-			var goal := global_position + Vector3(goal_gx.x * gx, 0.0, goal_gx.y * gx)
+			var step: Vector2 = GyroidTalk.door_goal(house_idx, stage)
+			var goal := global_position + Vector3(step.x, 0.0, step.y)
 			player.doors.begin_demo_walk(goal, speed, arrive)
 			var near: float = Vector2(player.global_position.x - goal.x, player.global_position.z - goal.z).length()
 			if stage == 1 and near < arrive * 2.0:
@@ -374,6 +373,6 @@ func _attach_model() -> void:
 	VisualAnimation.stop_autoplay(pivot)
 	add_child(pivot)
 	VisualFit.apply_actor_scale(pivot, &"hnw")
-	VisualFit.align_actor_to_height_gx(pivot, 0.0)
+	VisualFit.align_actor_to_height(pivot, 0.0)
 	VisualMaterials.apply(pivot)
 	_anim = VisualAnimation.find_animation_player(pivot)

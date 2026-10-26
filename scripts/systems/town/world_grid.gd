@@ -143,6 +143,13 @@ func cell_to_world(cell: Vector2i) -> Vector3:
 	return origin + Vector3((float(cell.x) + 0.5) * cell_size, 0.0, (float(cell.y) + 0.5) * cell_size)
 
 
+## A point `local` metres from the grid's corner (cell (0, 0)'s minimum corner): how an
+## interior's authored layout (the decomp's room positions) lands in the world. Without a grid
+## the corner is the world origin.
+static func room_point(grid: WorldGrid, local: Vector3) -> Vector3:
+	return (grid.origin if grid != null else Vector3.ZERO) + local
+
+
 func cell_corner(cell: Vector2i) -> Vector3:
 	return origin + Vector3(float(cell.x) * cell_size, 0.0, float(cell.y) * cell_size)
 

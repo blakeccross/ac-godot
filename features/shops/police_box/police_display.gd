@@ -13,12 +13,12 @@ const SPAWN_CELL := Vector2i(4, 9)
 
 ## Outdoor enter (`aPBOX_police_box_enter_data`): GX {200,0,380}, `mSc_DIRECT_NORTH`.
 ## Not scene `POLICE_BOX_player_data` {200,0,400} (that floors onto EXIT_DOOR1).
-const SPAWN_GX := Vector3(200.0, 0.0, 380.0)
+const SPAWN := Vector3(200.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS
 const SPAWN_FACING := WorldGrid.Facing.NORTH
 
 ## `police_box_actable` ut (4,6) → GX center.
 const BOOKER_STAND_UT := Vector2i(4, 6)
-const BOOKER_STAND_GX := Vector3(180.0, 0.0, 260.0)
+const BOOKER_STAND := Vector3(180.0, 0.0, 260.0) * FieldCatalog.GX_TO_METERS
 ## `SP_NPC_POLICE2` → `pla_1` (`plc_1` is outdoor Copper / `SP_NPC_POLICE`).
 const BOOKER_SPECIES := &"pla"
 
@@ -54,36 +54,36 @@ const LOST_FOUND_CELLS: Array[Vector2i] = [
 
 ## `bPI_outPutData`: each kept item is its field card (`mNT_get_itemTableNo`) at the
 ## unit centre, on the floor, at `Matrix_scale(0.01)`.
-const ITEM_UNIT_CENTER_GX := 20.0
+const ITEM_UNIT_CENTER := 20.0 * FieldCatalog.GX_TO_METERS
 
 ## --- Booker (`ac_npc_police2`) -----------------------------------------------------------
 ## `aPOL2_get_zone`: unit z clamps to 2…6 (5 rows); unit x splits at 1 / 4 / 7 (4 columns).
 const ZONE_COLUMNS := 4
 const ZONE_ROWS := 5
 ## `aPOL2_search_player2` waypoint per zone column / row (GX).
-const ZONE_POS_X: Array[float] = [60.0, 140.0, 260.0, 340.0]
-const ZONE_POS_Z: Array[float] = [100.0, 140.0, 180.0, 220.0, 300.0]
-## `aPOL2_decide_next_move_act` squared-distance gates (GX²).
-const STOP_DIST_SQ := 50.0 * 50.0 - 50.0
-const WALK_DIST_SQ := 70.0 * 70.0 + 100.0
+## Room lengths in metres, from the decomp's GX; a unit is 40 GX (one grid cell).
+const GX := FieldCatalog.GX_TO_METERS
+const UNIT := 40.0 * GX
+const ZONE_POS_X: Array[float] = [60.0 * GX, 140.0 * GX, 260.0 * GX, 340.0 * GX]
+const ZONE_POS_Z: Array[float] = [100.0 * GX, 140.0 * GX, 180.0 * GX, 220.0 * GX, 300.0 * GX]
+## `aPOL2_decide_next_move_act` squared-distance gates (GX², in m²).
+const STOP_DIST_SQ := (50.0 * 50.0 - 50.0) * GX * GX
+const WALK_DIST_SQ := (70.0 * 70.0 + 100.0) * GX * GX
 ## `aPOL2_search_player2`: close enough to a waypoint to pick the next zone.
-const WAYPOINT_DIST_SQ := 14.0 * 14.0 + 4.0
+const WAYPOINT_DIST_SQ := (14.0 * 14.0 + 4.0) * GX * GX
 
 ## --- Window sunshine (`POLICE_BOX_actor_data` / `ef_room_sunshine_police`) ---------------
 ## Actor positions and `actor_specific` (2 = left window, 3 = right window).
-const SUNSHINE_L_GX := Vector3(40.0, 0.0, 200.0)
-const SUNSHINE_R_GX := Vector3(360.0, 0.0, 200.0)
+const SUNSHINE_L := Vector3(40.0, 0.0, 200.0) * FieldCatalog.GX_TO_METERS
+const SUNSHINE_R := Vector3(360.0, 0.0, 200.0) * FieldCatalog.GX_TO_METERS
 const SUNSHINE_VISUAL := &"obj_koban_shine"
 
 const SHELL_ID := &"police_indoor"
 ## `aHC_position_data` SCENE_POLICE_BOX: back-wall clock (`obj_clock_koban`). y is 0 —
 ## the skeleton carries the mounting height.
-const CLOCK_GX := Vector3(200.0, 0.0, 30.0)
+const CLOCK := Vector3(200.0, 0.0, 30.0) * FieldCatalog.GX_TO_METERS
 const CLOCK_VISUAL := &"obj_clock_koban"
 
-
-static func gx_to_world(grid: WorldGrid, gx: Vector3) -> Vector3:
-	return MuseumDisplay.gx_to_world(grid, gx)
 
 
 ## Test-only: no in-game callers; kept for tests.
@@ -118,16 +118,15 @@ static func cells_from_fg(items: PackedInt32Array) -> Array[Vector2i]:
 	return out
 
 
-static func unit_center_gx(cell: Vector2i) -> Vector3:
-	return Vector3(
-		float(cell.x) * 40.0 + ITEM_UNIT_CENTER_GX, 0.0, float(cell.y) * 40.0 + ITEM_UNIT_CENTER_GX
-	)
+## A unit's centre in the room (metres).
+static func unit_center(cell: Vector2i) -> Vector3:
+	return Vector3(float(cell.x) * UNIT + ITEM_UNIT_CENTER, 0.0, float(cell.y) * UNIT + ITEM_UNIT_CENTER)
 
 
-## `aPOL2_get_zone` on a GX position.
-static func zone_for_gx(gx: Vector3) -> int:
-	var ux: int = floori(gx.x / 40.0)
-	var uz: int = clampi(floori(gx.z / 40.0), 2, 6)
+## `aPOL2_get_zone` on a room position (metres from the room's corner).
+static func zone_for(local: Vector3) -> int:
+	var ux: int = floori(local.x / UNIT)
+	var uz: int = clampi(floori(local.z / UNIT), 2, 6)
 	var zone: int = (uz - 2) * ZONE_COLUMNS
 	if ux > 7:
 		zone += 3
@@ -138,7 +137,7 @@ static func zone_for_gx(gx: Vector3) -> int:
 	return zone
 
 
-static func zone_waypoint_gx(zone: int) -> Vector3:
+static func zone_waypoint(zone: int) -> Vector3:
 	var zx: int = posmod(zone, ZONE_COLUMNS)
 	var zz: int = clampi(zone / ZONE_COLUMNS, 0, ZONE_ROWS - 1)
 	return Vector3(ZONE_POS_X[zx], 0.0, ZONE_POS_Z[zz])
@@ -199,9 +198,9 @@ static func _next_zone_sub1(dst: int, src: int) -> int:
 ## `Ef_Room_Sunshine_Police_actor_ct`: every non-zero `actor_specific` first steps −1 X,
 ## then case 2 nets −1 more and case 3 nets +1; Y sits 39 GX under the floor
 ## (`1 + BgY − 40`). The beam model rises from there through the window.
-static func sunshine_anchor_gx(actor_gx: Vector3, left: bool) -> Vector3:
-	var x: float = actor_gx.x - 1.0 + (-1.0 if left else 1.0)
-	return Vector3(x, actor_gx.y + 1.0 - 40.0, actor_gx.z)
+static func sunshine_anchor(actor: Vector3, left: bool) -> Vector3:
+	var x: float = actor.x + (-2.0 if left else 0.0) * GX
+	return Vector3(x, actor.y + (1.0 - 40.0) * GX, actor.z)
 
 
 ## Beam alpha 0–255 before `mKK_windowlight_alpha_get()`: fades in to 120 over the small

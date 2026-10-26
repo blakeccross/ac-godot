@@ -10,15 +10,17 @@ extends EventNpc
 enum Think { WAIT, TALK, EXIT_TURN, EXIT }
 
 const RUN_SPEED := 3.0
+## Lengths in metres, from the decomp's GX.
+const GX := FieldCatalog.GX_TO_METERS
 ## `aPST_schedule_init_proc` `set_data`: where the visitor stands for each house
-## (`mHS_get_arrange_idx`), in field GX.
-const SET_GX: Array[Vector2] = [
-	Vector2(2180.0, 1540.0), Vector2(2300.0, 1540.0), Vector2(2180.0, 1820.0), Vector2(2300.0, 1820.0),
+## (`mHS_get_arrange_idx`), field positions (GX) in metres.
+const SET: Array[Vector2] = [
+	Vector2(2180.0, 1540.0) * GX, Vector2(2300.0, 1540.0) * GX, Vector2(2180.0, 1820.0) * GX, Vector2(2300.0, 1820.0) * GX,
 ]
 ## `aPST_exit_turn_init` / `aPST_exit` `moveX` / `moveZ`: up the path between the houses
 ## for the north pair, down it for the south pair. The turn faces the first point.
-const EXIT_NORTH_GX: Array[Vector2] = [Vector2(2240.0, 1300.0), Vector2(2240.0, 1220.0)]
-const EXIT_SOUTH_GX: Array[Vector2] = [Vector2(2240.0, 1900.0), Vector2(2240.0, 1980.0)]
+const EXIT_NORTH: Array[Vector2] = [Vector2(2240.0, 1300.0) * GX, Vector2(2240.0, 1220.0) * GX]
+const EXIT_SOUTH: Array[Vector2] = [Vector2(2240.0, 1900.0) * GX, Vector2(2240.0, 1980.0) * GX]
 
 ## `PresentVisit.Kind`.
 var kind: int = PresentVisit.Kind.NONE
@@ -40,7 +42,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	super._process(delta)
 	if _umbrella != null:
-		_umbrella.tick(delta)
+		_umbrella.advance(delta)
 	if _umb_carry != null:
 		_umb_carry.advance(delta)
 
@@ -175,15 +177,16 @@ func _leave() -> void:
 ## The exit run in world space: the decomp's points as offsets from the visitor's stand, so
 ## they follow the stand wherever the house plot is.
 static func exit_points(stand: Vector3, house: int) -> Array[Vector3]:
-	var from: Vector2 = SET_GX[clampi(house, 0, 3)]
+	var from: Vector2 = SET[clampi(house, 0, 3)]
 	var points: Array[Vector3] = []
-	for gx: Vector2 in (EXIT_NORTH_GX if from.y <= 1540.0 else EXIT_SOUTH_GX):
-		var d: Vector2 = (gx - from) * FieldCatalog.GX_TO_METERS
+	## The north pair stand at z 1540 GX.
+	for to: Vector2 in (EXIT_NORTH if from.y <= SET[0].y else EXIT_SOUTH):
+		var d: Vector2 = to - from
 		points.append(Vector3(stand.x + d.x, stand.y, stand.z + d.y))
 	return points
 
 
-## Put the visitor `PresentVisit.STAND_GX` in front of `stand` along `yaw`, facing back.
+## Put the visitor `PresentVisit.STAND` in front of `stand` along `yaw`, facing back.
 static func spawn(parent: Node, kind: int, stand: Vector3, yaw: float, house: int = 0) -> Node3D:
 	var packed: PackedScene = load("res://features/events/present_npc.tscn") as PackedScene
 	if packed == null or parent == null or kind == PresentVisit.Kind.NONE:
@@ -198,5 +201,5 @@ static func spawn(parent: Node, kind: int, stand: Vector3, yaw: float, house: in
 	npc.set("home_yaw", yaw + PI)
 	npc.set("house_index", house)
 	parent.add_child(npc)
-	(npc as Node3D).global_position = stand + Vector3(sin(yaw), 0.0, cos(yaw)) * PresentVisit.STAND_GX * FieldCatalog.GX_TO_METERS
+	(npc as Node3D).global_position = stand + Vector3(sin(yaw), 0.0, cos(yaw)) * PresentVisit.STAND
 	return npc

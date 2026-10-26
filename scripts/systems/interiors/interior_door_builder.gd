@@ -16,19 +16,19 @@ static func add_exit_door(root: Node3D, grid: WorldGrid, room: Room) -> void:
 	## Museum wings return to the entrance at decomp door spawns — not the outdoor exit.
 	if room.kind == Room.Kind.MUSEUM and room.parent_room_id != &"" and MuseumDisplay.WING_EXIT_DOORS.has(room.id):
 		var link: Dictionary = MuseumDisplay.WING_EXIT_DOORS[room.id] as Dictionary
-		door.position = MuseumDisplay.gx_to_world(grid, link["sensor"] as Vector3)
+		door.position = WorldGrid.room_point(grid, link["sensor"] as Vector3)
 		door.set("exits_interior", false)
 		door.set("linked_room_id", room.parent_room_id)
 		door.set("auto_enter", true)
 		door.set("has_linked_spawn", true)
-		door.set("linked_spawn_gx", link["spawn"] as Vector3)
+		door.set("linked_spawn", link["spawn"] as Vector3)
 		## `m_scene.c` angle_table matches furniture yaw (EAST=+90°), not `yaw_for_facing`.
 		door.set("linked_spawn_yaw", WorldGrid.yaw_for_furniture(link["facing"] as WorldGrid.Facing))
 		_size_museum_wing_door(door, link["sensor"] as Vector3)
 	elif room.id == &"museum_entrance":
 		## South opening sits on enter X (`aMsm_museum_enter_data`), not room-center door_cell.
-		var sensor: Vector3 = MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX
-		door.position = MuseumDisplay.gx_to_world(grid, sensor)
+		var sensor: Vector3 = MuseumDisplay.ENTRANCE_EXIT_SENSOR
+		door.position = WorldGrid.room_point(grid, sensor)
 		door.set("exits_interior", true)
 		door.set("auto_enter", true)
 		_size_museum_wing_door(door, sensor)
@@ -116,19 +116,19 @@ static func _add_museum_entrance_doors(root: Node3D, grid: WorldGrid) -> void:
 		var template: Room = InteriorCatalog.room_template(room_id)
 		var door: Node3D = DOOR_SCENE.instantiate() as Node3D
 		door.name = "Link_%s" % String(room_id)
-		door.position = MuseumDisplay.gx_to_world(grid, link["sensor"] as Vector3)
+		door.position = WorldGrid.room_point(grid, link["sensor"] as Vector3)
 		door.set("label", template.display_name if template else "Room")
 		door.set("verb", Interaction.ENTER)
 		door.set("linked_room_id", room_id)
 		door.set("occupy_grid", false)
 		door.set("auto_enter", true)
 		door.set("has_linked_spawn", true)
-		door.set("linked_spawn_gx", link["spawn"] as Vector3)
+		door.set("linked_spawn", link["spawn"] as Vector3)
 		door.set("linked_spawn_yaw", WorldGrid.yaw_for_furniture(link["facing"] as WorldGrid.Facing))
 		_size_museum_wing_door(door, link["sensor"] as Vector3)
 		root.add_child(door)
 
 
-static func _size_museum_wing_door(door: Node3D, sensor_gx: Vector3) -> void:
+static func _size_museum_wing_door(door: Node3D, sensor: Vector3) -> void:
 	## Match wall gap half-width so the player cannot slip past the sensor.
-	HostCollision.resize_interact_box(door, InteriorShellBuilder.museum_door_box(sensor_gx))
+	HostCollision.resize_interact_box(door, InteriorShellBuilder.museum_door_box(sensor))

@@ -48,10 +48,11 @@ func test_anger_vein_drains_to_red_then_fades() -> void:
 
 
 func test_heart_rises_slower_and_grows() -> void:
-	assert_float(NpcFeelGlyphs.heart_rise(1)).is_equal_approx(1.0, 0.001)
+	var gx: float = FieldCatalog.GX_TO_METERS
+	assert_float(NpcFeelGlyphs.heart_rise(1)).is_equal_approx(1.0 * gx, 0.0001)
 	## 28 easing ticks then 0.1 a tick.
 	var early: float = NpcFeelGlyphs.heart_rise(28)
-	assert_float(NpcFeelGlyphs.heart_rise(38) - early).is_equal_approx(1.0, 0.001)
+	assert_float(NpcFeelGlyphs.heart_rise(38) - early).is_equal_approx(1.0 * gx, 0.0001)
 	assert_float(NpcFeelGlyphs.heart_scale(40).length()).is_greater(NpcFeelGlyphs.heart_scale(0).length())
 
 

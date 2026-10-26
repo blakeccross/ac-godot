@@ -103,7 +103,7 @@ func test_mushrooms_grow_under_trees_then_go() -> void:
 	rng.seed = 11
 	var day: int = 100 * 1440
 	Game.town.mushroom_minute = day - 1440 + 600
-	MushroomUse.tick(world, day + 8 * 60, 8, 0, Vector2i(1, 3), rng)
+	MushroomUse.advance(world, day + 8 * 60, 8, 0, Vector2i(1, 3), rng)
 	## Acre (1,1) shares the player's column, so only the tree in (2,2) can take them; it has
 	## five spots.
 	assert_int(Game.town.mushrooms.size()).is_equal(5)
@@ -112,12 +112,12 @@ func test_mushrooms_grow_under_trees_then_go() -> void:
 		assert_that(TownSpace.block_of_cell(cell)).is_equal(Vector2i(2, 2))
 	assert_bool(Game.town.mushroom_active).is_false()
 	## Same quarter: nothing changes. Half an hour on: two have gone.
-	MushroomUse.tick(world, day + 8 * 60 + 10, 8, 10, Vector2i(1, 3), rng)
+	MushroomUse.advance(world, day + 8 * 60 + 10, 8, 10, Vector2i(1, 3), rng)
 	assert_int(Game.town.mushrooms.size()).is_equal(5)
-	MushroomUse.tick(world, day + 8 * 60 + 30, 8, 30, Vector2i(1, 3), rng)
+	MushroomUse.advance(world, day + 8 * 60 + 30, 8, 30, Vector2i(1, 3), rng)
 	assert_int(Game.town.mushrooms.size()).is_equal(3)
 	## Standing in that acre keeps them.
-	MushroomUse.tick(world, day + 10 * 60, 10, 0, Vector2i(2, 2), rng)
+	MushroomUse.advance(world, day + 10 * 60, 10, 0, Vector2i(2, 2), rng)
 	assert_int(Game.town.mushrooms.size()).is_equal(3)
 	## Next morning they are long gone and a new crop may come.
 	MushroomUse.first_clear(world, day + 1440 + 7 * 60, rng)

@@ -12,4 +12,4 @@ func present_exhibits(furniture: Node3D, interior: IndoorSession) -> void:
 	)
 	var machinery: Node3D = furniture.get_node_or_null("LighthouseSwitch") as Node3D
 	if machinery != null:
-		machinery.position = LighthouseRoom.gx_to_world(interior.grid, LighthouseRoom.SWITCH_GX)
+		machinery.position = WorldGrid.room_point(interior.grid, LighthouseRoom.SWITCH)

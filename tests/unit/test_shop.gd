@@ -160,8 +160,8 @@ func test_cranny_stock_maps_to_rsv_cells() -> void:
 	var saw_shelf := false
 	var saw_floor := false
 	for row: Dictionary in placements:
-		var y: float = float(row["y_gx"])
-		if is_equal_approx(y, ShopDisplay.CRANNY_SHELF_Y_GX):
+		var y: float = float(row["y"])
+		if is_equal_approx(y, ShopDisplay.CRANNY_SHELF_Y):
 			saw_shelf = true
 		elif is_equal_approx(y, 0.0):
 			saw_floor = true
@@ -183,7 +183,7 @@ func test_cranny_blocks_room01_walls_and_the_goods_tables() -> void:
 	var blocked: Dictionary = ShopDisplay.cranny_blocked_units()
 	for slot: Dictionary in ShopDisplay.CRANNY_SLOTS:
 		var cell: Vector2i = slot["cell"] as Vector2i
-		assert_bool(blocked.has(cell)).is_equal(float(slot["y_gx"]) > 0.0)
+		assert_bool(blocked.has(cell)).is_equal(float(slot["y"]) > 0.0)
 	if InteriorUnitCollision.bg_counts(ShopDisplay.CRANNY_BG_ID).is_empty():
 		return  ## `room01.col.json` not generated (no disc)
 	## South wall either side of the door, the east column; the door and Nook stay open.
@@ -230,7 +230,7 @@ func test_tom_nook_stand_follows_shop_room() -> void:
 		var nook: Node3D = furniture.get_node_or_null("TomNook") as Node3D
 		assert_that(nook).is_not_null()
 		var level: int = ShopDisplay.nook_level_for_room(room_id)
-		var expected: Vector3 = ShopDisplay.gx_to_world(session.grid, ShopDisplay.nook_stand_gx(level))
+		var expected: Vector3 = WorldGrid.room_point(session.grid, ShopDisplay.nook_stand(level))
 		assert_vector(nook.position).is_equal_approx(expected, Vector3.ONE * 0.05)
 		assert_float(nook.rotation.y).is_equal_approx(WorldGrid.yaw_for_facing(ShopDisplay.NOOK_FACING), 0.01)
 
@@ -246,9 +246,7 @@ func test_every_nook_floor_hangs_its_clock() -> void:
 		assert_that(clock).is_not_null()
 		var level: int = ShopDisplay.nook_level_for_room(room_id)
 		assert_that(clock.get("visual")).is_equal(ShopDisplay.nook_clock_visual(level))
-		var expected: Vector3 = ShopDisplay.gx_to_world(
-			session.grid, Vector3(ShopDisplay.CLOCK_GX.x, 0.0, ShopDisplay.CLOCK_GX.z)
-		) + Vector3(0.0, ShopDisplay.CLOCK_GX.y * FieldCatalog.GX_TO_METERS, 0.0)
+		var expected: Vector3 = WorldGrid.room_point(session.grid, ShopDisplay.CLOCK)
 		assert_vector(clock.position).is_equal_approx(expected, Vector3.ONE * 0.05)
 
 
@@ -391,7 +389,7 @@ func test_reserve_points_match_fg_templates() -> void:
 		var slots: Array[Dictionary] = ShopDisplay.stock_slots(room_id)
 		assert_int(slots.size()).is_greater(0)
 		for slot: Dictionary in slots:
-			var y: float = float(slot["y_gx"])
+			var y: float = float(slot["y"])
 			assert_float(y).is_equal(0.0 if on_floor.has(slot["kind"]) else ShopDisplay.SHELF)
 		if not FieldObjectCatalog.has_catalog():
 			continue
@@ -478,8 +476,8 @@ func test_timmy_and_tommy_keep_nookingtons_upstairs() -> void:
 	assert_object(tommy).is_not_null()
 	for i: int in ShopDisplay.TWINS_UT.size():
 		var ut: Vector2i = ShopDisplay.TWINS_UT[i]
-		var expected: Vector3 = ShopDisplay.gx_to_world(
-			session.grid, Vector3(ut.x * 40.0 + 20.0, 0.0, ut.y * 40.0 + 20.0)
+		var expected: Vector3 = WorldGrid.room_point(
+			session.grid, Vector3(ut.x * 2.0 + 1.0, 0.0, ut.y * 2.0 + 1.0)
 		)
 		assert_vector(([timmy, tommy][i] as Node3D).position).is_equal_approx(expected, Vector3.ONE * 0.05)
 	assert_str(String(timmy.call("clerk_name"))).is_equal("Timmy")

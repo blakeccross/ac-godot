@@ -689,14 +689,14 @@ func test_museum_exit_stand_clears_plus_offset() -> void:
 	## Placement uses footprint center + shift — same as WorldBuilder.
 	var place: Vector3 = grid.footprint_center(b.cell, b.footprint)
 	place += Vector3(b.actor_shift.x, 0.0, b.actor_shift.y) * grid.cell_size
-	var exit_pos: Vector3 = place + Vector3(0.0, 0.0, StructureDoor.MUSEUM_EXIT_GX.y * FieldCatalog.GX_TO_METERS)
+	var exit_pos: Vector3 = place + Vector3(0.0, 0.0, StructureDoor.MUSEUM_EXIT.y)
 	var with_plus: float = FieldCollision.ground_y_at(data, grid, exit_pos, 0.0, true)
 	var keep: float = FieldCollision.ground_y_at(data, grid, exit_pos, 0.0, false)
 	assert_float(with_plus).is_equal_approx(keep, 0.01)
 	var south_raised: Vector2i = home + Vector2i(0, 2)
 	assert_float(FieldCollision.height_at(data, south_raised)).is_greater(keep + 2.0)
 	## Door stand (+100 GX) must also stay on keep_h — walking into raised cells is the roof bug.
-	var door_pos: Vector3 = place + Vector3(0.0, 0.0, HostCollision.MUSEUM_DOOR_GX.y * FieldCatalog.GX_TO_METERS)
+	var door_pos: Vector3 = place + Vector3(0.0, 0.0, HostCollision.MUSEUM_DOOR.y)
 	assert_float(FieldCollision.ground_y_at(data, grid, door_pos, 0.0, true)).is_equal_approx(
 		FieldCollision.ground_y_at(data, grid, door_pos, 0.0, false), 0.01
 	)

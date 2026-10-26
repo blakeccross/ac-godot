@@ -108,7 +108,7 @@ func _drive(stage: IntroStationStage) -> void:
 	match stage.action:
 		IntroStationStage.Action.PLAYER_CONTROL:
 			## Along the walkway to the stairs east of the station building, then down.
-			var p: Vector3 = TownSpace.world_to_gx(Player.find(get_tree()).global_position)
+			var p: Vector3 = _decomp_gx(Player.find(get_tree()).global_position)
 			if p.x < 2295.0 and p.z < 900.0:
 				Input.action_release("move_back")
 				Input.action_press("move_right")
@@ -138,18 +138,18 @@ func _on_stage(action: StringName) -> void:
 
 func _log(kind: String) -> void:
 	var player := Player.find(get_tree())
-	var p: Vector3 = TownSpace.world_to_gx(player.global_position) if player != null else Vector3.ZERO
+	var p: Vector3 = _decomp_gx(player.global_position) if player != null else Vector3.ZERO
 	var nook: Node3D = _director.get("_nook") as Node3D if is_instance_valid(_director) else null
 	var porter: Node3D = _director.get("_porter") as Node3D if is_instance_valid(_director) else null
-	var n: Vector3 = TownSpace.world_to_gx(nook.global_position) if nook != null and nook.visible else Vector3.ZERO
-	var s: Vector3 = TownSpace.world_to_gx(porter.global_position) if porter != null else Vector3.ZERO
+	var n: Vector3 = _decomp_gx(nook.global_position) if nook != null and nook.visible else Vector3.ZERO
+	var s: Vector3 = _decomp_gx(porter.global_position) if porter != null else Vector3.ZERO
 	var c: TrainControl = Game.train.control
 	var ft: FieldTrain = Game.train.field_train()
 	if ft != null and ft.is_spawned():
 		var cars: Array = []
 		for car_name: String in ["Loco", "Mid", "Caboose"]:
 			var car: Node3D = ft.get_node_or_null("%" + car_name) as Node3D
-			cars.append("%s=%.1f" % [car_name, TownSpace.world_to_gx(car.global_position).x] if car else "-")
+			cars.append("%s=%.1f" % [car_name, _decomp_gx(car.global_position).x] if car else "-")
 		print("AUDIT cars ", " ".join(cars), " visible=", ft.visible)
 		var smoke := 0
 		var steam := 0
@@ -158,7 +158,7 @@ func _log(kind: String) -> void:
 			if fx is FieldParticle:
 				if (fx as FieldParticle).kind == FieldEffects.Kind.KISHA_KEMURI:
 					smoke += 1
-					top = maxf(top, TownSpace.world_to_gx((fx as FieldParticle).global_position).y)
+					top = maxf(top, _decomp_gx((fx as FieldParticle).global_position).y)
 				elif (fx as FieldParticle).kind == FieldEffects.Kind.STEAM:
 					steam += 1
 		print("AUDIT fx smoke=", smoke, " steam=", steam, " smoke_top_y_gx=", top)
@@ -170,8 +170,13 @@ func _log(kind: String) -> void:
 		rad_to_deg((player.get_node("MeshPivot") as Node3D).rotation.y) if player != null else 0.0,
 		player.is_busy() if player else false, player.doors.is_door_entering() if player else false,
 		player.doors.is_demo_walking() if player else false, n.x, n.z, s.x, s.z,
-		TrainControl.Action.keys()[c.action], c.x_gx, c.speed,
+		TrainControl.Action.keys()[c.action], c.x / FieldCatalog.GX_TO_METERS, c.speed,
 	])
+
+
+## Audit logs print decomp field GX so they line up with the decomp and Dolphin.
+static func _decomp_gx(world: Vector3) -> Vector3:
+	return TownSpace.world_to_field(world) / FieldCatalog.GX_TO_METERS
 
 
 func _press(action: StringName) -> void:

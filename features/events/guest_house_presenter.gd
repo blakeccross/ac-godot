@@ -59,7 +59,7 @@ func start() -> bool:
 	return true
 
 
-func tick(delta: float) -> void:
+func advance(delta: float) -> void:
 	if _away == &"":
 		return
 	_scan -= delta

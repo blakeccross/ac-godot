@@ -13,18 +13,20 @@ extends EventCrew
 ## them in goes round without praying (`aHN0_sanpai_wait` → think 10). One per New Year's
 ## crowd, shared by the villagers in line (an `EventCrew`); the well looks it up with `find`.
 
-## `aHN0_posX/Z` from the well's centre in GX (the decomp counts from its anchor unit,
-## 20 GX across and 20 up): +X to the well's right as you face it, +Z out of its front.
+## Lengths in metres, from the decomp's GX.
+const GX := FieldCatalog.GX_TO_METERS
+## `aHN0_posX/Z` from the well's centre, in metres from GX (the decomp counts from its anchor
+## unit, 20 GX across and 20 up): +X to the well's right as you face it, +Z out of its front.
 const POINTS: Array[Vector2] = [
-	Vector2(0.0, 55.0),     ## 0 the offering spot
-	Vector2(-20.0, 140.0),  ## 1 front of the left column
-	Vector2(20.0, 140.0),   ## 2 front of the right column
-	Vector2(-20.0, 180.0),  ## 3 back of the left column
-	Vector2(20.0, 180.0),   ## 4 back of the right column
-	Vector2(-80.0, 55.0),   ## 5 out to the left
-	Vector2(-80.0, 180.0),  ## 6 round the left back
-	Vector2(80.0, 55.0),    ## 7 out to the right
-	Vector2(80.0, 180.0),   ## 8 round the right back
+	Vector2(0.0, 55.0) * GX,     ## 0 the offering spot
+	Vector2(-20.0, 140.0) * GX,  ## 1 front of the left column
+	Vector2(20.0, 140.0) * GX,   ## 2 front of the right column
+	Vector2(-20.0, 180.0) * GX,  ## 3 back of the left column
+	Vector2(20.0, 180.0) * GX,   ## 4 back of the right column
+	Vector2(-80.0, 55.0) * GX,   ## 5 out to the left
+	Vector2(-80.0, 180.0) * GX,  ## 6 round the left back
+	Vector2(80.0, 55.0) * GX,    ## 7 out to the right
+	Vector2(80.0, 180.0) * GX,   ## 8 round the right back
 ]
 ## `aHN0_root`: each column's round, from the offering spot.
 const LOOPS: Array = [[0, 5, 6, 3, 1], [0, 7, 8, 4, 2]]
@@ -33,7 +35,7 @@ const LEG_BACK := 3
 const LEG_FRONT := 4
 ## `aHTMD_clip_player_move`: where the player waits, then stands to pray (the well's own
 ## `visit_stand`).
-const PLAYER_WAIT := Vector2(0.0, 100.0)
+const PLAYER_WAIT := Vector2(0.0, 100.0) * GX
 ## `aHN0_omairi_af_init`: 120 frames standing after the prayer.
 const AFTER_SEC := 2.0
 ## `ac_hatumode_npc0` `base_msg_table`, by looks: +0 the offer, +1 Yes, +2 No,
@@ -167,10 +169,10 @@ static func thanks_msg(looks: int, rng: RandomNumberGenerator) -> int:
 	return BASE_MSG[clampi(looks, 0, 5)] + 15 + rng.randi_range(0, 2)
 
 
-## A queue point in the world, from the well's centre and facing.
-static func to_world(well: Node3D, at_gx: Vector2) -> Vector3:
+## A queue point in the world, from the well's centre and facing (`at` in metres).
+static func to_world(well: Node3D, at: Vector2) -> Vector3:
 	var b: Basis = Basis(Vector3.UP, well.global_rotation.y)
-	return well.global_position + b * Vector3(at_gx.x, 0.0, at_gx.y) * FieldCatalog.GX_TO_METERS
+	return well.global_position + b * Vector3(at.x, 0.0, at.y)
 
 
 ## Facing the well's front from out in the queue.

@@ -23,7 +23,7 @@ func start() -> bool:
 
 
 ## Residents spawn after the event does, and come out later: dress them as they appear.
-func tick(delta: float) -> void:
+func advance(delta: float) -> void:
 	_scan -= delta
 	if _scan > 0.0 or _away.size() >= MAX_COSTUMES or mgr == null or mgr.get_tree() == null:
 		return

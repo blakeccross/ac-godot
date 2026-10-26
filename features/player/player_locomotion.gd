@@ -128,13 +128,6 @@ var planar_speed: float:
 	set(value):
 		speed = value
 
-## `speed` in the decomp's GX per 1/30 s, for the tool states still written in those units.
-var speed_gx: float:
-	get:
-		return speed / GX_SPEED
-	set(value):
-		speed = value * GX_SPEED
-
 
 func reset(yaw: float = 0.0) -> void:
 	speed = 0.0
@@ -184,7 +177,7 @@ func anim_speed_scale() -> float:
 
 ## Steps `delta` seconds. `wish_dir` is the camera-relative stick direction, `stick` the
 ## `move_pR` percent (0..1). Returns the planar velocity (m/s) at the end of the step.
-func tick(delta: float, wish_dir: Vector3, stick: float, dashing: bool, locked: bool) -> Vector3:
+func advance(delta: float, wish_dir: Vector3, stick: float, dashing: bool, locked: bool) -> Vector3:
 	if delta <= 0.0:
 		return forward() * speed
 	if locked:

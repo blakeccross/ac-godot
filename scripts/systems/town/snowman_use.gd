@@ -107,8 +107,8 @@ static func try_combine(a: Node3D, b: Node3D) -> bool:
 	center.y = body.global_position.y
 	## Ball nodes sit on the ground; the head's centre lands 0.6 × (r_head + r_body) above the
 	## body's centre (`oc_pos.y += height * 0.6`).
-	var rh: float = SnowmanRules.radius_m(nh)
-	var rb: float = SnowmanRules.radius_m(nbody)
+	var rh: float = SnowmanRules.radius(nh)
+	var rb: float = SnowmanRules.radius(nbody)
 	var top: float = center.y + rb + (rh + rb) * 0.6 - rh
 	var on_built := func() -> void: _built(world, head, body, nh, nbody, res, body_cell)
 	if player != null:

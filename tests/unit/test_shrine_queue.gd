@@ -16,10 +16,12 @@ func test_each_column_goes_out_round_the_back_and_up_the_front() -> void:
 	var left: Array[Vector2] = []
 	for leg: int in 5:
 		left.append(ShrineQueue.point_of(0, leg))
-	assert_array(left).contains_exactly([
+	var want: Array[Vector2] = [
 		Vector2(0, 55), Vector2(-80, 55), Vector2(-80, 180), Vector2(-20, 180), Vector2(-20, 140),
-	])
-	assert_vector(ShrineQueue.point_of(1, ShrineQueue.LEG_FRONT)).is_equal(Vector2(20, 140))
+	]
+	for i: int in want.size():
+		assert_vector(left[i]).is_equal_approx(want[i] * ShrineQueue.GX, Vector2.ONE * 0.0001)
+	assert_vector(ShrineQueue.point_of(1, ShrineQueue.LEG_FRONT)).is_equal_approx(Vector2(20, 140) * ShrineQueue.GX, Vector2.ONE * 0.0001)
 	assert_int(ShrineQueue.next_leg(4)).is_equal(0)
 
 
@@ -88,7 +90,7 @@ func test_queue_points_follow_the_wells_facing() -> void:
 	var well: Node3D = auto_free(Node3D.new())
 	add_child(well)
 	well.rotation.y = PI * 0.5
-	var at: Vector3 = ShrineQueue.to_world(well, Vector2(0.0, 100.0))
+	var at: Vector3 = ShrineQueue.to_world(well, Vector2(0.0, 100.0) * ShrineQueue.GX)
 	assert_float(at.x).is_equal_approx(100.0 * FieldCatalog.GX_TO_METERS, 0.001)
 	assert_float(at.z).is_equal_approx(0.0, 0.001)
 	assert_float(angle_difference(ShrineQueue.facing_well(well), -PI * 0.5)).is_equal_approx(0.0, 0.001)

@@ -10,8 +10,8 @@ extends Node
 ## door indoors (`mTRC_SetMicPos`). Stereo pan uses one shared panner on the `Train` bus, set
 ## from the locomotive's bearing each step (the wheel clack really comes from 250 GX behind).
 
-## `train_position.y` (GAFE01_00 `mTRC_*_init`): the height the sounds use.
-const SOUND_Y_GX := 180.0
+## `train_position.y` (GAFE01_00 `mTRC_*_init`, 180 GX): the height the sounds use.
+const SOUND_Y := 180.0 * TrainControl.GX
 
 ## `sou_scene_mode`: 0 = title (every ongen call returns), 1 = field, 2 = room.
 const SCENE_SILENT := 0
@@ -25,10 +25,10 @@ const CHUFF_SE := &"3b"
 const CLACK_SE := &"3f"
 const RUN_LEVEL_SE := &"lev_10"
 
-## `distance2vol4KITEKI` (GX); the plain ongen curve is `SoundEmitter.volume`.
+## `distance2vol4KITEKI` (320 to 6400 GX); the plain ongen curve is `SoundEmitter.volume`.
 const KITEKI_BASE_VOLUME := 1.15
-const KITEKI_MIN := 320.0
-const KITEKI_MAX := 6400.0
+const KITEKI_MIN := 320.0 * TrainControl.GX
+const KITEKI_MAX := 6400.0 * TrainControl.GX
 
 const BUS := "Train"
 ## Where in their cycles the chuff and the clack sound (`sou_shu_count == 4`, `== 10`).
@@ -110,8 +110,8 @@ func _advance(delta: float) -> void:
 	)
 	_coming_demo = false
 	var mode: int = _scene_mode()
-	var mic: Vector3 = _mic_gx()
-	var loco := Vector3(control.x_gx, SOUND_Y_GX, TrainControl.RAIL_Z_GX)
+	var mic: Vector3 = _mic()
+	var loco := Vector3(control.x, SOUND_Y, TrainControl.RAIL_Z)
 	if control.is_running():
 		_level(delta, mode, mic, loco)
 	if state != TrainControl.STATE_NONE:
@@ -141,7 +141,8 @@ func _trigger(mode: int, state: int, mic: Vector3, loco: Vector3) -> void:
 
 ## `Na_KishaStatusLevel`: the running loop at the locomotive, and a steam chuff and a wheel
 ## clack on cycles that shorten as the train speeds up: `21 − 2.5·speed` and `91 − 11.5·speed`
-## ticks (`speed` in GX per 1/30 s), the chuff 4 ticks in and the clack 10.
+## ticks (`speed` in GX per 1/30 s), the chuff 4 ticks in and the clack 10. Positions are field
+## positions (`TownSpace`).
 func _level(delta: float, mode: int, mic: Vector3, loco: Vector3) -> void:
 	var distance: float = mic.distance_to(loco)
 	_panner.pan = SoundEmitter.pan(mic, loco)
@@ -154,7 +155,7 @@ func _level(delta: float, mode: int, mic: Vector3, loco: Vector3) -> void:
 	if speed > 0.4 and _crosses(_shu, delta, shu_cycle, CHUFF_AT):
 		_play_ongen(mode, CHUFF_SE, distance)
 	if speed > 0.4 and _crosses(_tonton, delta, tonton_cycle, CLACK_AT):
-		var caboose := Vector3(control.caboose_x_gx(), SOUND_Y_GX, TrainControl.RAIL_Z_GX)
+		var caboose := Vector3(control.caboose_x(), SOUND_Y, TrainControl.RAIL_Z)
 		_play_ongen(mode, CLACK_SE, mic.distance_to(caboose))
 	_shu = fmod(_shu + delta, shu_cycle)
 	_tonton = fmod(_tonton + delta, tonton_cycle)
@@ -178,7 +179,7 @@ func _sync_visual(delta: float, parked: bool, mode: int, mic: Vector3) -> void:
 		train.spawn(control)
 	var door: Dictionary = train.advance(delta, control, parked)
 	if bool(door.get("sound", false)):
-		var caboose := Vector3(train.cars.caboose_x, SOUND_Y_GX, TrainControl.RAIL_Z_GX)
+		var caboose := Vector3(train.cars.caboose_x, SOUND_Y, TrainControl.RAIL_Z)
 		_play_ongen(mode, TrainCars.DOOR_SE, mic.distance_to(caboose))
 
 
@@ -230,8 +231,8 @@ func _play(id: StringName, volume: float) -> void:
 	player.play()
 
 
-## `distance2vol4KITEKI`: linear from 1.15 at 320 GX to 0 at 6400 (the decomp's early-outs are
-## dead code; `Sou_PosTrgStart` already drops anything past 6400).
+## `distance2vol4KITEKI`: linear from 1.15 at 320 GX to 0 at 6400 GX (the decomp's early-outs
+## are dead code; `Sou_PosTrgStart` already drops anything past 6400). `distance` in metres.
 static func whistle_volume(distance: float) -> float:
 	var scale: float = KITEKI_BASE_VOLUME / (KITEKI_MAX - KITEKI_MIN)
 	return maxf(KITEKI_BASE_VOLUME - scale * (distance - KITEKI_MIN), 0.0)
@@ -243,14 +244,14 @@ func _scene_mode() -> int:
 	return SCENE_ROOM if Game.current_room_id != &"" else SCENE_FIELD
 
 
-## `mTRC_SetMicPos`.
-func _mic_gx() -> Vector3:
+## `mTRC_SetMicPos`, as a field position.
+func _mic() -> Vector3:
 	var base: Vector3 = Game.outdoor_return
 	if Game.current_room_id == &"":
 		var player := Player.find(get_tree())
 		if player != null:
 			base = player.global_position
-	return TownSpace.world_to_gx(base) + SoundEmitter.MIC_OFFSET_GX
+	return TownSpace.world_to_field(base) + SoundEmitter.MIC_OFFSET
 
 
 func _player_block() -> Vector2i:
@@ -259,8 +260,7 @@ func _player_block() -> Vector2i:
 	var player := Player.find(get_tree())
 	if player == null:
 		return Vector2i(-1, -1)
-	var gx: Vector3 = TownSpace.world_to_gx(player.global_position)
-	return Vector2i(int(gx.x / TrainControl.BLOCK_GX), int(gx.z / TrainControl.BLOCK_GX))
+	return TownSpace.block_of(TownSpace.world_to_field(player.global_position))
 
 
 func _field_train() -> FieldTrain:

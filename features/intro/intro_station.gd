@@ -73,7 +73,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _finishing:
 		return
-	_stage.tick(delta)
+	_stage.advance(delta)
 	_poll_house_doors()
 	if not _fade_out or _fade == null:
 		return
@@ -211,7 +211,7 @@ func _fit_actor(host: Node3D, visual_id: StringName) -> void:
 	if vis == null:
 		return
 	VisualFit.apply_actor_scale(vis, visual_id)
-	VisualFit.align_actor_to_height_gx(vis, 0.0)
+	VisualFit.align_actor_to_height(vis, 0.0)
 	GeneratedVisual.apply_preview_materials(vis)
 	if String(visual_id).begins_with("obj_train1_"):
 		VisualTrain.prepare_outdoor_train(vis)

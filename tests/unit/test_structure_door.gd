@@ -55,8 +55,8 @@ func test_walk_in_uses_into_not_open1() -> void:
 
 func test_museum_exit_stand_is_south_of_door() -> void:
 	## `aMsm_rewrite_out_data`: home + 120 GX south — past the +100 door and raised footprint.
-	assert_that(StructureDoor.exit_offset_gx(&"obj_s_museum")).is_equal(StructureDoor.MUSEUM_EXIT_GX)
-	assert_float(StructureDoor.MUSEUM_EXIT_GX.y).is_greater(HostCollision.MUSEUM_DOOR_GX.y)
+	assert_that(StructureDoor.exit_offset(&"obj_s_museum")).is_equal(StructureDoor.MUSEUM_EXIT)
+	assert_float(StructureDoor.MUSEUM_EXIT.y).is_greater(HostCollision.MUSEUM_DOOR.y)
 	var root := Node3D.new()
 	auto_free(root)
 	root.position = Vector3(10.0, 0.0, 10.0)
@@ -70,7 +70,7 @@ func test_museum_exit_stand_is_south_of_door() -> void:
 	tree_root.add_child(root)
 	var stand: Vector3 = StructureDoor.exit_stand(root)
 	assert_float(stand.z).is_equal_approx(
-		root.global_position.z + StructureDoor.MUSEUM_EXIT_GX.y * FieldCatalog.GX_TO_METERS, 0.01
+		root.global_position.z + StructureDoor.MUSEUM_EXIT.y, 0.01
 	)
 
 
@@ -108,16 +108,16 @@ func test_approach_steps_toward_building() -> void:
 
 func test_house_approach_uses_demo_stand_not_exit() -> void:
 	## Player/villager OPEN1 stands are check/porch GX — not rewrite_out exit.
-	assert_that(StructureDoor.approach_offset_gx(&"obj_s_myhome1")).is_equal(
-		StructureDoor.PLAYER_APPROACH_GX
+	assert_that(StructureDoor.approach_offset(&"obj_s_myhome1")).is_equal(
+		StructureDoor.PLAYER_APPROACH
 	)
-	assert_that(StructureDoor.approach_offset_gx(&"obj_s_house1")).is_equal(
-		StructureDoor.NPC_HOUSE_APPROACH_GX
+	assert_that(StructureDoor.approach_offset(&"obj_s_house1")).is_equal(
+		StructureDoor.NPC_HOUSE_APPROACH
 	)
-	assert_float(StructureDoor.PLAYER_APPROACH_GX.length()).is_less(
-		Vector2(HostCollision.PLAYER_DOOR_GX, HostCollision.PLAYER_DOOR_GX).length()
+	assert_float(StructureDoor.PLAYER_APPROACH.length()).is_less(
+		Vector2(HostCollision.PLAYER_DOOR, HostCollision.PLAYER_DOOR).length()
 	)
-	assert_float(StructureDoor.NPC_HOUSE_APPROACH_GX.y).is_less(StructureDoor.NPC_HOUSE_EXIT_GX.y)
+	assert_float(StructureDoor.NPC_HOUSE_APPROACH.y).is_less(StructureDoor.NPC_HOUSE_EXIT.y)
 	var root := Node3D.new()
 	auto_free(root)
 	var script := GDScript.new()
@@ -130,22 +130,21 @@ func test_house_approach_uses_demo_stand_not_exit() -> void:
 	add_child(tree_root)
 	tree_root.add_child(root)
 	var stand: Vector3 = StructureDoor.approach_position(root)
-	var s: float = FieldCatalog.GX_TO_METERS
 	assert_float(stand.x).is_equal_approx(
-		root.global_position.x + StructureDoor.PLAYER_APPROACH_GX.x * s, 0.05
+		root.global_position.x + StructureDoor.PLAYER_APPROACH.x, 0.05
 	)
 	assert_float(stand.z).is_equal_approx(
-		root.global_position.z + StructureDoor.PLAYER_APPROACH_GX.y * s, 0.05
+		root.global_position.z + StructureDoor.PLAYER_APPROACH.y, 0.05
 	)
 
 
 func test_museum_approach_stays_on_door_stand() -> void:
-	## Walk-in AnimationMove target is `aMsm` +100 GX — not +APPROACH_GX into the roof cells.
-	assert_that(StructureDoor.approach_offset_gx(&"obj_s_museum")).is_equal(
-		HostCollision.MUSEUM_DOOR_GX
+	## Walk-in AnimationMove target is `aMsm` +100 GX — not +APPROACH into the roof cells.
+	assert_that(StructureDoor.approach_offset(&"obj_s_museum")).is_equal(
+		HostCollision.MUSEUM_DOOR
 	)
-	assert_float(StructureDoor.approach_offset_gx(&"obj_s_museum").y).is_less(
-		StructureDoor.MUSEUM_EXIT_GX.y
+	assert_float(StructureDoor.approach_offset(&"obj_s_museum").y).is_less(
+		StructureDoor.MUSEUM_EXIT.y
 	)
 	var root := Node3D.new()
 	auto_free(root)
@@ -159,13 +158,12 @@ func test_museum_approach_stays_on_door_stand() -> void:
 	add_child(tree_root)
 	tree_root.add_child(root)
 	var stand: Vector3 = StructureDoor.approach_position(root)
-	var s: float = FieldCatalog.GX_TO_METERS
 	assert_float(stand.z).is_equal_approx(
-		root.global_position.z + HostCollision.MUSEUM_DOOR_GX.y * s, 0.05
+		root.global_position.z + HostCollision.MUSEUM_DOOR.y, 0.05
 	)
-	## Heuristic would step another APPROACH_GX north into the raised block.
+	## Heuristic would step another APPROACH north into the raised block.
 	assert_float(stand.z).is_greater(
-		root.global_position.z + (HostCollision.MUSEUM_DOOR_GX.y - StructureDoor.APPROACH_GX) * s
+		root.global_position.z + (HostCollision.MUSEUM_DOOR.y - StructureDoor.APPROACH)
 	)
 
 
@@ -182,7 +180,7 @@ func test_find_near_picks_closest_house() -> void:
 func test_door_camera_distance_matches_follow() -> void:
 	## CAMERA2_PROCESS_DOOR uses the same 620 focus as Init_Camera2.
 	var cam_script = load("res://scenes/world/follow_camera.gd")
-	assert_float(cam_script.ORIG_DISTANCE).is_equal_approx(620.0, 0.01)
+	assert_float(cam_script.FOLLOW_DISTANCE).is_equal_approx(31.0, 0.01)
 
 
 func _fake_house(parent: Node, node_name: String, pos: Vector3, visual_id: StringName) -> Node3D:

@@ -20,7 +20,7 @@ const DIP_DEPTH := 0.075
 ## `aUKI_color`: more than 3 GX under the surface the float is tinted (100, 100, 128), and
 ## back above it returns to white. `aUKI_chase_color` moves each channel by half its step
 ## a tick (the int of 52 * 0.5 and 43 * 0.5): per second, out of 255.
-const UNDERWATER := 0.15  ## 3 GX
+const UNDERWATER := 3.0 * FieldCatalog.GX_TO_METERS
 const UNDERWATER_RGB := Vector3(100, 100, 128) / 255.0
 const COLOR_RATE := Vector3(26, 26, 21) * 60.0 / 255.0
 

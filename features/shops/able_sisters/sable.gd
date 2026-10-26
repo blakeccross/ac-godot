@@ -46,7 +46,7 @@ func _process(delta: float) -> void:
 	var uttering: bool = false
 	if _talking and get_tree() != null:
 		uttering = DialogueOverlay.uttering_in(get_tree())
-	_face.tick(delta, uttering)
+	_face.advance(delta, uttering)
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:

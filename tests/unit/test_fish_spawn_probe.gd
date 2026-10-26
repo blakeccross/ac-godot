@@ -341,13 +341,13 @@ func test_species_units_follow_set_gyoei_data() -> void:
 	assert_bool(S.unit_accepts(S.TYPE_LARGE_CHAR, 8, 8, S.ATTR_WATERFALL, 0.0)).is_true()
 	## Sea fish: deep sea only (surface 20 GX, need 20 GX of water).
 	assert_bool(S.unit_accepts(S.TYPE_SEA_BASS, 8, 8, S.ATTR_SEA, 0.0)).is_true()
-	assert_bool(S.unit_accepts(S.TYPE_SEA_BASS, 8, 8, S.ATTR_SEA, 10.0)).is_false()
+	assert_bool(S.unit_accepts(S.TYPE_SEA_BASS, 8, 8, S.ATTR_SEA, 10.0 * FieldCatalog.GX_TO_METERS)).is_false()
 	assert_bool(S.unit_accepts(S.TYPE_SEA_BASS, 8, 8, S.ATTR_WATER, 0.0)).is_false()
 	## Salmon: river water anywhere, sea only where deep.
-	assert_bool(S.unit_accepts(S.TYPE_SALMON2, 8, 8, 16, 60.0)).is_true()
-	assert_bool(S.unit_accepts(S.TYPE_SALMON2, 8, 8, S.ATTR_SEA, 10.0)).is_false()
+	assert_bool(S.unit_accepts(S.TYPE_SALMON2, 8, 8, 16, 60.0 * FieldCatalog.GX_TO_METERS)).is_true()
+	assert_bool(S.unit_accepts(S.TYPE_SALMON2, 8, 8, S.ATTR_SEA, 10.0 * FieldCatalog.GX_TO_METERS)).is_false()
 	## River fish can sit on sea water if the list offers them there (default: any water).
-	assert_bool(S.unit_accepts(2, 8, 8, S.ATTR_SEA, 10.0)).is_true()
+	assert_bool(S.unit_accepts(2, 8, 8, S.ATTR_SEA, 10.0 * FieldCatalog.GX_TO_METERS)).is_true()
 	## Whale: units 5..10.
 	assert_bool(S.unit_accepts(S.TYPE_WHALE, 4, 8, S.ATTR_SEA, 0.0)).is_false()
 	assert_bool(S.unit_accepts(S.TYPE_WHALE, 5, 10, S.ATTR_SEA, 0.0)).is_true()
@@ -388,7 +388,7 @@ func test_one_attempt_per_acre_entry() -> void:
 	var grid: WorldGrid = w["grid"]
 	var sense := _sense(grid, Vector2i(4, 4))
 	for _i: int in 200:
-		school.tick(DecompTime.TICK_SEC * 4.0, sense)
+		school.advance(DecompTime.TICK_SEC * 4.0, sense)
 	## The acre the field loads into is never rolled: the set manager only runs on a wade.
 	assert_int(school.shadow_count()).is_equal(0)
 	## Wading into the next acre rolls once; standing there never rolls again.
@@ -397,10 +397,10 @@ func test_one_attempt_per_acre_entry() -> void:
 		school.clear()
 		school.configure(grid, 0.0)
 		school.seed_rng(attempt)
-		school.tick(DecompTime.TICK_SEC, sense)
+		school.advance(DecompTime.TICK_SEC, sense)
 		var over := _sense(grid, Vector2i(20, 4))
 		for _i: int in 200:
-			school.tick(DecompTime.TICK_SEC * 4.0, over)
+			school.advance(DecompTime.TICK_SEC * 4.0, over)
 		assert_int(school.shadow_count()).is_less_equal(1)
 		if school.shadow_count() == 1:
 			stocked += 1
@@ -462,12 +462,12 @@ func test_a_fish_left_behind_is_culled_and_the_acre_restocks_on_return() -> void
 	var near := FishShadow.Sense.new()
 	near.player_position = fish.position + Vector3(20.0, 0.0, 0.0)
 	school.auto_spawn = false
-	school.tick(DecompTime.TICK_SEC, near)
+	school.advance(DecompTime.TICK_SEC, near)
 	assert_int(school.shadow_count()).is_equal(1)
 	## Past 600 GX and in another acre: gone.
 	var far := FishShadow.Sense.new()
 	far.player_position = fish.position + Vector3(31.0, 0.0, 0.0)
-	school.tick(DecompTime.TICK_SEC, far)
+	school.advance(DecompTime.TICK_SEC, far)
 	assert_int(school.shadow_count()).is_equal(0)
 	assert_bool(school.acre_has_fish(Vector2i(1, 1))).is_false()
 
@@ -572,7 +572,7 @@ func test_authored_town_river_stocks_every_month_and_hour() -> void:
 	_settle()
 	school.configure(grid, 0.0, data)
 	school.seed_rng(1)
-	school.tick(DecompTime.TICK_SEC, _sense(grid, Vector2i(8, 11)))
+	school.advance(DecompTime.TICK_SEC, _sense(grid, Vector2i(8, 11)))
 	assert_int(school.shadow_count()).is_equal(1)
 
 

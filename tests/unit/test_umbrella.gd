@@ -37,18 +37,18 @@ func test_take_out_opens_over_26_frames() -> void:
 	var umb := HeldUmbrella.new()
 	umb.setup(null, HeldUmbrella.Action.TAKEOUT_BEFORE)
 	assert_bool(umb.opened_fully).is_false()
-	umb.tick(1.0 / 60.0)
+	umb.advance(1.0 / 60.0)
 	assert_int(umb.action).is_equal(HeldUmbrella.Action.OPENING)
 	for _i: int in 50:
-		umb.tick(1.0 / 60.0)
+		umb.advance(1.0 / 60.0)
 	assert_bool(umb.opened_fully).is_false()
-	umb.tick(1.0 / 60.0)
-	umb.tick(1.0 / 60.0)
+	umb.advance(1.0 / 60.0)
+	umb.advance(1.0 / 60.0)
 	assert_bool(umb.opened_fully).is_true()
 	umb.set_action(HeldUmbrella.Action.PUTAWAY, false)
 	assert_bool(umb.opened_fully).is_false()
 	for _i: int in 60:
-		umb.tick(1.0 / 60.0)
+		umb.advance(1.0 / 60.0)
 	assert_bool(umb.is_closed()).is_true()
 
 

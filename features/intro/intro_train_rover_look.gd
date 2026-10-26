@@ -38,7 +38,7 @@ func set_camera_eyes(active: bool) -> void:
 		_head_pitch = 0.0
 
 
-func tick(delta: float) -> void:
+func advance(delta: float) -> void:
 	if not _active or _skeleton == null or _head_idx < 0 or _actor == null:
 		return
 	var head_global: Transform3D = _skeleton.global_transform * _skeleton.get_bone_global_pose(_head_idx)

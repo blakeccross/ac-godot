@@ -78,7 +78,7 @@ func _process(delta: float) -> void:
 	var uttering: bool = false
 	if _talking and get_tree() != null:
 		uttering = DialogueOverlay.uttering_in(get_tree())
-	_face.tick(delta, uttering)
+	_face.advance(delta, uttering)
 
 
 func _physics_process(delta: float) -> void:
@@ -237,7 +237,7 @@ func _move_act(player: Node3D, delta: float) -> void:
 func _decide_next_move_act(player: Node3D) -> Act:
 	if player == null:
 		return act
-	var d: Vector3 = _gx(player.global_position) - _gx(global_position)
+	var d: Vector3 = _local(player.global_position) - _local(global_position)
 	var dist_sq: float = d.x * d.x + d.z * d.z
 	if dist_sq < PoliceDisplay.STOP_DIST_SQ:
 		return Act.WAIT
@@ -264,8 +264,8 @@ func _search_player(player: Node3D, delta: float) -> void:
 func _search_player2(player: Node3D, delta: float) -> void:
 	if player == null:
 		return
-	var goal: Vector3 = PoliceDisplay.zone_waypoint_gx(_next_zone)
-	var here: Vector3 = _gx(global_position)
+	var goal: Vector3 = PoliceDisplay.zone_waypoint(_next_zone)
+	var here: Vector3 = _local(global_position)
 	var d := Vector2(goal.x - here.x, goal.z - here.z)
 	_chase_yaw(atan2(d.x, d.y), delta)
 	if d.length_squared() < PoliceDisplay.WAYPOINT_DIST_SQ:
@@ -282,9 +282,9 @@ func _turn_act(player: Node3D, delta: float) -> void:
 
 
 func _update_zones(player: Node3D) -> void:
-	_now_zone = PoliceDisplay.zone_for_gx(_gx(global_position))
+	_now_zone = PoliceDisplay.zone_for(_local(global_position))
 	if player != null:
-		_pl_zone = PoliceDisplay.zone_for_gx(_gx(player.global_position))
+		_pl_zone = PoliceDisplay.zone_for(_local(player.global_position))
 
 
 ## `aNPC_position_move`: chase speed toward the action's max, then step along facing.
@@ -336,10 +336,10 @@ func _yaw_to(target: Vector3) -> float:
 	return atan2(to.x, to.z) if to.x * to.x + to.z * to.z > 0.000001 else rotation.y
 
 
-## World → room GX (`MuseumDisplay.gx_to_world` inverse).
-func _gx(world: Vector3) -> Vector3:
+## World → room (metres from the room's corner; `WorldGrid.room_point`'s inverse).
+func _local(world: Vector3) -> Vector3:
 	var origin: Vector3 = _grid.origin if _grid != null else Vector3.ZERO
-	return (world - origin) / FieldCatalog.GX_TO_METERS
+	return world - origin
 
 
 ## --- Presentation ------------------------------------------------------------------------

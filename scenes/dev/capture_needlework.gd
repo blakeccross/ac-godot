@@ -40,7 +40,7 @@ func _run() -> void:
 	)
 
 	## marker at the decomp enter spawn
-	var spawn_pos: Vector3 = MuseumDisplay.gx_to_world(session.grid, InteriorCatalog.ABLE_SPAWN_GX)
+	var spawn_pos: Vector3 = WorldGrid.room_point(session.grid, InteriorCatalog.ABLE_SPAWN)
 	var marker := MeshInstance3D.new()
 	var cap := CapsuleMesh.new()
 	cap.radius = 0.25

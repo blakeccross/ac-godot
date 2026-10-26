@@ -7,8 +7,7 @@ extends Camera3D
 
 const GROUP := &"follow_camera"
 
-const ORIG_DISTANCE := 620.0
-const FOLLOW_DISTANCE := ORIG_DISTANCE * PlayerLocomotion.UNIT_METERS
+const FOLLOW_DISTANCE := 620.0 * PlayerLocomotion.UNIT_METERS
 const ISO := 0.70710678
 const DEFAULT_OFFSET := Vector3(0.0, FOLLOW_DISTANCE * ISO, FOLLOW_DISTANCE * ISO)
 ## Extra distance so the near wall stays inside the 20° frustum. 1.2 left that
@@ -26,8 +25,8 @@ const DOOR_MORPH_SECONDS := 140.0 * DecompTime.TICK_SEC
 ## `Camera2_SetPos_Item` (the player's report demos): the centre a little over and in front of
 ## the player, 250 GX closer than the normal 620 and 1400 short angles lower (about 37.3°),
 ## all on the normal camera's eases.
-const ITEM_CENTER_GX := Vector3(3.167068, 28.884293 - 15.0, 17.341202)
-const ITEM_DISTANCE_GX := ORIG_DISTANCE - 250.0
+const ITEM_CENTER := Vector3(3.167068, 28.884293 - 15.0, 17.341202) * PlayerLocomotion.UNIT_METERS
+const ITEM_DISTANCE := FOLLOW_DISTANCE - 250.0 * PlayerLocomotion.UNIT_METERS
 const ITEM_PITCH := -1400.0 * MathUtil.S16
 ## `Camera2_request_main_simple_fishing`: asked for again every tick of `relax_rod` /
 ## `vib_rod`, so each tick closes 1/40 of the way to a centre 35% of the way from the
@@ -36,7 +35,7 @@ const ITEM_PITCH := -1400.0 * MathUtil.S16
 const FISHING_STEP := 1.0 / 40.0
 const FISHING_RETURN_STEP := 1.0 / 30.0
 const FISHING_RETURN_SECONDS := 30.0 * DecompTime.TICK_SEC
-const FISHING_DROP_GX := 70.0
+const FISHING_DROP := 70.0 * PlayerLocomotion.UNIT_METERS
 ## `Player_actor_Set_Indoor_Camera_Index` (homes and the museum wings): C-up / C-down step a
 ## distance index, C-left / C-right a direction index, each 0..2 from 1. The tables add to
 ## the normal 620 GX at 45° (`m_camera2.c` indoor_distance / direction tables); pitch follows
@@ -48,10 +47,10 @@ const INDOOR_YAW_ADD: Array[float] = [-16.1 * PI / 180.0, 0.0, 16.1 * PI / 180.0
 ## `Camera2_main_Normal_SetEndCenterPos_fromPlayer` indoors: the centre follows the player's
 ## eye but keeps 110 GX × scale off the room's edges (40 GX more on the near side); a room
 ## narrower than 330 GX × scale (shallower than 250) centres on its middle that way.
-const ROOM_BORDER_GX := 110.0
-const ROOM_NEAR_ALLOWANCE_GX := 40.0
-const ROOM_MIN_WIDTH_GX := 330.0
-const ROOM_MIN_DEPTH_GX := 250.0
+const ROOM_BORDER := 110.0 * PlayerLocomotion.UNIT_METERS
+const ROOM_NEAR_ALLOWANCE := 40.0 * PlayerLocomotion.UNIT_METERS
+const ROOM_MIN_WIDTH := 330.0 * PlayerLocomotion.UNIT_METERS
+const ROOM_MIN_DEPTH := 250.0 * PlayerLocomotion.UNIT_METERS
 ## Per-second rates of the 0.2 / 0.10557 per-tick eases.
 const INDOOR_DISTANCE_RATE := 13.389
 const INDOOR_ANGLE_RATE := 6.698
@@ -80,16 +79,18 @@ var _look_current := Vector3.ZERO
 var _has_look: bool = false
 ## Intro / cutscene owns the eye; skip `_follow` until `resume`.
 var _suspended: bool = false
-## Outdoor town (`AcreCamera`): look-at centre in GX, held inside the player's acre.
+## Outdoor town (`AcreCamera`): look-at centre as a `TownSpace` field position, held inside the
+## player's acre.
 var _acre_active: bool = false
 var _acre_center := Vector3.ZERO
 ## `Camera2` `direction.x` relative to the 45° base: the rail-row swing, eased.
 var _acre_pitch: float = 0.0
-## `focus_distance` (GX) and `direction.y` (radians off due south). 620 and 0 in plain
-## following; another camera (a talk, a door) hands them back off-target, and they ease home.
-var _acre_distance: float = ORIG_DISTANCE
+## `focus_distance` (m) and `direction.y` (radians off due south). `FOLLOW_DISTANCE` and 0 in
+## plain following; another camera (a talk, a door) hands them back off-target, and they ease
+## home.
+var _acre_distance: float = FOLLOW_DISTANCE
 var _acre_yaw: float = 0.0
-## `Camera2_main_Wade`: `{start, goal, t}` (GX, seconds) while the player wades.
+## `Camera2_main_Wade`: `{start, goal, t}` (field positions, seconds) while the player wades.
 var _acre_wade: Dictionary = {}
 ## The item (report) camera on `_item_target`, and the eye it eases: centre (m), distance
 ## (m), elevation and yaw.
@@ -209,24 +210,23 @@ func follow_in_room(box: AABB) -> void:
 
 ## Where the centre goes for an eye at `eye` in `box`, at the indoor index (see the consts).
 static func room_center(eye: Vector3, box: AABB, distance_index: int, direction_index: int) -> Vector3:
-	var gx: float = PlayerLocomotion.UNIT_METERS
-	var scale: float = (ORIG_DISTANCE + INDOOR_DISTANCE_ADD[distance_index] / gx) / ORIG_DISTANCE
+	var scale: float = (FOLLOW_DISTANCE + INDOOR_DISTANCE_ADD[distance_index]) / FOLLOW_DISTANCE
 	if direction_index != 1:
 		scale *= 0.8
 	if distance_index == 2:
 		scale *= 0.88
-	var border: float = ROOM_BORDER_GX * gx * scale
+	var border: float = ROOM_BORDER * scale
 	var out := eye
 	var mid: Vector3 = box.get_center()
 	var x_lo: float = box.position.x + border
 	var x_hi: float = box.end.x - border
-	if box.size.x < ROOM_MIN_WIDTH_GX * gx * scale or x_lo > x_hi:
+	if box.size.x < ROOM_MIN_WIDTH * scale or x_lo > x_hi:
 		out.x = mid.x
 	else:
 		out.x = clampf(eye.x, x_lo, x_hi)
 	var z_lo: float = box.position.z + border
-	var z_hi: float = box.end.z - border + ROOM_NEAR_ALLOWANCE_GX * gx
-	if box.size.z < ROOM_MIN_DEPTH_GX * gx * scale or z_lo > z_hi:
+	var z_hi: float = box.end.z - border + ROOM_NEAR_ALLOWANCE
+	if box.size.z < ROOM_MIN_DEPTH * scale or z_lo > z_hi:
 		out.z = mid.z
 	else:
 		out.z = clampf(eye.z, z_lo, z_hi)
@@ -392,22 +392,22 @@ func _follow(snap: bool, delta: float = 0.0) -> void:
 ## `Camera2_main_Normal` / `Camera2_main_Wade` outdoors.
 func _follow_acre(snap: bool, delta: float) -> void:
 	var look_w: Vector3 = _look_point()
-	var eye_gx: Vector3 = TownSpace.world_to_gx(look_w)
-	var player_gx: Vector3 = TownSpace.world_to_gx(_target.global_position)
+	var eye: Vector3 = TownSpace.world_to_field(look_w)
+	var player_at: Vector3 = TownSpace.world_to_field(_target.global_position)
 	if snap or not _acre_active:
 		_acre_active = true
 		_acre_wade = {}
 		if snap or not _has_look:
-			_acre_center = AcreCamera.goal(eye_gx, player_gx)
-			_acre_pitch = AcreCamera.swing(eye_gx, player_gx)
-			_acre_distance = ORIG_DISTANCE
+			_acre_center = AcreCamera.goal(eye, player_at)
+			_acre_pitch = AcreCamera.swing(eye, player_at)
+			_acre_distance = FOLLOW_DISTANCE
 			_acre_yaw = 0.0
 		else:
 			## Take over from wherever the last camera left the eye and ease home from
 			## there (`Camera2_MoveDistancePosAndSpeed`, `MoveDirectionAngleXYZ`).
-			_acre_center = TownSpace.world_to_gx(_look_current)
+			_acre_center = TownSpace.world_to_field(_look_current)
 			var arm: Vector3 = global_position - _look_current
-			_acre_distance = arm.length() / PlayerLocomotion.UNIT_METERS
+			_acre_distance = arm.length()
 			_acre_pitch = atan2(arm.y, Vector2(arm.x, arm.z).length()) - atan2(offset.y, offset.z)
 			_acre_yaw = atan2(arm.x, arm.z)
 	var wade: Dictionary = _target.call("wade_state") as Dictionary
@@ -416,24 +416,24 @@ func _follow_acre(snap: bool, delta: float) -> void:
 		var end_eye: Vector3 = (wade["end"] as Vector3) + (look_w - _target.global_position)
 		_acre_wade = {
 			"start": _acre_center,
-			"goal": AcreCamera.wade_goal(TownSpace.world_to_gx(end_eye), player_gx),
+			"goal": AcreCamera.wade_goal(TownSpace.world_to_field(end_eye), player_at),
 			"t": 0.0,
 		}
 	if not snap:
-		_acre_step(eye_gx, player_gx, delta)
-	var center_w: Vector3 = TownSpace.gx_to_world(_acre_center)
-	global_position = center_w + _arm(_acre_distance * PlayerLocomotion.UNIT_METERS, atan2(offset.y, offset.z) + _acre_pitch, _acre_yaw)
+		_acre_step(eye, player_at, delta)
+	var center_w: Vector3 = TownSpace.field_to_world(_acre_center)
+	global_position = center_w + _arm(_acre_distance, atan2(offset.y, offset.z) + _acre_pitch, _acre_yaw)
 	_look_current = center_w
 	_has_look = true
 	look_at(center_w, Vector3.UP)
 
 
-func _acre_step(eye_gx: Vector3, player_gx: Vector3, delta: float) -> void:
-	var pitch_goal: float = AcreCamera.swing(eye_gx, player_gx)
-	_acre_distance = AcreCamera.follow_distance(_acre_distance, ORIG_DISTANCE, delta)
+func _acre_step(eye: Vector3, player_at: Vector3, delta: float) -> void:
+	var pitch_goal: float = AcreCamera.swing(eye, player_at)
+	_acre_distance = AcreCamera.follow_distance(_acre_distance, FOLLOW_DISTANCE, delta)
 	_acre_yaw = AcreCamera.follow_pitch(_acre_yaw, 0.0, delta)
 	if _acre_wade.is_empty():
-		_acre_center = AcreCamera.follow(_acre_center, AcreCamera.goal(eye_gx, player_gx), delta)
+		_acre_center = AcreCamera.follow(_acre_center, AcreCamera.goal(eye, player_at), delta)
 		_acre_pitch = AcreCamera.follow_pitch(_acre_pitch, pitch_goal, delta)
 		return
 	var t: float = float(_acre_wade["t"])
@@ -449,10 +449,9 @@ func _acre_step(eye_gx: Vector3, player_gx: Vector3, delta: float) -> void:
 
 ## `Camera2_SetPos_Item`: centre, distance and angles each on the normal camera's ease.
 func _follow_item(delta: float) -> void:
-	var u: float = PlayerLocomotion.UNIT_METERS
-	var goal: Vector3 = _item_target.global_position + ITEM_CENTER_GX * u
-	_shot_center = AcreCamera.follow(_shot_center / u, goal / u, delta) * u
-	_shot_distance = AcreCamera.follow_distance(_shot_distance / u, ITEM_DISTANCE_GX, delta) * u
+	var goal: Vector3 = _item_target.global_position + ITEM_CENTER
+	_shot_center = AcreCamera.follow(_shot_center, goal, delta)
+	_shot_distance = AcreCamera.follow_distance(_shot_distance, ITEM_DISTANCE, delta)
 	_shot_elevation = AcreCamera.follow_pitch(_shot_elevation, atan2(offset.y, offset.z) + ITEM_PITCH, delta)
 	_shot_yaw = AcreCamera.follow_pitch(_shot_yaw, 0.0, delta)
 	_place_shot()
@@ -478,7 +477,7 @@ func _follow_fishing(delta: float) -> bool:
 		var eye: Vector3 = _look_point()
 		var bobber: Vector3 = line.anchor()
 		var share: float = 0.35
-		if (eye.y - bobber.y) / PlayerLocomotion.UNIT_METERS > FISHING_DROP_GX:
+		if eye.y - bobber.y > FISHING_DROP:
 			share = 0.45
 			distance *= 1.15
 		center = eye.lerp(bobber, share)
@@ -501,7 +500,9 @@ func _normal_center() -> Vector3:
 		return _lock_point + Vector3(0.0, ROOM_LOOK_HEIGHT, 0.0)
 	var look_w: Vector3 = _look_point()
 	if TownSpace.is_outdoor_town():
-		return TownSpace.gx_to_world(AcreCamera.goal(TownSpace.world_to_gx(look_w), TownSpace.world_to_gx(_target.global_position)))
+		return TownSpace.field_to_world(
+			AcreCamera.goal(TownSpace.world_to_field(look_w), TownSpace.world_to_field(_target.global_position))
+		)
 	return look_w
 
 

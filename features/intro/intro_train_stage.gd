@@ -825,7 +825,7 @@ func _clip_matches_pending(anim_name: StringName) -> bool:
 	return finished.ends_with(_pending_clip) or _pending_clip.ends_with(finished)
 
 
-func tick(delta: float) -> void:
+func advance(delta: float) -> void:
 	if _pending_ready:
 		_flush_pending()
 	if _manpu_hold_clip != "" and not _anim_playing():
@@ -845,7 +845,7 @@ func tick(delta: float) -> void:
 func _refresh_camera(delta: float) -> void:
 	if _cam == null:
 		return
-	_cam.tick(delta, shadow_gx())
+	_cam.advance(delta, shadow_gx())
 
 
 func _action_name(act: Action) -> StringName:

@@ -110,18 +110,18 @@ func test_stage_cues_follow_decomp_action_order() -> void:
 	stage.bind(rover, null, null, null, null)
 	## Fast-forward to seated talk.
 	for _i: int in 220:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.TALK:
 			break
 	stage.cue_sit()
 	for _i: int in 120:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.SEATED:
 			break
 	assert_that(stage.action).is_equal(IntroTrainStage.Action.SEATED)
 	stage.cue_phone()
 	for _i: int in 5:
-		stage.tick(0.0)
+		stage.advance(0.0)
 	assert_that(stage.action).is_in(
 		[
 			IntroTrainStage.Action.STANDUP,
@@ -135,7 +135,7 @@ func test_stage_cues_follow_decomp_action_order() -> void:
 	stage.end_phone_talk()
 	stage.cue_return_sit()
 	for _i: int in 400:
-		stage.tick(1.0 / 30.0)
+		stage.advance(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.SEATED:
 			break
 	assert_that(stage.action).is_in(

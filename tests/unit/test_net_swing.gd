@@ -21,14 +21,14 @@ func _ready_swing() -> NetSwing:
 
 ## Releases A and returns the swing on its first tick.
 func _start_swing(net: NetSwing) -> void:
-	net.tick(T, false, 0.0, 0.0, false)
+	net.advance(T, false, 0.0, 0.0, false)
 	assert_int(net.state).is_equal(NetSwing.State.SWING)
 
 
-func _probe_with(target: Object, at: Vector3, range_gx: float) -> NetSwing.Probe:
+func _probe_with(target: Object, at: Vector3, catch_range: float) -> NetSwing.Probe:
 	var probe := NetSwing.Probe.new()
 	probe.net_pos = Vector3.ZERO
-	probe.candidates = [NetSwing.Candidate.new(target, at, range_gx)]
+	probe.candidates = [NetSwing.Candidate.new(target, at, catch_range)]
 	return probe
 
 
@@ -37,9 +37,9 @@ func test_a_raises_the_net_and_release_swings() -> void:
 	assert_int(net.state).is_equal(NetSwing.State.READY)
 	## Holding A keeps it raised.
 	for i: int in 30:
-		net.tick(T, true, 0.0, 0.0, false)
+		net.advance(T, true, 0.0, 0.0, false)
 	assert_int(net.state).is_equal(NetSwing.State.READY)
-	net.tick(T, false, 0.0, 0.0, false)
+	net.advance(T, false, 0.0, 0.0, false)
 	assert_int(net.state).is_equal(NetSwing.State.SWING)
 	assert_bool(&"furi" in net.events).is_true()
 	assert_float(net.frame).is_equal(1.0)
@@ -52,7 +52,7 @@ func test_empty_swing_runs_nineteen_ticks_then_stops() -> void:
 	_start_swing(net)
 	var ticks: int = 0
 	while net.state == NetSwing.State.SWING:
-		net.tick(T, true, 0.0, 0.0, false, NetSwing.Probe.new())
+		net.advance(T, true, 0.0, 0.0, false, NetSwing.Probe.new())
 		ticks += 1
 	assert_int(ticks).is_equal(19)
 	assert_int(net.state).is_equal(NetSwing.State.STOP)
@@ -65,10 +65,10 @@ func test_stop_returns_to_wait_when_swing_wait_ends() -> void:
 	var net := _ready_swing()
 	_start_swing(net)
 	while net.state == NetSwing.State.SWING:
-		net.tick(T, true, 0.0, 0.0, false, NetSwing.Probe.new())
+		net.advance(T, true, 0.0, 0.0, false, NetSwing.Probe.new())
 	var ticks: int = 0
 	while net.state == NetSwing.State.STOP:
-		net.tick(T, true, 0.0, 0.0, false)
+		net.advance(T, true, 0.0, 0.0, false)
 		ticks += 1
 	assert_int(ticks).is_equal(40)
 	assert_int(net.state).is_equal(NetSwing.State.NONE)
@@ -82,7 +82,7 @@ func test_catch_check_opens_after_keyframe_six() -> void:
 	var caught_on: int = -1
 	var ticks: int = 0
 	while net.state == NetSwing.State.SWING:
-		net.tick(T, true, 0.0, 0.0, false, _probe_with(target, Vector3(0.0, 0.0, 0.1), 24.0))
+		net.advance(T, true, 0.0, 0.0, false, _probe_with(target, Vector3(0.0, 0.0, 0.1), 24.0 * GX))
 		if net.caught != null and caught_on < 0:
 			caught_on = ticks
 			assert_bool(&"get" in net.events).is_true()
@@ -98,10 +98,10 @@ func test_catch_check_opens_after_keyframe_six() -> void:
 
 func test_catch_sphere_is_net_reach_plus_insect_range() -> void:
 	## 15 GX of net plus the insect's registered range.
-	assert_bool(NetSwing.in_reach(Vector3.ZERO, Vector3(0.0, 0.0, 38.9 * GX), 24.0)).is_true()
-	assert_bool(NetSwing.in_reach(Vector3.ZERO, Vector3(0.0, 0.0, 39.1 * GX), 24.0)).is_false()
-	assert_bool(NetSwing.in_reach(Vector3.ZERO, Vector3(0.0, 22.9 * GX, 0.0), 8.0)).is_true()
-	assert_bool(NetSwing.in_reach(Vector3.ZERO, Vector3(0.0, 23.1 * GX, 0.0), 8.0)).is_false()
+	assert_bool(NetSwing.in_reach(Vector3.ZERO, Vector3(0.0, 0.0, 38.9 * GX), 24.0 * GX)).is_true()
+	assert_bool(NetSwing.in_reach(Vector3.ZERO, Vector3(0.0, 0.0, 39.1 * GX), 24.0 * GX)).is_false()
+	assert_bool(NetSwing.in_reach(Vector3.ZERO, Vector3(0.0, 22.9 * GX, 0.0), 8.0 * GX)).is_true()
+	assert_bool(NetSwing.in_reach(Vector3.ZERO, Vector3(0.0, 23.1 * GX, 0.0), 8.0 * GX)).is_false()
 
 
 func test_net_out_of_reach_catches_nothing() -> void:
@@ -109,7 +109,7 @@ func test_net_out_of_reach_catches_nothing() -> void:
 	_start_swing(net)
 	var target := _Target.new()
 	while net.state == NetSwing.State.SWING:
-		net.tick(T, true, 0.0, 0.0, false, _probe_with(target, Vector3(0.0, 0.0, 40.0 * GX), 24.0))
+		net.advance(T, true, 0.0, 0.0, false, _probe_with(target, Vector3(0.0, 0.0, 40.0 * GX), 24.0 * GX))
 	assert_object(net.caught).is_null()
 	assert_int(net.state).is_equal(NetSwing.State.STOP)
 
@@ -121,7 +121,7 @@ func test_wall_cuts_the_swing_short_after_keyframe_six() -> void:
 	probe.line_bits = NetSwing.LINE_WALL
 	var ticks: int = 0
 	while net.state == NetSwing.State.SWING:
-		net.tick(T, true, 0.0, 0.0, false, probe)
+		net.advance(T, true, 0.0, 0.0, false, probe)
 		ticks += 1
 	## Ignored until keyframe 6.5 (the 12th tick), which then stops with `AMI_HIT`.
 	assert_int(ticks).is_equal(12)
@@ -138,7 +138,7 @@ func test_water_only_splashes() -> void:
 	probe.line_bits = NetSwing.LINE_UNDERWATER
 	var splashed: bool = false
 	while net.state == NetSwing.State.SWING:
-		net.tick(T, true, 0.0, 0.0, false, probe)
+		net.advance(T, true, 0.0, 0.0, false, probe)
 		splashed = splashed or &"splash" in net.events
 	assert_bool(splashed).is_true()
 	assert_bool(&"hit" in net.events).is_false()
@@ -151,7 +151,7 @@ func test_villager_hit_is_reported_for_uzai() -> void:
 	var probe := NetSwing.Probe.new()
 	probe.hit_actor = npc
 	while net.state == NetSwing.State.SWING:
-		net.tick(T, true, 0.0, 0.0, false, probe)
+		net.advance(T, true, 0.0, 0.0, false, probe)
 	assert_int(net.state).is_equal(NetSwing.State.STOP)
 	assert_object(net.hit_actor).is_same(npc)
 
@@ -162,23 +162,23 @@ func test_hit_after_a_catch_pulls_with_ami_hit() -> void:
 	var target := _Target.new()
 	## Catch on keyframe 6.5, strike a wall on the next tick.
 	for i: int in 12:
-		net.tick(T, true, 0.0, 0.0, false, _probe_with(target, Vector3.ZERO, 24.0))
+		net.advance(T, true, 0.0, 0.0, false, _probe_with(target, Vector3.ZERO, 24.0 * GX))
 	assert_object(net.caught).is_same(target)
 	var probe := NetSwing.Probe.new()
 	probe.line_bits = NetSwing.LINE_GROUND
-	net.tick(T, true, 0.0, 0.0, false, probe)
+	net.advance(T, true, 0.0, 0.0, false, probe)
 	assert_int(net.state).is_equal(NetSwing.State.PULL)
 	assert_bool(&"hit" in net.events).is_true()
 
 
 func test_ready_walk_accelerates_to_the_creep_cap() -> void:
 	var net := _ready_swing()
-	net.tick(T, true, 1.0, 0.0, true)
+	net.advance(T, true, 1.0, 0.0, true)
 	assert_int(net.state).is_equal(NetSwing.State.READY_WALK)
-	net.tick(T, true, 1.0, 0.0, true)
+	net.advance(T, true, 1.0, 0.0, true)
 	assert_float(net.speed).is_equal_approx(NetSwing.WALK_ACCEL * T, 0.0001)
 	for i: int in 10:
-		net.tick(T, true, 1.0, 0.0, true)
+		net.advance(T, true, 1.0, 0.0, true)
 	## 1.8 GX a frame at full stick (walking is 4.875).
 	assert_float(net.speed).is_equal_approx(NetSwing.WALK_MAX, 0.0001)
 	## `0.252 * sqrt(speed / 1.8)`.
@@ -186,7 +186,7 @@ func test_ready_walk_accelerates_to_the_creep_cap() -> void:
 	## Let go of the stick: decelerate 0.32625 a tick, then settle back into READY.
 	var ticks: int = 0
 	while net.state == NetSwing.State.READY_WALK:
-		net.tick(T, true, 0.0, 0.0, false)
+		net.advance(T, true, 0.0, 0.0, false)
 		ticks += 1
 	assert_int(ticks).is_equal(int(ceil(1.8 / 0.32625002)))
 	assert_int(net.state).is_equal(NetSwing.State.READY)
@@ -194,16 +194,16 @@ func test_ready_walk_accelerates_to_the_creep_cap() -> void:
 
 func test_ready_walk_anim_rate_has_a_floor() -> void:
 	var net := _ready_swing()
-	net.tick(T, true, 0.2, 0.0, true)
-	net.tick(T, true, 0.2, 0.0, true)
+	net.advance(T, true, 0.2, 0.0, true)
+	net.advance(T, true, 0.2, 0.0, true)
 	assert_float(net.frame_speed).is_equal_approx(NetSwing.WALK_ANIM_MIN, 0.0001)
 
 
 func test_release_while_walking_swings() -> void:
 	var net := _ready_swing()
-	net.tick(T, true, 1.0, 0.0, true)
-	net.tick(T, true, 1.0, 0.0, true)
-	net.tick(T, false, 1.0, 0.0, true)
+	net.advance(T, true, 1.0, 0.0, true)
+	net.advance(T, true, 1.0, 0.0, true)
+	net.advance(T, false, 1.0, 0.0, true)
 	assert_int(net.state).is_equal(NetSwing.State.SWING)
 
 
@@ -214,7 +214,7 @@ func test_dash_skids_then_readies() -> void:
 	assert_bool(&"slip" in net.events).is_true()
 	var ticks: int = 0
 	while net.state == NetSwing.State.SLIP:
-		net.tick(T, true, 0.0, 0.0, false)
+		net.advance(T, true, 0.0, 0.0, false)
 		ticks += 1
 	assert_int(ticks).is_equal(int(ceil(PlayerLocomotion.ORIG_RUN / 0.23925)))
 	assert_int(net.state).is_equal(NetSwing.State.READY)
@@ -223,18 +223,18 @@ func test_dash_skids_then_readies() -> void:
 func test_release_during_skid_swings() -> void:
 	var net := NetSwing.new()
 	net.begin(true, PlayerLocomotion.RUN_SPEED, 0.0)
-	net.tick(T, false, 0.0, 0.0, false)
+	net.advance(T, false, 0.0, 0.0, false)
 	assert_int(net.state).is_equal(NetSwing.State.SWING)
 
 
 func test_net_point_follows_the_hand() -> void:
 	## `Matrix_rotateXYZ(0, 3000, 0)` then 4000 model units down Z, ×0.01 → 40 GX.
-	var p: Vector3 = NetSwing.net_point(Transform3D.IDENTITY, NetSwing.NET_POS_GX)
+	var p: Vector3 = NetSwing.net_point(Transform3D.IDENTITY, NetSwing.NET_POS)
 	var yaw: float = MathUtil.s16_to_rad(NetSwing.NET_YAW_S16)
 	var want := Vector3(sin(yaw), 0.0, cos(yaw)) * (40.0 * GX)
 	assert_vector(p).is_equal_approx(want, Vector3.ONE * 0.0001)
 	var moved := Transform3D(Basis(Vector3.UP, PI), Vector3(1.0, 2.0, 3.0))
-	var q: Vector3 = NetSwing.net_point(moved, NetSwing.NET_POS_GX)
+	var q: Vector3 = NetSwing.net_point(moved, NetSwing.NET_POS)
 	assert_vector(q).is_equal_approx(Vector3(1.0, 2.0, 3.0) - want, Vector3.ONE * 0.0001)
 
 
@@ -247,9 +247,9 @@ func test_a_forced_target_is_taken_by_a_swing_under_way() -> void:
 	var caught_on: int = -1
 	var ticks: int = 0
 	while net.state == NetSwing.State.SWING:
-		var probe := _probe_with(target, Vector3(0.0, 0.0, 200.0 * GX), 24.0)
+		var probe := _probe_with(target, Vector3(0.0, 0.0, 200.0 * GX), 24.0 * GX)
 		probe.forced = target
-		net.tick(T, true, 0.0, 0.0, false, probe)
+		net.advance(T, true, 0.0, 0.0, false, probe)
 		if net.caught != null and caught_on < 0:
 			caught_on = ticks
 		ticks += 1
@@ -291,11 +291,11 @@ func test_swing_and_stop_take_the_same_time_at_15_hz() -> void:
 	## 19 + 40 ticks at 60 Hz is just under a second; coarse steps end within one of them.
 	for step: float in [T, 1.0 / 15.0]:
 		var net := _ready_swing()
-		net.tick(step, false, 0.0, 0.0, false)
+		net.advance(step, false, 0.0, 0.0, false)
 		var elapsed: float = 0.0
 		var fx: int = 0
 		while net.state == NetSwing.State.SWING or net.state == NetSwing.State.STOP:
-			net.tick(step, true, 0.0, 0.0, false, NetSwing.Probe.new())
+			net.advance(step, true, 0.0, 0.0, false, NetSwing.Probe.new())
 			fx += net.events.count(&"swing_fx")
 			elapsed += step
 		assert_float(elapsed).is_between(59.0 * T - 0.001, 59.0 * T + 2.0 * step)

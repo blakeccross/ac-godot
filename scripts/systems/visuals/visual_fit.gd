@@ -32,26 +32,26 @@ static func fit_acre(pivot: Node3D) -> void:
 	pivot.position = Vector3(0.0, FieldCatalog.acre_ground_y_offset(), 0.0)
 
 
-static func align_actor_to_height_gx(pivot: Node3D, height_gx: float) -> void:
-	## Place the model's lowest rest-pose vertex on a GX height (standing feet, etc.).
+static func align_actor_to_height(pivot: Node3D, height: float) -> void:
+	## Place the model's lowest rest-pose vertex on a local height (standing feet, etc.).
 	if pivot == null:
 		return
 	var aabb: AABB = local_aabb(pivot)
 	if aabb.size == Vector3.ZERO:
 		return
 	var s: float = pivot.scale.y
-	pivot.position.y = height_gx * FieldCatalog.GX_TO_METERS - aabb.position.y * s
+	pivot.position.y = height - aabb.position.y * s
 
 
-static func align_actor_world_min_to_height_gx(pivot: Node3D, height_gx: float) -> void:
-	## Snap the posed world-space mesh min-Y onto a GX height. Use for clips whose rest
+static func align_actor_world_min_to_height(pivot: Node3D, height: float) -> void:
+	## Snap the posed world-space mesh min-Y onto a height. Use for clips whose rest
 	## AABB spikes (sleep poses) would lift the body off the bench.
 	if pivot == null:
 		return
 	var box: AABB = world_aabb_named(pivot, "")
 	if box.size == Vector3.ZERO:
 		return
-	pivot.position.y += height_gx * FieldCatalog.GX_TO_METERS - box.position.y
+	pivot.position.y += height - box.position.y
 
 
 static func local_aabb(node: Node) -> AABB:

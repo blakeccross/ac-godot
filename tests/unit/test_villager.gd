@@ -76,12 +76,12 @@ func test_runtime_schedule_force_override() -> void:
 	var table: ScheduleData = load("res://data/schedules/pip_weekday.tres")
 	var sched := VillagerSchedule.new()
 	sched.bind(table)
-	assert_that(sched.tick(10 * 3600)).is_equal(VillagerActivity.FIELD)
+	assert_that(sched.advance(10 * 3600)).is_equal(VillagerActivity.FIELD)
 	sched.force(VillagerActivity.STAND)
-	assert_that(sched.tick(10 * 3600)).is_equal(VillagerActivity.STAND)
+	assert_that(sched.advance(10 * 3600)).is_equal(VillagerActivity.STAND)
 	sched.clear_force()
-	assert_that(sched.tick(10 * 3600)).is_equal(VillagerActivity.FIELD)
-	assert_that(sched.tick(7 * 3600)).is_equal(VillagerActivity.SLEEP)
+	assert_that(sched.advance(10 * 3600)).is_equal(VillagerActivity.FIELD)
+	assert_that(sched.advance(7 * 3600)).is_equal(VillagerActivity.SLEEP)
 
 
 func test_talk_updates_friendship_and_repeat_greeting() -> void:
@@ -203,14 +203,14 @@ func test_motor_stops_when_not_wandering() -> void:
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO)
 	motor.set_target(Vector3(3, 0, 0))
-	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), false)
+	var step: Vector3 = motor.advance(0.1, Vector3.ZERO, Vector3(3, 0, 0), false)
 	assert_vector(step).is_equal(Vector3.ZERO)
 	motor.set_target(Vector3(3, 0, 0))
 	## Accel 4.5 m/s² — after 0.1 s speed is 0.45 along facing (+Z after turn to +X).
-	var walk: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), true)
+	var walk: Vector3 = motor.advance(0.1, Vector3.ZERO, Vector3(3, 0, 0), true)
 	assert_float(walk.length()).is_greater(0.1)
 	assert_bool(motor.has_target).is_true()
-	var stopped: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), false)
+	var stopped: Vector3 = motor.advance(0.1, Vector3.ZERO, Vector3(3, 0, 0), false)
 	assert_vector(stopped).is_equal(Vector3.ZERO)
 	assert_bool(motor.has_target).is_false()
 
@@ -349,17 +349,17 @@ func test_head_look_aims_at_player_eye_and_only_clamps_pitch_downward() -> void:
 	## Player 1 m ahead: their eye (33 GX) sits above the villager's 1 m head → look up.
 	player.position = Vector3(0.0, 0.0, 1.0)
 	for _i: int in 200:
-		look.tick(1.0 / 30.0, player, 0.0, false)
+		look.advance(1.0 / 30.0, player, 0.0, false)
 	assert_float(look._pitch).is_greater(0.0)
 	## Far above: not clamped looking up.
 	player.position = Vector3(0.0, 40.0, 1.0)
 	for _i: int in 400:
-		look.tick(1.0 / 30.0, player, 0.0, false)
+		look.advance(1.0 / 30.0, player, 0.0, false)
 	assert_float(look._pitch).is_greater(NpcHeadLook.PITCH_LIMIT)
 	## Far below: clamped at −33.75°.
 	player.position = Vector3(0.0, -8.0, 1.0)
 	for _i: int in 400:
-		look.tick(1.0 / 30.0, player, 0.0, false)
+		look.advance(1.0 / 30.0, player, 0.0, false)
 	assert_float(look._pitch).is_equal_approx(-NpcHeadLook.PITCH_LIMIT, 0.001)
 	assert_that(host).is_not_null()
 
@@ -394,15 +394,15 @@ func test_head_look_talk_forces_target_and_sleepy_holds() -> void:
 	## 20 m away: outside the 6 m gate, so only a talk request (priority 4) tracks.
 	player.position = Vector3(0.0, 0.0, 20.0)
 	for _i: int in 100:
-		look.tick(1.0 / 30.0, player, 0.0, false)
+		look.advance(1.0 / 30.0, player, 0.0, false)
 	assert_float(look._pitch).is_equal(0.0)
 	player.position = Vector3(10.0, 0.0, 10.0)
 	for _i: int in 100:
-		look.tick(1.0 / 30.0, player, 0.0, false, true)
+		look.advance(1.0 / 30.0, player, 0.0, false, true)
 	assert_float(look._yaw).is_not_equal(0.0)
 	var held_yaw: float = look._yaw
 	for _i: int in 100:
-		look.tick(1.0 / 30.0, player, 0.0, true, false)
+		look.advance(1.0 / 30.0, player, 0.0, true, false)
 	assert_float(look._yaw).is_equal(held_yaw)
 
 
@@ -415,13 +415,13 @@ func test_head_lookat_skip_eases_back_but_talk_still_tracks() -> void:
 	var player: Node3D = auto_free(Node3D.new())
 	player.position = Vector3(2.0, 0.0, 2.0)
 	for _i: int in 100:
-		look.tick(1.0 / 30.0, player, 0.0, false)
+		look.advance(1.0 / 30.0, player, 0.0, false)
 	assert_float(look._yaw).is_greater(0.5)
 	for _i: int in 100:
-		look.tick(1.0 / 30.0, player, 0.0, false, false, true)
+		look.advance(1.0 / 30.0, player, 0.0, false, false, true)
 	assert_float(look._yaw).is_equal_approx(0.0, 0.0001)
 	for _i: int in 100:
-		look.tick(1.0 / 30.0, player, 0.0, false, true, true)
+		look.advance(1.0 / 30.0, player, 0.0, false, true, true)
 	assert_float(look._yaw).is_greater(0.5)
 
 
@@ -1051,10 +1051,10 @@ func test_motor_wait_then_walk() -> void:
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO)
 	motor.wait_in_place(0.2)
-	var paused: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(4, 0, 0), true)
+	var paused: Vector3 = motor.advance(0.1, Vector3.ZERO, Vector3(4, 0, 0), true)
 	assert_vector(paused).is_equal(Vector3.ZERO)
 	assert_bool(motor.needs_new_target()).is_false()
-	motor.tick(0.2, Vector3.ZERO, Vector3(4, 0, 0), true)
+	motor.advance(0.2, Vector3.ZERO, Vector3(4, 0, 0), true)
 	assert_bool(motor.needs_new_target()).is_true()
 	motor.set_target(Vector3(4, 0, 0), VillagerWalk.ACT_RUN)
 	assert_float(motor.speed_now()).is_equal_approx(motor.walk_speed * VillagerMotor.RUN_SCALE, 0.01)
@@ -1364,11 +1364,11 @@ func test_wander_keeps_dest_past_the_next_cell() -> void:
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO)
 	motor.set_target(Vector3(10, 0, 0), VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE)
-	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(2, 0, 0), true)
+	var step: Vector3 = motor.advance(0.1, Vector3.ZERO, Vector3(2, 0, 0), true)
 	assert_float(step.length()).is_greater(0.1)
 	assert_bool(motor.has_target).is_true()
 	## Face already toward +X; keep walking even when a cell center is underfoot.
-	var near_cell: Vector3 = motor.tick(0.1, Vector3(1.97, 0, 0), Vector3(2, 0, 0), true)
+	var near_cell: Vector3 = motor.advance(0.1, Vector3(1.97, 0, 0), Vector3(2, 0, 0), true)
 	assert_float(near_cell.length()).is_greater(0.1)
 	assert_bool(motor.has_target).is_true()
 
@@ -1385,7 +1385,7 @@ func test_avoid_keeps_rim_dest() -> void:
 	assert_bool(motor.is_avoiding()).is_true()
 	assert_vector(motor.target).is_equal(rim)
 	## Landing on avoid retargets steer to dst in the same tick and keeps walking.
-	var at_avoid: Vector3 = motor.tick(0.1, Vector3(2, 0, 2), Vector3(2, 0, 2), true)
+	var at_avoid: Vector3 = motor.advance(0.1, Vector3(2, 0, 2), Vector3(2, 0, 2), true)
 	assert_float(at_avoid.length()).is_greater(0.05)
 	assert_bool(motor.has_target).is_true()
 	assert_bool(motor.is_avoiding()).is_false()
@@ -1402,7 +1402,7 @@ func test_front_avoid_turns_before_moving() -> void:
 	## Hop 2 m to the right of facing (+Z).
 	motor.set_avoid(Vector3(2, 0, 0), 0, true)
 	assert_bool(motor.turn_only).is_true()
-	var step: Vector3 = motor.tick(0.05, Vector3.ZERO, Vector3(2, 0, 0), true)
+	var step: Vector3 = motor.advance(0.05, Vector3.ZERO, Vector3(2, 0, 0), true)
 	assert_vector(step).is_equal(Vector3.ZERO)
 	assert_bool(motor.turn_only).is_true()
 
@@ -1411,11 +1411,11 @@ func test_run_turns_faster_than_walk() -> void:
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO, 0.0)
 	motor.set_target(Vector3(10, 0, 0), VillagerWalk.ACT_WALK)
-	motor.tick(0.1, Vector3.ZERO, Vector3(10, 0, 0), true)
+	motor.advance(0.1, Vector3.ZERO, Vector3(10, 0, 0), true)
 	var walk_yaw: float = absf(motor.facing)
 	motor.reset(Vector3.ZERO, 0.0)
 	motor.set_target(Vector3(10, 0, 0), VillagerWalk.ACT_RUN)
-	motor.tick(0.1, Vector3.ZERO, Vector3(10, 0, 0), true)
+	motor.advance(0.1, Vector3.ZERO, Vector3(10, 0, 0), true)
 	var run_yaw: float = absf(motor.facing)
 	assert_float(run_yaw).is_greater(walk_yaw)
 	assert_float(VillagerMotor.RUN_TURN).is_greater(VillagerMotor.WALK_TURN)
@@ -1426,7 +1426,7 @@ func test_motor_moves_along_facing() -> void:
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO, 0.0)
 	motor.set_target(Vector3(0, 0, 10), VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE)
-	var step: Vector3 = motor.tick(0.05, Vector3.ZERO, Vector3(0, 0, 10), true)
+	var step: Vector3 = motor.advance(0.05, Vector3.ZERO, Vector3(0, 0, 10), true)
 	assert_float(absf(step.x)).is_less(0.05)
 	assert_float(step.z).is_greater(0.05)
 
@@ -1436,7 +1436,7 @@ func test_motor_move_then_turn() -> void:
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO, 0.0)
 	motor.set_target(Vector3(10, 0, 0), VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE)
-	var step: Vector3 = motor.tick(0.05, Vector3.ZERO, Vector3(10, 0, 0), true)
+	var step: Vector3 = motor.advance(0.05, Vector3.ZERO, Vector3(10, 0, 0), true)
 	assert_float(step.z).is_greater(0.05)
 	assert_float(absf(step.x)).is_less(step.z)
 	assert_float(motor.facing).is_greater(0.05)
@@ -1449,7 +1449,7 @@ func test_ones_way_turns_before_walking() -> void:
 		Vector3(0, 0, -10), VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE, Vector3.ZERO, 0.0
 	)
 	assert_bool(motor.turn_only).is_true()
-	var step: Vector3 = motor.tick(0.05, Vector3.ZERO, Vector3(0, 0, -10), true)
+	var step: Vector3 = motor.advance(0.05, Vector3.ZERO, Vector3(0, 0, -10), true)
 	assert_vector(step).is_equal(Vector3.ZERO)
 
 
@@ -1460,10 +1460,10 @@ func test_pause_keeps_dest() -> void:
 	motor.pause(0.2)
 	assert_bool(motor.has_target).is_true()
 	assert_bool(motor.needs_new_target()).is_false()
-	var paused: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(10, 0, 0), true)
+	var paused: Vector3 = motor.advance(0.1, Vector3.ZERO, Vector3(10, 0, 0), true)
 	assert_vector(paused).is_equal(Vector3.ZERO)
-	motor.tick(0.2, Vector3.ZERO, Vector3(10, 0, 0), true)
-	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(10, 0, 0), true)
+	motor.advance(0.2, Vector3.ZERO, Vector3(10, 0, 0), true)
+	var step: Vector3 = motor.advance(0.1, Vector3.ZERO, Vector3(10, 0, 0), true)
 	assert_float(step.length()).is_greater(0.1)
 	assert_bool(motor.has_target).is_true()
 
@@ -1472,14 +1472,14 @@ func test_wander_arrive_is_tight() -> void:
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO)
 	motor.set_target(Vector3(0.2, 0, 0), VillagerWalk.ACT_RUN, VillagerWalk.WANDER_ARRIVE)
-	var arrived: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(0.2, 0, 0), true)
+	var arrived: Vector3 = motor.advance(0.1, Vector3.ZERO, Vector3(0.2, 0, 0), true)
 	assert_vector(arrived).is_equal(Vector3.ZERO)
 	assert_bool(motor.has_target).is_false()
 	motor.set_target(Vector3(8, 0, 0), VillagerWalk.ACT_RUN, VillagerWalk.WANDER_ARRIVE)
 	## Reach max run speed (~0.67 s walk / faster run accel).
 	var run := Vector3.ZERO
 	for _i: int in 20:
-		run = motor.tick(0.05, Vector3.ZERO, Vector3(8, 0, 0), true)
+		run = motor.advance(0.05, Vector3.ZERO, Vector3(8, 0, 0), true)
 	assert_float(run.length()).is_equal_approx(motor.walk_speed * VillagerMotor.RUN_SCALE, 0.05)
 
 
@@ -1495,7 +1495,7 @@ func test_motor_turns_in_place_when_dest_is_behind() -> void:
 		0.0
 	)
 	assert_bool(motor.turn_only).is_true()
-	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(0, 0, -5), true)
+	var step: Vector3 = motor.advance(0.1, Vector3.ZERO, Vector3(0, 0, -5), true)
 	assert_vector(step).is_equal(Vector3.ZERO)
 	assert_bool(motor.has_target).is_true()
 
@@ -1507,7 +1507,7 @@ func test_motor_turns_toward_player_without_moving() -> void:
 	motor.turn_toward(0.2, Vector3.ZERO, Vector3(4, 0, 0))
 	assert_float(motor.facing).is_greater(0.0)
 	assert_float(absf(angle_difference(motor.facing, PI * 0.5))).is_less(PI * 0.5)
-	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(8, 0, 0), false)
+	var step: Vector3 = motor.advance(0.1, Vector3.ZERO, Vector3(8, 0, 0), false)
 	assert_vector(step).is_equal(Vector3.ZERO)
 	assert_bool(motor.has_target).is_false()
 

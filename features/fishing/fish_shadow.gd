@@ -23,7 +23,7 @@ const COMEBACK_SECONDS := 0.25
 
 ## `aGTT_swim_speed_check(gyo, 360/180, 5.0f, 0.5f)` / `aGTT_swim_speed_change(..., 1.0f)`:
 ## peak speed of each `swim_flag` pattern, GX per frame (`speed` takes it in m/s).
-const SWIM_PEAK_GX: Array[float] = [0.5, 0.5, 1.0]
+const SWIM_PEAK: Array[float] = [0.5 * FishSize.GX_FRAME, 0.5 * FishSize.GX_FRAME, 1.0 * FishSize.GX_FRAME]
 ## Where each pattern's sweep starts and ends (`aGTT_swim_init` / the `target` argument).
 const SWIM_SWEEP_FROM: Array[float] = [50.0, 0.0, 0.0]
 const SWIM_SWEEP_TO: Array[float] = [360.0, 180.0, 180.0]
@@ -46,7 +46,7 @@ const SWIM_TURN_RATE := 0x400 * MathUtil.S16 * DecompTime.TICK_HZ
 const FLOW_TURN_SLOW := 0x100 * MathUtil.S16 * DecompTime.TICK_HZ
 const FLOW_TURN_FAST := 0x400 * MathUtil.S16 * DecompTime.TICK_HZ
 ## `chase_f(&speed, 0, 0.02)` a tick while escaping, in m/s a second.
-static var ESCAPE_DECAY: float = FishSize.gx_per_frame_to_mps(FishSize.ESCAPE_DECAY_GX) * DecompTime.TICK_HZ
+const ESCAPE_DECAY := FishSize.ESCAPE_DECAY
 ## `aGTT_escape`'s timer: 100 ticks.
 const ESCAPE_SECONDS := FishSize.ESCAPE_FRAMES / DecompTime.TICK_HZ
 ## How far `aGYO_check_wall` looks to each side: four ticks at escape speed (4 GX).
@@ -186,7 +186,7 @@ func is_landed() -> bool:
 
 ## Advance by `delta` seconds. The one-step flags (`nibbled`, `bit`) are cleared first.
 ## `FishSchool` steps its shadows in turn so each sees the others' state from this step.
-func tick(delta: float, sense: Sense) -> void:
+func advance(delta: float, sense: Sense) -> void:
 	nibbled = false
 	bit = false
 	if finished or delta <= 0.0:
@@ -282,7 +282,7 @@ func _swim(delta: float, sense: Sense) -> void:
 			if _swim_phase > SWIM_TURN_START_DEG:
 				var swept: float = _swim_phase - maxf(was, SWIM_TURN_START_DEG)
 				yaw = wrapf(yaw + _swim_turn * swept, -PI, PI)
-		speed = FishSize.gx_per_frame_to_mps(SWIM_PEAK_GX[_swim_kind] * sin(deg_to_rad(_swim_phase)))
+		speed = SWIM_PEAK[_swim_kind] * sin(deg_to_rad(_swim_phase))
 		if done and _swim_kind != 0:
 			## Patterns 1 and 2 hand the body's facing back to the heading at the end.
 			heading = yaw
@@ -417,8 +417,8 @@ func _flee_from_player(sense: Sense) -> bool:
 		return false
 	var dist: float = _planar_distance(sense.player_position)
 	var scared: bool = (
-		(sense.player_dashing and dist < FishSize.SCARE_DASH_GX * FishSize.GX)
-		or (sense.player_swung_tool and dist < FishSize.SCARE_TOOL_GX * FishSize.GX)
+		(sense.player_dashing and dist < FishSize.SCARE_DASH)
+		or (sense.player_swung_tool and dist < FishSize.SCARE_TOOL)
 	)
 	if not scared:
 		return false
@@ -457,7 +457,7 @@ func _enter(next: Action) -> void:
 		Action.WAIT:
 			## `aGTT_wait_init`: `work0 = (100 + RANDOM_F(30)) * 2`, `speed = -0.15 + RANDOM2_F(0.2)`.
 			_timer = FishSize.wait_seconds(_rng.randf())
-			speed = FishSize.gx_per_frame_to_mps(FishSize.DRIFT_SPEED_GX + _rand2(FishSize.DRIFT_JITTER_GX))
+			speed = FishSize.DRIFT_SPEED + _rand2(FishSize.DRIFT_JITTER)
 		Action.SWIM:
 			_swim_phase = SWIM_SWEEP_FROM[_swim_kind]
 			_swim_turn = 0.0

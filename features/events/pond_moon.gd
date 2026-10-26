@@ -8,11 +8,13 @@ extends Node3D
 ## axes. Drawn at scale 0.049 in xz with PRIM (255, 255, 100, 170) (see `pond_moon.gdshader`).
 
 const VISUAL := &"ef_moon01_01"
-const LIFT_GX := 19.0
-const TRAVEL_GX := 100.0
+## Lengths in metres, from the decomp's GX.
+const GX := FieldCatalog.GX_TO_METERS
+const LIFT := 19.0 * GX
+const TRAVEL := 100.0 * GX
 const START_HOUR := 18
 const END_HOUR := 21
-const SWAY_GX := 1.5
+const SWAY := 1.5 * GX
 const RIPPLE := 1.075
 const SCALE := 0.049
 const SHADER := preload("res://shaders/pond_moon.gdshader")
@@ -74,14 +76,15 @@ static func pond_base(mgr: EventManager, block: Vector2i) -> Vector3:
 	return center
 
 
-## `eNight13Moon_GetNowMoonPos`: x offset from the pond centre in GX for the clock.
-static func glide_x_gx(hour: int, minute: int, second: int) -> float:
+## `eNight13Moon_GetNowMoonPos`: x offset from the pond centre (metres) for the clock. It
+## glides 1 GX every 54 s.
+static func glide_x(hour: int, minute: int, second: int) -> float:
 	if hour < START_HOUR:
-		return TRAVEL_GX
+		return TRAVEL
 	if hour >= END_HOUR:
-		return -TRAVEL_GX
-	var span: float = TRAVEL_GX * 2.0 / float(END_HOUR - START_HOUR)
-	return TRAVEL_GX - float(hour - START_HOUR) * span - (minute * 60.0 + second) / 54.0
+		return -TRAVEL
+	var span: float = TRAVEL * 2.0 / float(END_HOUR - START_HOUR)
+	return TRAVEL - float(hour - START_HOUR) * span - (minute * 60.0 + second) / 54.0 * GX
 
 
 func _physics_process(delta: float) -> void:
@@ -99,14 +102,12 @@ static func _rad(a: float) -> float:
 
 func _place() -> void:
 	var center: Vector3 = pond_center if pond_center != Vector3.INF else global_position
-	var gx := FieldCatalog.GX_TO_METERS
-	var sway: float = SWAY_GX * sin(_rad(_a2))
-	var pos := center + Vector3(
-		(glide_x_gx(Clock.hour, Clock.minute, Clock.second) + sway) * gx, LIFT_GX * gx, -sway * gx)
+	var sway: float = SWAY * sin(_rad(_a2))
+	var pos := center + Vector3(glide_x(Clock.hour, Clock.minute, Clock.second) + sway, LIFT, -sway)
 	## RotY(-a0)·Scale(1.075,1,1)·RotY(a0) · RotY(-a1)·Scale(1,1,1.075)·RotY(a1) · Scale(0.049,1,0.049).
 	var r0 := Basis(Vector3.UP, _rad(_a0))
 	var r1 := Basis(Vector3.UP, _rad(_a1))
 	var basis := r0.inverse() * Basis.from_scale(Vector3(RIPPLE, 1.0, 1.0)) * r0
 	basis = basis * r1.inverse() * Basis.from_scale(Vector3(1.0, 1.0, RIPPLE)) * r1
-	basis = basis * Basis.from_scale(Vector3(SCALE, 1.0, SCALE) * gx / FieldCatalog.PIPELINE_SCALE)
+	basis = basis * Basis.from_scale(Vector3(SCALE, 1.0, SCALE) * GX / FieldCatalog.PIPELINE_SCALE)
 	_model.global_transform = Transform3D(basis, pos)

@@ -140,7 +140,7 @@ static func wash_up(world: Node, amount: int, player_block: Vector2i, rng: Rando
 
 ## Once a game minute out on the field: a tenth minute owes another shell, and what is owed
 ## washes up (`mFI_SetShell`).
-static func tick(world: Node, minute: int, player_block: Vector2i, rng: RandomNumberGenerator) -> void:
+static func advance(world: Node, minute: int, player_block: Vector2i, rng: RandomNumberGenerator) -> void:
 	if minute % EVERY_MINUTES == 0:
 		if not Game.shell_minute_counted:
 			Game.shell_minute_counted = true

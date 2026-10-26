@@ -14,14 +14,14 @@ const INNER_SIZE := Vector2i(4, 5)
 const DOOR_CELL := Vector2i(2, 0)
 const SPAWN_CELL := Vector2i(3, 2)
 ## `aTOU_door_data`: GX {120,0,100}, `mSc_DIRECT_SOUTH`.
-const SPAWN_GX := Vector3(120.0, 0.0, 100.0)
+const SPAWN := Vector3(120.0, 0.0, 100.0) * FieldCatalog.GX_TO_METERS
 const SPAWN_FACING := WorldGrid.Facing.SOUTH
 ## Floor and wall heights in `mCoBG` counts. The pit rail (units 2–3, 3–4) stands 20 GX.
 const FLOOR_COUNTS := 4
 const WALL_COUNTS := 31
 
 ## `aLS_CheckPlayerSwitchPositionAngle`: the switch panel on the east wall.
-const SWITCH_GX := Vector3(180.0, 0.0, 100.0)
+const SWITCH := Vector3(180.0, 0.0, 100.0) * FieldCatalog.GX_TO_METERS
 
 const LIGHT_COLOR := Color(235.0 / 255.0, 190.0 / 255.0, 185.0 / 255.0)
 
@@ -32,6 +32,3 @@ static func blocked_units() -> Dictionary:
 		SHELL_ID, FLOOR_COUNTS, WALL_COUNTS, Rect2i(INNER_ORIGIN, INNER_SIZE)
 	)
 
-
-static func gx_to_world(grid: WorldGrid, gx: Vector3) -> Vector3:
-	return MuseumDisplay.gx_to_world(grid, gx)

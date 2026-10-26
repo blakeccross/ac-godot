@@ -14,20 +14,19 @@ const MORPH_LOOK_UP := 5.0 / DecompTime.FRAME_HZ
 
 ## The player-select floor is y 40 in the decomp (K.K.'s actor y in a GAFE01 savestate);
 ## our acre floor is y 0, so decomp heights drop by this much.
-const DECOMP_FLOOR_Y_GX := 40.0
-## Camera lock from `aNPS_actor_ct`: look (100, 60, 60), eye (100, 130, 210), FOV 40, the
+const DECOMP_FLOOR_Y := 40.0 * FieldCatalog.GX_TO_METERS
+## Camera lock from `aNPS_actor_ct`: look (100, 60, 60) GX, eye (100, 130, 210), FOV 40, the
 ## same values as the live View in that savestate, kept floor-relative.
-const CAM_CENTER_GX := Vector3(100.0, 60.0 - DECOMP_FLOOR_Y_GX, 60.0)
-const CAM_EYE_GX := Vector3(100.0, 130.0 - DECOMP_FLOOR_Y_GX, 210.0)
+const CAM_CENTER := Vector3(100.0, 60.0, 60.0) * FieldCatalog.GX_TO_METERS - Vector3(0.0, DECOMP_FLOOR_Y, 0.0)
+const CAM_EYE := Vector3(100.0, 130.0, 210.0) * FieldCatalog.GX_TO_METERS - Vector3(0.0, DECOMP_FLOOR_Y, 0.0)
 const CAM_FOV := 40.0
-const CAM_NEAR_GX := 100.0
-const CAM_FAR_GX := 400.0
-## Decomp near=100 GX → 5 m literally; that clips KK's front (body → sliver). ~1 GX.
-const CAM_NEAR_METERS := 0.1  ## 2 GX
-const CAM_FAR_METERS := CAM_FAR_GX * FieldCatalog.GX_TO_METERS
+## The decomp's near plane is 100 GX (5 m), which clips K.K.'s front (body → sliver); 2 GX
+## here. Far is the decomp's 400 GX.
+const CAM_NEAR := 0.1
+const CAM_FAR := 400.0 * FieldCatalog.GX_TO_METERS
 
-## FG ut (2, 1) center — `player_select_actable` + `mFI_UNIT_BASE_SIZE` 40.
-const KK_SPAWN_GX := Vector3(100.0, 0.0, 60.0)
+## FG ut (2, 1) center — `player_select_actable` + `mFI_UNIT_BASE_SIZE` 40 GX.
+const KK_SPAWN := Vector3(100.0, 0.0, 60.0) * FieldCatalog.GX_TO_METERS
 ## Camera eye is +Z of spawn. cKF meshes face +Z at yaw 0 (same as villagers).
 ## `PI` pointed his back at the camera.
 const KK_YAW := 0.0
@@ -47,8 +46,8 @@ const KK_PATH := "res://assets/generated/characters/villagers/end_1.glb"
 ## `l_mEnv_kcolor_data_p_sel` (m_kankyo.c) — void stage, warm key light.
 const AMBIENT_COLOR := Color(30.0 / 255.0, 30.0 / 255.0, 80.0 / 255.0)
 const SUN_COLOR := Color(1.0, 1.0, 200.0 / 255.0)
-## GX light direction toward the sun; Godot shines along −Z.
-const SUN_DIR_GX := Vector3(0.0, 89.0, 79.0)
+## The decomp's light direction toward the sun; Godot shines along −Z.
+const SUN_DIR := Vector3(0.0, 89.0, 79.0)
 ## Same plane as the table, tipped toward overhead. (0, 89, 79) lights the cheeks
 ## almost as hard as the crown, so the face stays one flat white. This puts the
 ## clamped hit on the top of the head.
@@ -74,10 +73,6 @@ static func resolve_clip(anim: AnimationPlayer, suffix: String) -> String:
 	return best
 
 
-static func gx_to_meters(gx: Vector3) -> Vector3:
-	return gx * FieldCatalog.GX_TO_METERS
-
-
 static func required_asset_paths() -> PackedStringArray:
 	return PackedStringArray([ACRE_PATH, KK_PATH])
 
@@ -92,5 +87,5 @@ static func missing_assets() -> PackedStringArray:
 
 static func sun_basis() -> Basis:
 	## Light travels opposite the decomp “toward sun” vector.
-	var travel := -SUN_DIR_GX.normalized()
+	var travel := -SUN_DIR.normalized()
 	return Basis.looking_at(travel, Vector3.RIGHT if absf(travel.y) > 0.95 else Vector3.UP)

@@ -46,13 +46,14 @@ static func ease_angle(a: float, target: float, frac: float, max_step: float, fr
 	return a + step
 
 
-## Steps `delta` seconds. `hand_gx` is the hand's speed (GX a frame), `yaw` the facing,
-## `walking` whether the player walks or runs at `speed_gx` a frame.
-func step(delta: float, hand_gx: Vector3, yaw: float, walking: bool, speed_gx: float) -> void:
+## Steps `delta` seconds. `hand_velocity` is the hand's velocity (m/s), `yaw` the facing,
+## `walking` whether the player walks or runs at `speed` (m/s). The sway sums are the decomp's,
+## in GX a frame.
+func step(delta: float, hand_velocity: Vector3, yaw: float, walking: bool, speed: float) -> void:
 	if delta <= 0.0:
 		return
 	var frames: float = delta * DecompTime.FRAME_HZ
-	var along: float = sin(yaw) * hand_gx.x + cos(yaw) * hand_gx.z
+	var along: float = (sin(yaw) * hand_velocity.x + cos(yaw) * hand_velocity.z) / PlayerLocomotion.GX_SPEED
 	## The twist about the string: `angle'' = −0.0014 · angle` a frame², solved for the step.
 	var w: float = TWIST_OMEGA * delta
 	var rate: float = add_rot_z * DecompTime.FRAME_HZ
@@ -66,7 +67,7 @@ func step(delta: float, hand_gx: Vector3, yaw: float, walking: bool, speed_gx: f
 	angle_x = ease_angle(angle_x, trail, frac, MAX_STEP, frames)
 	var bob_target: float = 0.0
 	if walking:
-		bob_counter = fposmod(bob_counter + BOB_STEP * speed_gx * frames, 65536.0)
+		bob_counter = fposmod(bob_counter + BOB_STEP * speed / PlayerLocomotion.GX_SPEED * frames, 65536.0)
 		bob_target = BOB * sin(bob_counter * S16)
 	add_rot_x = ease_angle(add_rot_x, bob_target, EASE_FAST, MAX_STEP, frames)
 

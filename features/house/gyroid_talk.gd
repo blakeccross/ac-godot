@@ -100,8 +100,8 @@ const SPEAKER_NAME := "Gyroid"
 const SOUND_SPEC := 2
 
 ## `aHNW_wait` / `aHNW_dance`: start dancing inside 80 GX, stop past 90 GX.
-const DANCE_NEAR_GX := 80.0
-const DANCE_FAR_GX := 90.0
+const DANCE_NEAR := 80.0 * FieldCatalog.GX_TO_METERS
+const DANCE_FAR := 90.0 * FieldCatalog.GX_TO_METERS
 ## `aHNW_search_player` / `aHNW_search_front`: `chase_angle(..., 0x0600)`, frame-scaled.
 const TURN_STEP := 0x0600
 ## `aHNW_search_front` target_angle, per house plot (west plots look east of south).
@@ -113,20 +113,24 @@ const SPEED_DOWN := 0.015
 const MOVE_FIRST_FRAME := 1.0
 const MOVE_LAST_FRAME := 9.0
 
-## `aHNW_pl_approach_door`: `goal_pos[house][stage]` as GX offsets from the gyroid (unit
+## `aHNW_pl_approach_door`: `goal_pos[house][stage]` as offsets from the gyroid (unit
 ## centre of FG ut (3,5) / (12,5) / (3,12) / (12,12)). Stage 0 steps round the gyroid, stage 1
 ## stops at the door. `chk_posX` flips to stage 1 once the player crosses 35 GX to the
 ## house side of the gyroid.
-const DOOR_GOALS_GX: Array = [
-	[Vector2(38.0, 40.0), Vector2(50.0, -26.0)],
-	[Vector2(-38.0, 40.0), Vector2(-51.0, -26.0)],
-	[Vector2(38.0, 40.0), Vector2(50.0, -25.0)],
-	[Vector2(-38.0, 40.0), Vector2(-51.0, -25.0)],
+const DOOR_GOALS: Array = [
+	[Vector2(38.0, 40.0) * FieldCatalog.GX_TO_METERS, Vector2(50.0, -26.0) * FieldCatalog.GX_TO_METERS],
+	[Vector2(-38.0, 40.0) * FieldCatalog.GX_TO_METERS, Vector2(-51.0, -26.0) * FieldCatalog.GX_TO_METERS],
+	[Vector2(38.0, 40.0) * FieldCatalog.GX_TO_METERS, Vector2(50.0, -25.0) * FieldCatalog.GX_TO_METERS],
+	[Vector2(-38.0, 40.0) * FieldCatalog.GX_TO_METERS, Vector2(-51.0, -25.0) * FieldCatalog.GX_TO_METERS],
 ]
-const DOOR_STAGE_X_GX: Array[float] = [35.0, -35.0, 35.0, -35.0]
-## `mPlib_request_main_demo_walk_type1(..., 3.0f, ...)` — demo walk speed and arrive radius.
-const DOOR_WALK_SPEED_GX := 3.0
-const DOOR_ARRIVE_GX := 3.0
+const DOOR_STAGE_X: Array[float] = [
+	35.0 * FieldCatalog.GX_TO_METERS, -35.0 * FieldCatalog.GX_TO_METERS,
+	35.0 * FieldCatalog.GX_TO_METERS, -35.0 * FieldCatalog.GX_TO_METERS,
+]
+## `mPlib_request_main_demo_walk_type1(..., 3.0f, ...)` — demo walk speed (3 GX a frame, in
+## m/s) and arrive radius (3 GX).
+const DOOR_WALK_SPEED := 3.0 * PlayerLocomotion.GX_SPEED
+const DOOR_ARRIVE := 3.0 * FieldCatalog.GX_TO_METERS
 ## Give up and open the door anyway after 160 frames.
 const DOOR_WALK_FRAMES := 160
 
@@ -208,15 +212,15 @@ static func chase_yaw(current: float, target: float, delta: float) -> float:
 	return current + step * signf(diff)
 
 
-## `aHNW_pl_approach_door` stage for a player `offset_gx` from the gyroid (x only matters).
-static func door_stage(house_idx: int, offset_gx: Vector2) -> int:
+## `aHNW_pl_approach_door` stage for a player `offset` (m) from the gyroid (x only matters).
+static func door_stage(house_idx: int, offset: Vector2) -> int:
 	var i: int = clampi(house_idx, 0, 3)
-	var chk: float = DOOR_STAGE_X_GX[i]
-	return 1 if (chk - offset_gx.x) * signf(chk) <= 0.0 else 0
+	var chk: float = DOOR_STAGE_X[i]
+	return 1 if (chk - offset.x) * signf(chk) <= 0.0 else 0
 
 
-static func door_goal_gx(house_idx: int, stage: int) -> Vector2:
-	var row: Array = DOOR_GOALS_GX[clampi(house_idx, 0, 3)]
+static func door_goal(house_idx: int, stage: int) -> Vector2:
+	var row: Array = DOOR_GOALS[clampi(house_idx, 0, 3)]
 	return row[clampi(stage, 0, 1)]
 
 

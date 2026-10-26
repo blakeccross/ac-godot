@@ -53,7 +53,7 @@ static func pick(
 
 
 ## One player frame. Returns the tree that just started its little shake, else null.
-func tick(
+func advance(
 	delta: float, pos: Vector3, yaw: float, data: WorldData, grid: WorldGrid, trees: Array[Node3D]
 ) -> Node3D:
 	var target: Node3D = pick(pos, yaw, data, grid, trees)

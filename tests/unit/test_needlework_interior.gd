@@ -16,14 +16,14 @@ func test_room_keeps_acre_origin_and_gx_positions_land_inside() -> void:
 	session.bind(room)
 	var grid := session.grid
 	## every mannequin / umbrella-stand GX maps onto walkable floor
-	for gx: Vector3 in NeedleworkPresenter.MANNEQUIN_GX + NeedleworkPresenter.UMBRELLA_GX:
-		var cell := grid.world_to_cell(MuseumDisplay.gx_to_world(grid, gx))
+	for gx: Vector3 in NeedleworkPresenter.MANNEQUIN + NeedleworkPresenter.UMBRELLA:
+		var cell := grid.world_to_cell(WorldGrid.room_point(grid, gx))
 		assert_bool(room.is_inner(cell)).override_failure_message(
 			"GX %s -> cell %s is off-floor" % [gx, cell]
 		).is_true()
 	## mannequins sit north of the umbrella stands, which sit north of the spawn
-	var man_z := MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.MANNEQUIN_GX[0]).z
-	var umb_z := MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.UMBRELLA_GX[0]).z
+	var man_z := WorldGrid.room_point(grid, NeedleworkPresenter.MANNEQUIN[0]).z
+	var umb_z := WorldGrid.room_point(grid, NeedleworkPresenter.UMBRELLA[0]).z
 	var spawn_z := grid.cell_to_world(room.spawn_cell).z
 	assert_bool(man_z < umb_z).is_true()
 	assert_bool(umb_z < spawn_z).is_true()
@@ -32,13 +32,13 @@ func test_room_keeps_acre_origin_and_gx_positions_land_inside() -> void:
 	## `rom_tailor.col.json` porch), and the whole room is NORTH of it, so walking
 	## in never re-crosses the strip. (`block_auto_enter_doors` disarms the
 	## spawn-on-exit until the player steps off.)
-	var spawn_cell := grid.world_to_cell(MuseumDisplay.gx_to_world(grid, InteriorCatalog.ABLE_SPAWN_GX))
+	var spawn_cell := grid.world_to_cell(WorldGrid.room_point(grid, InteriorCatalog.ABLE_SPAWN))
 	assert_bool(room.is_exit_cell(spawn_cell)).is_true()
 	assert_int(room.door_cell.y).is_equal(room.inner_origin.y + room.inner_size.y)  ## porch row, just south of the last inner row
 	## every display / Sable / Mabel sits strictly north of the exit strip
-	for gx: Vector3 in ([NeedleworkPresenter.SABLE_GX, NeedleworkPresenter.MABEL_GX]
-			+ NeedleworkPresenter.MANNEQUIN_GX + NeedleworkPresenter.UMBRELLA_GX):
-		var c := grid.world_to_cell(MuseumDisplay.gx_to_world(grid, gx))
+	for gx: Vector3 in ([NeedleworkPresenter.SABLE, NeedleworkPresenter.MABEL]
+			+ NeedleworkPresenter.MANNEQUIN + NeedleworkPresenter.UMBRELLA):
+		var c := grid.world_to_cell(WorldGrid.room_point(grid, gx))
 		assert_bool(c.y < room.door_cell.y).override_failure_message("%s at cell %s not north of exit" % [gx, c]).is_true()
 
 
@@ -53,18 +53,18 @@ func test_the_scene_places_sisters_and_displays_on_the_decomp_tables() -> void:
 	var at := func(node_name: String) -> Vector3:
 		return (root.get_node(node_name) as Node3D).position
 	assert_vector(at.call("Sable")).is_equal_approx(
-		MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.SABLE_GX), Vector3.ONE * 0.01)
+		WorldGrid.room_point(grid, NeedleworkPresenter.SABLE), Vector3.ONE * 0.01)
 	assert_vector(at.call("Mabel")).is_equal_approx(
-		MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.MABEL_GX), Vector3.ONE * 0.01)
+		WorldGrid.room_point(grid, NeedleworkPresenter.MABEL), Vector3.ONE * 0.01)
 	assert_vector(at.call("NeedleworkClock")).is_equal_approx(
-		MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.CLOCK_GX), Vector3.ONE * 0.01)
+		WorldGrid.room_point(grid, NeedleworkPresenter.CLOCK), Vector3.ONE * 0.01)
 	for i in 4:
 		var mannequin: Node = root.get_node("Mannequin_%d" % i)
 		var stand: Node = root.get_node("UmbrellaStand_%d" % i)
 		assert_vector(at.call("Mannequin_%d" % i)).is_equal_approx(
-			MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.MANNEQUIN_GX[i]), Vector3.ONE * 0.01)
+			WorldGrid.room_point(grid, NeedleworkPresenter.MANNEQUIN[i]), Vector3.ONE * 0.01)
 		assert_vector(at.call("UmbrellaStand_%d" % i)).is_equal_approx(
-			MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.UMBRELLA_GX[i]), Vector3.ONE * 0.01)
+			WorldGrid.room_point(grid, NeedleworkPresenter.UMBRELLA[i]), Vector3.ONE * 0.01)
 		assert_int(mannequin.get("slot")).is_equal(i)
 		assert_int(mannequin.get("kind")).is_equal(0)
 		assert_int(stand.get("slot")).is_equal(DesignBook.CLOTH_SLOTS + i)
@@ -92,7 +92,7 @@ func test_sable_sews_at_the_machine() -> void:
 	var room: Room = InteriorCatalog.room_template(&"needlework")
 	var session := IndoorSession.new()
 	session.bind(room)
-	var pos := MuseumDisplay.gx_to_world(session.grid, NeedleworkPresenter.SABLE_GX)
+	var pos := WorldGrid.room_point(session.grid, NeedleworkPresenter.SABLE)
 	assert_bool(room.is_inner(session.grid.world_to_cell(pos))).is_true()
 	assert_float(pos.z).is_equal_approx(-10.5, 1.2)
 	assert_float(pos.x).is_equal_approx(-11.7, 1.0)
@@ -159,10 +159,10 @@ func test_blocked_units_match_the_rom_tailor_bg() -> void:
 
 func test_window_sunbeams_follow_ef_room_sunshine() -> void:
 	## `ROOM_SUNSHINE` arg 2 / 3: the constructor nets −2 / 0 X and lifts 1.1 GX.
-	assert_vector(WindowSunshine.anchor_gx(WindowSunshine.NEEDLEWORK[0], true)) \
-		.is_equal(Vector3(38.0, 1.1, 160.0))
-	assert_vector(WindowSunshine.anchor_gx(WindowSunshine.NEEDLEWORK[1], false)) \
-		.is_equal(Vector3(360.0, 1.1, 160.0))
+	assert_vector(WindowSunshine.anchor(WindowSunshine.NEEDLEWORK[0], true)) \
+		.is_equal_approx(Vector3(38.0, 1.1, 160.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
+	assert_vector(WindowSunshine.anchor(WindowSunshine.NEEDLEWORK[1], false)) \
+		.is_equal_approx(Vector3(360.0, 1.1, 160.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	## Morning: only the east beam, reaching full length (1.5) at 04:00.
 	assert_float(WindowSunshine.stretch(8 * 3600, true)).is_equal(0.0)
 	assert_float(WindowSunshine.stretch(4 * 3600, false)).is_equal_approx(1.5, 0.001)

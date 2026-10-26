@@ -4,8 +4,12 @@ extends RefCounted
 ## `CAMERA2_PROCESS_TALK` helpers (`m_camera2.c`). Finds the active `FollowCamera`.
 ## Call `begin(player, npc)` — decomp `Camera2_request_main_talk` speaker = player.
 
-const BASE_DIST_GX := 290.0
+## `Camera2_request_main_talk` distance: 290 GX plus 1.46 × the speakers' separation.
+const BASE_DIST := 290.0 * FieldCatalog.GX_TO_METERS
 const DIST_SCALE := 1.46
+## `y_adjust = 17 + 60 / dist` (GX): 17 GX, plus 60 GX² over the separation.
+const Y_ADJUST := 17.0 * FieldCatalog.GX_TO_METERS
+const Y_ADJUST_NEAR := 60.0 * FieldCatalog.GX_TO_METERS * FieldCatalog.GX_TO_METERS
 ## Talk goal dir X = DEG2SHORT(−164.114)+1440 → inv via +SHT_MIN = 4332 short ≈ 23.796°.
 const PITCH_INV_SHORT := 4332.0
 const PITCH_INV_DEG := rad_to_deg(PITCH_INV_SHORT * MathUtil.S16)
@@ -62,14 +66,14 @@ static func frame(speaker: Node3D, listener: Node3D) -> Dictionary:
 	## Dist / y_adj use feet separation like `search_position_distance` (not eye-to-eye).
 	var s_pos: Vector3 = speaker.global_position if speaker != null else s_eye
 	var l_pos: Vector3 = listener.global_position if listener != null else l_eye
-	var between_gx: float = s_pos.distance_to(l_pos) / FieldCatalog.GX_TO_METERS
-	if between_gx < 0.0001:
-		between_gx = between_m / FieldCatalog.GX_TO_METERS
+	var between: float = s_pos.distance_to(l_pos)
+	if between < 0.0001 * FieldCatalog.GX_TO_METERS:
+		between = between_m
 	## `y_adjust = 17 - (-60 / dist)` → lower the look target slightly.
-	var y_adj: float = (17.0 + 60.0 / maxf(between_gx, 1.0)) * FieldCatalog.GX_TO_METERS
+	var y_adj: float = Y_ADJUST + Y_ADJUST_NEAR / maxf(between, FieldCatalog.GX_TO_METERS)
 	var center: Vector3 = (s_eye + l_eye) * 0.5
 	center.y -= y_adj
-	var dist: float = (BASE_DIST_GX + between_gx * DIST_SCALE) * FieldCatalog.GX_TO_METERS
+	var dist: float = BASE_DIST + between * DIST_SCALE
 	## GetAngleY uses world (feet) positions, not eyes.
 	var yaw_tweak: float = yaw_tweak_deg(s_pos, l_pos)
 	## Talk goal dir Y is -180°; `PolaPosCalc` adds 180° → inv yaw starts at 0 + tweak.

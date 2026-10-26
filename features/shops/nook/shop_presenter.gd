@@ -55,14 +55,14 @@ func _stock(root: Node3D, interior: IndoorSession, shop_id: StringName) -> void:
 		var i: int = int(row["index"])
 		if not sold.has(i):
 			var stock: Node3D = _add_stock(root, i, shop_id, listed[i], _slot_pos(interior, row))
-			var half_gx: float = float(row.get("half_gx", 0.0))
-			if half_gx > 0.0 and stock != null:
-				stock.call("set_footprint_gx", half_gx)
+			var half: float = float(row.get("half", 0.0))
+			if half > 0.0 and stock != null:
+				stock.call("set_footprint", half)
 
 
 static func _slot_pos(interior: IndoorSession, slot: Dictionary) -> Vector3:
 	var pos: Vector3 = interior.grid.cell_to_world(slot["cell"] as Vector2i)
-	pos.y = float(slot["y_gx"]) * FieldCatalog.GX_TO_METERS
+	pos.y = float(slot["y"])
 	return pos
 
 

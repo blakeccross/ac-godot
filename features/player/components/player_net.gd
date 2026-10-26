@@ -57,7 +57,7 @@ func tick_net(delta: float, input_dir: Vector2, wish: Vector3, stick: float, men
 		if net_swing.state == NetSwing.State.SWING:
 			probe = _net_probe()
 			_net_pos = probe.net_pos
-		net_swing.tick(
+		net_swing.advance(
 			delta,
 			a_held,
 			stick if has_dir else 0.0,

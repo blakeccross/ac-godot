@@ -196,7 +196,7 @@ func _physics_process(delta: float) -> void:
 	npc_talk_info.advance(delta)
 	## `mEnv_rainbow_power_calc` runs in field (FG) scenes only.
 	if not is_indoors():
-		rainbow.tick(
+		rainbow.advance(
 			Clock.month, Clock.day, Clock.now_sec(), Clock.season() == Clock.Season.SUMMER, delta
 		)
 
@@ -776,10 +776,11 @@ func check_rehouse_order() -> bool:
 	return true
 
 
-## Walk into `target` (a building or room id). `spawn_gx` / `spawn_yaw` stand the player
-## somewhere other than the room's own door. False if the room is shut or unknown.
+## Walk into `target` (a building or room id). `spawn` (metres from the room's corner) /
+## `spawn_yaw` stand the player somewhere other than the room's own door. False if the room
+## is shut or unknown.
 func try_enter_interior(
-	target: StringName, spawn_gx: Variant = null, spawn_yaw: Variant = null
+	target: StringName, spawn: Variant = null, spawn_yaw: Variant = null
 ) -> bool:
 	var room_id: StringName = InteriorCatalog.resolve_entry(target)
 	if room_id == &"":
@@ -797,7 +798,7 @@ func try_enter_interior(
 	## `ac_shop_design` -> `mSP_SetNewVisitor`: a visitor from another town shopped here.
 	if foreigner and room.kind == Room.Kind.SHOP:
 		shops.set_visitor()
-	arrival = InteriorArrival.for_room(room_id, room, spawn_gx, spawn_yaw)
+	arrival = InteriorArrival.for_room(room_id, room, spawn, spawn_yaw)
 	block_auto_enter_doors = true
 	var stage: Node = _museum_complete_stage()
 	if stage != null and stage.has_method("switch_wing"):

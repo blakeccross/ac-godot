@@ -105,7 +105,7 @@ func _lamp() -> Node:
 func test_lamp_rests_on_frame_51_with_no_beam() -> void:
 	var lamp: Node = _lamp()
 	for _i: int in 30:
-		lamp.tick(T)
+		lamp.advance(T)
 	assert_bool(lamp.is_sweeping()).is_false()
 	assert_float(lamp.get("frame")).is_equal(51.0)
 	assert_float(lamp.beam_color().a).is_equal(0.0)
@@ -114,11 +114,11 @@ func test_lamp_rests_on_frame_51_with_no_beam() -> void:
 func test_lamp_sweeps_at_half_speed_and_peaks_on_frame_51() -> void:
 	var lamp: Node = _lamp()
 	lamp.set("lit", true)
-	lamp.tick(T)
+	lamp.advance(T)
 	assert_bool(lamp.is_sweeping()).is_true()
 	## One full turn: 99 frames at 0.5 a tick.
 	for _i: int in 198:
-		lamp.tick(T)
+		lamp.advance(T)
 	assert_float(lamp.get("frame")).is_equal_approx(51.0, 0.01)
 	assert_float(lamp.get("beam_alpha")).is_equal(240.0)
 	assert_float(lamp.get("beam_blue")).is_equal(220.0)
@@ -128,7 +128,7 @@ func test_lamp_sweeps_at_half_speed_and_peaks_on_frame_51() -> void:
 		lamp.beam_at(51.0)
 	)
 	for _i: int in 99:
-		lamp.tick(T)
+		lamp.advance(T)
 	assert_float(lamp.get("beam_alpha")).is_less(1.0)
 
 
@@ -136,12 +136,12 @@ func test_lamp_finishes_its_turn_before_stopping() -> void:
 	var lamp: Node = _lamp()
 	lamp.set("lit", true)
 	for _i: int in 40:
-		lamp.tick(T)
+		lamp.advance(T)
 	lamp.set("lit", false)
-	lamp.tick(T)
+	lamp.advance(T)
 	assert_bool(lamp.is_sweeping()).is_true()
 	for _i: int in 400:
-		lamp.tick(T)
+		lamp.advance(T)
 		if not lamp.is_sweeping():
 			break
 	assert_bool(lamp.is_sweeping()).is_false()
@@ -152,13 +152,13 @@ func test_lamp_follows_the_book() -> void:
 	var lamp: Node = auto_free(load(LAMP_SCENE).instantiate())
 	add_child(lamp)
 	Clock.set_datetime(2001, 7, 15, 12)
-	lamp.tick(T)
+	lamp.advance(T)
 	assert_bool(lamp.get("lit")).is_false()
 	Clock.set_datetime(2001, 7, 15, 20)
-	lamp.tick(T)
+	lamp.advance(T)
 	assert_bool(lamp.get("lit")).is_true()
 	Game.lighthouse.start_quest(2001, 7, 14)
-	lamp.tick(T)
+	lamp.advance(T)
 	assert_bool(lamp.get("lit")).is_false()
 
 
@@ -216,7 +216,7 @@ func test_room_template_matches_rom_toudai() -> void:
 	assert_int(gaps.size()).is_equal(1)
 	assert_str(String(gaps[0]["side"])).is_equal("north")
 	Game.arrival = InteriorArrival.for_room(&"lighthouse", room)
-	assert_that(Game.arrival.stand_gx).is_equal(LighthouseRoom.SPAWN_GX)
+	assert_that(Game.arrival.stand).is_equal(LighthouseRoom.SPAWN)
 	assert_float(Game.arrival.stand_yaw).is_equal_approx(
 		WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH), 0.001
 	)
@@ -235,14 +235,14 @@ func test_switch_room_runs_itself_outside_the_quest() -> void:
 	assert_bool(sw.get("lever_on")).is_false()
 	## Night: the lever flips, then the drive spins up and the light eases on.
 	for _i: int in 200:
-		sw.tick(LighthouseBook.SwitchMode.AUTO_ON, T)
+		sw.advance(LighthouseBook.SwitchMode.AUTO_ON, T)
 	assert_bool(sw.get("lever_on")).is_true()
 	assert_int(sw.get("pole_state")).is_equal(1)
 	assert_float(sw.get("pole_speed")).is_greater(0.0)
 	assert_float(sw.get("light")).is_greater(0.5)
 	## Morning: the drive winds down, the light goes out, then the lever drops.
 	for _i: int in 2000:
-		sw.tick(LighthouseBook.SwitchMode.OFF, T)
+		sw.advance(LighthouseBook.SwitchMode.OFF, T)
 	assert_bool(sw.get("lever_on")).is_false()
 	assert_float(sw.get("pole_speed")).is_equal_approx(0.0, 0.001)
 	assert_float(sw.get("light")).is_equal(0.0)

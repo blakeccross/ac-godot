@@ -2,9 +2,9 @@ class_name TrainControl
 extends RefCounted
 
 ## The town train's schedule and motion (`m_train_control.c`). Pure state, advanced by `delta`
-## (`mTRC_move`); positions are absolute decomp GX on the rail row and `speed` is GX a second.
-## The decomp's speeds are GX per 1/30 s and its rates per 1/60 s tick; each constant converts
-## where it is written. The presentation (`FieldTrain`) and the sound (`TrainService`) read it.
+## (`mTRC_move`); `x` is a `TownSpace` field position (metres) on the rail row and `speed` is
+## metres a second. The decomp's speeds are GX per 1/30 s and its rates per 1/60 s tick; each
+## constant converts where it is written. The presentation (`FieldTrain`) and the sound (`TrainService`) read it.
 ##
 ## Every hour the train enters from the west edge at full speed, slows from block 2, stops at
 ## the station, waits, then pulls out and leaves east. It is due to leave the far edge at
@@ -33,9 +33,10 @@ const STATE_STOPPED := 2
 const STATE_PULL_OUT := 3
 const STATE_GONE := 4
 
-## One GX per 1/30 s, in GX a second; and a per-tick change of that, in GX a second².
-const PER_FRAME := DecompTime.FRAME_HZ
-const PER_TICK_RATE := DecompTime.FRAME_HZ * DecompTime.TICK_HZ
+const GX := FieldCatalog.GX_TO_METERS
+## One GX per 1/30 s, in metres a second; and a per-tick change of that, in metres a second².
+const PER_FRAME := GX * DecompTime.FRAME_HZ
+const PER_TICK_RATE := GX * DecompTime.FRAME_HZ * DecompTime.TICK_HZ
 ## GAFE01_00 values (`m_train_control.h`, the `#else` branch): speeds 2 and 6, eased at
 ## 0.01 / 0.005 / 0.00345 a tick.
 const SLOW_SPEED := 2.0 * PER_FRAME
@@ -47,19 +48,20 @@ const SPEEDUP_RATE := 0.00345 * PER_TICK_RATE
 ## `fabsf(speed) < 0.008`: stopped.
 const STOPPED_BELOW := 0.008 * PER_FRAME
 
-const RAIL_Z_GX := 740.0
-const BLOCK_GX := 640.0
-const SPAWN_X_GX := 320.0
-const PARKED_X_GX := 2367.0
-## `mTRC_demo_init`: the intro train is already slowing at x 2037 when the town loads.
-const DEMO_X_GX := 2037.0
+## Rail row and stops: decomp field GX.
+const RAIL_Z := 740.0 * GX
+const BLOCK := TownSpace.BLOCK
+const SPAWN_X := 320.0 * GX
+const PARKED_X := 2367.0 * GX
+## `mTRC_demo_init`: the intro train is already slowing at x 2037 GX when the town loads.
+const DEMO_X := 2037.0 * GX
 ## `mTRC_demo_init`: `train_start_timer = now − 4:50`, so after the 310 s dwell is added at
 ## the stop the train is due out 20 s after the arrival began.
 const DEMO_LEAD_SEC := 4 * 60 + 50
-const STOP_FROM_X_GX := 2165.0
-const EXIT_X_GX := 4400.0
-## `TRAIN1` stands 250 behind the locomotive (`mTRC_trainSet`).
-const CABOOSE_BACK_GX := 250.0
+const STOP_FROM_X := 2165.0 * GX
+const EXIT_X := 4400.0 * GX
+## `TRAIN1` stands 250 GX behind the locomotive (`mTRC_trainSet`).
+const CABOOSE_BACK := 250.0 * GX
 ## The signal and pull-out timers: 48, 84 and 180 ticks.
 const STOPPED_SIGNAL_TIME := 48.0 / DecompTime.TICK_HZ
 const STARTING_SIGNAL_TIME := 84.0 / DecompTime.TICK_HZ
@@ -73,7 +75,7 @@ const DAY_SEC := 86400
 
 var action: Action = Action.NONE
 var speed: float = 0.0
-var x_gx: float = 0.0
+var x: float = 0.0
 ## Seconds left on the current signal or pull-out.
 var timer: float = 0.0
 var start_timer: int = 0
@@ -87,7 +89,7 @@ var day: int = 0
 func init(now_sec: int, today: int) -> void:
 	action = Action.NONE
 	speed = 0.0
-	x_gx = 0.0
+	x = 0.0
 	timer = 0.0
 	signal_on = false
 	control_state = 0
@@ -112,7 +114,7 @@ func mati_init() -> void:
 	control_state = 1
 	last_control_state = 1
 	speed = 0.0
-	x_gx = PARKED_X_GX
+	x = PARKED_X
 
 
 ## `mTRC_demo_init` (`train_coming_flag` 3, set by `aID_first_set`): the new resident's train
@@ -125,7 +127,7 @@ func demo_init(now_sec: int, today: int) -> void:
 	day = today
 	control_state = 0
 	last_control_state = 0
-	x_gx = DEMO_X_GX
+	x = DEMO_X
 
 
 ## `mTRC_norm_init`: enter from the west edge.
@@ -134,15 +136,15 @@ func _norm_init() -> void:
 	speed = 0.0
 	control_state = 0
 	last_control_state = 0
-	x_gx = SPAWN_X_GX
+	x = SPAWN_X
 
 
 func is_running() -> bool:
 	return action != Action.NONE
 
 
-func caboose_x_gx() -> float:
-	return x_gx - CABOOSE_BACK_GX
+func caboose_x() -> float:
+	return x - CABOOSE_BACK
 
 
 ## `delta` seconds of `mTRC_move`. `arbeit`: the first job is running (`mEv_CheckArbeit`),
@@ -178,20 +180,20 @@ func _control(delta: float, now_sec: int, today: int, state: int) -> int:
 		Action.SPAWN_MOVING:
 			speed = FAST_SPEED
 			was = speed
-			if int(x_gx / BLOCK_GX) >= 2:
+			if int(x / BLOCK) >= 2:
 				action = Action.BEGIN_SLOWDOWN
 		Action.BEGIN_SLOWDOWN:
 			speed = move_toward(speed, SLOW_SPEED, SLOW_RATE * delta)
 			var average: float = (was + speed) * 0.5
-			if x_gx > STOP_FROM_X_GX:
+			if x > STOP_FROM_X:
 				action = Action.BEGIN_STOP
 				speed = SLOW_SPEED
 				was = speed
-			elif average > 0.0 and x_gx + average * delta > STOP_FROM_X_GX:
+			elif average > 0.0 and x + average * delta > STOP_FROM_X:
 				## Passes the stop trigger this step: brake from the moment it does, so the
 				## train stands at the same place whatever the frame rate.
-				var to_trigger: float = (STOP_FROM_X_GX - x_gx) / average
-				x_gx = STOP_FROM_X_GX
+				var to_trigger: float = (STOP_FROM_X - x) / average
+				x = STOP_FROM_X
 				action = Action.BEGIN_STOP
 				speed = SLOW_SPEED
 				return _control(delta - to_trigger, now_sec, today, state)
@@ -234,12 +236,12 @@ func _control(delta: float, now_sec: int, today: int, state: int) -> int:
 				timer -= delta
 		Action.SPEED_UP:
 			speed = move_toward(speed, FAST_SPEED, SPEEDUP_RATE * delta)
-			if x_gx > EXIT_X_GX:
+			if x > EXIT_X:
 				start_timer = depart_time(now_sec)
 				action = Action.NONE
 				state = STATE_GONE
 	if action != Action.NONE:
-		x_gx += (was + speed) * 0.5 * delta
+		x += (was + speed) * 0.5 * delta
 	return state
 
 
@@ -254,6 +256,6 @@ func frame_speed() -> float:
 func in_area(player_block: Vector2i) -> bool:
 	if action == Action.NONE:
 		return false
-	var block := Vector2i(int(x_gx / BLOCK_GX), int(RAIL_Z_GX / BLOCK_GX))
+	var block := Vector2i(int(x / BLOCK), int(RAIL_Z / BLOCK))
 	return absi(block.x - player_block.x) < 2 and block.y == player_block.y
 

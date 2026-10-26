@@ -11,8 +11,8 @@ const SHOP_ID := &"broker_shop"
 const STOCK_SCENE := preload("res://features/shops/nook/shop_stock.tscn")
 ## `item_ux` / `item_uz`.
 const WARE_UNITS: Array[Vector2i] = [Vector2i(2, 2), Vector2i(4, 2), Vector2i(2, 4)]
-## `aEBR2_search_player2` zone point (GX).
-const STAND_GX := Vector3(60.0, 0.0, 100.0)
+## `aEBR2_search_player2` zone point.
+const STAND := Vector3(60.0, 0.0, 100.0) * FieldCatalog.GX_TO_METERS
 const MABEL := preload("res://features/shops/able_sisters/mabel.gd")
 
 var _greeted: bool = false

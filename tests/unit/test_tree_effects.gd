@@ -8,7 +8,7 @@ const GX := FieldCatalog.GX_TO_METERS
 func _leaf() -> TreeEffects:
 	var host: Node3D = auto_free(Node3D.new())
 	add_child(host)
-	var crown := Vector3(0.0, TreeEffects.CROWN_GX * TreeEffects.GX, 0.0)
+	var crown := Vector3(0.0, TreeEffects.CROWN, 0.0)
 	TreeEffects.leaf(host, crown, PlantData.Family.HARDWOOD, false)
 	return host.get_child(0) as TreeEffects
 

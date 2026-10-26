@@ -15,9 +15,12 @@ const LOUD_BOUNCE := 0.5 * FRAME
 ## Landing slower than one frame of gravity is resting on the ground, not a bounce.
 const SETTLE_SPEED := GRAVITY / DecompTime.FRAME_HZ
 const ROLL_DRAG := 0.69314718 * DecompTime.FRAME_HZ
-const IN_BASKET_GX := 60.0
-## How close (GX) to the basket's centre counts as in.
-const BASKET_RADIUS_GX := 22.0
+## Lengths in metres, from the decomp's GX: the top of the basket, and how close to its
+## centre counts as in.
+const IN_BASKET := 60.0 * FieldCatalog.GX_TO_METERS
+const BASKET_RADIUS := 22.0 * FieldCatalog.GX_TO_METERS
+## The ball sits 3 GX above the ground.
+const LIFT := 3.0 * FieldCatalog.GX_TO_METERS
 const VISUALS: Array[StringName] = [&"ef_tamaire01_r", &"ef_tamaire01_w"]
 ## The card as the effect draws it is a little smaller than the generic `ef_*` import.
 const BALL_SCALE := 0.7
@@ -39,10 +42,10 @@ func _ready() -> void:
 
 
 
-## `eTamaire_ct`: `angle` toward the basket, `rise` the elevation (radians), `speed_gx` in GX a
+## `eTamaire_ct`: `angle` toward the basket, `rise` the elevation (radians), `speed` in m/s
 ## frame.
-func launch(angle: float, rise: float, speed_gx: float) -> void:
-	velocity = Vector3(cos(rise) * sin(angle), sin(rise), cos(rise) * cos(angle)) * speed_gx * FRAME
+func launch(angle: float, rise: float, speed: float) -> void:
+	velocity = Vector3(cos(rise) * sin(angle), sin(rise), cos(rise) * cos(angle)) * speed
 
 
 func _process(delta: float) -> void:
@@ -53,16 +56,15 @@ func _process(delta: float) -> void:
 
 ## `delta` seconds of flight: exact under gravity, then the ground or the basket.
 func advance(delta: float) -> void:
-	var gx: float = FieldCatalog.GX_TO_METERS
 	global_position += velocity * delta + Vector3.DOWN * 0.5 * GRAVITY * delta * delta
 	velocity.y -= GRAVITY * delta
 	var floor_y: float = _ground_at(global_position)
 	if global_position.y < floor_y and basket != Vector3.INF:
 		## Landed on the basket's unit (`DUMMY_TURI`): up into the basket it goes.
 		var flat := Vector2(global_position.x - basket.x, global_position.z - basket.z)
-		if flat.length() < BASKET_RADIUS_GX * gx:
-			var base: float = _ground_at(basket) - 3.0 * gx
-			global_position = Vector3(basket.x, base + IN_BASKET_GX * gx, basket.z) + Vector3(flat.x, 0.0, flat.y) * 0.4
+		if flat.length() < BASKET_RADIUS:
+			var base: float = _ground_at(basket) - LIFT
+			global_position = Vector3(basket.x, base + IN_BASKET, basket.z) + Vector3(flat.x, 0.0, flat.y) * 0.4
 			in_basket = true
 			return
 	if global_position.y < floor_y:
@@ -93,5 +95,5 @@ func _ground_at(pos: Vector3) -> float:
 	if not world.layout.is_in_bounds(cell):
 		return _ground
 	## The ground itself, not the basket stand's collision (`GetBgY_AngleS` on the BG).
-	_ground = FieldCollision.height_at(world.layout, cell, false) + 3.0 * FieldCatalog.GX_TO_METERS
+	_ground = FieldCollision.height_at(world.layout, cell, false) + LIFT
 	return _ground

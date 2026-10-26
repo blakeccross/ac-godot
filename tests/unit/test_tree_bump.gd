@@ -16,7 +16,7 @@ func _tree(grid: WorldGrid, cell: Vector2i) -> Node3D:
 
 
 func _tick(bump: TreeBump, grid: WorldGrid, pos: Vector3, yaw: float, trees: Array[Node3D]) -> Node3D:
-	return bump.tick(1.0 / 60.0, pos, yaw, WorldData.new(), grid, trees)
+	return bump.advance(1.0 / 60.0, pos, yaw, WorldData.new(), grid, trees)
 
 
 func test_shakes_tree_ahead_within_a_unit_once() -> void:

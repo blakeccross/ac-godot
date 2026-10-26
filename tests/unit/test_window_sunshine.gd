@@ -11,6 +11,13 @@ func before_test() -> void:
 	InteriorCatalog.reset()
 
 
+## Sunshine anchors are metres scaled from GX tables, so compare within float slack.
+func _assert_points(got: Array, want: Array) -> void:
+	assert_int(got.size()).is_equal(want.size())
+	for i: int in mini(got.size(), want.size()):
+		assert_vector(got[i] as Vector3).is_equal_approx(want[i] as Vector3, Vector3.ONE * 0.0001)
+
+
 func _room(kind: Room.Kind, id: StringName) -> Room:
 	var room := Room.new()
 	room.kind = kind
@@ -22,24 +29,26 @@ func test_player_floors_follow_the_house_size() -> void:
 	var main: Room = _room(Room.Kind.PLAYER, PlayerHouse.MAIN)
 	var house := House.new()
 	var want: Array = [
-		[Vector3(40, 0, 120), Vector3(200, 0, 120)],  ## player_room_s
-		[Vector3(40, 0, 160), Vector3(280, 0, 160)],  ## player_room_m
-		[Vector3(40, 0, 200), Vector3(360, 0, 200)],  ## player_room_l
-		[Vector3(40, 0, 200), Vector3(360, 0, 200)],  ## player_room_ll1
+		[Vector3(2, 0, 6), Vector3(10, 0, 6)],  ## player_room_s
+		[Vector3(2, 0, 8), Vector3(14, 0, 8)],  ## player_room_m
+		[Vector3(2, 0, 10), Vector3(18, 0, 10)],  ## player_room_l
+		[Vector3(2, 0, 10), Vector3(18, 0, 10)],  ## player_room_ll1
 	]
 	for tier: int in want.size():
 		house.size_tier = tier as House.SizeTier
-		assert_array(WindowSunshine.actors_for(main, house)).is_equal(want[tier])
+		_assert_points(WindowSunshine.actors_for(main, house), want[tier])
 	## player_room_ll2; the basement scenes have no beams.
-	assert_array(WindowSunshine.actors_for(_room(Room.Kind.PLAYER, PlayerHouse.UPPER), house)) \
-		.is_equal([Vector3(40, 0, 160), Vector3(280, 0, 160)])
+	_assert_points(
+		WindowSunshine.actors_for(_room(Room.Kind.PLAYER, PlayerHouse.UPPER), house),
+		[Vector3(2, 0, 8), Vector3(14, 0, 8)]
+	)
 	assert_array(WindowSunshine.actors_for(_room(Room.Kind.PLAYER, PlayerHouse.BASEMENT), house)) \
 		.is_empty()
 
 
 func test_villager_homes_use_npc_room01() -> void:
 	var room: Room = _room(Room.Kind.NPC, &"npc_test")
-	assert_array(WindowSunshine.actors_for(room)).is_equal([Vector3(40, 0, 160), Vector3(282, 0, 160)])
+	_assert_points(WindowSunshine.actors_for(room), [Vector3(2, 0, 8), Vector3(14.1, 0, 8)])
 	assert_bool(WindowSunshine.has_light_switch(room)).is_true()
 	assert_bool(WindowSunshine.has_light_switch(_room(Room.Kind.NEEDLEWORK, &"needlework"))).is_false()
 
@@ -74,18 +83,18 @@ func test_build_adds_beams_to_a_villager_home() -> void:
 
 func test_post_office_beams_stand_on_the_floor() -> void:
 	## `ef_room_sunshine_posthouse`: police anchor X, but no −40 Y.
-	assert_vector(PostDisplay.sunshine_anchor_gx(PostDisplay.SUNSHINE_L_GX, true)) \
-		.is_equal(Vector3(38.0, 1.0, 160.0))
-	assert_vector(PostDisplay.sunshine_anchor_gx(PostDisplay.SUNSHINE_R_GX, false)) \
-		.is_equal(Vector3(280.0, 1.0, 160.0))
+	assert_vector(PostDisplay.sunshine_anchor(PostDisplay.SUNSHINE_L, true)) \
+		.is_equal_approx(Vector3(38.0, 1.0, 160.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
+	assert_vector(PostDisplay.sunshine_anchor(PostDisplay.SUNSHINE_R, false)) \
+		.is_equal_approx(Vector3(280.0, 1.0, 160.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 
 
 func test_museum_beams_use_the_police_anchor() -> void:
 	## `ef_room_sunshine_museum` args 2 / 3: X −2 / +0 and `1 + BgY − 40`.
-	assert_vector(MuseumDisplay.sunshine_anchor_gx(MuseumDisplay.ENTRANCE_SUNSHINE_GX[0], true, false)) \
-		.is_equal(Vector3(121.0, -39.0, 180.0))
-	assert_vector(MuseumDisplay.sunshine_anchor_gx(MuseumDisplay.ENTRANCE_SUNSHINE_GX[3], false, false)) \
-		.is_equal(Vector3(360.0, -39.0, 380.0))
+	assert_vector(MuseumDisplay.sunshine_anchor(MuseumDisplay.ENTRANCE_SUNSHINE[0], true, false)) \
+		.is_equal_approx(Vector3(121.0, -39.0, 180.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
+	assert_vector(MuseumDisplay.sunshine_anchor(MuseumDisplay.ENTRANCE_SUNSHINE[3], false, false)) \
+		.is_equal_approx(Vector3(360.0, -39.0, 380.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	## `ef_room_sunshine_minsect` puts Y back on the actor's own 0 each frame.
-	assert_vector(MuseumDisplay.sunshine_anchor_gx(MuseumDisplay.INSECT_SUNSHINE_GX[1], false, true)) \
-		.is_equal(Vector3(520.0, -40.0, 280.0))
+	assert_vector(MuseumDisplay.sunshine_anchor(MuseumDisplay.INSECT_SUNSHINE[1], false, true)) \
+		.is_equal_approx(Vector3(520.0, -40.0, 280.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)

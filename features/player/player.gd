@@ -153,8 +153,10 @@ var unable_wade: bool = false
 var intro_block_bg_check: bool = false
 var _motor: PlayerLocomotion = PlayerLocomotion.new()
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
-## `Player_actor_Movement_Base_Braking_common(actor, 0.32625002f)`.
-const RECOIL_BRAKE := 0.32625002
+## `Player_actor_Movement_Base_Braking_common(actor, 0.32625002f)`: GX per frame off the
+## speed each tick, here m/s a second.
+const RECOIL_BRAKE := 0.32625002 * PlayerLocomotion.GX_SPEED * DecompTime.TICK_HZ
+## m/s.
 var _recoil_speed: float = 0.0
 var _recoil_yaw: float = 0.0
 var _busy: bool = false
@@ -275,9 +277,9 @@ func is_talk_facing() -> bool:
 	return _talk_face != null and is_instance_valid(_talk_face)
 
 
-## `aINS_get_stress_sub`: player planar speed as GX per 30 Hz frame.
-func insect_stress_move_gx() -> float:
-	return _motor.planar_speed / FieldCatalog.GX_TO_METERS / DecompTime.FRAME_HZ
+## Planar speed (m/s), for `aINS_get_stress_sub`.
+func planar_speed() -> float:
+	return _motor.planar_speed
 
 
 ## `mPlayer_INDEX_DASH`: fish bolt from a dashing player but ignore a walking one.
@@ -375,7 +377,7 @@ func _physics_process(delta: float) -> void:
 	if _mesh != null:
 		_mesh.rotation.x = _motor.lean
 	if tools.umbrella != null:
-		tools.umbrella.tick(delta)
+		tools.umbrella.advance(delta)
 	tools.tick_pinwheel(delta)
 	tools.tick_balloon(delta)
 	if tools.carry != null:
@@ -461,7 +463,7 @@ func _physics_process(delta: float) -> void:
 	if net.is_active():
 		planar = net.tick_net(delta, input_dir, wish, stick, menu_open)
 	else:
-		planar = _motor.tick(
+		planar = _motor.advance(
 			delta, wish, stick, sprint and not menu_open, _busy or menu_open or rod_locked
 		)
 	planar += _tick_recoil(delta)
@@ -493,53 +495,53 @@ func _physics_process(delta: float) -> void:
 	_try_auto_enter()
 
 
-## `SetAngleSpeedF_Reflect_scoop` / `_Reflect_axe`: knocked back at `speed_gx` (GX per
-## frame) the way the player faces, braking 0.32625 a tick (`Movement_axe_common`).
-func recoil(speed_gx: float) -> void:
-	_recoil_speed = speed_gx
+## `SetAngleSpeedF_Reflect_scoop` / `_Reflect_axe`: knocked back at `speed` (m/s) the way
+## the player faces, braking at `RECOIL_BRAKE` (`Movement_axe_common`).
+func recoil(speed: float) -> void:
+	_recoil_speed = speed
 	_recoil_yaw = _motor.facing + PI
 
 
 func _tick_recoil(delta: float) -> Vector3:
 	if _recoil_speed <= 0.0:
 		return Vector3.ZERO
-	var v: float = _recoil_speed * 0.5 * FieldCatalog.GX_TO_METERS * DecompTime.TICK_HZ
-	_recoil_speed = maxf(_recoil_speed - RECOIL_BRAKE * delta * DecompTime.TICK_HZ, 0.0)
+	var v: float = _recoil_speed
+	_recoil_speed = maxf(_recoil_speed - RECOIL_BRAKE * delta, 0.0)
 	return Vector3(sin(_recoil_yaw), 0.0, cos(_recoil_yaw)) * v
 
 
 ## `Player_actor_CorrectWadeBlockBorder` then `Player_actor_Set_ScrollDemo_forWade` (walk /
 ## run / dash only): stay inside this acre unless the stick takes the player across.
 func _acre_border(before: Vector3, input_dir: Vector2, bg: Array) -> void:
-	var old_gx: Vector3 = TownSpace.world_to_gx(before)
-	var now_gx: Vector3 = TownSpace.world_to_gx(global_position)
-	var inset: float = AcreWade.INTRO_INSET_GX if intro_block_bg_check else 0.0
-	var wall_inset: float = inset if _is_player_house_block(TownSpace.block_of(old_gx)) else 0.0
-	var held: Vector3 = AcreWade.confine(old_gx, now_gx, wall_inset)
-	if held.x != now_gx.x or held.z != now_gx.z:
-		var back: Vector3 = TownSpace.gx_to_world(held)
+	var old_at: Vector3 = TownSpace.world_to_field(before)
+	var now_at: Vector3 = TownSpace.world_to_field(global_position)
+	var inset: float = AcreWade.INTRO_INSET if intro_block_bg_check else 0.0
+	var wall_inset: float = inset if _is_player_house_block(TownSpace.block_of(old_at)) else 0.0
+	var held: Vector3 = AcreWade.confine(old_at, now_at, wall_inset)
+	if held.x != now_at.x or held.z != now_at.z:
+		var back: Vector3 = TownSpace.field_to_world(held)
 		global_position.x = back.x
 		global_position.z = back.z
 		_snap_to_bg()
 	if _busy or _menu_open() or _motor.gait() == PlayerLocomotion.Gait.WAIT:
 		return
-	var pos_gx: Vector3 = TownSpace.world_to_gx(global_position)
+	var field_at: Vector3 = TownSpace.world_to_field(global_position)
 	## `Player_actor_request_proc_index_fromDemo_walk` → `Set_ScrollDemo_forDemo_wade`; the
 	## demo walk picks up again after the 36-tick wade (`fromDemo_wade`).
 	if doors.is_demo_walking():
 		if _motor.planar_speed > 0.0:
-			var block: Vector2i = TownSpace.block_of(pos_gx)
+			var block: Vector2i = TownSpace.block_of(field_at)
 			var demo_dir: AcreWade.Dir = AcreWade.demo_direction(
-				pos_gx, _motor.facing, func(d: AcreWade.Dir) -> bool: return AcreWade.scroll_ok(block, d)
+				field_at, _motor.facing, func(d: AcreWade.Dir) -> bool: return AcreWade.scroll_ok(block, d)
 			)
 			if demo_dir != AcreWade.Dir.NONE:
-				_begin_wade(pos_gx, demo_dir)
+				_begin_wade(field_at, demo_dir)
 		return
 	var dir: AcreWade.Dir = AcreWade.direction(
-		pos_gx,
+		field_at,
 		_motor.facing,
 		Vector2(input_dir.x, -input_dir.y),
-		func(d: AcreWade.Dir) -> bool: return _can_land(pos_gx, d, bg),
+		func(d: AcreWade.Dir) -> bool: return _can_land(field_at, d, bg),
 		inset,
 		unable_wade,
 	)
@@ -548,7 +550,7 @@ func _acre_border(before: Vector3, input_dir: Vector2, bg: Array) -> void:
 	if unable_wade:
 		wade_cancelled.emit()
 		return
-	_begin_wade(pos_gx, dir)
+	_begin_wade(field_at, dir)
 
 
 ## `mFI_BkNum2BlockKind(bx, bz) & mRF_BLOCKKIND_PLAYER` — the four house plots' acre.
@@ -558,10 +560,10 @@ func _is_player_house_block(block: Vector2i) -> bool:
 
 ## `mCoBG_ScrollCheck` toward 18 GX past the border (walls, water, FG solids), plus — outside
 ## the title demo — no villager within 36 GX of it.
-func _can_land(pos_gx: Vector3, dir: AcreWade.Dir, bg: Array) -> bool:
+func _can_land(field_at: Vector3, dir: AcreWade.Dir, bg: Array) -> bool:
 	var data: WorldData = bg[0] as WorldData
 	var grid: WorldGrid = bg[1] as WorldGrid
-	var probe: Vector3 = TownSpace.gx_to_world(AcreWade.landing_probe(pos_gx, dir))
+	var probe: Vector3 = TownSpace.field_to_world(AcreWade.landing_probe(field_at, dir))
 	probe.y = global_position.y
 	var reached: Vector3 = FieldCollision.revise_xz(data, grid, global_position, probe)
 	if Vector2(reached.x - probe.x, reached.z - probe.z).length() > 0.05:
@@ -590,8 +592,8 @@ func _solid_at(at: Vector3) -> bool:
 	return not get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
-func _begin_wade(pos_gx: Vector3, dir: AcreWade.Dir) -> void:
-	var end: Vector3 = TownSpace.gx_to_world(AcreWade.end_pos(pos_gx, dir))
+func _begin_wade(field_at: Vector3, dir: AcreWade.Dir) -> void:
+	var end: Vector3 = TownSpace.field_to_world(AcreWade.end_pos(field_at, dir))
 	end.y = global_position.y
 	_wade = {"start": global_position, "end": end, "t": 0.0, "dir": dir}
 	Game.notify_wade_start()
@@ -710,7 +712,7 @@ func _tick_tree_bump(delta: float) -> void:
 	var bg: Array = _bg()
 	if bg.size() != 2:
 		return
-	var hit: Node3D = _tree_bump.tick(
+	var hit: Node3D = _tree_bump.advance(
 		delta, global_position, _motor.facing, bg[0] as WorldData, bg[1] as WorldGrid, _bump_trees(bg)
 	)
 	if hit != null:
@@ -1647,8 +1649,8 @@ func release_from_pocket(data: ItemData, water: Variant) -> void:
 		var bug := data as BugData
 		var habitat: BugData.Habitat = (bug.habitats[0] as BugData.Habitat) if not bug.habitats.is_empty() else BugData.Habitat.FLYING
 		var at: Vector3 = global_position + Vector3(
-			sin(yaw) * CreatureRelease.BUG_AHEAD_GX, CreatureRelease.BUG_UP_GX, cos(yaw) * CreatureRelease.BUG_AHEAD_GX
-		) * FieldCatalog.GX_TO_METERS
+			sin(yaw) * CreatureRelease.BUG_AHEAD, CreatureRelease.BUG_UP, cos(yaw) * CreatureRelease.BUG_AHEAD
+		)
 		freed = field.spawn(bug, habitat, at, true) if field != null else null
 	elif data is FishData and water != null:
 		var host: Node = get_parent() if get_parent() != null else self

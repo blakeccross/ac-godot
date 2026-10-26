@@ -834,13 +834,13 @@ func test_a_warped_caster_drops_the_line_without_a_word() -> void:
 	## The original never lets you walk off (`relax_rod` brakes); only a warp takes the line
 	## (`uki->command = 8`), and it says nothing. The guard sits past the 130 GX tow radius.
 	assert_float(Fishing.LEASH_METERS).is_greater(
-		Fishing.DRIFT_RADIUS_GX * FieldCatalog.GX_TO_METERS
+		Fishing.DRIFT_RADIUS
 	)
 	var ctx: InteractionContext = _at_water()
 	_cast(ctx)
 	var actor := ctx.actor as _FacingActor
 	actor.global_position += Vector3(0.0, 0.0, -Fishing.LEASH_METERS - 2.0)
-	_line.tick(0.1, _school(ctx))
+	_line.advance(0.1, _school(ctx))
 	assert_bool(_line.is_active()).is_false()
 	assert_array(_heard).is_empty()
 
@@ -881,7 +881,7 @@ func test_the_player_cannot_walk_off_and_turns_to_the_bobber() -> void:
 	_line = Fishing.new()
 	player.fishing.line = _line
 	assert_bool(_line.cast(ctx, start + Vector3(5.0, 0.0, 0.0))).is_true()
-	_line.tick(Fishing.LAUNCH_DELAY_SECONDS + Fishing.CAST_SECONDS + 0.1)
+	_line.advance(Fishing.LAUNCH_DELAY_SECONDS + Fishing.CAST_SECONDS + 0.1)
 	assert_bool(_line.faces_bobber(player)).is_true()
 	Input.action_press(&"move_back")
 	var yaws: Array[float] = []
@@ -1103,7 +1103,7 @@ func test_a_bite_pulls_the_bobber_under_and_a_strike_yanks_it_up_and_round() -> 
 	_settle(ctx)
 	var shadow: FishShadow = _stock(ctx, &"crucian_carp")
 	_drive_until(ctx, func() -> bool: return _line.state() == Fishing.State.BITE)
-	var depth: float = Fishing.BITE_DEPTH_GX * FieldCatalog.GX_TO_METERS
+	var depth: float = Fishing.BITE_DEPTH
 	var lowest: float = 0.0
 	for _i in 12:
 		_tick(ctx, STEP)
@@ -1124,7 +1124,8 @@ func test_a_bite_pulls_the_bobber_under_and_a_strike_yanks_it_up_and_round() -> 
 	## Round in a circle: the heading turns half of `angl[size]` every tick.
 	var turn: float = deg_to_rad(Fishing.STRUCK_TURN_DEG[int(shadow.size)]) * 0.5
 	assert_float(wrapf(headings[1] - headings[0], -PI, PI)).is_equal_approx(turn, 0.0001)
-	var step: float = Fishing.STRUCK_SPEED_GX[int(shadow.size)] * 0.5 * FieldCatalog.GX_TO_METERS
+	## Half of `spd[size]` GX a tick.
+	var step: float = Fishing.STRUCK_SPEED[int(shadow.size)] * 0.5 / DecompTime.FRAME_HZ
 	assert_float(_line.anchor().distance_to(before)).is_less_equal(step * 20.0 + 0.0001)
 	assert_float(_line.anchor().distance_to(before)).is_greater(0.0)
 
@@ -1214,7 +1215,7 @@ func test_the_bobber_drifts_and_is_towed_back_past_130_units() -> void:
 		_tick(ctx, STEP)
 		var d: float = Vector2(_line.anchor().x - actor.global_position.x, _line.anchor().z - actor.global_position.z).length()
 		furthest = maxf(furthest, d)
-	var radius: float = Fishing.DRIFT_RADIUS_GX * FieldCatalog.GX_TO_METERS
+	var radius: float = Fishing.DRIFT_RADIUS
 	assert_float(furthest).is_greater(radius - 0.05)
 	assert_float(furthest).is_less(radius + 0.05)
 	assert_bool(_line.is_active()).is_true()
@@ -1229,7 +1230,7 @@ func test_the_bobber_stops_short_of_the_bank() -> void:
 	## Stand the player right over the south bank so the tow never kicks in.
 	(ctx.actor as Node3D).global_position = _line.anchor() + Vector3(0.0, 0.0, 6.0)
 	_tick(ctx, 20.0)
-	var clearance: float = Fishing.BANK_RANGE_GX * FieldCatalog.GX_TO_METERS
+	var clearance: float = Fishing.BANK_RANGE
 	var ahead: Vector3 = _line.anchor() + Vector3(0.0, 0.0, clearance)
 	assert_that(grid.terrain_at(grid.world_to_cell(ahead))).is_not_equal(WorldGrid.Terrain.WATER)
 	assert_that(grid.terrain_at(grid.world_to_cell(_line.anchor()))).is_equal(WorldGrid.Terrain.WATER)
@@ -1373,8 +1374,8 @@ func _tick(ctx: InteractionContext, seconds: float) -> void:
 		var sense := FishShadow.Sense.new()
 		sense.player_position = actor.global_position
 		_line.fill_sense(sense)
-		school.tick(STEP, sense)
-		_line.tick(STEP, school)
+		school.advance(STEP, sense)
+		_line.advance(STEP, school)
 		elapsed += STEP
 
 

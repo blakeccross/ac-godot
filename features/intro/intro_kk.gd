@@ -141,10 +141,10 @@ func _setup_camera() -> void:
 		return
 	_camera.current = true
 	_camera.fov = IntroKkStage.CAM_FOV
-	_camera.near = IntroKkStage.CAM_NEAR_METERS
-	_camera.far = IntroKkStage.CAM_FAR_METERS
-	_camera.global_position = IntroKkStage.gx_to_meters(IntroKkStage.CAM_EYE_GX)
-	_camera.look_at(IntroKkStage.gx_to_meters(IntroKkStage.CAM_CENTER_GX), Vector3.UP)
+	_camera.near = IntroKkStage.CAM_NEAR
+	_camera.far = IntroKkStage.CAM_FAR
+	_camera.global_position = IntroKkStage.CAM_EYE
+	_camera.look_at(IntroKkStage.CAM_CENTER, Vector3.UP)
 
 
 func _refresh_missing() -> void:

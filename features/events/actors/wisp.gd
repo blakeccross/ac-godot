@@ -10,10 +10,10 @@ extends EventNpc
 
 enum Think { HIDDEN, CALLING, WAITING, FOUND, LEAVING }
 
-## `talk_distance`s, in GX.
-const NEAR_HAILS := 200.0
-const NEAR_FINDS := 80.0
-const TOO_FAR := 220.0
+## `talk_distance`s (GX), in metres.
+const NEAR_HAILS := 200.0 * FieldCatalog.GX_TO_METERS
+const NEAR_FINDS := 80.0 * FieldCatalog.GX_TO_METERS
+const TOO_FAR := 220.0 * FieldCatalog.GX_TO_METERS
 const ALPHA_SEEN := 140
 const ALPHA_MOVING := 80
 const ALPHA_TALKING := 190
@@ -69,10 +69,6 @@ func make_talk() -> BankTalk:
 	return WispTalk.new(WispTalk.Kind.NORMAL, state, Game.inventory if Game != null else null, rng())
 
 
-func _gx(m: float) -> float:
-	return m / FieldCatalog.GX_TO_METERS
-
-
 func think(delta: float) -> void:
 	_fade(delta)
 	if not is_inside_tree() or is_queued_for_deletion():
@@ -82,7 +78,7 @@ func think(delta: float) -> void:
 	if Clock.hour >= WispEvent.END_HOUR:
 		_time_up()
 		return
-	var dist: float = _gx(player_distance())
+	var dist: float = player_distance()
 	match think_state:
 		Think.HIDDEN:
 			if dist < NEAR_HAILS and can_call_out():

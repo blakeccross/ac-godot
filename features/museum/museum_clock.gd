@@ -36,7 +36,7 @@ func _ensure_visual() -> void:
 		var s: float = pivot.scale.x
 		pivot.position.x = -(aabb.position.x + aabb.size.x * 0.5) * s
 		pivot.position.z = -(aabb.position.z + aabb.size.z * 0.5) * s
-	VisualFit.align_actor_to_height_gx(pivot, 0.0)
+	VisualFit.align_actor_to_height(pivot, 0.0)
 
 
 func _process(_delta: float) -> void:

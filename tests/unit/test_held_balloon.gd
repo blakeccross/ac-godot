@@ -23,7 +23,7 @@ func test_it_trails_the_hand() -> void:
 	var b := HeldBalloon.new()
 	## Hand moving forward (+z facing south): the balloon leans back.
 	for i: int in 30:
-		b.step(F, Vector3(0.0, 0.0, 2.0), 0.0, false, 0.0)
+		b.step(F, Vector3(0.0, 0.0, 2.0) * PlayerLocomotion.GX_SPEED, 0.0, false, 0.0)
 	assert_float(b.angle_x).is_less(0.0)
 	## Stopped: it eases back toward upright.
 	var leaning: float = absf(b.angle_x)
@@ -36,7 +36,7 @@ func test_it_bobs_while_walking() -> void:
 	var b := HeldBalloon.new()
 	var seen: float = 0.0
 	for i: int in 60:
-		b.step(F, Vector3.ZERO, 0.0, true, 3.0)
+		b.step(F, Vector3.ZERO, 0.0, true, 3.0 * PlayerLocomotion.GX_SPEED)
 		seen = maxf(seen, absf(b.add_rot_x))
 	assert_float(seen).is_greater(100.0)
 	var still := HeldBalloon.new()

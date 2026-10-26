@@ -39,7 +39,7 @@ func _physics_process(delta: float) -> void:
 			return
 	var sense: BugActor.Sense = _make_sense()
 	_sense_npcs(sense, delta)
-	_field.tick(delta, sense)
+	_field.advance(delta, sense)
 	if _field.take_bite():
 		var player := Player.find(get_tree())
 		if player != null:
@@ -52,7 +52,7 @@ func _make_sense() -> BugActor.Sense:
 	var player := Player.find(get_tree())
 	if player != null:
 		sense.player_position = player.global_position
-		sense.player_move_gx = player.insect_stress_move_gx()
+		sense.player_speed = player.planar_speed()
 		sense.player_dashing = player.is_dashing()
 		sense.player_yaw = player.facing_yaw()
 		sense.wade_end = player.wade_end_position()
@@ -86,14 +86,13 @@ func _sense_npcs(sense: BugActor.Sense, delta: float) -> void:
 			continue
 		var id: int = npc.get_instance_id()
 		var at: Vector3 = npc.global_position
-		var move_gx: float = 0.0
+		var speed: float = 0.0
 		if _npc_last.has(id) and delta > 0.0:
 			var last: Vector3 = _npc_last[id]
-			var step_m: float = Vector2(at.x - last.x, at.z - last.z).length()
-			move_gx = step_m / FieldCatalog.GX_TO_METERS / (delta * DecompTime.FRAME_HZ)
+			speed = Vector2(at.x - last.x, at.z - last.z).length() / delta
 		seen[id] = at
 		sense.npc_positions.append(at)
-		sense.npc_moves_gx.append(move_gx)
+		sense.npc_speeds.append(speed)
 	_npc_last = seen
 
 

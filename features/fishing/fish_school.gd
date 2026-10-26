@@ -116,7 +116,7 @@ func hooked_shadow() -> FishShadow:
 	return null
 
 
-## The player swung an axe, net or shovel. Fish inside `SCARE_TOOL_GX` bolt.
+## The player swung an axe, net or shovel. Fish inside `FishSize.SCARE_TOOL` bolt.
 func notify_tool_swing() -> void:
 	_tool_swing = TOOL_SWING_SECONDS
 
@@ -124,7 +124,7 @@ func notify_tool_swing() -> void:
 ## Advance every shadow and puff by `delta` seconds. The shadows run in turn the way
 ## `aGYO_actor_move` walks its controllers, so `bite_check` sees any shadow that engaged the
 ## bobber earlier in the same step.
-func tick(delta: float, sense: FishShadow.Sense) -> void:
+func advance(delta: float, sense: FishShadow.Sense) -> void:
 	if _tool_swing > 0.0:
 		sense.player_swung_tool = true
 	_tool_swing = maxf(_tool_swing - delta, 0.0)
@@ -136,7 +136,7 @@ func tick(delta: float, sense: FishShadow.Sense) -> void:
 			if shadow.finished:
 				continue
 			sense.bobber_taken = _bobber_taken()
-			shadow.tick(delta, sense)
+			shadow.advance(delta, sense)
 		_move_puffs(delta)
 	var kept: Array[FishShadow] = []
 	for shadow: FishShadow in shadows:
@@ -357,7 +357,7 @@ func block_kind(acre: Vector2i, units: Array = []) -> int:
 	return kind
 
 
-## The acre's 16×16 unit rows, `{"a": attr, "y": centre height in GX}`. From the unit
+## The acre's 16×16 unit rows, `{"a": attr, "y": centre height in metres}`. From the unit
 ## catalog when the layout has one; otherwise water cells stand in as `WATER` (river / pond)
 ## or deep `SEA` (ocean bodies).
 func acre_units(acre: Vector2i) -> Array:
@@ -382,10 +382,10 @@ func _unit_at(cell: Vector2i) -> Dictionary:
 			## Back to the original's frame, where land (`LAND_COUNTS`) sits at 40 GX and the
 			## sea surface at 20 GX, so a sea unit is deep enough only at count 0.
 			var y: float = FieldCollision.height_at(_layout, cell, false)
-			var gx: float = 0.0
+			var bed: float = 0.0
 			if FieldCollision.has_floor(y):
-				gx = y / FishSize.GX + float(FieldCatalog.LAND_COUNTS) * 10.0
-			return {"a": attr, "y": gx}
+				bed = y + float(FieldCatalog.LAND_COUNTS) * 10.0 * FishSize.GX
+			return {"a": attr, "y": bed}
 	if _grid == null or not _grid.is_in_bounds(cell) or _grid.terrain_at(cell) != WorldGrid.Terrain.WATER:
 		return {"a": 0, "y": 0.0}
 	var body: WaterBodies.Body = WaterBodies.body_at(bodies, cell)

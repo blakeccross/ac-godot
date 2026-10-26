@@ -12,7 +12,7 @@ var _face: NpcFace = NpcFace.new()
 
 
 func _ready() -> void:
-	global_position = IntroKkStage.gx_to_meters(IntroKkStage.KK_SPAWN_GX)
+	global_position = IntroKkStage.KK_SPAWN
 	rotation = Vector3(0.0, IntroKkStage.KK_YAW, 0.0)
 	_ensure_visual()
 	_setup_player()
@@ -28,7 +28,7 @@ func body_animation_player() -> AnimationPlayer:
 
 
 func tick_face(delta: float, uttering: bool) -> void:
-	_face.tick(delta, uttering)
+	_face.advance(delta, uttering)
 
 
 func play_strum() -> bool:
@@ -61,7 +61,7 @@ func _ensure_visual() -> void:
 		return
 	VisualFit.apply_actor_scale(vis)
 	## Rest AABB then posed snap — `4haku` sits; rest feet alone leave him floating/clipped.
-	VisualFit.align_actor_to_height_gx(vis, 0.0)
+	VisualFit.align_actor_to_height(vis, 0.0)
 	GeneratedVisual.apply_preview_materials(vis)
 	## RSP N·L on the lit body. Floor / spot / curtain stay on the acre, unshaded.
 	PlayerSelectLight.apply(vis)
@@ -70,7 +70,7 @@ func _ensure_visual() -> void:
 func _snap_posed_to_floor() -> void:
 	var vis: Node3D = get_node_or_null("GeneratedVisual") as Node3D
 	if vis != null:
-		VisualFit.align_actor_world_min_to_height_gx(vis, 0.0)
+		VisualFit.align_actor_world_min_to_height(vis, 0.0)
 
 
 func _setup_player() -> void:

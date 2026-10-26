@@ -35,7 +35,7 @@ static func add_redd(root: Node3D, interior: IndoorSession) -> void:
 	var redd: Node3D = (load("res://features/shops/redd/redd.tscn") as PackedScene).instantiate()
 	redd.name = "Redd"
 	## `aEBR2_search_player2` stands him at (60, 100) GX in the tent.
-	redd.position = MuseumDisplay.gx_to_world(interior.grid, Vector3(60.0, 0.0, 100.0))
+	redd.position = WorldGrid.room_point(interior.grid, Vector3(60.0, 0.0, 100.0) * FieldCatalog.GX_TO_METERS)
 	root.add_child(redd)
 
 
@@ -47,7 +47,7 @@ static func add_katrina(root: Node3D, interior: IndoorSession) -> void:
 		return
 	var katrina: Node3D = (load("res://features/events/katrina.tscn") as PackedScene).instantiate()
 	katrina.name = "Katrina"
-	katrina.position = MuseumDisplay.gx_to_world(interior.grid, Vector3(160.0, 0.0, 140.0))
+	katrina.position = WorldGrid.room_point(interior.grid, Vector3(160.0, 0.0, 140.0) * FieldCatalog.GX_TO_METERS)
 	root.add_child(katrina)
 
 
@@ -58,7 +58,7 @@ static func add_blathers(root: Node3D, interior: IndoorSession) -> void:
 	if root.get_node_or_null("Blathers") != null:
 		return
 	var blathers: Node3D = BLATHERS_SCENE.instantiate() as Node3D
-	blathers.position = MuseumDisplay.gx_to_world(interior.grid, MuseumDisplay.BLATHERS_STAND_GX)
+	blathers.position = WorldGrid.room_point(interior.grid, MuseumDisplay.BLATHERS_STAND)
 	blathers.rotation.y = WorldGrid.yaw_for_facing(MuseumDisplay.BLATHERS_FACING)
 	root.add_child(blathers)
 
@@ -73,13 +73,13 @@ static func add_museum_clock(root: Node3D, interior: IndoorSession) -> void:
 		return
 	var host := Node3D.new()
 	host.name = "MuseumClock"
-	host.position = MuseumDisplay.gx_to_world(interior.grid, MuseumDisplay.CLOCK_GX)
+	host.position = WorldGrid.room_point(interior.grid, MuseumDisplay.CLOCK)
 	host.set_script(load("res://features/museum/museum_clock.gd"))
 	root.add_child(host)
 	var pivot: Node3D = GeneratedVisual.attach(host, MuseumDisplay.CLOCK_VISUAL)
 	if pivot != null:
 		## Skeleton joint Y is mid-body; rest the mesh on the floor.
-		VisualFit.align_actor_to_height_gx(pivot, 0.0)
+		VisualFit.align_actor_to_height(pivot, 0.0)
 
 
 ## Painting-wing inner walls from `rom_museum3`'s BG: the two partition rows (gaps at

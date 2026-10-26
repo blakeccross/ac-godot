@@ -88,7 +88,7 @@ func _bootstrap_session() -> void:
 	_give_sample_donations()
 	Game.current_room_id = &"museum_entrance"
 	Game.arrival.has_stand = true
-	Game.arrival.stand_gx = MuseumDisplay.ENTRANCE_SPAWN_GX
+	Game.arrival.stand = MuseumDisplay.ENTRANCE_SPAWN
 	Game.arrival.stand_yaw = WorldGrid.yaw_for_furniture(MuseumDisplay.ENTRANCE_SPAWN_FACING)
 	Game.arrival.at_room_door = false
 	Game.block_auto_enter_doors = true
@@ -140,7 +140,7 @@ func _spawn_or_move_player(room_node: Node3D) -> void:
 	)
 	var yaw: float = Game.resident.player_yaw
 	if Game.arrival.has_stand and grid != null:
-		pos = MuseumDisplay.gx_to_world(grid, Game.arrival.stand_gx)
+		pos = WorldGrid.room_point(grid, Game.arrival.stand)
 		pos.y = 0.1
 		yaw = Game.arrival.stand_yaw
 		Game.arrival.has_stand = false

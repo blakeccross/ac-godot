@@ -14,6 +14,8 @@ Naming and layout follow the [Godot GDScript style guide](https://docs.godotengi
 
 Use typed GDScript on every signature and member. Indent with tabs.
 
+A class that something else steps over time (it is not a node with its own `_process`) does it in `advance(delta: float)`, `delta` in seconds; never `tick`.
+
 ## Data, presentation, behavior
 
 - **Data:** scripts that `extend Resource` live in `scripts/data/` and declare `class_name`. Instances are `.tres` files under `data/` (`items/`, `furniture/`, `villagers/`, `personalities/`, `creatures/`, `plants/`, `dialogue/`, `schedules/`, `acres/`). Indoor field templates are built by `InteriorCatalog` (same resource types: `House`, `Room`, `FurniturePlacement`).
@@ -44,7 +46,12 @@ Gameplay runs on `delta`, in seconds and metres, like any Godot game. The decomp
 - **Random events** use `Motion.happens(rate_per_second, delta, rng)`, not a roll every frame.
 - **Physics** goes in `_physics_process(delta)` and visuals or effects in `_process(delta)`. Nothing may assume a 60 Hz loop.
 - **Tuning is exported** with units: `@export_range(0.0, 5.0, 0.05, "suffix:s") var hide_delay := 1.0`.
-- **Units are metres.** GX stays only where baked data speaks it, and is converted once in the loader.
+- **Units are metres.** A decomp distance is converted where the constant is written (`const STAND := 24.0 * FieldCatalog.GX_TO_METERS`), so names carry no `_GX` suffix and nothing passes GX between classes.
+  - A decomp data table converts each row as it is written (`Vector3(220.0, 40.0, 220.0) * FieldCatalog.GX_TO_METERS`) or, for tables read from data files, in its accessor (`FishSize.touch_distance`, `TitleDemo.spawn_point`).
+  - Decomp field coordinates are `TownSpace` field positions: metres from the decomp field's north-west corner, turned into world positions by `TownSpace.field_to_world` (and back by `world_to_field`). Block maths (`block_of`, `block_base`) works on them.
+  - Rooms place decomp room coordinates with `WorldGrid.room_point(grid, local)`.
+  - A formula the decomp writes in GX a frame (the ball's kick sums, a balloon's sway) may keep those units inside one function and convert at its edges; say so in a comment.
+  - The insect simulation and the train / station intro stages still compute in GX inside; their interfaces take and return metres.
 
 ### Converting a decomp number
 

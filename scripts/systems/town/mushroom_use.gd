@@ -74,7 +74,7 @@ static func first_clear(world: Node, now_minute: int, rng: RandomNumberGenerator
 
 
 ## `mMsr_SetMushroom`, called while the player is out on the field.
-static func tick(world: Node, now_minute: int, hour: int, minute: int, player_block: Vector2i, rng: RandomNumberGenerator) -> void:
+static func advance(world: Node, now_minute: int, hour: int, minute: int, player_block: Vector2i, rng: RandomNumberGenerator) -> void:
 	if not in_season():
 		return
 	## Never set: as if last done yesterday.

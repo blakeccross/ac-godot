@@ -42,7 +42,7 @@ func present_sunshine(root: Node3D, interior: IndoorSession) -> void:
 		return
 	var insect: bool = interior.room.id == &"museum_insect"
 	var actors: Array[Vector3] = (
-		MuseumDisplay.INSECT_SUNSHINE_GX if insect else MuseumDisplay.ENTRANCE_SUNSHINE_GX
+		MuseumDisplay.INSECT_SUNSHINE if insect else MuseumDisplay.ENTRANCE_SUNSHINE
 	)
 	for i: int in actors.size():
 		var left: bool = i % 2 == 0
@@ -60,8 +60,8 @@ func present_sunshine(root: Node3D, interior: IndoorSession) -> void:
 				node.set("visual", MuseumDisplay.ENTRANCE_SUNSHINE_VISUAL)
 				node.set("stained_glass", true)
 			root.add_child(node)
-		node.position = MuseumDisplay.gx_to_world(
-			interior.grid, MuseumDisplay.sunshine_anchor_gx(actors[i], left, insect)
+		node.position = WorldGrid.room_point(
+			interior.grid, MuseumDisplay.sunshine_anchor(actors[i], left, insect)
 		)
 
 
@@ -144,13 +144,13 @@ func present_paintings(root: Node3D, interior: IndoorSession) -> void:
 		var donated: bool = MuseumBook.is_donated(book.art_info(i))
 		var cell: Vector2i = MuseumDisplay.ART_CELLS[i]
 		## `aMP_DrawOneArt`: unit-center XZ, hang at Y=40 GX (not floor).
-		var gx := Vector3(
-			float(cell.x) * 40.0 + 20.0, MuseumDisplay.ART_HANG_Y_GX, float(cell.y) * 40.0 + 20.0
+		var at := Vector3(
+			(float(cell.x) + 0.5) * MuseumDisplay.UNIT, MuseumDisplay.ART_HANG_Y, (float(cell.y) + 0.5) * MuseumDisplay.UNIT
 		)
 		var node := Node3D.new()
 		node.name = "Art_%02d" % i
 		node.add_to_group("museum_set")
-		node.position = MuseumDisplay.gx_to_world(interior.grid, gx)
+		node.position = WorldGrid.room_point(interior.grid, at)
 		root.add_child(node)
 		var visual: StringName = (
 			MuseumDisplay.ART_MUSEUM_VISUALS[i] if donated else MuseumDisplay.ART_MUSEUM_DUMMIES[i]
@@ -161,8 +161,8 @@ func present_paintings(root: Node3D, interior: IndoorSession) -> void:
 			)
 		## Talk only when facing south within 33 GX (`aMP_CheckTalkAbleDist`).
 		var plaque: Node3D = PLAQUE_SCENE.instantiate() as Node3D
-		plaque.position = MuseumDisplay.gx_to_world(
-			interior.grid, Vector3(gx.x, 0.0, gx.z + 40.0)
+		plaque.position = WorldGrid.room_point(
+			interior.grid, Vector3(at.x, 0.0, at.z + MuseumDisplay.UNIT)
 		)
 		var lines := PackedStringArray()
 		if donated:
@@ -203,7 +203,7 @@ func present_fish(root: Node3D, interior: IndoorSession) -> void:
 			if fish != null:
 				lines.append(fish.display_name)
 		var plaque: Node3D = PLAQUE_SCENE.instantiate() as Node3D
-		plaque.position = MuseumDisplay.gx_to_world(interior.grid, MuseumDisplay.FISH_PLAQUE_POS[gi])
+		plaque.position = WorldGrid.room_point(interior.grid, MuseumDisplay.FISH_PLAQUE_POS[gi])
 		if plaque.has_method("setup"):
 			plaque.call("setup", "Tank %s" % char(65 + gi), lines)
 		root.add_child(plaque)
@@ -219,13 +219,13 @@ func _spawn_fish_tanks(root: Node3D, interior: IndoorSession) -> void:
 		var node := Node3D.new()
 		node.name = "Tank_%d" % i
 		node.add_to_group("museum_set")
-		var gx: Vector3 = MuseumDisplay.TANK_POS_GX[i]
-		node.position = MuseumDisplay.gx_to_world(grid, Vector3(gx.x, 0.0, gx.z))
+		var tank: Vector3 = MuseumDisplay.TANK_POS[i]
+		node.position = WorldGrid.room_point(grid, Vector3(tank.x, 0.0, tank.z))
 		root.add_child(node)
 		var pivot: Node3D = GeneratedVisual.attach(node, &"obj_suisou1")
 		if pivot != null:
-			VisualFit.align_actor_to_height_gx(pivot, 0.0)
-		_add_tank_collision(node, MuseumDisplay.TANK_HALF_GX)
+			VisualFit.align_actor_to_height(pivot, 0.0)
+		_add_tank_collision(node, MuseumDisplay.TANK_HALF)
 	var sea := Node3D.new()
 	sea.name = "Tank_4"
 	sea.add_to_group("museum_set")
@@ -234,8 +234,8 @@ func _spawn_fish_tanks(root: Node3D, interior: IndoorSession) -> void:
 	sea.position = Vector3(grid.origin.x, 0.0, grid.origin.z)
 	root.add_child(sea)
 	GeneratedVisual.attach(sea, &"obj_museum5")
-	var sea_center: Vector3 = MuseumDisplay.gx_to_world(grid, MuseumDisplay.TANK_POS_GX[4])
-	_add_tank_collision(sea, MuseumDisplay.SEA_TANK_HALF_GX, sea_center - sea.position)
+	var sea_center: Vector3 = WorldGrid.room_point(grid, MuseumDisplay.TANK_POS[4])
+	_add_tank_collision(sea, MuseumDisplay.SEA_TANK_HALF, sea_center - sea.position)
 	_add_tank_decor(root, grid)
 
 
@@ -255,9 +255,9 @@ func _add_tank_decor(root: Node3D, grid: WorldGrid) -> void:
 		GeneratedVisual.attach(host, visual)
 	if not FieldCatalog.mesh_paths(&"ef_museum5_awa1").is_empty():
 		var centers: Array[Vector3] = []
-		for i: int in MuseumDisplay.TANK_POS_GX.size():
-			var gx: Vector3 = MuseumDisplay.TANK_POS_GX[i]
-			centers.append(MuseumDisplay.gx_to_world(grid, Vector3(gx.x, 0.0, gx.z)))
+		for i: int in MuseumDisplay.TANK_POS.size():
+			var tank: Vector3 = MuseumDisplay.TANK_POS[i]
+			centers.append(WorldGrid.room_point(grid, Vector3(tank.x, 0.0, tank.z)))
 		var bubbles := Node3D.new()
 		bubbles.name = "TankBubbles"
 		bubbles.add_to_group("museum_set")
@@ -266,7 +266,7 @@ func _add_tank_decor(root: Node3D, grid: WorldGrid) -> void:
 		root.add_child(bubbles)
 
 
-func _add_tank_collision(host: Node3D, half_gx: Vector3, local_center: Vector3 = Vector3.ZERO) -> void:
+func _add_tank_collision(host: Node3D, half: Vector3, local_center: Vector3 = Vector3.ZERO) -> void:
 	## Opaque glass boxes so the player cannot walk through tanks.
 	var body := StaticBody3D.new()
 	body.name = "TankCollision"
@@ -276,9 +276,9 @@ func _add_tank_collision(host: Node3D, half_gx: Vector3, local_center: Vector3 =
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(
-		maxf(half_gx.x * 2.0 * FieldCatalog.GX_TO_METERS, 1.0),
+		maxf(half.x * 2.0, 1.0),
 		2.4,
-		maxf(half_gx.z * 2.0 * FieldCatalog.GX_TO_METERS, 1.0)
+		maxf(half.z * 2.0, 1.0)
 	)
 	shape.shape = box
 	body.add_child(shape)
@@ -338,7 +338,7 @@ func present_insects(root: Node3D, interior: IndoorSession) -> void:
 			if bug != null:
 				lines.append(bug.display_name)
 		var plaque: Node3D = PLAQUE_SCENE.instantiate() as Node3D
-		plaque.position = MuseumDisplay.gx_to_world(interior.grid, MuseumDisplay.INSECT_PLAQUE_POS[gi])
+		plaque.position = WorldGrid.room_point(interior.grid, MuseumDisplay.INSECT_PLAQUE_POS[gi])
 		if plaque.has_method("setup"):
 			plaque.call("setup", "Case %d" % (gi + 1), lines)
 		root.add_child(plaque)

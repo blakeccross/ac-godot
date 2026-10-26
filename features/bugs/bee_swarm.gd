@@ -32,7 +32,7 @@ const ATTACK_END_TICKS := 162.0
 const CATCH_DELAY_FRAMES := 60
 ## `Set_Item_net_catch_request_force_proc` / `_table_proc` reaches.
 const FORCE_CATCH := 2.0  ## 40 GX
-const NET_RANGE_GX := 24.0
+const NET_RANGE := 24.0 * FieldCatalog.GX_TO_METERS
 const BEE_ID := &"bee"
 const MODEL := "res://assets/generated/environment/act_bee.glb"
 

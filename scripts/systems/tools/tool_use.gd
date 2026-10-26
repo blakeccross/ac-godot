@@ -20,11 +20,11 @@ const NOT_DIG_FRAME := 13.0
 enum Scoop { DIG, AIR, HIT_STONE, HIT_WOOD, HIT_BUSH }
 ## `mPlayer_ANIM_AXE_HANE1`: the axe bounces off a rock or a bank, contact on frame 15.
 const ANIM_AXE_HANE := &"ply_1_axe_hane1"
-## `SetAngleSpeedF_Reflect_*`: the knock-back speed (GX per frame).
-const REFLECT_STEP_BACK := 4.8
+## `SetAngleSpeedF_Reflect_*`: the knock-back speed (4.8 GX per frame), m/s.
+const REFLECT_STEP_BACK := 4.8 * PlayerLocomotion.GX_SPEED
 const AXE_HIT_FRAME := 15.0
 ## `Player_actor_Check_axe_after`: a unit 31 GX or more above the feet is a bank.
-const AXE_BANK_GX := 31.0
+const AXE_BANK := 31.0 * FieldCatalog.GX_TO_METERS
 ## `mCoBG_ATTRIBUTE_BUSH` / `_WOOD` (`mCoBG_WoodSoundEffect` also takes the wood bridge).
 const ATTR_BUSH := 9
 const ATTR_WOOD := 23
@@ -318,7 +318,7 @@ static func ball_ahead(ctx: InteractionContext) -> FieldBall:
 	return ball
 
 
-## A bank in front: the unit ahead stands `AXE_BANK_GX` above the player's feet.
+## A bank in front: the unit ahead stands `AXE_BANK` above the player's feet.
 static func axe_hits_bank(ctx: InteractionContext) -> bool:
 	var grid: WorldGrid = _grid(ctx)
 	if grid == null or ctx == null or ctx.actor == null or not ("layout" in ctx.world):
@@ -328,7 +328,7 @@ static func axe_hits_bank(ctx: InteractionContext) -> bool:
 	if layout == null or not grid.is_in_bounds(cell):
 		return false
 	var y: float = FieldCollision.ground_y(layout, cell)
-	return y - (ctx.actor as Node3D).global_position.y >= AXE_BANK_GX * FieldCatalog.GX_TO_METERS
+	return y - (ctx.actor as Node3D).global_position.y >= AXE_BANK
 
 
 ## `Player_actor_ChangeItemNo_axe_common`: the hit wears the axe in hand (`AxeWear`); when it

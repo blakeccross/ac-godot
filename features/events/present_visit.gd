@@ -42,7 +42,7 @@ const FIRST_ROD := 1 << 0
 const FIRST_NET := 1 << 1
 const MAIL_BIRTHDAY := 0xEA
 ## `aPST_schedule_init_proc`: (2180, 1540) against the door at (2128, 1488), facing back.
-const STAND_GX := 73.5
+const STAND := 73.5 * FieldCatalog.GX_TO_METERS
 ## `category_table`: furniture, furniture, clothing, clothing, umbrella.
 const CARD_KINDS: Array[int] = [0, 0, 1, 1, 2]
 

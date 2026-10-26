@@ -60,8 +60,8 @@ const ANIM_GURATUKU := "npc_1_guratuku1"
 const ANIM_OTIRU := "npc_1_otiru1"
 const ANIM_MOGAKU := "npc_1_mogaku1"
 const ANIM_DERU := "npc_1_deru1"
-## `aNPC_act_pitfall_totter`: `chase_f(…, 1.5)` per frame toward the unit centre.
-const PIT_TOTTER_GX_PER_FRAME := 1.5
+## `aNPC_act_pitfall_totter`: `chase_f(…, 1.5)` GX per frame toward the unit centre, in m/s.
+const PIT_TOTTER_SPEED := 1.5 * FieldCatalog.GX_TO_METERS * DecompTime.FRAME_HZ
 
 @export var data: VillagerData
 ## Indoor `ac_npc2` stand-in: always visible while the player is in this house.
@@ -278,7 +278,7 @@ func _cloth_overrides(node: Node, acc: Array = []) -> Array:
 
 func current_activity() -> StringName:
 	_ensure_bound()
-	var now: StringName = schedule.tick(Clock.now_sec())
+	var now: StringName = schedule.advance(Clock.now_sec())
 	if now == VillagerActivity.FIELD and _awaits_player_acre():
 		return _held_activity()
 	return now
@@ -405,7 +405,7 @@ func _physics_process(delta: float) -> void:
 		_pal_ignore = maxf(_pal_ignore - delta, 0.0)
 	greeter.pair_greetings()
 	if _umbrella != null:
-		_umbrella.tick(delta)
+		_umbrella.advance(delta)
 	if _umb_carry != null:
 		_umb_carry.advance(delta)
 	if _act != Act.NONE:
@@ -430,7 +430,7 @@ func _physics_process(delta: float) -> void:
 		mover.tick_acre_travel(delta)
 	mover.steer_ai()
 	var aim: Vector3 = _motor.steer if _motor.has_target else global_position
-	var planar: Vector3 = _motor.tick(delta, global_position, aim, ai.wants_move())
+	var planar: Vector3 = _motor.advance(delta, global_position, aim, ai.wants_move())
 	ai.consider_arrive(global_position)
 	velocity.x = planar.x
 	velocity.z = planar.z
@@ -511,7 +511,7 @@ func _tick_head_look(delta: float) -> void:
 		skip_look = true
 	## Talk requests the head at priority 4 (`aNPC_look_target`): tracked past the
 	## range/cone gates and the skip flag. `head.lock_flag` is never set by talking.
-	_head_look.tick(
+	_head_look.advance(
 		delta,
 		player as Node3D if player is Node3D else null,
 		_motor.facing,
@@ -915,15 +915,14 @@ func _tick_fortune() -> bool:
 		return false
 	var delta: float = get_physics_process_delta_time()
 	_fortune_cool = maxf(_fortune_cool - delta, 0.0)
-	var gx: float = FieldCatalog.GX_TO_METERS
 	var to: Vector3 = player.global_position - global_position
-	var dist_gx: float = Vector2(to.x, to.z).length() / gx
+	var distance: float = Vector2(to.x, to.z).length()
 	var bg: Array = _bg()
 	var same_block: bool = bg.size() == 2 and VillagerWalk.block_from_cell(
 		(bg[1] as WorldGrid).world_to_cell(player.global_position)
 	) == _current_block()
 	var looks: int = int(data.personality.looks) if data.personality != null else 0
-	var step: int = VillagerFortune.step(destiny, looks, Game.resident.player_gender, same_block, dist_gx)
+	var step: int = VillagerFortune.step(destiny, looks, Game.resident.player_gender, same_block, distance)
 	match step:
 		VillagerFortune.Step.NONE:
 			return false
@@ -932,13 +931,13 @@ func _tick_fortune() -> bool:
 			_motor.set_target(VillagerFortune.away_from(global_position, player.global_position), gait, 0.2, global_position, _motor.facing)
 		VillagerFortune.Step.SEEK_RUN, VillagerFortune.Step.SEEK_WALK:
 			var gait2: StringName = VillagerWalk.ACT_RUN if step == VillagerFortune.Step.SEEK_RUN else VillagerWalk.ACT_WALK
-			_motor.set_target(player.global_position, gait2, VillagerFortune.SEEK_WALK_GX * gx, global_position, _motor.facing)
+			_motor.set_target(player.global_position, gait2, VillagerFortune.SEEK_WALK, global_position, _motor.facing)
 		VillagerFortune.Step.SEEK_WAIT:
 			if _motor.has_target:
 				_motor.arrive()
 			_motor.turn_toward(delta, global_position, player.global_position)
 	if step >= VillagerFortune.Step.SEEK_RUN and _fortune_cool <= 0.0 \
-			and VillagerFortune.can_call(dist_gx, to.y / gx):
+			and VillagerFortune.can_call(distance, to.y):
 		_fortune_call(player, looks)
 	return true
 
@@ -1032,7 +1031,7 @@ func _tick_pit(delta: float) -> void:
 	velocity = Vector3.ZERO
 	match _pit:
 		Pit.TOTTER:
-			var step: float = PIT_TOTTER_GX_PER_FRAME * FieldCatalog.GX_TO_METERS * delta * DecompTime.FRAME_HZ
+			var step: float = PIT_TOTTER_SPEED * delta
 			var to := Vector3(_pit_center.x - global_position.x, 0.0, _pit_center.z - global_position.z)
 			if to.length() > step:
 				global_position += to.normalized() * step
@@ -1268,7 +1267,7 @@ func _tick_ball_chase(ball: FieldBall) -> bool:
 		_motor.arrive()
 		return false
 	var to := Vector2(ball.global_position.x - global_position.x, ball.global_position.z - global_position.z)
-	if to.length() >= FieldBall.CHASE_GX * FieldBall.gx() * 1.5:
+	if to.length() >= FieldBall.CHASE * 1.5:
 		_chase = null
 		_motor.arrive()
 		return false

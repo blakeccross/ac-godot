@@ -119,10 +119,10 @@ func test_roll_spawn_entry_respects_hundred_point_gate() -> void:
 func _wade_into(field: BugField, grid: WorldGrid, sense: BugActor.Sense, cell: Vector2i) -> void:
 	sense.wade_end = grid.cell_to_world(cell)
 	for _i: int in roundi(BugField.SET_WAIT * 60.0) + 1:
-		field.tick(STEP, sense)
+		field.advance(STEP, sense)
 	sense.wade_end = Vector3.INF
 	sense.player_position = grid.cell_to_world(cell)
-	field.tick(STEP, sense)
+	field.advance(STEP, sense)
 
 
 func test_no_spawn_without_an_acre_crossing() -> void:
@@ -137,7 +137,7 @@ func test_no_spawn_without_an_acre_crossing() -> void:
 	var sense := BugActor.Sense.new()
 	sense.player_position = grid.cell_to_world(Vector2i(8, 8))
 	for _i: int in 60:
-		field.tick(STEP, sense)
+		field.advance(STEP, sense)
 	assert_int(field.actor_count()).is_equal(0)
 	assert_that(field._spawned_acre).is_equal(Vector2i(-999, -999))
 
@@ -150,9 +150,9 @@ func test_set_waits_for_the_set_manager_timer() -> void:
 	sense.player_position = (world[1] as WorldGrid).cell_to_world(Vector2i(8, 8))
 	sense.wade_end = (world[1] as WorldGrid).cell_to_world(Vector2i(9, 8))
 	for _i: int in roundi(BugField.SET_WAIT * 60.0) - 1:
-		field.tick(STEP, sense)
+		field.advance(STEP, sense)
 	assert_that(field._spawned_acre).is_equal(Vector2i(-999, -999))
-	field.tick(STEP, sense)
+	field.advance(STEP, sense)
 	assert_that(field._spawned_acre).is_not_equal(Vector2i(-999, -999))
 
 
@@ -171,8 +171,8 @@ func test_auto_spawn_is_once_per_acre_and_skips_occupied() -> void:
 	_wade_into(field, grid, sense, Vector2i(8, 8))
 	var after_first: int = field.actor_count()
 	assert_int(after_first).is_less_equal(BugField.MAX_FIELD_SPAWNS)
-	field.tick(STEP, sense)
-	field.tick(STEP, sense)
+	field.advance(STEP, sense)
+	field.advance(STEP, sense)
 	assert_int(field.actor_count()).is_equal(after_first)
 	for actor: BugActor in field.actors:
 		assert_that(BugHabitats.acre_of_world_pos(grid, actor.position)).is_equal(
@@ -232,7 +232,7 @@ func test_the_net_finds_bugs_by_their_catch_spheres() -> void:
 	assert_object(bug).is_not_null()
 	assert_int(get_tree().get_nodes_in_group(Bug.GROUP).size()).is_equal(1)
 	## `aINS_get_catch_range`: butterflies register 24 GX.
-	assert_float(bug.catch_range_gx).is_equal(24.0)
+	assert_float(bug.catch_range).is_equal_approx(24.0 * FieldCatalog.GX_TO_METERS, 0.0001)
 	var gx: float = FieldCatalog.GX_TO_METERS
 	## 15 + 24 = 39 GX from the butterfly is just in reach, 40 just out.
 	var rows: Array[NetSwing.Candidate] = Netting.bugs_in_reach(ctx, butterfly.position + Vector3(38.5 * gx, 0.0, 0.0))
@@ -327,10 +327,10 @@ func test_stop_net_is_seen_for_one_insect_frame() -> void:
 	var field: BugField = ctx.world.get("bugs") as BugField
 	field.notify_stop_net(Vector3(1.0, 0.0, 1.0))
 	var sense := BugActor.Sense.new()
-	field.tick(STEP, sense)
+	field.advance(STEP, sense)
 	assert_bool(sense.net_swing_active).is_true()
 	assert_vector(sense.net_swing_origin).is_equal(Vector3(1.0, 0.0, 1.0))
-	field.tick(STEP, sense)
+	field.advance(STEP, sense)
 	assert_bool(sense.net_swing_active).is_false()
 
 
@@ -683,16 +683,16 @@ func test_cull_needs_off_screen_distance_and_another_block() -> void:
 	var bug: BugData = BugCatalog.get_by_type(0)
 	var sense := BugActor.Sense.new()
 	sense.player_position = grid.cell_to_world(Vector2i(40, 8))
-	field.tick(STEP, sense)   ## player block = acre 3
+	field.advance(STEP, sense)   ## player block = acre 3
 	var far_other: BugActor = field.spawn(bug, BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(2, 8)))
 	far_other.block = Vector2i(1, 1)
 	var far_same: BugActor = field.spawn(bug, BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(3, 8)))
 	far_same.block = Vector2i(3, 1)
 	sense.on_screen = func(_p: Vector3) -> bool: return true
-	field.tick(STEP * 2.0, sense)
+	field.advance(STEP * 2.0, sense)
 	assert_bool(far_other.finished).is_false()
 	sense.on_screen = Callable()
-	field.tick(STEP * 2.0, sense)
+	field.advance(STEP * 2.0, sense)
 	assert_bool(far_other.finished).is_true()
 	assert_bool(far_same.finished).is_false()
 
@@ -707,10 +707,10 @@ func test_released_insect_is_culled_once_off_screen() -> void:
 	var freed: BugActor = field.spawn(
 		BugCatalog.get_by_type(0), BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(8, 8)), true
 	)
-	field.tick(STEP * 2.0, sense)
+	field.advance(STEP * 2.0, sense)
 	assert_bool(freed.finished).is_false()
 	sense.on_screen = func(_p: Vector3) -> bool: return false
-	field.tick(STEP * 2.0, sense)
+	field.advance(STEP * 2.0, sense)
 	assert_bool(freed.finished).is_true()
 
 
@@ -737,13 +737,13 @@ func test_a_walking_villager_stresses_an_insect_like_the_player() -> void:
 	var idx: int = int(radius - BugActor.UNIT_GX - 10.0) / 20
 	var sense := BugActor.Sense.new()
 	sense.npc_positions.append(at + Vector3(50.0 * FieldCatalog.GX_TO_METERS, 0.0, 0.0))
-	sense.npc_moves_gx.append(4.0)
+	sense.npc_speeds.append(4.0 * PlayerLocomotion.GX_SPEED)
 	assert_float(actor._calc_stress(sense)).is_equal_approx(2.0 * BugActor.STRESS_CALC_TABLE[idx], 0.0001)
 	actor._calc_patience(sense)
 	assert_float(actor.patience).is_equal_approx(2.0 * BugActor.STRESS_CALC_TABLE[idx] * 0.5, 0.0001)
 	## A standing villager, or one past the stress radius, does nothing.
-	sense.npc_moves_gx[0] = 0.0
+	sense.npc_speeds[0] = 0.0
 	assert_float(actor._calc_stress(sense)).is_equal(0.0)
-	sense.npc_moves_gx[0] = 4.0
+	sense.npc_speeds[0] = 4.0 * PlayerLocomotion.GX_SPEED
 	sense.npc_positions[0] = at + Vector3((radius + 10.0) * FieldCatalog.GX_TO_METERS, 0.0, 0.0)
 	assert_float(actor._calc_stress(sense)).is_equal(0.0)

@@ -35,7 +35,7 @@ label = "Museum"
 auto_enter = true
 linked_room_id = &"museum_entrance"
 has_linked_spawn = true
-linked_spawn_gx = Vector3(120, 0, 280)
+linked_spawn = Vector3(6, 0, 14)
 linked_spawn_yaw = 1.5707964
 
 [node name="PlayerSpawn" type="Marker3D" parent="."]

@@ -1,30 +1,28 @@
 class_name TownSpace
 extends RefCounted
 
-## Decomp field coordinates (GX) for the generated town. The decomp field is 7 blocks wide
-## with a one-block border ring; our `WorldData` covers the 5×6 FG blocks, centred on the
-## origin. Block (bx, bz) spans GX `[bx·640, bx·640 + 640)`.
+## The decomp's field frame for the generated town, in metres: a "field position" is measured
+## from the north-west corner of the decomp field, which is 7 blocks wide with a one-block
+## border ring. Our `WorldData` covers the 5×6 FG blocks, centred on the origin. Block (bx, bz)
+## spans `[bx·BLOCK, bx·BLOCK + BLOCK)`. Decomp field coordinates (GX) convert with
+## `FieldCatalog.GX_TO_METERS` where they are written, then come through `field_to_world`.
 
-const BLOCK_GX := 640.0
-const BORDER_GX := 640.0
-
-
-static func gx_to_world(gx: Vector3) -> Vector3:
-	return _origin() + Vector3(
-		(gx.x - BORDER_GX) * FieldCatalog.GX_TO_METERS,
-		gx.y * FieldCatalog.GX_TO_METERS,
-		(gx.z - BORDER_GX) * FieldCatalog.GX_TO_METERS
-	)
+## 640 GX.
+const BLOCK := 32.0
+const BORDER := 32.0
 
 
-static func world_to_gx(world: Vector3) -> Vector3:
-	var local: Vector3 = (world - _origin()) / FieldCatalog.GX_TO_METERS
-	return Vector3(local.x + BORDER_GX, local.y, local.z + BORDER_GX)
+static func field_to_world(field: Vector3) -> Vector3:
+	return _origin() + field - Vector3(BORDER, 0.0, BORDER)
+
+
+static func world_to_field(world: Vector3) -> Vector3:
+	return world - _origin() + Vector3(BORDER, 0.0, BORDER)
 
 
 ## `mFI_Wpos2BlockNum`.
-static func block_of(gx: Vector3) -> Vector2i:
-	return Vector2i(floori(gx.x / BLOCK_GX), floori(gx.z / BLOCK_GX))
+static func block_of(field: Vector3) -> Vector2i:
+	return Vector2i(floori(field.x / BLOCK), floori(field.z / BLOCK))
 
 
 ## The decomp block a `WorldGrid` cell is in: our grid starts at FG block (1, 1).
@@ -34,7 +32,7 @@ static func block_of_cell(cell: Vector2i) -> Vector2i:
 
 ## `mFI_BkNum2WposXZ`: the block's north-west corner.
 static func block_base(block: Vector2i) -> Vector2:
-	return Vector2(block.x * BLOCK_GX, block.y * BLOCK_GX)
+	return Vector2(block.x * BLOCK, block.y * BLOCK)
 
 
 ## The player is outdoors in a generated town (the only place with decomp field blocks).

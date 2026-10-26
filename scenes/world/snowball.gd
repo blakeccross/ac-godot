@@ -24,7 +24,7 @@ const PUSH_CONE := deg_to_rad(55.0)
 const WALL_PUSH_TIME := 2.0
 ## Hitting a wall faster than 5 GX a frame breaks it.
 const BREAK_WALL_SPEED := 5.0 * FRAME
-const BREAK_DROP_GX := 55.0
+const BREAK_DROP := 55.0 * SnowmanRules.GX
 ## The head's jump onto the body (60 ticks).
 const COMBINE_TIME := 1.0
 ## Pushing only starts while it rolls under 3 GX a frame.
@@ -100,7 +100,7 @@ func normalized() -> float:
 
 
 func radius() -> float:
-	return SnowmanRules.radius_m(normalized())
+	return SnowmanRules.radius(normalized())
 
 
 func speed() -> float:
@@ -232,7 +232,7 @@ func _move_by(step: Vector2) -> void:
 	global_position = Vector3(to.x, global_position.y, to.z)
 	var before_y: float = from.y
 	_snap_ground()
-	if before_y - global_position.y >= BREAK_DROP_GX * SnowmanRules.GX:
+	if before_y - global_position.y >= BREAK_DROP:
 		Audio.play_se(SE_FALL, self)
 		smash()
 		return
@@ -352,7 +352,7 @@ func push(delta: float, wish: Vector3, stick: float, dash: bool, player: Node3D)
 	_touch_balls()
 	if not _combine.is_empty() or broken:
 		return {}
-	var back: float = (SnowmanRules.radius_gx(n) + 10.0) * SnowmanRules.GX
+	var back: float = SnowmanRules.radius(n) + 10.0 * SnowmanRules.GX
 	var aim := Vector3(global_position.x - sin(player_angle) * back, player.global_position.y, global_position.z - cos(player_angle) * back)
 	return {"aim": aim, "yaw": player_angle, "speed": _push_speed}
 

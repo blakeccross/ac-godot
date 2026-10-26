@@ -16,8 +16,8 @@ func test_teams_face_each_other_from_their_units() -> void:
 	assert_int(TugOfWar.dir_of(2)).is_equal(1)
 	assert_int(TugOfWar.dir_of(3)).is_equal(-1)
 	assert_int(TugOfWar.dir_of(4)).is_equal(-1)
-	assert_object(TugOfWar.puller_offset(1)).is_equal(Vector2(85.0, 5.0))
-	assert_object(TugOfWar.puller_offset(3)).is_equal(Vector2(-95.0, -5.0))
+	assert_vector(TugOfWar.puller_offset(1)).is_equal_approx(Vector2(85.0, 5.0) * TugOfWar.GX, Vector2.ONE * 0.0001)
+	assert_vector(TugOfWar.puller_offset(3)).is_equal_approx(Vector2(-95.0, -5.0) * TugOfWar.GX, Vector2.ONE * 0.0001)
 
 
 func test_the_rope_moves_only_while_they_heave_and_stays_within_ten() -> void:
@@ -32,7 +32,7 @@ func test_the_rope_moves_only_while_they_heave_and_stays_within_ten() -> void:
 	assert_float(_tug.rope_base).is_equal_approx(20.0 * TugOfWar.PULL_RATE * 0.01, 0.0001)
 	for i: int in 2000:
 		_tug.advance(1.0 / 30.0, rng)
-		assert_float(absf(_tug.rope_base)).is_less_equal(TugOfWar.LIMIT_GX)
+		assert_float(absf(_tug.rope_base)).is_less_equal(TugOfWar.LIMIT)
 
 
 func test_one_long_step_heaves_eases_and_rolls_the_next_pull() -> void:
@@ -47,13 +47,13 @@ func test_one_long_step_heaves_eases_and_rolls_the_next_pull() -> void:
 
 
 func test_a_side_being_dragged_hangs_on_and_a_winning_side_throws_its_weight() -> void:
-	_tug.rope_base = -8.0
+	_tug.rope_base = -8.0 * TugOfWar.GX
 	_tug.next_speed = 5.0
 	assert_str(_tug.clip_for(1)).is_equal(TugOfWar.CLIP_YURI)
 	assert_str(_tug.clip_for(-1)).is_equal(TugOfWar.CLIP_AIKO)
 	_tug.next_speed = -5.0
 	assert_str(_tug.clip_for(-1)).is_equal(TugOfWar.CLIP_FURI)
-	_tug.rope_base = 2.0
+	_tug.rope_base = 2.0 * TugOfWar.GX
 	assert_str(_tug.clip_for(1)).is_equal(TugOfWar.CLIP_AIKO)
 
 
@@ -67,10 +67,11 @@ func test_ball_toss_teams_and_spots_round_their_basket() -> void:
 	for i: int in 50:
 		var spot: Vector2 = BallToss.next_spot(Vector2(100.0, 100.0), Vector2(180.0, 100.0), rng)
 		var d: float = spot.distance_to(Vector2(100.0, 100.0))
-		assert_float(d).is_between(70.0, 90.0)
+		assert_float(d).is_between(70.0 * FieldCatalog.GX_TO_METERS, 90.0 * FieldCatalog.GX_TO_METERS)
 	var rise: float = BallToss.launch_rise(rng)
 	assert_float(rise).is_between(deg_to_rad(67.5), deg_to_rad(84.0))
-	assert_float(BallToss.launch_speed(rng)).is_between(4.9, 6.4)
+	## 4.9–6.4 GX a frame.
+	assert_float(BallToss.launch_speed(rng)).is_between(4.9 * TossBall.FRAME, 6.4 * TossBall.FRAME)
 
 
 func test_the_foot_race_warms_up_lines_up_races_and_swaps_pairs() -> void:
@@ -118,7 +119,8 @@ func test_legs_go_round_the_shrine_and_four_laps_finish() -> void:
 	while not race.done_laps(1) and legs < 200:
 		var leg: Array = race.next_leg(1, angle, rng)
 		var r: float = (leg[0] as Vector2).length()
-		assert_float(r).is_between(125.0, 145.0)
+		## 125–145 GX out on the inside lane.
+		assert_float(r).is_between(125.0 * FootRace.GX, 145.0 * FootRace.GX)
 		assert_float(float(leg[1]) - angle).is_between(FootRace.LEG_ANGLE, FootRace.LEG_ANGLE * 2.0)
 		angle = float(leg[1])
 		legs += 1

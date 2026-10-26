@@ -10,8 +10,12 @@ extends StaticBody3D
 ## it facing north within 50 GX plays `MSG_DOZOU` in a red window with the owner's name.
 ## Glints twinkle over it now and then (`aDOU_setEffect`, `StatueSparkle`).
 
-const OFFSET_X_GX: Array[float] = [0.0, 200.0, -40.0, 160.0]
-const OFFSET_Z_GX: Array[float] = [200.0, 200.0, 280.0, 280.0]
+const OFFSET: Array[Vector3] = [
+	Vector3(0.0, 0.0, 200.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(200.0, 0.0, 200.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(-40.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS,
+	Vector3(160.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS,
+]
 const RANK_SCALE: Array[float] = [1.0, 0.85, 0.7, 0.55]
 const PRIM: Array[Color] = [
 	Color(1.0, 1.0, 0.0), Color(200.0 / 255.0, 200.0 / 255.0, 1.0),
@@ -115,7 +119,7 @@ func refresh() -> void:
 		remove_from_group("interactable")
 	if not shown:
 		return
-	position = _anchor + Vector3(OFFSET_X_GX[house_no], 0.0, OFFSET_Z_GX[house_no]) * FieldCatalog.GX_TO_METERS
+	position = _anchor + OFFSET[house_no]
 	var winter: bool = Clock.season() == ClockService.Season.WINTER
 	visual_id = &"obj_w_douzou" if winter else &"obj_s_douzou"
 	_model = GeneratedVisual.instantiate_raw(visual_id)

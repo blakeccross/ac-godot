@@ -19,7 +19,7 @@ const CRANNY_SPAWN_CELL := Vector2i(3, 7)
 const NOOK_STAND_UT: Array[Vector2i] = [
 	Vector2i(3, 5), Vector2i(7, 5), Vector2i(8, 9), Vector2i(7, 11)
 ]
-const NOOK_STAND_GX := Vector3(140.0, 0.0, 220.0)
+const NOOK_STAND := Vector3(140.0, 0.0, 220.0) * FieldCatalog.GX_TO_METERS
 ## `shop04_2` mvactor: Timmy and Tommy (`SP_NPC_MAMEDANUKI0/1`) upstairs at Nookington's.
 const TWINS_UT: Array[Vector2i] = [Vector2i(7, 4), Vector2i(8, 4)]
 const NOOK_FACING := WorldGrid.Facing.SOUTH
@@ -30,11 +30,11 @@ const NOOK_SPECIES_IDS: Array[StringName] = [&"rcn", &"rcc", &"rcs", &"rcd"]
 const NOOK_SPECIES := &"rcn"
 
 ## Player outdoor enter (`aSHOP_shop_door_data`): GX {160,0,300}, `mSc_DIRECT_NORTH`.
-const CRANNY_SPAWN_GX := Vector3(160.0, 0.0, 300.0)
+const CRANNY_SPAWN := Vector3(160.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS
 ## Each building's own `Door_data_c` (`aSHOP_` / `aCNV_conveni_` / `aSPR_super_` /
 ## `aDPT_depart_door_data`): the player steps in north of that store's EXIT_DOOR.
-const NOOK_SPAWN_GX: Array[Vector3] = [
-	CRANNY_SPAWN_GX, Vector3(320.0, 0.0, 300.0), Vector3(320.0, 0.0, 460.0), Vector3(320.0, 0.0, 540.0)
+const NOOK_SPAWN: Array[Vector3] = [
+	CRANNY_SPAWN, Vector3(320.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS, Vector3(320.0, 0.0, 460.0) * FieldCatalog.GX_TO_METERS, Vector3(320.0, 0.0, 540.0) * FieldCatalog.GX_TO_METERS
 ]
 ## Walkable area and EXIT_DOOR of each upgraded floor, read off its FG template walls
 ## (`fffe`) like the Cranny's: [inner origin, inner size, door cell]. The inner box runs
@@ -50,125 +50,128 @@ const CRANNY_SPAWN_FACING := WorldGrid.Facing.NORTH
 
 ## Table tops: `mCoBG` height 6 against the floor's 4 (×10 GX) in every `ROM_SHOP*` bg
 ## table (`bg_data.c`). Floor goods stay at 0.
-const CRANNY_SHELF_Y_GX := 21.0
-const SHELF := CRANNY_SHELF_Y_GX
+const CRANNY_SHELF_Y := 21.0 * FieldCatalog.GX_TO_METERS
+const SHELF := CRANNY_SHELF_Y
 ## `aHC_position_data` SCENE_SHOP0 — wall clock GX.
-const CLOCK_GX := Vector3(200.0, 40.0, 40.0)
+const CLOCK := Vector3(200.0, 40.0, 40.0) * FieldCatalog.GX_TO_METERS
 const CLOCK_VISUALS: Array[StringName] = [
 	&"obj_clock_shop1", &"obj_clock_shop2", &"obj_clock_shop3", &"obj_clock_shop4"
 ]
 
 ## `RSV_SHOP_*` reserve points of each Nook FG template, in `mSP_SetGoods2ReservedPoint`
 ## scan order (row-major). Kinds follow `aSD_ItemName2ReservePointName`: `sapling` is
-## `RSV_SHOP_HALLOWEEN`, `floor` is carpet. `y_gx` is the unit's table or floor height:
+## `RSV_SHOP_HALLOWEEN`, `floor` is carpet. `y` is the unit's table or floor height (metres):
 ## furniture, mannequins and umbrella stands stand on the floor. Their collision
-## half-extent is `FLOOR_HALF_GX`.
+## half-extent is `FLOOR_HALF`.
 ## `FG_TYPE_ROM_SHOP1` (0x22): Nook's Cranny.
 ## Floor goods' collision half-extent: a 1×1 FTR fills its unit, the mannequin and
 ## umbrella stand register `l_manekin_mBgData` (16) / `l_umbrella_mBgData` (13).
-const FLOOR_HALF_GX: Dictionary = {&"furniture": 20.0, &"rare": 20.0, &"cloth": 16.0, &"umbrella": 13.0}
+const FLOOR_HALF: Dictionary = {
+	&"furniture": 20.0 * FieldCatalog.GX_TO_METERS, &"rare": 20.0 * FieldCatalog.GX_TO_METERS,
+	&"cloth": 16.0 * FieldCatalog.GX_TO_METERS, &"umbrella": 13.0 * FieldCatalog.GX_TO_METERS,
+}
 const CRANNY_SLOTS: Array[Dictionary] = [
-	{"kind": &"furniture", "cell": Vector2i(1, 1), "y_gx": 0.0},
-	{"kind": &"wall", "cell": Vector2i(3, 1), "y_gx": SHELF},
-	{"kind": &"floor", "cell": Vector2i(4, 1), "y_gx": SHELF},
-	{"kind": &"tool", "cell": Vector2i(5, 1), "y_gx": SHELF},
-	{"kind": &"tool", "cell": Vector2i(6, 1), "y_gx": SHELF},
-	{"kind": &"cloth", "cell": Vector2i(1, 3), "y_gx": 0.0},
-	{"kind": &"paper", "cell": Vector2i(3, 4), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(4, 4), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(5, 4), "y_gx": SHELF},
-	{"kind": &"sapling", "cell": Vector2i(6, 4), "y_gx": SHELF},
-	{"kind": &"umbrella", "cell": Vector2i(1, 5), "y_gx": 0.0},
+	{"kind": &"furniture", "cell": Vector2i(1, 1), "y": 0.0},
+	{"kind": &"wall", "cell": Vector2i(3, 1), "y": SHELF},
+	{"kind": &"floor", "cell": Vector2i(4, 1), "y": SHELF},
+	{"kind": &"tool", "cell": Vector2i(5, 1), "y": SHELF},
+	{"kind": &"tool", "cell": Vector2i(6, 1), "y": SHELF},
+	{"kind": &"cloth", "cell": Vector2i(1, 3), "y": 0.0},
+	{"kind": &"paper", "cell": Vector2i(3, 4), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(4, 4), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(5, 4), "y": SHELF},
+	{"kind": &"sapling", "cell": Vector2i(6, 4), "y": SHELF},
+	{"kind": &"umbrella", "cell": Vector2i(1, 5), "y": 0.0},
 ]
 ## `FG_TYPE_ROM_SHOP2` (0x23): Nook 'n' Go.
 const CONVENI_SLOTS: Array[Dictionary] = [
-	{"kind": &"sapling", "cell": Vector2i(2, 1), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(3, 1), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(4, 1), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(5, 1), "y_gx": SHELF},
-	{"kind": &"cloth", "cell": Vector2i(6, 1), "y_gx": 0.0},
-	{"kind": &"cloth", "cell": Vector2i(7, 1), "y_gx": 0.0},
-	{"kind": &"furniture", "cell": Vector2i(9, 1), "y_gx": 0.0},
-	{"kind": &"floor", "cell": Vector2i(2, 3), "y_gx": SHELF},
-	{"kind": &"wall", "cell": Vector2i(3, 3), "y_gx": SHELF},
-	{"kind": &"paper", "cell": Vector2i(4, 3), "y_gx": SHELF},
-	{"kind": &"paper", "cell": Vector2i(5, 3), "y_gx": SHELF},
-	{"kind": &"furniture", "cell": Vector2i(9, 3), "y_gx": 0.0},
-	{"kind": &"tool", "cell": Vector2i(2, 5), "y_gx": SHELF},
-	{"kind": &"tool", "cell": Vector2i(3, 5), "y_gx": SHELF},
-	{"kind": &"sign", "cell": Vector2i(4, 5), "y_gx": SHELF},
-	{"kind": &"umbrella", "cell": Vector2i(5, 5), "y_gx": 0.0},
+	{"kind": &"sapling", "cell": Vector2i(2, 1), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(3, 1), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(4, 1), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(5, 1), "y": SHELF},
+	{"kind": &"cloth", "cell": Vector2i(6, 1), "y": 0.0},
+	{"kind": &"cloth", "cell": Vector2i(7, 1), "y": 0.0},
+	{"kind": &"furniture", "cell": Vector2i(9, 1), "y": 0.0},
+	{"kind": &"floor", "cell": Vector2i(2, 3), "y": SHELF},
+	{"kind": &"wall", "cell": Vector2i(3, 3), "y": SHELF},
+	{"kind": &"paper", "cell": Vector2i(4, 3), "y": SHELF},
+	{"kind": &"paper", "cell": Vector2i(5, 3), "y": SHELF},
+	{"kind": &"furniture", "cell": Vector2i(9, 3), "y": 0.0},
+	{"kind": &"tool", "cell": Vector2i(2, 5), "y": SHELF},
+	{"kind": &"tool", "cell": Vector2i(3, 5), "y": SHELF},
+	{"kind": &"sign", "cell": Vector2i(4, 5), "y": SHELF},
+	{"kind": &"umbrella", "cell": Vector2i(5, 5), "y": 0.0},
 ]
 ## `FG_TYPE_ROM_SHOP3` (0x24): Nookway.
 const SUPER_SLOTS: Array[Dictionary] = [
-	{"kind": &"rare", "cell": Vector2i(1, 1), "y_gx": 0.0},
-	{"kind": &"furniture", "cell": Vector2i(5, 1), "y_gx": 0.0},
-	{"kind": &"furniture", "cell": Vector2i(7, 1), "y_gx": 0.0},
-	{"kind": &"furniture", "cell": Vector2i(9, 1), "y_gx": 0.0},
-	{"kind": &"sapling", "cell": Vector2i(1, 4), "y_gx": SHELF},
-	{"kind": &"wall", "cell": Vector2i(3, 4), "y_gx": SHELF},
-	{"kind": &"wall", "cell": Vector2i(5, 4), "y_gx": SHELF},
-	{"kind": &"cloth", "cell": Vector2i(7, 4), "y_gx": 0.0},
-	{"kind": &"cloth", "cell": Vector2i(8, 4), "y_gx": 0.0},
-	{"kind": &"cloth", "cell": Vector2i(9, 4), "y_gx": 0.0},
-	{"kind": &"sapling", "cell": Vector2i(1, 5), "y_gx": SHELF},
-	{"kind": &"floor", "cell": Vector2i(3, 5), "y_gx": SHELF},
-	{"kind": &"floor", "cell": Vector2i(5, 5), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(1, 6), "y_gx": SHELF},
-	{"kind": &"tool", "cell": Vector2i(3, 6), "y_gx": SHELF},
-	{"kind": &"paper", "cell": Vector2i(5, 6), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(1, 7), "y_gx": SHELF},
-	{"kind": &"tool", "cell": Vector2i(3, 7), "y_gx": SHELF},
-	{"kind": &"paper", "cell": Vector2i(5, 7), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(1, 8), "y_gx": SHELF},
-	{"kind": &"sign", "cell": Vector2i(3, 8), "y_gx": SHELF},
-	{"kind": &"paper", "cell": Vector2i(5, 8), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(1, 9), "y_gx": SHELF},
-	{"kind": &"paint", "cell": Vector2i(3, 9), "y_gx": SHELF},
-	{"kind": &"umbrella", "cell": Vector2i(5, 9), "y_gx": 0.0},
+	{"kind": &"rare", "cell": Vector2i(1, 1), "y": 0.0},
+	{"kind": &"furniture", "cell": Vector2i(5, 1), "y": 0.0},
+	{"kind": &"furniture", "cell": Vector2i(7, 1), "y": 0.0},
+	{"kind": &"furniture", "cell": Vector2i(9, 1), "y": 0.0},
+	{"kind": &"sapling", "cell": Vector2i(1, 4), "y": SHELF},
+	{"kind": &"wall", "cell": Vector2i(3, 4), "y": SHELF},
+	{"kind": &"wall", "cell": Vector2i(5, 4), "y": SHELF},
+	{"kind": &"cloth", "cell": Vector2i(7, 4), "y": 0.0},
+	{"kind": &"cloth", "cell": Vector2i(8, 4), "y": 0.0},
+	{"kind": &"cloth", "cell": Vector2i(9, 4), "y": 0.0},
+	{"kind": &"sapling", "cell": Vector2i(1, 5), "y": SHELF},
+	{"kind": &"floor", "cell": Vector2i(3, 5), "y": SHELF},
+	{"kind": &"floor", "cell": Vector2i(5, 5), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(1, 6), "y": SHELF},
+	{"kind": &"tool", "cell": Vector2i(3, 6), "y": SHELF},
+	{"kind": &"paper", "cell": Vector2i(5, 6), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(1, 7), "y": SHELF},
+	{"kind": &"tool", "cell": Vector2i(3, 7), "y": SHELF},
+	{"kind": &"paper", "cell": Vector2i(5, 7), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(1, 8), "y": SHELF},
+	{"kind": &"sign", "cell": Vector2i(3, 8), "y": SHELF},
+	{"kind": &"paper", "cell": Vector2i(5, 8), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(1, 9), "y": SHELF},
+	{"kind": &"paint", "cell": Vector2i(3, 9), "y": SHELF},
+	{"kind": &"umbrella", "cell": Vector2i(5, 9), "y": 0.0},
 ]
 ## `FG_TYPE_ROM_SHOP4_1` (0x25): Nookington's ground floor.
 const DEPART_1F_SLOTS: Array[Dictionary] = [
-	{"kind": &"tool", "cell": Vector2i(2, 3), "y_gx": SHELF},
-	{"kind": &"tool", "cell": Vector2i(3, 3), "y_gx": SHELF},
-	{"kind": &"tool", "cell": Vector2i(4, 3), "y_gx": SHELF},
-	{"kind": &"sign", "cell": Vector2i(5, 3), "y_gx": SHELF},
-	{"kind": &"paint", "cell": Vector2i(6, 3), "y_gx": SHELF},
-	{"kind": &"sapling", "cell": Vector2i(1, 4), "y_gx": SHELF},
-	{"kind": &"sapling", "cell": Vector2i(1, 5), "y_gx": SHELF},
-	{"kind": &"sapling", "cell": Vector2i(1, 6), "y_gx": SHELF},
-	{"kind": &"paper", "cell": Vector2i(5, 6), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(1, 7), "y_gx": SHELF},
-	{"kind": &"paper", "cell": Vector2i(5, 7), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(1, 8), "y_gx": SHELF},
-	{"kind": &"paper", "cell": Vector2i(5, 8), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(1, 9), "y_gx": SHELF},
-	{"kind": &"paper", "cell": Vector2i(5, 9), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(1, 10), "y_gx": SHELF},
-	{"kind": &"paper", "cell": Vector2i(5, 10), "y_gx": SHELF},
-	{"kind": &"plant", "cell": Vector2i(1, 11), "y_gx": SHELF},
-	{"kind": &"umbrella", "cell": Vector2i(5, 11), "y_gx": 0.0},
+	{"kind": &"tool", "cell": Vector2i(2, 3), "y": SHELF},
+	{"kind": &"tool", "cell": Vector2i(3, 3), "y": SHELF},
+	{"kind": &"tool", "cell": Vector2i(4, 3), "y": SHELF},
+	{"kind": &"sign", "cell": Vector2i(5, 3), "y": SHELF},
+	{"kind": &"paint", "cell": Vector2i(6, 3), "y": SHELF},
+	{"kind": &"sapling", "cell": Vector2i(1, 4), "y": SHELF},
+	{"kind": &"sapling", "cell": Vector2i(1, 5), "y": SHELF},
+	{"kind": &"sapling", "cell": Vector2i(1, 6), "y": SHELF},
+	{"kind": &"paper", "cell": Vector2i(5, 6), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(1, 7), "y": SHELF},
+	{"kind": &"paper", "cell": Vector2i(5, 7), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(1, 8), "y": SHELF},
+	{"kind": &"paper", "cell": Vector2i(5, 8), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(1, 9), "y": SHELF},
+	{"kind": &"paper", "cell": Vector2i(5, 9), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(1, 10), "y": SHELF},
+	{"kind": &"paper", "cell": Vector2i(5, 10), "y": SHELF},
+	{"kind": &"plant", "cell": Vector2i(1, 11), "y": SHELF},
+	{"kind": &"umbrella", "cell": Vector2i(5, 11), "y": 0.0},
 ]
 ## `FG_TYPE_ROM_SHOP4_2` (0x26): Nookington's upstairs. `SCENE_DEPART_2` lays out the same
 ## goods list, so each floor shows only the kinds it has reserve points for.
 const DEPART_2F_SLOTS: Array[Dictionary] = [
-	{"kind": &"floor", "cell": Vector2i(1, 3), "y_gx": SHELF},
-	{"kind": &"floor", "cell": Vector2i(1, 4), "y_gx": SHELF},
-	{"kind": &"furniture", "cell": Vector2i(3, 4), "y_gx": 0.0},
-	{"kind": &"furniture", "cell": Vector2i(5, 4), "y_gx": 0.0},
-	{"kind": &"floor", "cell": Vector2i(1, 5), "y_gx": SHELF},
-	{"kind": &"furniture", "cell": Vector2i(8, 5), "y_gx": 0.0},
-	{"kind": &"wall", "cell": Vector2i(1, 6), "y_gx": SHELF},
-	{"kind": &"wall", "cell": Vector2i(1, 7), "y_gx": SHELF},
-	{"kind": &"rare", "cell": Vector2i(5, 7), "y_gx": 0.0},
-	{"kind": &"furniture", "cell": Vector2i(8, 7), "y_gx": 0.0},
-	{"kind": &"wall", "cell": Vector2i(1, 8), "y_gx": SHELF},
-	{"kind": &"furniture", "cell": Vector2i(8, 9), "y_gx": 0.0},
-	{"kind": &"cloth", "cell": Vector2i(2, 10), "y_gx": 0.0},
-	{"kind": &"cloth", "cell": Vector2i(3, 10), "y_gx": 0.0},
-	{"kind": &"cloth", "cell": Vector2i(4, 10), "y_gx": 0.0},
-	{"kind": &"cloth", "cell": Vector2i(5, 10), "y_gx": 0.0},
-	{"kind": &"cloth", "cell": Vector2i(6, 10), "y_gx": 0.0},
+	{"kind": &"floor", "cell": Vector2i(1, 3), "y": SHELF},
+	{"kind": &"floor", "cell": Vector2i(1, 4), "y": SHELF},
+	{"kind": &"furniture", "cell": Vector2i(3, 4), "y": 0.0},
+	{"kind": &"furniture", "cell": Vector2i(5, 4), "y": 0.0},
+	{"kind": &"floor", "cell": Vector2i(1, 5), "y": SHELF},
+	{"kind": &"furniture", "cell": Vector2i(8, 5), "y": 0.0},
+	{"kind": &"wall", "cell": Vector2i(1, 6), "y": SHELF},
+	{"kind": &"wall", "cell": Vector2i(1, 7), "y": SHELF},
+	{"kind": &"rare", "cell": Vector2i(5, 7), "y": 0.0},
+	{"kind": &"furniture", "cell": Vector2i(8, 7), "y": 0.0},
+	{"kind": &"wall", "cell": Vector2i(1, 8), "y": SHELF},
+	{"kind": &"furniture", "cell": Vector2i(8, 9), "y": 0.0},
+	{"kind": &"cloth", "cell": Vector2i(2, 10), "y": 0.0},
+	{"kind": &"cloth", "cell": Vector2i(3, 10), "y": 0.0},
+	{"kind": &"cloth", "cell": Vector2i(4, 10), "y": 0.0},
+	{"kind": &"cloth", "cell": Vector2i(5, 10), "y": 0.0},
+	{"kind": &"cloth", "cell": Vector2i(6, 10), "y": 0.0},
 ]
 ## Room → FG template id (`mSP_GetNowShopFgNum`), to check the tables against the disc.
 const STOCK_FG_TYPES: Dictionary = {
@@ -212,8 +215,8 @@ static func nook_level_for_room(room_id: StringName) -> int:
 			return 0
 
 
-static func nook_spawn_gx(room_id: StringName) -> Vector3:
-	return NOOK_SPAWN_GX[nook_level_for_room(room_id)]
+static func nook_spawn(room_id: StringName) -> Vector3:
+	return NOOK_SPAWN[nook_level_for_room(room_id)]
 
 
 ## Applies `NOOK_ROOM_BOUNDS` to an upgraded floor's room template.
@@ -227,18 +230,16 @@ static func apply_room_bounds(room: Room) -> void:
 	room.spawn_cell = room.door_cell + Vector2i(0, -1)
 
 
+## Where Nook stands (metres from the room's corner): the centre of his unit.
 ## Test-only: no in-game callers; kept for tests.
-static func nook_stand_gx(level: int) -> Vector3:
+static func nook_stand(level: int) -> Vector3:
 	var ut: Vector2i = NOOK_STAND_UT[clampi(level, 0, NOOK_STAND_UT.size() - 1)]
-	return Vector3(float(ut.x) * 40.0 + 20.0, 0.0, float(ut.y) * 40.0 + 20.0)
+	return (Vector3(float(ut.x), 0.0, float(ut.y)) * 40.0 + Vector3(20.0, 0.0, 20.0)) * FieldCatalog.GX_TO_METERS
 
 
 static func nook_is_shop_room(room_id: StringName) -> bool:
 	return room_id == &"shop0" or room_id == &"shop1" or room_id == &"shop2" or room_id == &"shop3_1"
 
-
-static func gx_to_world(grid: WorldGrid, gx: Vector3) -> Vector3:
-	return MuseumDisplay.gx_to_world(grid, gx)
 
 
 ## Reserve points of a Nook room's FG template (empty for any other room).
@@ -270,7 +271,7 @@ static func stock_cells_for_goods(
 ## `aSD_MakeGoodsFg`: each good, in list order, takes the first free reserve point of its
 ## kind; one with no free point of its kind is not shown (`mSP_SetGoods2ReservedPoint`
 ## fails). Pass the whole day's list, sold slots included, so every good keeps its point
-## for the day. Rows are `{index, cell, y_gx}`, `index` into `goods`.
+## for the day. Rows are `{index, cell, y, half}` (metres), `index` into `goods`.
 static func stock_placements_for_goods(
 	goods: Array[StringName], room_id: StringName = &"shop0", rare: StringName = &"",
 	halloween: bool = false
@@ -295,8 +296,8 @@ static func stock_placements_for_goods(
 		out.append({
 			"index": i,
 			"cell": cell,
-			"y_gx": float(slot["y_gx"]),
-			"half_gx": float(FLOOR_HALF_GX.get(slot["kind"], 0.0)) if float(slot["y_gx"]) == 0.0 else 0.0,
+			"y": float(slot["y"]),
+			"half": float(FLOOR_HALF.get(slot["kind"], 0.0)) if float(slot["y"]) == 0.0 else 0.0,
 		})
 	return out
 
@@ -407,6 +408,6 @@ static func cranny_blocked_units() -> Dictionary:
 		CRANNY_BG_ID, 0, CRANNY_BG_WALL_COUNTS, Rect2i(CRANNY_INNER_ORIGIN, CRANNY_INNER_SIZE)
 	)
 	for slot: Dictionary in CRANNY_SLOTS:
-		if float(slot["y_gx"]) > 0.0:
-			out[slot["cell"] as Vector2i] = CRANNY_SHELF_Y_GX
+		if float(slot["y"]) > 0.0:
+			out[slot["cell"] as Vector2i] = CRANNY_SHELF_Y
 	return out

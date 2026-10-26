@@ -3,16 +3,16 @@ extends RefCounted
 
 ## Positional "sound source" math shared by every `Na_OngenPos` / `Na_OngenTrgStart` caller
 ## (train, insects): distance and pan are measured from `Camera2_getMicPos`, the player
-## lifted `MIC_OFFSET_GX`, never from the render camera.
+## lifted `MIC_OFFSET`, never from the render camera. Distances are metres.
 
 ## `Camera2_getMicPos`: player + (0, 240, 77) GX.
-const MIC_OFFSET_GX := Vector3(0.0, 240.0, 77.0)
-## `SOU_ONGEN_AREA1`: beyond this a level source is dropped and a trigger never starts.
-const AREA := 540.0
+const MIC_OFFSET := Vector3(0.0, 240.0, 77.0) * FieldCatalog.GX_TO_METERS
+## `SOU_ONGEN_AREA1` (540 GX): beyond this a level source is dropped and a trigger never starts.
+const AREA := 540.0 * FieldCatalog.GX_TO_METERS
 const BASE_VOLUME := 1.15
 
 
-## `distance2vol`: 1.15 at the mic, 0 at `AREA`.
+## `distance2vol`: 1.15 at the mic, 0 at `AREA` (metres).
 static func volume(distance: float) -> float:
 	if distance > AREA:
 		return 0.0
@@ -34,12 +34,12 @@ static func pan(mic: Vector3, source: Vector3) -> float:
 	return clampf((float(p) - 64.0) / 64.0, -1.0, 1.0)
 
 
-## The field mic in GX, or `Vector3.INF` without a player.
-static func field_mic_gx(tree: SceneTree) -> Vector3:
+## The field mic's world position, or `Vector3.INF` without a player.
+static func field_mic(tree: SceneTree) -> Vector3:
 	var player := Player.find(tree)
 	if player == null:
 		return Vector3.INF
-	return TownSpace.world_to_gx(player.global_position) + MIC_OFFSET_GX
+	return player.global_position + MIC_OFFSET
 
 
 ## A looping copy of a level-SE stream (`lev_*` renders are seamless loops).

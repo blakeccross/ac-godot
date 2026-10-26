@@ -115,11 +115,12 @@ func _process(delta: float) -> void:
 		return
 	var max_anm: float = float(MODE_MAX_ANM.get(mode, 1.0))
 	_anm_cnt = minf(_anm_cnt + delta * ANM_RATE, max_anm)
-	var local_gx: Vector3 = _sample_trans()
+	## The keys are the decomp's, in GX.
+	var local: Vector3 = _sample_trans() * FieldCatalog.GX_TO_METERS
 	var anim_scale: float = _sample_scale()
 	var hand: Vector3 = _hand_world(_master)
 	var yaw: float = _master_yaw(_master)
-	var offset: Vector3 = Basis(Vector3.UP, yaw + YAW_BIAS) * (local_gx * FieldCatalog.GX_TO_METERS)
+	var offset: Vector3 = Basis(Vector3.UP, yaw + YAW_BIAS) * local
 	var target: Vector3 = hand + offset
 	if _chase:
 		global_position = global_position.lerp(target, clampf(delta * 12.0, 0.0, 1.0))

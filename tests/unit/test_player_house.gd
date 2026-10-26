@@ -61,13 +61,13 @@ func test_furniture_survives_a_size_change() -> void:
 
 func test_enter_stand_follows_size() -> void:
 	var house: House = _house()
-	assert_vector(PlayerHouse.enter_gx(house)).is_equal(Vector3(120.0, 0.0, 220.0))
+	assert_vector(PlayerHouse.enter_point(house)).is_equal_approx(Vector3(120.0, 0.0, 220.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	house.size_tier = House.SizeTier.MEDIUM
-	assert_vector(PlayerHouse.enter_gx(house)).is_equal(Vector3(160.0, 0.0, 300.0))
+	assert_vector(PlayerHouse.enter_point(house)).is_equal_approx(Vector3(160.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	house.size_tier = House.SizeTier.LARGE
-	assert_vector(PlayerHouse.enter_gx(house)).is_equal(Vector3(200.0, 0.0, 380.0))
+	assert_vector(PlayerHouse.enter_point(house)).is_equal_approx(Vector3(200.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	house.size_tier = House.SizeTier.UPPER
-	assert_vector(PlayerHouse.enter_gx(house)).is_equal(Vector3(200.0, 0.0, 380.0))
+	assert_vector(PlayerHouse.enter_point(house)).is_equal_approx(Vector3(200.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 
 
 func test_statue_keeps_the_last_house_layout() -> void:
@@ -96,7 +96,7 @@ func test_basement_stairs_need_the_basement_flag() -> void:
 	assert_that(stairs[0].target_room_id).is_equal(PlayerHouse.BASEMENT)
 	assert_that(stairs[0].cell).is_equal(Vector2i(7, 7))
 	## `PLAYER_ROOM_M_door_data`: land at (300, 380) facing west.
-	assert_vector(stairs[0].spawn_gx).is_equal(Vector3(300.0, 0.0, 380.0))
+	assert_vector(stairs[0].spawn).is_equal_approx(Vector3(300.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_int(stairs[0].spawn_facing).is_equal(WorldGrid.Facing.WEST)
 
 
@@ -111,13 +111,13 @@ func test_upper_house_stairs_go_up_and_down() -> void:
 	assert_that(main_stairs[0].target_room_id).is_equal(PlayerHouse.BASEMENT)
 	assert_that(main_stairs[1].target_room_id).is_equal(PlayerHouse.UPPER)
 	assert_that(main_stairs[1].cell).is_equal(Vector2i(1, 9))
-	assert_vector(main_stairs[1].spawn_gx).is_equal(Vector3(60.0, 0.0, 300.0))
+	assert_vector(main_stairs[1].spawn).is_equal_approx(Vector3(60.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_int(main_stairs[1].spawn_facing).is_equal(WorldGrid.Facing.EAST)
 	var upper: Room = Game.interiors.room(PlayerHouse.UPPER)
 	assert_int(upper.stairs.size()).is_equal(1)
 	assert_that(upper.stairs[0].target_room_id).is_equal(PlayerHouse.MAIN)
 	assert_that(upper.stairs[0].cell).is_equal(Vector2i(0, 7))
-	assert_vector(upper.stairs[0].spawn_gx).is_equal(Vector3(100.0, 0.0, 380.0))
+	assert_vector(upper.stairs[0].spawn).is_equal_approx(Vector3(100.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_that(upper.inner_size).is_equal(Vector2i(6, 6))
 	## No outdoor exit up there.
 	assert_int(upper.door_cell.x).is_less(0)
@@ -125,10 +125,10 @@ func test_upper_house_stairs_go_up_and_down() -> void:
 
 func test_basement_returns_to_the_size_specific_landing() -> void:
 	var landing: Array[Vector3] = [
-		Vector3(220.0, 0.0, 220.0),
-		Vector3(260.0, 0.0, 300.0),
-		Vector3(300.0, 0.0, 380.0),
-		Vector3(300.0, 0.0, 380.0),
+		Vector3(220.0, 0.0, 220.0) * FieldCatalog.GX_TO_METERS,
+		Vector3(260.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS,
+		Vector3(300.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS,
+		Vector3(300.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS,
 	]
 	var house: House = _house()
 	for tier: int in landing.size():
@@ -137,7 +137,7 @@ func test_basement_returns_to_the_size_specific_landing() -> void:
 		Game.interiors.refresh_player_rooms()
 		var basement: Room = Game.interiors.room(PlayerHouse.BASEMENT)
 		assert_that(basement.inner_size).is_equal(Vector2i(8, 8))
-		assert_vector(basement.stairs[0].spawn_gx).is_equal(landing[tier])
+		assert_vector(basement.stairs[0].spawn).is_equal_approx(landing[tier], Vector3.ONE * 0.0001)
 		assert_that(basement.stairs[0].cell).is_equal(Vector2i(8, 9))
 
 
@@ -219,7 +219,7 @@ func test_each_stair_landing_is_where_the_stairs_back_drop_you() -> void:
 				if other.target_room_id == room_id:
 					back = other
 			assert_object(back).is_not_null()
-			assert_vector(stair.landing_gx).is_equal(back.spawn_gx)
+			assert_vector(stair.landing).is_equal(back.spawn)
 
 
 func test_stairs_fire_only_from_the_stair_unit() -> void:

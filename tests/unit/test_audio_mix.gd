@@ -55,7 +55,7 @@ func test_the_music_rests_around_the_hour() -> void:
 func test_far_sounds_fade_and_pan() -> void:
 	## `distance2vol` / `angle2pan` from the mic.
 	assert_float(SoundEmitter.volume(0.0)).is_greater(1.0)
-	assert_float(SoundEmitter.volume(300.0)).is_less(SoundEmitter.volume(100.0))
-	assert_float(SoundEmitter.volume(600.0)).is_equal(0.0)
+	assert_float(SoundEmitter.volume(15.0)).is_less(SoundEmitter.volume(5.0))
+	assert_float(SoundEmitter.volume(30.0)).is_equal(0.0)
 	## Off the field (the Audio node itself) a one-shot plays flat.
 	assert_vector(Audio.field_placement(Audio)).is_equal(Vector2(1.0, 0.0))

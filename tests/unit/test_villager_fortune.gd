@@ -5,6 +5,7 @@ extends GdUnitTestSuite
 ## `aNPC_chk_friendship_lv`) and as luck (`mPr_GetGoodsPower`).
 
 const L := VillagerPersonality.Looks
+const GX := FieldCatalog.GX_TO_METERS
 
 var _saved_type: int
 var _saved_date: Vector3i
@@ -25,30 +26,30 @@ func after_test() -> void:
 
 func test_an_unpopular_day_sends_villagers_away() -> void:
 	var D := Game.Destiny
-	assert_int(VillagerFortune.step(D.UNPOPULAR, L.JOCK, &"male", true, 100.0)).is_equal(VillagerFortune.Step.AVOID_RUN)
-	assert_int(VillagerFortune.step(D.UNPOPULAR, L.JOCK, &"male", true, 150.0)).is_equal(VillagerFortune.Step.AVOID_WALK)
-	assert_int(VillagerFortune.step(D.UNPOPULAR, L.JOCK, &"male", true, 200.0)).is_equal(VillagerFortune.Step.NONE)
+	assert_int(VillagerFortune.step(D.UNPOPULAR, L.JOCK, &"male", true, 100.0 * GX)).is_equal(VillagerFortune.Step.AVOID_RUN)
+	assert_int(VillagerFortune.step(D.UNPOPULAR, L.JOCK, &"male", true, 150.0 * GX)).is_equal(VillagerFortune.Step.AVOID_WALK)
+	assert_int(VillagerFortune.step(D.UNPOPULAR, L.JOCK, &"male", true, 200.0 * GX)).is_equal(VillagerFortune.Step.NONE)
 	## Only in the player's acre.
-	assert_int(VillagerFortune.step(D.UNPOPULAR, L.JOCK, &"male", false, 50.0)).is_equal(VillagerFortune.Step.NONE)
+	assert_int(VillagerFortune.step(D.UNPOPULAR, L.JOCK, &"male", false, 50.0 * GX)).is_equal(VillagerFortune.Step.NONE)
 
 
 func test_a_popular_day_draws_the_other_sex_over() -> void:
 	var D := Game.Destiny
-	assert_int(VillagerFortune.step(D.POPULAR, L.PEPPY, &"male", true, 200.0)).is_equal(VillagerFortune.Step.SEEK_RUN)
-	assert_int(VillagerFortune.step(D.POPULAR, L.SNOOTY, &"male", true, 100.0)).is_equal(VillagerFortune.Step.SEEK_WALK)
-	assert_int(VillagerFortune.step(D.POPULAR, L.NORMAL, &"male", true, 40.0)).is_equal(VillagerFortune.Step.SEEK_WAIT)
+	assert_int(VillagerFortune.step(D.POPULAR, L.PEPPY, &"male", true, 200.0 * GX)).is_equal(VillagerFortune.Step.SEEK_RUN)
+	assert_int(VillagerFortune.step(D.POPULAR, L.SNOOTY, &"male", true, 100.0 * GX)).is_equal(VillagerFortune.Step.SEEK_WALK)
+	assert_int(VillagerFortune.step(D.POPULAR, L.NORMAL, &"male", true, 40.0 * GX)).is_equal(VillagerFortune.Step.SEEK_WAIT)
 	## Same sex: no change.
-	assert_int(VillagerFortune.step(D.POPULAR, L.CRANKY, &"male", true, 200.0)).is_equal(VillagerFortune.Step.NONE)
-	assert_int(VillagerFortune.step(D.POPULAR, L.LAZY, &"female", true, 200.0)).is_equal(VillagerFortune.Step.SEEK_RUN)
+	assert_int(VillagerFortune.step(D.POPULAR, L.CRANKY, &"male", true, 200.0 * GX)).is_equal(VillagerFortune.Step.NONE)
+	assert_int(VillagerFortune.step(D.POPULAR, L.LAZY, &"female", true, 200.0 * GX)).is_equal(VillagerFortune.Step.SEEK_RUN)
 	## Ordinary days leave everyone be.
-	assert_int(VillagerFortune.step(D.NORMAL, L.PEPPY, &"male", true, 40.0)).is_equal(VillagerFortune.Step.NONE)
-	assert_int(VillagerFortune.step(D.MONEY_LUCK, L.PEPPY, &"male", true, 40.0)).is_equal(VillagerFortune.Step.NONE)
+	assert_int(VillagerFortune.step(D.NORMAL, L.PEPPY, &"male", true, 40.0 * GX)).is_equal(VillagerFortune.Step.NONE)
+	assert_int(VillagerFortune.step(D.MONEY_LUCK, L.PEPPY, &"male", true, 40.0 * GX)).is_equal(VillagerFortune.Step.NONE)
 
 
 func test_a_close_admirer_calls_out() -> void:
-	assert_bool(VillagerFortune.can_call(70.0, 10.0)).is_true()
-	assert_bool(VillagerFortune.can_call(90.0, 10.0)).is_false()
-	assert_bool(VillagerFortune.can_call(70.0, 70.0)).is_false()
+	assert_bool(VillagerFortune.can_call(70.0 * GX, 10.0 * GX)).is_true()
+	assert_bool(VillagerFortune.can_call(90.0 * GX, 10.0 * GX)).is_false()
+	assert_bool(VillagerFortune.can_call(70.0 * GX, 70.0 * GX)).is_false()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2
 	assert_int(VillagerFortune.call_msg(L.PEPPY, rng)).is_between(0x075F + 3, 0x075F + 5)

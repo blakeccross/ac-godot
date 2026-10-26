@@ -26,6 +26,10 @@ const BEE_QUIET_AFTER_CHOP := BEE_SHOCK_AFTER_CHOP + 12.0 / DecompTime.TICK_HZ
 ## `eYoung_Tree_dw`: cedar / palm saplings roll about a point above the trunk base.
 const YOUNG_PIVOT_PALM := 0.25  ## 5 GX
 const YOUNG_PIVOT_CEDAR := 0.75  ## 15 GX
+## A snagged balloon's present, from the unit centre (GX (0, 100, 20) on cedars, else
+## (−2.5, 97.5, 7.5)).
+const BALLOON_PERCH_CEDAR := Vector3(0.0, 100.0, 20.0) * FieldCatalog.GX_TO_METERS
+const BALLOON_PERCH := Vector3(-2.5, 97.5, 7.5) * FieldCatalog.GX_TO_METERS
 
 const XMAS_TREE_LIGHTS := &"obj_x_tree5_light"
 const XMAS_CEDAR_LIGHTS := &"obj_x_ceder5_light"
@@ -318,15 +322,15 @@ func can_catch_balloon() -> bool:
 	return use.size == TreeUse.Size.FULL and use.stage == TreeUse.Stage.BARE
 
 
-## Where a snagged balloon's present sits (GX from the unit centre): cedars higher and further forward.
+## Where a snagged balloon's present sits (from the unit centre): cedars higher and further forward.
 func balloon_perch() -> Vector3:
-	var gx: Vector3 = Vector3(0.0, 100.0, 20.0) if _family() == PlantData.Family.CEDAR else Vector3(-2.5, 97.5, 7.5)
+	var offset: Vector3 = BALLOON_PERCH_CEDAR if _family() == PlantData.Family.CEDAR else BALLOON_PERCH
 	var world := World.find(get_tree())
 	var base: Vector3 = global_position
 	if world != null and world.grid != null:
 		base = world.grid.cell_to_world(_cell())
 		base.y = global_position.y
-	return base + gx * FieldCatalog.GX_TO_METERS
+	return base + offset
 
 
 ## `fruit_set(ITM_PRESENT)`: the balloon's present falls out like fruit (top of the crown).
@@ -542,7 +546,7 @@ func _emit_shake_fx(strong: bool, family: PlantData.Family, medium_cedar: bool, 
 	var host: Node = get_parent()
 	if host == null:
 		return
-	var crown: Vector3 = global_position + Vector3(0.0, TreeEffects.CROWN_GX * FieldCatalog.GX_TO_METERS, 0.0)
+	var crown: Vector3 = global_position + Vector3(0.0, TreeEffects.CROWN, 0.0)
 	if strong:
 		TreeEffects.leaf(host, crown, family, medium_cedar)
 	if winter:

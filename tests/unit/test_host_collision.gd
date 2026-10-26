@@ -23,8 +23,8 @@ func test_player_house_sensor_not_a_physics_box() -> void:
 	assert_float(door.position.x).is_equal_approx(stand.x, 0.05)
 	assert_float(door.position.z).is_equal_approx(stand.z, 0.05)
 	## Check stand (−20,+20), not exit restart (±48.29).
-	assert_float(absf(door.position.x)).is_less(HostCollision.PLAYER_DOOR_GX * FieldCatalog.GX_TO_METERS)
-	assert_float(door.position.z).is_less(HostCollision.PLAYER_DOOR_GX * FieldCatalog.GX_TO_METERS)
+	assert_float(absf(door.position.x)).is_less(HostCollision.PLAYER_DOOR)
+	assert_float(door.position.z).is_less(HostCollision.PLAYER_DOOR)
 
 
 func test_npc_house_door_is_south_porch_not_aabb_face() -> void:
@@ -41,7 +41,7 @@ func test_npc_house_door_is_south_porch_not_aabb_face() -> void:
 	var aabb_z: float = HostCollision.xz_size(Vector2i(3, 3), 2.0).y * 0.5 + HostCollision.SENSOR_PAD
 	assert_float(door.position.z).is_less(aabb_z - 0.2)
 	assert_float(door.position.z).is_equal_approx(
-		StructureDoor.NPC_HOUSE_APPROACH_GX.y * FieldCatalog.GX_TO_METERS, 0.05
+		StructureDoor.NPC_HOUSE_APPROACH.y, 0.05
 	)
 
 

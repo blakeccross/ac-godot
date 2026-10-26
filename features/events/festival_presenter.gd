@@ -120,7 +120,7 @@ func _add_meteor_shower() -> void:
 	mgr.add_actor(id, shower, EventManager.block_unit_to_cell(block, Vector2i(8, 8)), 0.0, 0)
 
 
-func tick(_delta: float) -> void:
+func advance(_delta: float) -> void:
 	## The finale starts on the hour (`eHanabiSet_ct` reads the clock per set).
 	if id != &"fireworks_show" or Game == null or Game.events == null:
 		return

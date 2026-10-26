@@ -3,7 +3,7 @@ extends Node3D
 
 ## The town train's actors: `ac_train0` (locomotive + the mid car it draws at its sprung
 ## `arg0_f`), `ac_train1` (the passenger car) and `ac_npc_engineer` riding in the cab at
-## `(−40, 47, 20)` from the loco (`aTR0_ctrl_engineer`). `TrainService` spawns it while the
+## `(−40, 47, 20)` GX from the loco (`aTR0_ctrl_engineer`). `TrainService` spawns it while the
 ## locomotive is near the player (`mTRC_trainSet`) and ticks it with `TrainControl`.
 
 const GROUP := &"field_train"
@@ -11,19 +11,21 @@ const ENGINEER_SKELETON := &"mnk_1"
 const ENGINEER_CLIP := "npc_1_wait1"
 ## `aNEG_actor_ct`: `world.angle.y = 0x4000` — facing +X, down the line.
 const ENGINEER_YAW := PI * 0.5
-const ENGINEER_OFF_GX := Vector3(-40.0, 47.0, 20.0)
+const ENGINEER_OFF := Vector3(-40.0, 47.0, 20.0) * FieldCatalog.GX_TO_METERS
 const WHEEL_CLIP := "obj_train1_1"
 const DOOR_CLIPS: Array[String] = ["obj_train1_3_open", "obj_train1_3_close"]
 ## `aTR1_chg_station_attr` / `aID_ride_off_player_init` / `aSTM_intro_demo_wait_init`: the
-## platform unit at the passenger-car door (2180, 820). Its `mCoBG_ATTRIBUTE_32` walls the
-## track edge; `STONE` opens it while a train stands there.
-const STATION_GATE_GX := Vector3(2180.0, 0.0, 820.0)
+## platform unit at the passenger-car door (2180, 820 GX, a field position). Its
+## `mCoBG_ATTRIBUTE_32` walls the track edge; `STONE` opens it while a train stands there.
+const STATION_GATE := Vector3(2180.0, 0.0, 820.0) * FieldCatalog.GX_TO_METERS
 const ATTR_STONE := 7
 const ATTR_PLATFORM_EDGE := 32
-## `aTR0_set_effect` stack offset; `aTR0_steam_work` frames / x / angle per side.
-const SMOKE_OFF_GX := Vector3(36.0, 110.0, 0.0)
+## `aTR0_set_effect` stack offset; `aTR0_steam_work` frames / x / angle per side and the
+## (y, z) the steam leaves at.
+const SMOKE_OFF := Vector3(36.0, 110.0, 0.0) * FieldCatalog.GX_TO_METERS
 const STEAM_FRAMES: Array[Vector2i] = [Vector2i(2, 5), Vector2i(13, 16)]
-const STEAM_X_GX: Array[float] = [15.0, 22.0]
+const STEAM_X: Array[float] = [15.0 * FieldCatalog.GX_TO_METERS, 22.0 * FieldCatalog.GX_TO_METERS]
+const STEAM_YZ := Vector2(21.0, 42.0) * FieldCatalog.GX_TO_METERS
 const STEAM_ANGLE: Array[int] = [-12288, 0x0400] ## 0xD000, 0x0400
 
 var cars: TrainCars = TrainCars.new()
@@ -57,9 +59,9 @@ func is_spawned() -> bool:
 ## once (`mCoBG_GetBgY_OnlyCenter_FromWpos2`) and kept.
 func spawn(control: TrainControl) -> void:
 	_build()
-	var rail: Vector3 = TownSpace.gx_to_world(Vector3(control.x_gx, 0.0, TrainControl.RAIL_Z_GX))
+	var rail: Vector3 = TownSpace.field_to_world(Vector3(control.x, 0.0, TrainControl.RAIL_Z))
 	_rail_y = _ground_y(rail)
-	cars.spawn(control.x_gx)
+	cars.spawn(control.x)
 	_spawned = true
 	visible = true
 	_apply_door(TrainCars.door_setup(TrainControl.Action.WAIT_STOPPED, true))
@@ -81,11 +83,11 @@ func despawn() -> void:
 ## `delta` seconds of `aTR0_actor_move` / `aTR1_actor_move`. Returns the door change, whose
 ## `sound` flag the caller plays.
 func advance(delta: float, control: TrainControl, parked_demo: bool) -> Dictionary:
-	var door: Dictionary = cars.advance(delta, control.x_gx, control.speed, control.action, parked_demo)
-	_place(_loco, control.x_gx)
+	var door: Dictionary = cars.advance(delta, control.x, control.speed, control.action, parked_demo)
+	_place(_loco, control.x)
 	_place(_mid, cars.mid_x)
 	_place(_caboose, cars.caboose_x)
-	_engineer.global_position = _loco.global_position + ENGINEER_OFF_GX * FieldCatalog.GX_TO_METERS
+	_engineer.global_position = _loco.global_position + ENGINEER_OFF
 	if _loco_anim != null:
 		_loco_anim.speed_scale = IntroStationStage.loco_wheel_speed_scale(control.frame_speed()) * DecompTime.TICKS_PER_FRAME
 	var frame_changed: bool = _wheel_frame_changed()
@@ -123,7 +125,7 @@ func _smoke(delta: float, speed: float) -> void:
 		return
 	var wait_ticks: int = int(12.0 / speed) if speed >= 1.0 else 12
 	_smoke_wait = maxf(_smoke_wait, 0.0) + float(wait_ticks + 1) / DecompTime.TICK_HZ
-	FieldEffects.spawn(_effects(), FieldEffects.Kind.KISHA_KEMURI, _loco_point(SMOKE_OFF_GX), 0.0)
+	FieldEffects.spawn(_effects(), FieldEffects.Kind.KISHA_KEMURI, _loco.global_position + SMOKE_OFF, 0.0)
 
 
 ## `aTR0_steam_work`: piston steam on wheel frames 2–5 (x +15, angle 0xD000) and 13–16
@@ -131,12 +133,8 @@ func _smoke(delta: float, speed: float) -> void:
 func _steam() -> void:
 	for i: int in 2:
 		if _saved_frame >= STEAM_FRAMES[i].x and _saved_frame <= STEAM_FRAMES[i].y:
-			var at: Vector3 = _loco_point(Vector3(STEAM_X_GX[i], 21.0, 42.0))
+			var at: Vector3 = _loco.global_position + Vector3(STEAM_X[i], STEAM_YZ.x, STEAM_YZ.y)
 			FieldEffects.spawn(_effects(), FieldEffects.Kind.STEAM, at, float(STEAM_ANGLE[i]) * MathUtil.S16)
-
-
-func _loco_point(offset_gx: Vector3) -> Vector3:
-	return _loco.global_position + offset_gx * FieldCatalog.GX_TO_METERS
 
 
 func _effects() -> Node:
@@ -152,12 +150,12 @@ static func set_station_gate(tree: SceneTree, open: bool) -> void:
 	var world := World.find(tree)
 	if world == null or world.grid == null or world.layout == null:
 		return
-	var cell: Vector2i = world.grid.world_to_cell(TownSpace.gx_to_world(STATION_GATE_GX))
+	var cell: Vector2i = world.grid.world_to_cell(TownSpace.field_to_world(STATION_GATE))
 	FieldCollision.set_attr_override(world.layout, cell, ATTR_STONE if open else ATTR_PLATFORM_EDGE)
 
 
-func _place(car: Node3D, x_gx: float) -> void:
-	var world: Vector3 = TownSpace.gx_to_world(Vector3(x_gx, 0.0, TrainControl.RAIL_Z_GX))
+func _place(car: Node3D, x: float) -> void:
+	var world: Vector3 = TownSpace.field_to_world(Vector3(x, 0.0, TrainControl.RAIL_Z))
 	car.global_position = Vector3(world.x, _rail_y, world.z)
 
 
@@ -187,9 +185,9 @@ func _build() -> void:
 	GeneratedVisual.attach(_loco, &"obj_train1_1")
 	GeneratedVisual.attach(_mid, &"obj_train1_2")
 	GeneratedVisual.attach(_caboose, &"obj_train1_3")
-	VisualTrain.center_train_visual(_loco, IntroStationStage.LOCO_MESH_CENTER_GX)
-	VisualTrain.center_train_visual(_mid, IntroStationStage.MID_MESH_CENTER_GX)
-	VisualTrain.center_train_visual(_caboose, IntroStationStage.CABOOSE_MESH_CENTER_GX)
+	VisualTrain.center_train_visual(_loco, IntroStationStage.LOCO_MESH_CENTER)
+	VisualTrain.center_train_visual(_mid, IntroStationStage.MID_MESH_CENTER)
+	VisualTrain.center_train_visual(_caboose, IntroStationStage.CABOOSE_MESH_CENTER)
 	GeneratedVisual.attach_special_npc(_engineer, ENGINEER_SKELETON)
 	_engineer.rotation.y = ENGINEER_YAW
 	_play_loop(VisualAnimation.find_animation_player(_engineer), ENGINEER_CLIP)

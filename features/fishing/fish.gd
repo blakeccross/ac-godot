@@ -15,7 +15,7 @@ const QUAD_PADDING := FishSize.SILHOUETTE_FILL / SHADER_BODY_SPAN
 ## above the water plane instead or it z-fights with it. River/ocean sheets also add a
 ## `ground_lift` of 0.5–1.0 GX in their vertex shader — sit above that or the opaque depth
 ## write from `depth_draw_opaque` kills the shadow.
-const SURFACE_LIFT := 0.1  ## 2 GX
+const SURFACE_LIFT := 2.0 * FieldCatalog.GX_TO_METERS
 
 @onready var _shadow: MeshInstance3D = $Shadow
 

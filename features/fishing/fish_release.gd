@@ -10,10 +10,8 @@ extends Node3D
 const SCENE_PATH := "res://features/fishing/fish_release.tscn"
 const SPLASH_SE := &"437"
 const GX := FieldCatalog.GX_TO_METERS
-## `CreatureRelease` speeds are GX per 30 fps frame moved half a frame a tick, under −0.25 a
-## tick: as m/s and m/s².
-const SPEED := GX * 30.0
-const GRAVITY := -CreatureRelease.GRAVITY * 60.0 * 30.0 * GX
+## Downward pull (m/s²), from `CreatureRelease.GRAVITY`.
+const GRAVITY := -CreatureRelease.GRAVITY
 ## Noses over 0x800 a tick; gone after 160 ticks.
 const TILT_RATE := CreatureRelease.TILT_STEP * 60.0
 const LIFETIME := CreatureRelease.LIFE * DecompTime.TICK_SEC
@@ -54,7 +52,7 @@ static func throw(parent: Node, p_fish: FishData, from: Vector3, water: Vector3)
 ## Start at `from` thrown toward `water` (both metres), `aGYR_ct`'s launch.
 func aim(from: Vector3, water: Vector3) -> void:
 	_pos = from
-	_vel = CreatureRelease.launch_velocity(from / GX, water / GX) * SPEED
+	_vel = CreatureRelease.launch_velocity(from, water)
 	_yaw = atan2(water.x - from.x, water.z - from.z)
 
 
@@ -119,9 +117,9 @@ static func _time_to(height: float, vy: float, dt: float) -> float:
 	return clampf((vy + sqrt(disc)) / GRAVITY, 0.0, dt)
 
 
-## Test-only: no in-game callers; kept for tests.
-func position_gx() -> Vector3:
-	return _pos / GX
+## Where it is now (metres).
+func current_position() -> Vector3:
+	return _pos
 
 
 ## `aGYR_in_water_move`.

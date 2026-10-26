@@ -116,13 +116,14 @@ func test_chase_yaw_turns_0x600_per_30hz_frame() -> void:
 
 func test_door_walk_stage_flips_past_chk_pos() -> void:
 	## West plot: stage 1 once the player is 35 GX or more east of the gyroid.
+	var gx: float = FieldCatalog.GX_TO_METERS
 	assert_int(GyroidTalk.door_stage(0, Vector2(0.0, 0.0))).is_equal(0)
-	assert_int(GyroidTalk.door_stage(0, Vector2(36.0, 30.0))).is_equal(1)
+	assert_int(GyroidTalk.door_stage(0, Vector2(36.0, 30.0) * gx)).is_equal(1)
 	## East plot mirrors it.
-	assert_int(GyroidTalk.door_stage(1, Vector2(-36.0, 30.0))).is_equal(1)
-	assert_int(GyroidTalk.door_stage(1, Vector2(36.0, 30.0))).is_equal(0)
-	assert_that(GyroidTalk.door_goal_gx(0, 1)).is_equal(Vector2(50.0, -26.0))
-	assert_that(GyroidTalk.door_goal_gx(3, 0)).is_equal(Vector2(-38.0, 40.0))
+	assert_int(GyroidTalk.door_stage(1, Vector2(-36.0, 30.0) * gx)).is_equal(1)
+	assert_int(GyroidTalk.door_stage(1, Vector2(36.0, 30.0) * gx)).is_equal(0)
+	assert_vector(GyroidTalk.door_goal(0, 1)).is_equal_approx(Vector2(50.0, -26.0) * gx, Vector2.ONE * 0.0001)
+	assert_vector(GyroidTalk.door_goal(3, 0)).is_equal_approx(Vector2(-38.0, 40.0) * gx, Vector2.ONE * 0.0001)
 
 
 func test_friend_count_counts_villagers_the_player_has_talked_to() -> void:

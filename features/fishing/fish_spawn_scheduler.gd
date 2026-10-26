@@ -93,9 +93,9 @@ const UT := 16
 ## `aSOG_gyoei_set_gyoei_data`: fish only spawn in units 2..13 of the acre, the whale in 5..10.
 const INNER_MARGIN := 2
 const WHALE_MARGIN := 5
-## `mCoBG_GetWaterHeight` for `SEA`: a flat 20 GX. Sea fish need `water - bg >= 20`.
-const SEA_WATER_HEIGHT_GX := 20.0
-const SEA_MIN_DEPTH_GX := 20.0
+## `mCoBG_GetWaterHeight` for `SEA`: a flat 20 GX. Sea fish need `water - bg >= 20` GX (metres).
+const SEA_WATER_HEIGHT := 20.0 * FieldCatalog.GX_TO_METERS
+const SEA_MIN_DEPTH := 20.0 * FieldCatalog.GX_TO_METERS
 
 ## `mCoBG_ATTRIBUTE_*` the unit filter reads.
 const ATTR_WATER := 12
@@ -367,19 +367,19 @@ static func _get_idx_sub(
 
 
 ## `aSOG_gyoei_set_gyoei_data`'s per-species unit filter. `attr` is the unit's
-## `mCoBG_ATTRIBUTE_*`, `bg_gx` its centre height in GX.
-static func unit_accepts(type_index: int, ux: int, uz: int, attr: int, bg_gx: float) -> bool:
+## `mCoBG_ATTRIBUTE_*`, `bed` its centre height (metres, in the original's frame).
+static func unit_accepts(type_index: int, ux: int, uz: int, attr: int, bed: float) -> bool:
 	if ux < INNER_MARGIN or ux >= UT - INNER_MARGIN or uz < INNER_MARGIN or uz >= UT - INNER_MARGIN:
 		return false
 	match type_index:
 		TYPE_LARGE_CHAR:
 			return attr == ATTR_WATERFALL
 		TYPE_COELACANTH, TYPE_JELLYFISH, TYPE_SEA_BASS, TYPE_RED_SNAPPER, TYPE_BARRED_KNIFEJAW:
-			return attr == ATTR_SEA and _deep(bg_gx)
+			return attr == ATTR_SEA and _deep(bed)
 		TYPE_SALMON, TYPE_SALMON2:
 			if not is_water_attr(attr):
 				return false
-			return attr != ATTR_SEA or _deep(bg_gx)
+			return attr != ATTR_SEA or _deep(bed)
 		TYPE_WHALE:
 			return (
 				ux >= WHALE_MARGIN and ux < UT - WHALE_MARGIN
@@ -389,12 +389,12 @@ static func unit_accepts(type_index: int, ux: int, uz: int, attr: int, bg_gx: fl
 	return is_water_attr(attr)
 
 
-static func _deep(bg_gx: float) -> bool:
-	return SEA_WATER_HEIGHT_GX - bg_gx >= SEA_MIN_DEPTH_GX
+static func _deep(bed: float) -> bool:
+	return SEA_WATER_HEIGHT - bed >= SEA_MIN_DEPTH - 0.0001
 
 
 ## Every unit in the acre a species may spawn on. `units` is the acre's 256 rows
-## (`uz * 16 + ux`), each `{"a": attr, "y": bg_gx}`.
+## (`uz * 16 + ux`), each `{"a": attr, "y": bed height (metres)}`.
 static func candidate_units(type_index: int, units: Array) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	for uz: int in UT:

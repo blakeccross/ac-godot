@@ -11,20 +11,20 @@ enum Stage { FRUITING, BARE, STUMP }
 enum Content { NONE, BELLS, BEES, FURNITURE, MONEY_100, MONEY_1000, MONEY_10000, MONEY_30000, GOLDEN_SHOVEL }
 
 const DROP_OFFSETS: Array[Vector2i] = [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]
-## `fruit_set` crown offsets (GX) for standard drops / honeycomb / coconut.
-const CROWN_GX: Array[Vector3] = [
-	Vector3(-22.5, 65.0, 17.5),
-	Vector3(22.5, 72.0, 12.5),
-	Vector3(-2.5, 97.5, 7.5),
+## `fruit_set` crown offsets for standard drops / honeycomb / coconut.
+const CROWN: Array[Vector3] = [
+	Vector3(-22.5, 65.0, 17.5) * FieldCatalog.GX_TO_METERS,
+	Vector3(22.5, 72.0, 12.5) * FieldCatalog.GX_TO_METERS,
+	Vector3(-2.5, 97.5, 7.5) * FieldCatalog.GX_TO_METERS,
 ]
-const CROWN_HONEY_GX: Array[Vector3] = [
-	Vector3(-37.5, 65.0, 17.5),
-	Vector3(37.5, 72.0, 12.5),
-	Vector3(-2.5, 97.5, 7.5),
+const CROWN_HONEY: Array[Vector3] = [
+	Vector3(-37.5, 65.0, 17.5) * FieldCatalog.GX_TO_METERS,
+	Vector3(37.5, 72.0, 12.5) * FieldCatalog.GX_TO_METERS,
+	Vector3(-2.5, 97.5, 7.5) * FieldCatalog.GX_TO_METERS,
 ]
-const CROWN_PALM_GX: Array[Vector3] = [
-	Vector3(-10.0, 70.0, 2.5),
-	Vector3(10.0, 75.0, 0.0),
+const CROWN_PALM: Array[Vector3] = [
+	Vector3(-10.0, 70.0, 2.5) * FieldCatalog.GX_TO_METERS,
+	Vector3(10.0, 75.0, 0.0) * FieldCatalog.GX_TO_METERS,
 ]
 ## `drop_speed` frames at 30 Hz (`fruit_set`).
 const DROP_SPEED_FRAMES: Array[int] = [14, 18, 22]
@@ -292,15 +292,15 @@ static func pick_drop_cells(
 
 
 static func crown_offset(index: int, is_honey: bool, is_palm: bool) -> Vector3:
-	var table: Array[Vector3] = CROWN_GX
+	var table: Array[Vector3] = CROWN
 	if is_honey:
-		table = CROWN_HONEY_GX
+		table = CROWN_HONEY
 	elif is_palm:
-		table = CROWN_PALM_GX
+		table = CROWN_PALM
 	if table.is_empty():
 		return Vector3(0.0, 3.0, 0.0)
 	var i: int = clampi(index, 0, table.size() - 1)
-	return table[i] * FieldCatalog.GX_TO_METERS
+	return table[i]
 
 
 static func drop_duration(index: int, is_honey: bool, is_furniture: bool) -> float:

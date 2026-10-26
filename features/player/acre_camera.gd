@@ -1,27 +1,28 @@
 class_name AcreCamera
 extends RefCounted
 
-## Outdoor `Camera2` (`m_camera2.c`), in decomp GX. The look-at centre follows the player's eye
-## but is held inside a box in the player's current acre (`Camera2_GetBorderScale`, border size
-## 110), so the view never shows the next acre until the player wades into it. It eases toward
-## that goal with `add_calc(0.134, max 8.75, min 0.25)` a tick, here `Motion.approach` on
-## `delta`. A wade moves it to the next acre's box on the same 0.6 s ease as the player
-## (`Camera2_main_Wade`).
+## Outdoor `Camera2` (`m_camera2.c`), on `TownSpace` field positions (metres). The look-at
+## centre follows the player's eye but is held inside a box in the player's current acre
+## (`Camera2_GetBorderScale`, border size 110 GX), so the view never shows the next acre until
+## the player wades into it. It eases toward that goal with `add_calc(0.134, max 8.75, min 0.25)`
+## GX a tick, here `Motion.approach` on `delta`. A wade moves it to the next acre's box on the
+## same 0.6 s ease as the player (`Camera2_main_Wade`).
 
-const BORDER := 110.0
-const UNIT_Z := 40.0
+const GX := FieldCatalog.GX_TO_METERS
+const BORDER := 110.0 * GX
+const UNIT_Z := 40.0 * GX
 ## `Camera2_GetUnderBorderAdjust` outdoors.
-const UNDER_ADJUST := -15.0
+const UNDER_ADJUST := -15.0 * GX
 const FRACTION := 0.13397461
-const MAX_STEP := 8.75
-const MIN_STEP := 0.25
+const MAX_STEP := 8.75 * GX
+const MIN_STEP := 0.25 * GX
 ## `Camera2_Normal_Swing`: pitch lift on the rail row (block z 1), short-angle units.
 const SWING := 250.0
 ## `Camera2_MoveDirectionAngleXYZ`: `add_calc_short_angle2(dir.x, goal, 0.0513, 11000, 100)`.
 const PITCH_FRACTION := 0.051316679
 const PITCH_MAX_STEP := 11000.0 * MathUtil.S16
 const PITCH_MIN_STEP := 100.0 * MathUtil.S16
-## The same eases in seconds: GX (or radians) a second, from the per-tick steps above.
+## The same eases in seconds: metres (or radians) a second, from the per-tick steps above.
 static var HALF_LIFE: float = Motion.half_life_from_fraction(FRACTION)
 const MAX_SPEED := MAX_STEP * 60.0
 const MIN_SPEED := MIN_STEP * 60.0
@@ -36,17 +37,17 @@ static func box(block: Vector2i) -> Dictionary:
 	var base: Vector2 = TownSpace.block_base(block)
 	return {
 		"x_min": base.x + BORDER,
-		"x_max": base.x + TownSpace.BLOCK_GX - BORDER,
+		"x_max": base.x + TownSpace.BLOCK - BORDER,
 		"z_min": base.y + BORDER + UNIT_Z,
-		"z_max": base.y + TownSpace.BLOCK_GX - (BORDER + UNDER_ADJUST),
+		"z_max": base.y + TownSpace.BLOCK - (BORDER + UNDER_ADJUST),
 	}
 
 
 ## `Camera2_main_Normal_SetEndCenterPos_fromPlayer`: the player's eye clamped into the box of
 ## the acre the player stands in.
-static func goal(eye_gx: Vector3, player_gx: Vector3) -> Vector3:
-	var b: Dictionary = box(TownSpace.block_of(player_gx))
-	var out := eye_gx
+static func goal(eye: Vector3, player: Vector3) -> Vector3:
+	var b: Dictionary = box(TownSpace.block_of(player))
+	var out := eye
 	out.x = clampf(out.x, b["x_min"], b["x_max"])
 	out.z = clampf(out.z, b["z_min"], b["z_max"])
 	return out
@@ -56,8 +57,8 @@ static func goal(eye_gx: Vector3, player_gx: Vector3) -> Vector3:
 ## wade's end; the box is still the one of the acre being left, so the jump uses the decomp's
 ## literal offsets (they land 40 GX past the far box edge when wading north; the normal camera
 ## then eases back).
-static func wade_goal(pos: Vector3, player_gx: Vector3) -> Vector3:
-	var b: Dictionary = box(TownSpace.block_of(player_gx))
+static func wade_goal(pos: Vector3, player: Vector3) -> Vector3:
+	var b: Dictionary = box(TownSpace.block_of(player))
 	var x_hi: float = b["x_max"]
 	var x_lo: float = b["x_min"]
 	var z_lo: float = b["z_min"]
@@ -115,16 +116,16 @@ static func add_calc(value: float, target: float, fraction: float = FRACTION, ma
 
 
 ## `Camera2_Normal_Swing`: extra pitch (radians, negative = lower) on the rail row's north half.
-static func swing(eye_gx: Vector3, player_gx: Vector3) -> float:
-	var block: Vector2i = TownSpace.block_of(eye_gx)
+static func swing(eye: Vector3, player: Vector3) -> float:
+	var block: Vector2i = TownSpace.block_of(eye)
 	if block.y != 1:
 		return 0.0
-	var b: Dictionary = box(TownSpace.block_of(player_gx))
+	var b: Dictionary = box(TownSpace.block_of(player))
 	var z_mid: float = (float(b["z_min"]) + float(b["z_max"])) * 0.5
 	var half: float = z_mid - float(b["z_min"])
 	if is_zero_approx(half):
 		return 0.0
-	var ratio: float = clampf((eye_gx.z - z_mid) / half, -1.0, 1.0)
+	var ratio: float = clampf((eye.z - z_mid) / half, -1.0, 1.0)
 	if ratio >= 0.0:
 		return 0.0
 	return ratio * SWING * MathUtil.S16

@@ -241,7 +241,7 @@ func test_rsv_cells_read_from_the_fg_template() -> void:
 
 func test_lost_found_cells_have_twenty_slots() -> void:
 	assert_int(PoliceDisplay.lost_found_cells().size()).is_equal(PoliceBook.STORAGE_COUNT)
-	assert_vector(PoliceDisplay.unit_center_gx(Vector2i(4, 6))).is_equal(PoliceDisplay.BOOKER_STAND_GX)
+	assert_vector(PoliceDisplay.unit_center(Vector2i(4, 6))).is_equal(PoliceDisplay.BOOKER_STAND)
 
 
 func test_presenter_places_one_card_per_kept_item() -> void:
@@ -263,8 +263,8 @@ func test_presenter_places_one_card_per_kept_item() -> void:
 	assert_object(root.get_node_or_null("SunshineL")).is_not_null()
 	assert_object(root.get_node_or_null("SunshineR")).is_not_null()
 	var card: Node3D = root.get_node("LostFound_1") as Node3D
-	var want: Vector3 = PoliceDisplay.gx_to_world(
-		session.grid, PoliceDisplay.unit_center_gx(PoliceDisplay.cell_for_slot(1))
+	var want: Vector3 = WorldGrid.room_point(
+		session.grid, PoliceDisplay.unit_center(PoliceDisplay.cell_for_slot(1))
 	)
 	assert_float(card.position.x).is_equal_approx(want.x, 0.001)
 	assert_float(card.position.z).is_equal_approx(want.z, 0.001)
@@ -274,9 +274,9 @@ func test_blocked_units_match_the_police_indoor_bg() -> void:
 	var blocked: Dictionary = PoliceDisplay.blocked_units()
 	if blocked.is_empty():
 		return  ## `police_indoor.col.json` not generated (no disc)
-	## Every lost-and-found unit sits on a shelf 20 GX above the floor.
+	## Every lost-and-found unit sits on a shelf 20 GX (1 m) above the floor.
 	for cell: Vector2i in PoliceDisplay.lost_found_cells():
-		assert_float(float(blocked.get(cell, 0.0))).is_equal(20.0)
+		assert_float(float(blocked.get(cell, 0.0))).is_equal_approx(1.0, 0.0001)
 	## Walkways between the shelf rows and Booker's stand stay open.
 	assert_bool(blocked.has(Vector2i(4, 2))).is_false()
 	assert_bool(blocked.has(PoliceDisplay.BOOKER_STAND_UT)).is_false()
@@ -310,12 +310,12 @@ func test_presenter_adds_shelf_hulls_and_clock() -> void:
 
 func test_booker_zone_grid() -> void:
 	## `aPOL2_get_zone`: uz clamps to 2…6; ux splits at >1 / >4 / >7.
-	assert_int(PoliceDisplay.zone_for_gx(Vector3(20.0, 0.0, 20.0))).is_equal(0)
-	assert_int(PoliceDisplay.zone_for_gx(Vector3(100.0, 0.0, 100.0))).is_equal(1)
-	assert_int(PoliceDisplay.zone_for_gx(Vector3(220.0, 0.0, 140.0))).is_equal(6)
-	assert_int(PoliceDisplay.zone_for_gx(Vector3(340.0, 0.0, 380.0))).is_equal(19)
-	assert_int(PoliceDisplay.zone_for_gx(PoliceDisplay.BOOKER_STAND_GX)).is_equal(17)
-	assert_vector(PoliceDisplay.zone_waypoint_gx(19)).is_equal(Vector3(340.0, 0.0, 300.0))
+	assert_int(PoliceDisplay.zone_for(Vector3(20.0, 0.0, 20.0) * FieldCatalog.GX_TO_METERS)).is_equal(0)
+	assert_int(PoliceDisplay.zone_for(Vector3(100.0, 0.0, 100.0) * FieldCatalog.GX_TO_METERS)).is_equal(1)
+	assert_int(PoliceDisplay.zone_for(Vector3(220.0, 0.0, 140.0) * FieldCatalog.GX_TO_METERS)).is_equal(6)
+	assert_int(PoliceDisplay.zone_for(Vector3(340.0, 0.0, 380.0) * FieldCatalog.GX_TO_METERS)).is_equal(19)
+	assert_int(PoliceDisplay.zone_for(PoliceDisplay.BOOKER_STAND)).is_equal(17)
+	assert_vector(PoliceDisplay.zone_waypoint(19)).is_equal_approx(Vector3(340.0, 0.0, 300.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 
 
 func test_booker_next_zone_routes_round_shelves() -> void:
@@ -437,11 +437,11 @@ func test_window_light_only_in_daytime() -> void:
 
 
 func test_sunshine_anchor_offsets() -> void:
-	assert_vector(PoliceDisplay.sunshine_anchor_gx(PoliceDisplay.SUNSHINE_L_GX, true)).is_equal(
-		Vector3(38.0, -39.0, 200.0)
+	assert_vector(PoliceDisplay.sunshine_anchor(PoliceDisplay.SUNSHINE_L, true)).is_equal_approx(
+		Vector3(38.0, -39.0, 200.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001
 	)
-	assert_vector(PoliceDisplay.sunshine_anchor_gx(PoliceDisplay.SUNSHINE_R_GX, false)).is_equal(
-		Vector3(360.0, -39.0, 200.0)
+	assert_vector(PoliceDisplay.sunshine_anchor(PoliceDisplay.SUNSHINE_R, false)).is_equal_approx(
+		Vector3(360.0, -39.0, 200.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001
 	)
 
 

@@ -46,5 +46,5 @@ func _lost_and_found(root: Node3D, interior: IndoorSession) -> void:
 		node.name = "LostFound_%d" % i
 		node.set("slot", i)
 		node.set("item_id", item_id)
-		node.position = PoliceDisplay.gx_to_world(interior.grid, PoliceDisplay.unit_center_gx(cells[i]))
+		node.position = WorldGrid.room_point(interior.grid, PoliceDisplay.unit_center(cells[i]))
 		root.add_child(node)

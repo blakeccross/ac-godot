@@ -37,13 +37,9 @@ const MELT := 0.8
 const GX := 0.05
 
 
-## `normalized_scale * 20 + 10`: the ball's radius in GX.
-static func radius_gx(n: float) -> float:
-	return n * 20.0 + 10.0
-
-
-static func radius_m(n: float) -> float:
-	return radius_gx(n) * GX
+## `normalized_scale * 20 + 10` GX: the ball's radius.
+static func radius(n: float) -> float:
+	return (n * 20.0 + 10.0) * GX
 
 
 ## `actor.scale`: 0.01 – 0.03.

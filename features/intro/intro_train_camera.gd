@@ -54,7 +54,7 @@ func setup(camera: Camera3D, eye_gx: Vector3 = IntroTrainStage.CAM_EYE_GX, look_
 	_camera_move = 0.0
 	_camera_tilt = 0.0
 	_camera_tilt_goal = 0.0
-	tick(0.0, IntroTrainStage.ROVER_START_GX)
+	advance(0.0, IntroTrainStage.ROVER_START_GX)
 
 
 func look_gx() -> Vector3:
@@ -117,7 +117,7 @@ func current_look_gx() -> Vector3:
 	return _look_gx
 
 
-func tick(delta: float, shadow_gx: Vector3) -> void:
+func advance(delta: float, shadow_gx: Vector3) -> void:
 	_shadow_gx = shadow_gx
 	if _camera == null:
 		return

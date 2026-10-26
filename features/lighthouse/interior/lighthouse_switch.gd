@@ -2,7 +2,7 @@ extends Node3D
 
 ## The lighthouse switch room machinery (`ac_lighthouse_switch`): the lever on the east
 ## wall (`obj_toudai_switch`), the lens drive in the pit (`obj_toudai_pole`) and the room's
-## point light. This node stands at the lever (`LighthouseRoom.SWITCH_GX`) so the player
+## point light. This node stands at the lever (`LighthouseRoom.SWITCH`) so the player
 ## faces it; `Lever` / `Pole` sit back on the room datum because both models are authored
 ## in room GX.
 ##
@@ -71,7 +71,7 @@ var pole_off_left: float = 0.0
 ## `point_light_percent` for this room (0–1).
 var light: float = 0.0
 var light_on: bool = false
-## When false the room ignores the clock (tests drive `tick()` / modes directly).
+## When false the room ignores the clock (tests drive `advance()` / modes directly).
 @export var follow_clock: bool = true
 
 @onready var _lever: Node3D = $Lever
@@ -126,12 +126,12 @@ func enter(mode: LighthouseBook.SwitchMode) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	tick(_mode(), delta)
+	advance(_mode(), delta)
 	_apply()
 
 
 ## `Lighthouse_Switch_Actor_move` (minus the player check) over `delta` seconds.
-func tick(mode: LighthouseBook.SwitchMode, delta: float) -> void:
+func advance(mode: LighthouseBook.SwitchMode, delta: float) -> void:
 	_auto_switch(mode)
 	_pole_move(delta)
 	_lever_move(delta)

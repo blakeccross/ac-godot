@@ -114,7 +114,7 @@ func _physics_process(_delta: float) -> void:
 		player.stop_for_door()
 		await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
 		if not Game.try_enter_interior(
-			stair.target_room_id, stair.spawn_gx, WorldGrid.yaw_for_furniture(stair.spawn_facing)
+			stair.target_room_id, stair.spawn, WorldGrid.yaw_for_furniture(stair.spawn_facing)
 		):
 			SceneTransition.cancel_wipe()
 			_exiting = false
@@ -365,7 +365,7 @@ func _spawn_player() -> void:
 	var pos: Vector3 = _spawn.global_position
 	var yaw: float = Game.resident.player_yaw
 	if Game.arrival.has_stand and session != null and session.grid != null:
-		pos = MuseumDisplay.gx_to_world(session.grid, Game.arrival.stand_gx)
+		pos = WorldGrid.room_point(session.grid, Game.arrival.stand)
 		pos.y = 0.1
 		yaw = Game.arrival.stand_yaw
 		Game.arrival.has_stand = false

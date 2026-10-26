@@ -71,7 +71,7 @@ Prefer signals on the owning system over a global event bus unless many unrelate
 | Subscriber (now or next slice) | Signal / query |
 | --- | --- |
 | Day/night lighting | `time_changed` → `Weather.outdoor_light_for(Game.weather)` |
-| Villager schedules | `time_changed` + `VillagerSchedule.tick` / `activity_now()` |
+| Villager schedules | `time_changed` + `VillagerSchedule.advance` / `activity_now()` |
 | Shops | `in_hour_window(9, 22)`; restock on `field_renewed` |
 | Weather | `field_renewed` → `Weather.roll` → `Game.set_weather` |
 | Plant growth | `field_renewed` → `PlantGrowth.refresh_world`; stage from `Clock.renew_index()` |

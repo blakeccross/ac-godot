@@ -52,12 +52,12 @@ func test_shadow_reads_the_rod_from_the_sense() -> void:
 	s.bobber_position = Vector3(sin(off) * d, 0.0, cos(off) * d)
 
 	s.rod = FishSize.ROD_NORMAL
-	shadow.tick(1.0 / 30.0, s)
+	shadow.advance(1.0 / 30.0, s)
 	assert_int(shadow.action).is_equal(FishShadow.Action.WAIT)   ## fussy — misses it
 
 	shadow._timer = 999.0
 	s.rod = FishSize.ROD_GOLDEN
-	shadow.tick(1.0 / 30.0, s)
+	shadow.advance(1.0 / 30.0, s)
 	assert_int(shadow.action).is_equal(FishShadow.Action.NEAR)   ## golden — spots it
 
 
@@ -84,7 +84,7 @@ func test_committing_fish_can_turn_out_to_be_trash() -> void:
 		shadow.action = FishShadow.Action.TOUCH
 		shadow._timer = 0.0
 		shadow._nibbles_left = 1   ## force the commit
-		shadow.tick(1.0 / 30.0, s)
+		shadow.advance(1.0 / 30.0, s)
 		if shadow.action == FishShadow.Action.BITE and shadow.fish.is_trash:
 			got_trash = true
 			break
@@ -107,7 +107,7 @@ func test_full_pockets_block_the_trash_swap() -> void:
 		shadow.action = FishShadow.Action.TOUCH
 		shadow._timer = 0.0
 		shadow._nibbles_left = 1
-		shadow.tick(1.0 / 30.0, s)
+		shadow.advance(1.0 / 30.0, s)
 		if shadow.action == FishShadow.Action.BITE:
 			assert_bool(shadow.fish.is_trash).is_false()
 

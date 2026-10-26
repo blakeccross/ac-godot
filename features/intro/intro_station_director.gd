@@ -119,8 +119,8 @@ func _boot() -> void:
 		_nook_face.bind(pivot, &"rcn")
 	_ensure_nook_feel(_nook)
 
-	## Stage GX is relative to the station block (3, 1); the town keeps decomp world GX.
-	var origin: Vector3 = TownSpace.gx_to_world(IntroStationStage.BLOCK_ORIGIN_GX)
+	## Stage GX is relative to the station block (3, 1).
+	var origin: Vector3 = TownSpace.field_to_world(IntroStationStage.BLOCK_ORIGIN_GX * FieldCatalog.GX_TO_METERS)
 	_stage.set_block_origin(origin)
 	_stage.set_world_ground(_world.layout as WorldData, _world.grid as WorldGrid)
 	_stage.bind(null, null, null, null, _porter, _nook, _player, _camera)
@@ -191,7 +191,7 @@ func _resume_debt_sequence() -> void:
 func _process(delta: float) -> void:
 	if _finishing or _stage == null:
 		return
-	_stage.tick(delta)
+	_stage.advance(delta)
 	## Keep the real player locked while the stage owns pose / cutscenes.
 	if _player != null and is_instance_valid(_player):
 		_player.set_busy(_stage.player_controls_locked())
@@ -208,7 +208,7 @@ func _tick_nook_talk(delta: float) -> void:
 	var uttering: bool = false
 	if _dialogue != null and _talk_npc != null and _talk_npc == _nook:
 		uttering = _dialogue.is_uttering()
-	_nook_face.tick(delta, uttering)
+	_nook_face.advance(delta, uttering)
 	if _nook_manpu_hold.is_empty():
 		return
 	var anim: AnimationPlayer = VisualAnimation.find_animation_player(_nook)

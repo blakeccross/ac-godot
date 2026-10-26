@@ -88,7 +88,7 @@ func _align_to_seat() -> void:
 	if vis == null:
 		return
 	vis.position.y = 0.0
-	VisualFit.align_actor_world_min_to_height_gx(vis, BENCH_FLOOR_Y_GX)
+	VisualFit.align_actor_world_min_to_height(vis, BENCH_FLOOR_Y_GX * FieldCatalog.GX_TO_METERS)
 
 
 func _on_sleep_anim_finished(anim_name: StringName) -> void:

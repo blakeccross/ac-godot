@@ -73,7 +73,7 @@ func test_a_report_closes_in_to_370_at_37_degrees() -> void:
 	cam.begin_item(player)
 	for _i in 600:
 		cam._follow_item(1.0 / 60.0)
-	var center: Vector3 = player.global_position + FollowCamera.ITEM_CENTER_GX * PlayerLocomotion.UNIT_METERS
+	var center: Vector3 = player.global_position + FollowCamera.ITEM_CENTER
 	assert_vector(cam._look_current).is_equal_approx(center, Vector3.ONE * 0.01)
 	assert_float(cam.global_position.distance_to(center) / PlayerLocomotion.UNIT_METERS).is_equal_approx(370.0, 0.5)
 	var arm: Vector3 = cam.global_position - center
