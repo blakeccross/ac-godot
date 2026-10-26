@@ -160,7 +160,7 @@ func _retire() -> void:
 		return
 	PresentVisit.retire(kind)
 	if p != null:
-		p.get_golden_item(PresentVisit.present_for(kind))
+		p.reports.get_golden_item(PresentVisit.present_for(kind))
 
 
 ## `aPST_exit_turn_init`: turn to the path between the houses, then run along it.

@@ -336,8 +336,8 @@ static func axe_hits_bank(ctx: InteractionContext) -> bool:
 static func wear_axe(ctx: InteractionContext, reflected: bool) -> void:
 	if ctx == null or ctx.inventory == null or not AxeWear.is_worn_axe(ctx.inventory.equipment_id):
 		return
-	if AxeWear.apply(ctx.inventory, reflected, ctx.actor) == &"" and ctx.actor != null and ctx.actor.has_method("broken_axe"):
-		ctx.actor.call("broken_axe")
+	if AxeWear.apply(ctx.inventory, reflected, ctx.actor) == &"" and ctx.actor is Player:
+		(ctx.actor as Player).reports.broken_axe()
 
 
 static func scoop_outcome(ctx: InteractionContext) -> Scoop:

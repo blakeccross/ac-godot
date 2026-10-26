@@ -134,10 +134,10 @@ func execute(raw: String) -> String:
 				return "No player in this scene."
 			if not args.is_empty() and String(args[0]) == "paid":
 				Game.complete_payment = Game.PAYMENT_HOUSE
-				du_player.run_complete_payment()
+				du_player.reports.run_complete_payment()
 				return "Debt paid."
 			var du_item := StringName(String(args[0]) if not args.is_empty() else "conch")
-			du_player.run_dig_get(du_item, true, Vector2i(-1, -1), null)
+			du_player.reports.run_dig_get(du_item, true, Vector2i(-1, -1), null)
 			return "Dug up %s." % du_item
 		"throwfish":
 			## `throwfish [fish id]`: stand at the nearest bank facing the water and let a fish go.
@@ -330,9 +330,9 @@ func execute(raw: String) -> String:
 					Game.inventory.equip_slot(i)
 			AxeWear.damage = AxeWear.LIMIT - 1
 			var ab_tree := Engine.get_main_loop() as SceneTree
-			var ab_player: Node = Player.find(ab_tree) if ab_tree != null else null
+			var ab_player: Player = Player.find(ab_tree) if ab_tree != null else null
 			if ab_player != null and AxeWear.apply(Game.inventory, false, ab_player) == &"":
-				ab_player.call("broken_axe")
+				ab_player.reports.broken_axe()
 				return "The axe broke."
 			return "Axe at stage 7, one swing from breaking."
 		"release":
@@ -532,7 +532,7 @@ func execute(raw: String) -> String:
 			var go_player := Player.find(go_tree) as Player if go_tree != null else null
 			if go_player == null:
 				return "No player here."
-			go_player.get_golden_item(go_id)
+			go_player.reports.get_golden_item(go_id)
 			return "Holding up %s." % go_id
 		"treasure":
 			## A villager buries something now and posts where (`mNtc_check_treasure`).

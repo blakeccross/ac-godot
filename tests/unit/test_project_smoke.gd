@@ -25,6 +25,11 @@ func test_player_scene_is_character_body() -> void:
 	assert_bool(player.has_method("facing_yaw")).is_true()
 	assert_bool(player.has_method("camera_look_position")).is_true()
 	assert_bool(player.has_method("try_interact")).is_false()
+	## Every component is wired in the scene, so it is there before any `_ready`.
+	var p := player as Player
+	for part: Node in [p.doors, p.furniture, p.tools, p.net, p.fishing, p.snowball, p.reports]:
+		assert_that(part).is_not_null()
+		assert_that(part.get_parent()).is_same(player)
 
 
 func test_world_scene_is_a_shell() -> void:

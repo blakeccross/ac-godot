@@ -348,6 +348,7 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
     - `Tools` takes the held item: binding it, swapping it round doors, the umbrella, the balloon and the pinwheel. The carry pose is part of it.
     - `Net` takes the net swing and its catch, `Fishing` the rod after a cast, and `Snowball` rolling a snowball.
     - Talk-facing stays on `Player`: talk cameras call it on villagers and the player alike.
+    - `Reports` (later) takes the player's own report beats: the golden tools, the catch report and pockets-full swap, a find dug up, the loan paid off and the broken axe, with their report camera. `player.gd` went from 2617 lines to 2301.
   - **Villager components:** `villager.gd` went from 2206 lines to 1310.
     - `Mover` takes steering and acre travel, and `Conversation` a villager in talk (`VillagerTalk` was already taken by the dialogue logic).
     - `Greeter` takes road greetings and `Brain` schedule and goal picking.

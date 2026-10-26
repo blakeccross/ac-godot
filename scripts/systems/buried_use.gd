@@ -252,7 +252,7 @@ static func report(ctx: InteractionContext) -> void:
 	var item_id: StringName = find["item"]
 	var cell: Vector2i = find["cell"]
 	if ctx != null and ctx.actor is Player:
-		await (ctx.actor as Player).run_dig_get(item_id, bool(find["banked"]), cell, ctx)
+		await (ctx.actor as Player).reports.run_dig_get(item_id, bool(find["banked"]), cell, ctx)
 		return
 	var item: ItemData = ItemCatalog.get_item(item_id)
 	if not bool(find["banked"]):

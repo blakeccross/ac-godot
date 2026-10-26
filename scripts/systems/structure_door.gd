@@ -173,8 +173,8 @@ static func play_emerge(host: Node) -> void:
 		player.doors.end_door_leave()
 	_DoorCamera.end(host.get_tree() if host != null else null)
 	## `Player_actor_request_proc_index_fromOutdoor`: a debt paid / the chores done → cheer.
-	if player != null and is_instance_valid(player) and Game.complete_payment != &"" and player.has_method("run_complete_payment"):
-		player.call("run_complete_payment")
+	if player != null and is_instance_valid(player) and Game.complete_payment != &"":
+		player.reports.run_complete_payment()
 
 
 ## After a door spawn, keep walking INTO_S1 past the door so exit sensors stay clear.

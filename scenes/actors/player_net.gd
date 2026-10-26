@@ -258,8 +258,8 @@ func _net_pull(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay)
 			shown = true
 		elapsed += delta
 		if elapsed >= Netting.PULL_REPORT_SEC and not reported:
-			_player.report_camera(true)
-			_player._net_say(ui, catch_.report_msg(), catch_.bug)
+			_player.reports.report_camera(true)
+			_player.reports.say_net_catch(ui, catch_.report_msg(), catch_.bug)
 			Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
 			reported = true
 		if _clip_ended(elapsed, Netting.PULL_FRAMES) and reported:
@@ -269,19 +269,19 @@ func _net_pull(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay)
 ## `main_Notice_net`'s message states: the collection-complete follow-up with `YATTA2`, or the
 ## pockets-full swap question, then wait for the report to close.
 func _net_notice(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay) -> void:
-	await _player._net_wait_closed(ui)
+	await _player.reports.wait_closed(ui)
 	if catch_.completes_record:
 		HeldTool.play(skeleton, Netting.TOOL_YATTA, false)
 		_player._play_body_once(Netting.ANIM_YATTA)
 		Audio.pop_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
 		Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_COMPLETE))
-		_player._net_say(ui, Netting.LAST_GET_CONTINUE_MSG, catch_.bug)
-		await _player._net_wait_closed(ui)
+		_player.reports.say_net_catch(ui, Netting.LAST_GET_CONTINUE_MSG, catch_.bug)
+		await _player.reports.wait_closed(ui)
 	if not catch_.banked and catch_.bug != null:
 		## 0xA4D: "Swap" trades a pocket for it (`mSM_IV_OPEN_EXCHANGE`), else it goes.
-		if await _player._ask_swap(Netting.POCKETS_FULL_MSG) and await _player.exchange_into_pockets(catch_.bug.id):
+		if await _player.reports.ask_swap(Netting.POCKETS_FULL_MSG) and await _player.reports.exchange_into_pockets(catch_.bug.id):
 			catch_.banked = true
-	_player.report_camera(false)
+	_player.reports.report_camera(false)
 
 
 ## `main_Putaway_net`: `PUTAWAY_M1` with `GASAGOSO`; the insect shrinks each tick until

@@ -80,7 +80,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	## `mTG` on the pockets closing: the first golden shovel gets the golden-item demo.
 	if item.id == &"golden_shovel" and not Game.resident.golden_shovel_shown and ctx.actor is Player:
 		Game.resident.golden_shovel_shown = true
-		(ctx.actor as Player).get_golden_item(&"golden_shovel")
+		(ctx.actor as Player).reports.get_golden_item(&"golden_shovel")
 	queue_free()
 	return true
 

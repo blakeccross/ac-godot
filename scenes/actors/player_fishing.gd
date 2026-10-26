@@ -128,7 +128,7 @@ func _play_show(beat: Fishing.ReelBeat) -> void:
 		if held < length:
 			await get_tree().create_timer(length - held).timeout
 	else:
-		await _player._report_catch(beat.catch_msg, beat.pockets_full, beat.fish, beat.completes_record)
+		await _player.reports.report_catch(beat.catch_msg, beat.pockets_full, beat.fish, beat.completes_record)
 	await _play_putaway(skeleton)
 
 

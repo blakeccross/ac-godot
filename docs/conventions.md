@@ -88,7 +88,7 @@ Existing decomp-style names are renamed in plan § Phase 1, with the old names r
 
 ## Components
 
-A large actor splits by responsibility into child `Node`s declared in its `.tscn` (`player.tscn`: `Doors`, `Furniture`, `Tools`, `Net`, `Fishing`, `Snowball`; `villager.tscn`: `Mover`, `Conversation`, `Greeter`, `Brain`). The actor holds them as node exports assigned in the scene (`@export var doors: PlayerDoors`, `node_paths` in the `.tscn`), so they are set before any child's `_ready`. A component finds its actor on first use (`_player` / `_villager`, a getter on `get_parent()`), so scenes built in tests without a tree work. Components are parts of one actor: they may read its private state (`_motor`, `_anim`, `_busy`) and each other's through it. Code outside the actor goes through the component (`player.doors.begin_door_enter(…)`).
+A large actor splits by responsibility into child `Node`s declared in its `.tscn` (`player.tscn`: `Doors`, `Furniture`, `Tools`, `Net`, `Fishing`, `Snowball`, `Reports`; `villager.tscn`: `Mover`, `Conversation`, `Greeter`, `Brain`). The actor holds them as node exports assigned in the scene (`@export var doors: PlayerDoors`, `node_paths` in the `.tscn`), so they are set before any child's `_ready`. A component finds its actor on first use (`_player` / `_villager`, a getter on `get_parent()`), so scenes built in tests without a tree work. Components are parts of one actor: they may read its private state (`_motor`, `_anim`, `_busy`) and each other's through it. Code outside the actor goes through the component (`player.doors.begin_door_enter(…)`).
 
 ## Saved state
 

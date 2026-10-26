@@ -46,7 +46,7 @@ func talk_ended(_script: BankTalk) -> void:
 	_vanish()
 	var p := player_node() as Player
 	if p != null:
-		p.get_golden_item(GOLDEN_AXE)
+		p.reports.get_golden_item(GOLDEN_AXE)
 
 
 func _vanish() -> void:
