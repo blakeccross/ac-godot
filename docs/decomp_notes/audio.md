@@ -6,7 +6,7 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 
 **Godot:** `Audio` autoload (`play_bgm` / `stop_bgm` / `play_se` / `play_voice`). Catalogs (`BgmCatalog`, `SeCatalog`, `VoiceCatalog`) map ids → generated streams. `--kind audio` unpacks `audiorom.img`, decodes bank samples, renders BGM sequences, SE one-shots (seq 242), and animalese phonemes (seqs 243–245) to OGG. Missing files are silence.
 
-**Read before implementing:** this note, [asset_pipeline.md](../asset_pipeline.md), `scripts/systems/audio.gd`, `Clock.hour_changed`.
+**Read before implementing:** this note, [asset_pipeline.md](../asset_pipeline.md), `scripts/systems/audio/audio.gd`, `Clock.hour_changed`.
 
 ## Decomp sources
 

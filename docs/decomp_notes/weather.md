@@ -2,7 +2,7 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only.
 
-**Godot:** `Weather` (`scripts/systems/weather.gd`) rolls type + intensity; `Game` stores session state; outdoor particles live under `Effects/WeatherFx`. Lighting blend uses rain palette tables. Not an autoload.
+**Godot:** `Weather` (`scripts/systems/town/weather.gd`) rolls type + intensity; `Game` stores session state; outdoor particles live under `Effects/WeatherFx`. Lighting blend uses rain palette tables. Not an autoload.
 
 **Read before implementing:** `Clock` (`field_renewed`), `Game.weather`, outdoor BGM (`BgmCatalog`), fishing `needs_rain`, bug rain gates, dialogue weather conditions.
 

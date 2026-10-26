@@ -9,7 +9,7 @@ Resource data  -->  systems (behavior)  -->  scenes (presentation)
 ```
 
 - **Resources** describe what something is (an item, a villager definition, a tile type). Scripts live in `scripts/data/` with `class_name`. Instances are `.tres` files under `data/`.
-- **Systems** implement game-wide rules (clock, inventory, schedules, economy, save). Scripts live in `scripts/systems/`. They must be testable without the world scene.
+- **Systems** implement game-wide rules (clock, inventory, schedules, economy, save). Scripts live in `scripts/systems/<area>/` (`core/`, `town/`, `villagers/`, `interiors/`, `shops/`, `player/`, `tools/`, `fishing/`, `bugs/`, `events/`, …). They must be testable without the world scene.
 - **Scenes** are what the player sees and touches (player, tree, shop counter, HUD). Scripts stay thin: they wire nodes and call systems.
 
 Keep those layers separate. A tree scene should not own growth formulas. An item `.tres` should not run shop logic.
@@ -53,10 +53,10 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 
 | Name | Script | Responsibility |
 | --- | --- | --- |
-| `Clock` | `scripts/systems/clock.gd` (`ClockService`) | Time system: calendar, day/night, 06:00 renew |
-| `SaveService` | `scripts/systems/save_service.gd` | Load/save JSON to `user://` |
-| `Audio` | `scripts/systems/audio.gd` | Music / SFX buses; `play_bgm` / `play_se` / `play_voice` from generated OGG via catalogs ([audio](decomp_notes/audio.md)) |
-| `Game` | `scripts/systems/game.gd` | Composition root: session phase, scene changes, save/load, weather; owns `Inventory`, `VillagerRoster`, `RelationshipBook`, `InteriorBook`, `ShopBook`, `MuseumBook`, `PoliceBook`, `PostBook` and the other books. Behavior lives in the classes below, not in `Game` |
+| `Clock` | `scripts/systems/core/clock.gd` (`ClockService`) | Time system: calendar, day/night, 06:00 renew |
+| `SaveService` | `scripts/systems/core/save_service.gd` | Load/save JSON to `user://` |
+| `Audio` | `scripts/systems/audio/audio.gd` | Music / SFX buses; `play_bgm` / `play_se` / `play_voice` from generated OGG via catalogs ([audio](decomp_notes/audio.md)) |
+| `Game` | `scripts/systems/core/game.gd` | Composition root: session phase, scene changes, save/load, weather; owns `Inventory`, `VillagerRoster`, `RelationshipBook`, `InteriorBook`, `ShopBook`, `MuseumBook`, `PoliceBook`, `PostBook` and the other books. Behavior lives in the classes below, not in `Game` |
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 

@@ -9,7 +9,7 @@ extends RefCounted
 ## `door_type == 0` (demo house / Able / post) → `OPEN1`. `door_type != 0`
 ## (museum / police / shop `request_main_door_type1(..., TRUE)`) → `INTO_S1`.
 
-const _DoorCamera := preload("res://scripts/systems/door_camera.gd")
+const _DoorCamera := preload("res://scripts/systems/player/door_camera.gd")
 
 ## cKF plays these at speed 0.5 on a 60 Hz move tick (= 30 anim fps). Pipeline
 ## samples at 30 fps, so Godot speed 1.0 matches the original duration (~1.67 s).

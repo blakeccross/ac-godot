@@ -12,7 +12,7 @@
 [ext_resource type="Script" uid="uid://b1j27rjvht0gy" path="res://scenes/ui/intro_train_car.gd" id="10"]
 [ext_resource type="Script" uid="uid://d0b12vigr1gei" path="res://scenes/ui/intro_train_door.gd" id="11"]
 [ext_resource type="Script" uid="uid://cdkqpli2gdy8k" path="res://scenes/ui/intro_train_rover.gd" id="12"]
-[ext_resource type="Script" uid="uid://gfcu4nl2xrrv" path="res://scripts/systems/intro_train_sleep_npc.gd" id="13"]
+[ext_resource type="Script" uid="uid://gfcu4nl2xrrv" path="res://scripts/systems/intro/intro_train_sleep_npc.gd" id="13"]
 [ext_resource type="Script" uid="uid://cpvk0863sunne" path="res://scenes/ui/intro_train_stage_sync.gd" id="14"]
 [ext_resource type="Script" uid="uid://dstml0imckfih" path="res://scenes/ui/intro_train_camera_rig.gd" id="15"]
 [ext_resource type="Script" uid="uid://dchr4eohq1w4l" path="res://scenes/ui/intro_train_keitai.gd" id="16"]

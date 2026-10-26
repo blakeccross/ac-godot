@@ -219,7 +219,7 @@ Implemented (manager layer, `ac_event_manager` equivalent):
 | Piece | File |
 | --- | --- |
 | Placement rules (free / empty / seaside unit, empty lot, block kinds, day-kept places), spawn/despawn, props as buildings | `scenes/world/event_manager.gd` (`EventManager`, node in `world.tscn`) |
-| One presenter per event (`PRESENTERS`), `start` / `stop` / `tick` | `scripts/systems/event_presenter.gd`, `scripts/systems/events/*_presenter.gd` |
+| One presenter per event (`PRESENTERS`), `start` / `stop` / `tick` | `scripts/systems/events/event_presenter.gd`, `scripts/systems/events/*_presenter.gd` |
 | Shared NPC presentation and talk plumbing | `EventNpc`, `BankTalk`, `TalkActions` |
 | Festival maps (`m_event_map_npc_data.c_inc` → JSON), crowd families, villager slots | `tools/gen_event_map.py`, `data/events/event_map.json`, `FestivalCrowd`, `festival_presenter.gd`, `festival_villager.gd` |
 | Visitors: Joan, K.K., Gulliver, Redd, Saharah, Wendell, Gracie, Katrina; holidays: Tortimer, festivals, Chip, the night stall, Katrina's lottery, the speech, Franklin, Halloween, Jingle, snow cabin, summer camper, fireworks | `scripts/systems/events/*_talk.gd`, `scenes/world/events/*.gd` |

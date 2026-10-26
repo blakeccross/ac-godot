@@ -30,7 +30,7 @@ Structural hot spots:
 
 - `scenes/actors/player.gd` is **3,840 lines**, with seven separate `FrameStepper`s (radio, net, door, talk turn, snowball, sun…).
 - `scenes/actors/villager.gd` is 2,206 lines.
-- `scripts/systems/game.gd` is 2,668 lines: the autoload owns almost every book of game state.
+- `scripts/systems/core/game.gd` is 2,668 lines: the autoload owns almost every book of game state.
 - `scripts/systems/` holds 272 scripts in one flat folder.
 - Bugs and fish are `RefCounted` simulations (`BugActor`, `FishShadow`) ticked by a manager and drawn by separate visual nodes, rather than one scene per creature.
 - Many class names are decomp or Japanese romaji: `BugSemi`, `BugGoki`, `BugDango`, `BugBatta`, `BugKera`, `BugKa`, `BugChou`, `BugHotaru`, `BugTonbo`, `BugKabuto`, `BugMino`, `BugTentou`, `BugAmenbo`, `HouseGoki`, `HaniwaStore`, `HaniwaTalk`, `KabuMarket`, `Ongen`, `FtrCatalog`, `FgCatalog`, `FarwayBook`, `TreeFx`, `StepFx`. Field names include `anime0`, `alpha0`, `bg_type`, `f_bit4`, `ongen`, `trg_se`, `ut_x` and `gyoei_term`.
@@ -82,7 +82,7 @@ Each phase leaves the game playable and the suite green. That means green at the
    - Decomp numbers are converted to seconds and metres **when authored**, with the source cited in a comment.
    - `FrameStepper` is banned in new code.
 2. Add a `## Naming` subsection: English names; decomp identifiers only in comments; a lookup table for the romaji names (see Phase 1).
-3. Add small helpers in `scripts/systems/motion.gd` (`class_name Motion`, done):
+3. Add small helpers in `scripts/systems/core/motion.gd` (`class_name Motion`, done):
    - `Motion.damp(current, target, half_life, delta)`, plus `damp_vec3` and `damp_angle`: framerate-independent exponential smoothing. These replace `add_calc` / `chase_f`.
    - `Motion.happens(rate_per_second, delta, rng)`: a Poisson chance, `1 - exp(-rate * delta)`. This replaces "roll `RANDOM` every frame".
    - Authoring helpers: `Motion.half_life_from_fraction` (`MLib.HALF_FRACTION` closes half the gap every two ticks, about 0.033 s) and `Motion.rate_from_chance`. `DecompTime` stays, marked *authoring-only*.
@@ -374,6 +374,7 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
     - Either way the host's `interact` carries them out and may await. A host with no `interact` hears the volume's `activated` signal.
     - `InteractionQuery` talks only to typed volumes (`offers` / `activate`). The host methods are found once, by the volume, which is the one place that duck typing remains.
 
+- **Phase 7 in part.** `scripts/systems/`'s 298 scripts moved into 18 area folders (`core/`, `audio/`, `town/`, `villagers/`, `interiors/`, `shops/`, `museum/`, `player/`, `tools/`, `fishing/`, `bugs/`, `events/`, `intro/`, `items/`, `dialogue/`, `mail/`, `visuals/`, `ui/`) with `git mv`, `.uid` files alongside, so history and UIDs follow. Scenes stay under `scenes/`; co-locating each feature's scenes with its scripts is still to do.
 - **Phase 6 in part.** The constants are converted. The decomp math stays in GX until each system is next touched.
   - 22 `_GX` constants that were only ever multiplied by `GX_TO_METERS` are metre values, and so are 22 constants written as a literal times it. The decomp figure stays in a comment (`const STAND_STEP := 1.75  ## 35 GX`).
   - Speed and acceleration constants keep their derivation from per-frame GX (`17.0 * GX_TO_METERS * 0.5 * TICK_HZ`), as Phase 2's lessons ask.

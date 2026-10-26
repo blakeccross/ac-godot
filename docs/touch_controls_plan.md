@@ -35,7 +35,7 @@ When a host offers more than one verb, a small row of chips appears over it with
 
 ## Architecture
 
-### `PlayerInput` (new, `scripts/systems/player_input.gd`)
+### `PlayerInput` (new, `scripts/systems/player/player_input.gd`)
 - This is the base type the player reads from. It is promoted out of `TitleDemoInput`, which becomes a subclass. Its fields are `move: Vector2` (get_vector convention, 0–1 magnitude) and `a_held`, `a_pressed`, `b_held` and `b_pressed`, plus `consume_a_pressed()` and `consume_b_pressed()`.
 - `player.scripted_input` is retyped to `PlayerInput`. The title-demo-only behaviour moves behind a `demo` flag on the source. That covers no sprint, the `TitleDemo.allows_verb` gate, and the skipped bad-luck trip and NPC wade checks.
 - The remaining direct `Input` readers move to read through the source (they fall back to `Input` when it is null):
@@ -52,11 +52,11 @@ When a host offers more than one verb, a small row of chips appears over it with
   - **Follow.** While a finger is held on the ground, pick the ground point under it each tick and steer straight toward it. Walk within 4 m, and run (`dash_held`) beyond that. Stop within 0.3 m. No path is planned, so the player stops at walls, just as a held stick would.
   - **Holds** map straight to `a_held` / `b_held`.
 
-### `TouchPick` (new, static, `scripts/systems/touch_pick.gd`)
+### `TouchPick` (new, static, `scripts/systems/ui/touch_pick.gd`)
 1. **Screen to object.** Raycast areas on the *interact* layer (mask 8) using `PhysicsRayQueryParameters3D.collide_with_areas`, with the ray from `cam.project_ray_origin/normal`. If that misses, try a 24 px screen radius, so small items and weeds are easy to hit. Return the `InteractVolume`.
 2. **Screen to ground.** There is no ground physics, so intersect the ray with the plane at the player's height, then refine it 3× against `FieldCollision.ground_y_at`. The ray is steep (about 45° at 31 m), so this converges at once. Off-field or water gives a target flag.
 
-### `TouchPath` (new, static, `scripts/systems/touch_path.gd`)
+### `TouchPath` (new, static, `scripts/systems/ui/touch_path.gd`)
 - A* on the `WorldGrid` cells (2 m), 8-connected.
 - A cell is passable when `is_walkable`, it is not occupied by a blocking host and `FieldCollision` allows entry. Cliff edges come from `FieldCollision._edge_is_wall` (made public), and slopes and bridges count as normal cells.
 - Diagonals are allowed only when both orthogonal neighbours are open.

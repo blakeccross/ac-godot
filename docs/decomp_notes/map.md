@@ -2,7 +2,7 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only.
 
-**Godot:** `TownMap` (`scripts/systems/town_map.gd`) + `scenes/ui/map_overlay.tscn`. Acre tiles and chrome come from the local disc via `--kind map-ui` (gitignored under `assets/generated/ui/map/`).
+**Godot:** `TownMap` (`scripts/systems/town/town_map.gd`) + `scenes/ui/map_overlay.tscn`. Acre tiles and chrome come from the local disc via `--kind map-ui` (gitignored under `assets/generated/ui/map/`).
 
 **Read before implementing:** FG 5×6 acre grid, `kan_tizu_*` tile ↔ `mFM_BLOCK_TYPE_*`, cursor / here-mark, building labels.
 

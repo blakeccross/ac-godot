@@ -37,7 +37,7 @@ Gameplay still reads input directly in two places, outside the player:
 
 ### Files
 - `scenes/actors/touch_driver.gd` (new): a `Node`, child of the player in `player.tscn`.
-- `scripts/systems/touch_pick.gd` (new, static): screen to ground (moved here from phase 3, because following the finger needs the ground point under it). See *TouchPick.ground* in phase 3.
+- `scripts/systems/ui/touch_pick.gd` (new, static): screen to ground (moved here from phase 3, because following the finger needs the ground point under it). See *TouchPick.ground* in phase 3.
 - `scenes/ui/touch_hud.tscn` + `touch_hud.gd` (new): a `CanvasLayer` instanced in `world.tscn` beside `ClockHud`, and in the interior scene roots that carry a HUD.
 - `scenes/world/events/gracie.gd`: read A through the player.
 - `project.godot`: nothing new.
@@ -91,8 +91,8 @@ With no joystick on screen, you can walk around the town by holding a finger whe
 *Playable:* tap the ground anywhere on screen to walk there.
 
 ### Files
-- `scripts/systems/touch_path.gd` (new, static): A* on the grid.
-- `scripts/systems/field_collision.gd`: make `_edge_is_wall` and `_forbids_enter` public (`edge_is_wall`, `forbids_enter`), keeping the old names as thin wrappers until their callers move.
+- `scripts/systems/ui/touch_path.gd` (new, static): A* on the grid.
+- `scripts/systems/town/field_collision.gd`: make `_edge_is_wall` and `_forbids_enter` public (`edge_is_wall`, `forbids_enter`), keeping the old names as thin wrappers until their callers move.
 - `scenes/actors/touch_driver.gd`: the walk-to steering.
 - `scenes/ui/touch_marker.tscn` (new): a ground ring (a flat `MeshInstance3D` with an unshaded additive material, plus an `AnimationPlayer` clip "pop" that scales 0.6→1 and fades over 0.4 s). Instanced into the world by the driver.
 
@@ -146,8 +146,8 @@ Tapping anywhere walks there along a sensible path, round ponds and up ramps, at
 **Done.** `TouchPick.object` (layer-8 ray plus a 24 px ring), `Player.verb_preview` / `face_toward`, the driver's approach-and-press (re-paths moving hosts, nudges once, gives up after 5 s), chips in `TouchHud`, shovel / axe on a cell up to two away (farther taps walk), rod on water, reel on any tap, and the net on a hold. Approach goes to the nearest open unit by `TouchPath` rather than a separate `approach`; chips live in `touch_hud.tscn` rather than their own scene.
 
 ### Files
-- `scripts/systems/touch_pick.gd`: add `object(cam, screen) → InteractVolume`.
-- `scripts/systems/touch_path.gd`: add `approach(data, grid, from, host_pos, reach) → path`.
+- `scripts/systems/ui/touch_pick.gd`: add `object(cam, screen) → InteractVolume`.
+- `scripts/systems/ui/touch_path.gd`: add `approach(data, grid, from, host_pos, reach) → path`.
 - `scenes/actors/touch_driver.gd`: targets, arrival and the verb.
 - `scenes/actors/player.gd`: add a public `verb_preview(pickup: bool) -> InteractionQuery`. It wraps `_query_focus` / `_resolve_interact` so the driver can ask what A or B would do without doing it.
 - `scenes/ui/touch_chips.tscn` (new): a row of `Button`s over a host, positioned with `cam.unproject_position`.

@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## `VillagerQuests` + the quest half of `VillagerTalkManager` against `m_quest.c`,
 ## `ac_quest_manager.c` and `ac_quest_talk_init.c`.
 
-const Q := preload("res://scripts/systems/villager_quests.gd")
+const Q := preload("res://scripts/systems/villagers/villager_quests.gd")
 const S := VillagerTalkManager.Step
 
 

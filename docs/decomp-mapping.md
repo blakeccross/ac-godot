@@ -8,7 +8,7 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 
 | Original (indicative) | Role in the GC game | Godot analog |
 | --- | --- | --- |
-| `m_time`, `lb_rtc` | RTC clock, 18 calendar terms, years 2001–2030, daily renew at 6:00 | `Clock` (`scripts/systems/clock.gd`); `field_renewed` at 06:00 |
+| `m_time`, `lb_rtc` | RTC clock, 18 calendar terms, years 2001–2030, daily renew at 6:00 | `Clock` (`scripts/systems/core/clock.gd`); `field_renewed` at 06:00 |
 | `m_kankyo` (`klight_chg_tim`, `l_mEnv_kcolor_fine_data`) | 8 lighting windows; outdoor ambient/sun/sky | `Clock.outdoor_light()` + world `WorldEnvironment` |
 | `m_calendar` | Played-day / event flags | `Clock.weekday()` / date; event flags later |
 | `m_kankyo` weather tables | Rain/snow/sakura by term | `Weather` + `Game.weather` / intensity; `WeatherFx` particles ([weather](decomp_notes/weather.md)) |

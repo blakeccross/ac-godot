@@ -18,7 +18,7 @@ Use typed GDScript on every signature and member. Indent with tabs.
 
 - **Data:** scripts that `extend Resource` live in `scripts/data/` and declare `class_name`. Instances are `.tres` files under `data/` (`items/`, `furniture/`, `villagers/`, `personalities/`, `creatures/`, `plants/`, `dialogue/`, `schedules/`, `acres/`). Indoor field templates are built by `InteriorCatalog` (same resource types: `House`, `Room`, `FurniturePlacement`).
 - **Presentation:** `.tscn` scenes under `scenes/`. A scene is a physical or UI object, not a dump of game rules.
-- **Behavior:** systems under `scripts/systems/`. Scene scripts stay thin: they wire nodes and call systems.
+- **Behavior:** systems under `scripts/systems/<area>/`; a new one goes in the folder of the area it serves. Scene scripts stay thin: they wire nodes and call systems.
 - Prefer composition (child nodes, resources, systems) over deep inheritance.
 
 ### Scene-first authorship
