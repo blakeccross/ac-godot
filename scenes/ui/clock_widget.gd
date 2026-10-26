@@ -34,7 +34,7 @@ const _FADE_IN_SPEED := 1.6
 const _FADE_OUT_SPEED := 3.2
 const _IDLE_VELOCITY_EPS := 0.05
 
-const _MENU_GROUPS := ["dialogue_ui", "shop_ui", "inventory_ui", "map_ui", "debug_console_ui"]
+const _MENU_GROUPS: Array[StringName] = [&"dialogue_ui", &"shop_ui", &"inventory_ui", &"map_ui", &"debug_console_ui"]
 
 var _month_tex: TextureRect
 var _day_tex: TextureRect
@@ -194,11 +194,4 @@ func _player_is_idle() -> bool:
 
 
 func _any_menu_open() -> bool:
-	var tree: SceneTree = get_tree()
-	if tree == null:
-		return false
-	for group: String in _MENU_GROUPS:
-		var ui: Node = tree.get_first_node_in_group(group)
-		if ui != null and ui.has_method("is_open") and bool(ui.call("is_open")):
-			return true
-	return false
+	return Menus.any_open(get_tree(), _MENU_GROUPS)

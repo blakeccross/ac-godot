@@ -521,10 +521,10 @@ func _check_goodbye() -> bool:
 	var dlg := DialogueOverlay.find(get_tree())
 	if dlg != null and dlg.is_open():
 		return false
-	for group: String in ["inventory_ui", "catalog_ui"]:
-		var menu: Node = get_tree().get_first_node_in_group(group)
-		if menu != null and menu.has_method("is_open") and bool(menu.call("is_open")):
-			return false
+	var pockets: InventoryOverlay = InventoryOverlay.find(get_tree())
+	var catalog: CatalogOverlay = CatalogOverlay.find(get_tree())
+	if (pockets != null and pockets.is_open()) or (catalog != null and catalog.is_open()):
+		return false
 	var player := Player.find(get_tree())
 	if player == null or player.is_busy():
 		return false

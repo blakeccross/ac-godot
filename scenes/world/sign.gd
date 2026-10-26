@@ -39,18 +39,18 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 
 ## The community board opens its posts (`mSM_OVL_NOTICE`); posting there finishes the
 ## first-job chore.
-func _board_ui() -> Node:
+func _board_ui() -> NoticeBoardOverlay:
 	if not is_notice_board() or not is_inside_tree():
 		return null
-	return get_tree().get_first_node_in_group("notice_ui")
+	return NoticeBoardOverlay.find(get_tree())
 
 
 func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.READ:
 		return false
-	var board_ui: Node = _board_ui()
+	var board_ui: NoticeBoardOverlay = _board_ui()
 	if board_ui != null:
-		board_ui.call("open")
+		board_ui.open()
 		return true
 	if _needs_first_job_notice():
 		return _post_first_job_notice()

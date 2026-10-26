@@ -485,13 +485,13 @@ func _run_act(act: String) -> void:
 			if not ShopBook.can_afford(Game.inventory, NeedleworkTalk.DESIGN_PRICE):
 				_rom_menu(NeedleworkTalk.MSG_DESIGN_NO_MONEY, NeedleworkTalk.TEXT_NO_MONEY % _player_name())
 				return
-			var list_ui: Node = _grp("design_list_ui")
-			if list_ui != null and list_ui.has_method("open"):
-				list_ui.call("open", "pick_edit", Callable(self, "_on_design_slot_chosen"))
+			var list_ui: DesignListOverlay = DesignListOverlay.find(get_tree())
+			if list_ui != null:
+				list_ui.open("pick_edit", _on_design_slot_chosen)
 		"open_album":
-			var album_ui: Node = _grp("design_album_ui")
-			if album_ui != null and album_ui.has_method("open"):
-				album_ui.call("open", Callable(self, "_on_album_closed"))
+			var album_ui: DesignAlbumOverlay = DesignAlbumOverlay.find(get_tree())
+			if album_ui != null:
+				album_ui.open(_on_album_closed)
 			else:
 				_rom_menu(NeedleworkTalk.MSG_ALBUM_DONE, NeedleworkTalk.TEXT_ALBUM_DONE)
 		"listen":
@@ -512,9 +512,9 @@ func _on_design_slot_chosen(slot: int) -> void:
 		_rom_menu(NeedleworkTalk.MSG_DESIGN_CHANGED_MIND, NeedleworkTalk.TEXT_DESIGN_CANCEL)
 		return
 	_edit_slot = slot
-	var editor: Node = _grp("design_ui")
-	if editor != null and editor.has_method("open"):
-		editor.call("open", slot, Callable(self, "_on_editor_done"))
+	var editor: DesignEditorOverlay = DesignEditorOverlay.find(get_tree())
+	if editor != null:
+		editor.open(slot, _on_editor_done)
 
 
 ## `aNNW_talk_design_close2`: saved → 0x2FEA, then the name entry
@@ -532,9 +532,9 @@ func _on_editor_done(slot: int, saved: bool) -> void:
 func _open_name_entry() -> void:
 	var d: DesignPattern = Game.designs.player[Game.designs.resolved_index(_edit_slot)]
 	var initial: String = d.name if d != null and d.name != "blank" else ""
-	var name_ui: Node = _grp("name_entry_ui")
-	if name_ui != null and name_ui.has_method("open"):
-		name_ui.call("open", initial, Callable(self, "_on_name_entered"))
+	var name_ui: NameEntryOverlay = NameEntryOverlay.find(get_tree())
+	if name_ui != null:
+		name_ui.open(initial, _on_name_entered)
 	else:
 		_on_name_entered(initial if initial != "" else "design")
 
@@ -636,9 +636,9 @@ func _flow_trade_menu() -> void:
 
 
 func _flow_trade_pick() -> void:
-	var list_ui: Node = _grp("design_list_ui")
-	if list_ui != null and list_ui.has_method("open"):
-		list_ui.call("open", "pick_trade", Callable(self, "_on_trade_slot_chosen"))
+	var list_ui: DesignListOverlay = DesignListOverlay.find(get_tree())
+	if list_ui != null:
+		list_ui.open("pick_trade", _on_trade_slot_chosen)
 		return
 	_trade_fixture = -1
 
@@ -744,10 +744,6 @@ func _finish_queue() -> void:
 	else:
 		_talking = false
 		TalkCamera.end(get_tree())
-
-
-func _grp(g: String) -> Node:
-	return get_tree().get_first_node_in_group(g) if get_tree() != null else null
 
 
 func _player_node() -> Node3D:

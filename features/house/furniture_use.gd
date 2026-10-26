@@ -88,13 +88,18 @@ static func open_diary(host: Node) -> bool:
 	var tree: SceneTree = host.get_tree() if host != null else null
 	if tree == null:
 		return false
-	for group: String in ["calendar_ui", "diary_ui"]:
-		var ui: Node = tree.get_first_node_in_group(group)
-		if ui == null or not ui.has_method("open"):
-			continue
-		if bool(ui.call("is_open")):
+	var calendar: CalendarOverlay = CalendarOverlay.find(tree)
+	if calendar != null:
+		if calendar.is_open():
 			return false
-		ui.call("open", diary_owner())
+		calendar.open(diary_owner())
+		return true
+	var diary: DiaryOverlay = DiaryOverlay.find(tree)
+	if diary != null:
+		if diary.is_open():
+			return false
+		## This month, the owner's diary (`open(month, owner)`).
+		diary.open(-1, diary_owner())
 		return true
 	return false
 

@@ -630,10 +630,8 @@ func _is_b(event: InputEvent) -> bool:
 
 
 func _debug_console_open() -> bool:
-	if get_tree() == null:
-		return false
-	var console: Node = get_tree().get_first_node_in_group("debug_console_ui")
-	return console != null and console.has_method("is_open") and bool(console.call("is_open"))
+	var console: DebugConsoleOverlay = DebugConsoleOverlay.find(get_tree())
+	return console != null and console.is_open()
 
 
 func _is_console_open_key(event: InputEvent) -> bool:

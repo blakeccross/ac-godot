@@ -5,8 +5,8 @@ extends CanvasLayer
 ## Esc opens the pause menu. X opens pockets. `/` or ` opens the console.
 
 @onready var _notice: Label = %NoticeLabel
-@onready var _inventory: CanvasLayer = $InventoryOverlay
-@onready var _console: CanvasLayer = $DebugConsole
+@onready var _inventory: InventoryOverlay = $InventoryOverlay
+@onready var _console: DebugConsoleOverlay = $DebugConsole
 
 var _notice_left: float = 0.0
 
@@ -16,7 +16,7 @@ func _ready() -> void:
 
 
 func inventory_is_open() -> bool:
-	return _inventory != null and _inventory.has_method("is_open") and bool(_inventory.call("is_open"))
+	return _inventory != null and _inventory.is_open()
 
 
 func dialogue_is_open() -> bool:
@@ -25,12 +25,11 @@ func dialogue_is_open() -> bool:
 
 
 func shop_is_open() -> bool:
-	var ui: Node = get_tree().get_first_node_in_group("shop_ui") if get_tree() != null else null
-	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
+	return Menus.is_open(get_tree(), &"shop_ui")
 
 
 func console_is_open() -> bool:
-	return _console != null and _console.has_method("is_open") and bool(_console.call("is_open"))
+	return _console != null and _console.is_open()
 
 
 func _process(delta: float) -> void:

@@ -54,3 +54,18 @@ func test_a_housemates_diary_reads_from_their_saved_pages() -> void:
 	assert_str(DiaryOverlay.entry(4)).is_equal("Mine.")
 	Game.roster.visiting = 1
 	assert_int(FurnitureUse.diary_owner()).is_equal(1)
+
+
+## Without a calendar the diary opens straight away on this month, on the diary of whoever's
+## house it is (`open(month, owner)`; the owner was once passed as the month).
+func test_without_a_calendar_the_diary_opens_on_this_month() -> void:
+	TestIsolation.forget_groups(get_tree(), [CalendarOverlay.GROUP, DiaryOverlay.GROUP] as Array[StringName])
+	var diary: DiaryOverlay = auto_free((load("res://scenes/ui/diary_overlay.tscn") as PackedScene).instantiate())
+	add_child(diary)
+	await get_tree().process_frame
+	Clock.month = 7
+	Game.roster.visiting = 2
+	assert_bool(FurnitureUse.open_diary(self)).is_true()
+	assert_bool(diary.is_open()).is_true()
+	assert_int(diary.month).is_equal(7)
+	Game.roster.visiting = -1

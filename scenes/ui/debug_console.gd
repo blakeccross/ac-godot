@@ -1,6 +1,10 @@
+class_name DebugConsoleOverlay
 extends CanvasLayer
 
-## Minecraft-style debug console. Open with `/` or ` (backtick). Tab completes.
+## Minecraft-style debug console. Open with `/` or ` (backtick). Tab completes. The commands
+## themselves are `DebugConsole`.
+
+const GROUP := &"debug_console_ui"
 
 @onready var _root: Control = %Root
 @onready var _log: RichTextLabel = %Log
@@ -18,13 +22,18 @@ var _tab_index: int = -1
 func _ready() -> void:
 	layer = 30
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_to_group("debug_console_ui")
+	add_to_group(GROUP)
 	_root.visible = false
 	_input.text_submitted.connect(_on_submit)
 	_input.text_changed.connect(_on_text_changed)
 	_input.gui_input.connect(_on_input_gui)
 	_log.clear()
 	_suggest.text = ""
+
+
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> DebugConsoleOverlay:
+	return tree.get_first_node_in_group(GROUP) as DebugConsoleOverlay if tree != null else null
 
 
 func is_open() -> bool:
@@ -84,11 +93,7 @@ func _other_menu_open() -> bool:
 	if get_tree() == null:
 		return false
 	## Dialogue stays allowed so cheats work mid-talk; inventory / map / shop still block.
-	for group: String in ["inventory_ui", "map_ui", "shop_ui"]:
-		var ui: Node = get_tree().get_first_node_in_group(group)
-		if ui != null and ui.has_method("is_open") and bool(ui.call("is_open")):
-			return true
-	return false
+	return Menus.any_open(get_tree(), [&"inventory_ui", &"map_ui", &"shop_ui"] as Array[StringName])
 
 
 func _on_submit(text: String) -> void:

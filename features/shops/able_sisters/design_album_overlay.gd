@@ -1,3 +1,4 @@
+class_name DesignAlbumOverlay
 extends CanvasLayer
 
 ## "Save a pattern" — the design album (`mSM_OVL_NEEDLEWORK` opened with
@@ -70,7 +71,7 @@ var _slide: MenuSlide = null
 func _ready() -> void:
 	layer = 26
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_to_group("design_album_ui")
+	add_to_group(GROUP)
 	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_book_slots.draw.connect(_draw_mine)
@@ -127,6 +128,14 @@ func _process(_delta: float) -> void:
 
 func is_open() -> bool:
 	return _open
+
+
+const GROUP := &"design_album_ui"
+
+
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> DesignAlbumOverlay:
+	return tree.get_first_node_in_group(GROUP) as DesignAlbumOverlay if tree != null else null
 
 
 func open(callback: Callable = Callable()) -> void:

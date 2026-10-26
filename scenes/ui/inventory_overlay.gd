@@ -1257,16 +1257,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		if talk != null and talk.is_open():
 			get_viewport().set_input_as_handled()
 			return
-		var shop: Node = get_tree().get_first_node_in_group("shop_ui") if get_tree() != null else null
-		if shop != null and shop.has_method("is_open") and bool(shop.call("is_open")):
+		if Menus.is_open(get_tree(), &"shop_ui"):
 			get_viewport().set_input_as_handled()
 			return
 		var map_ui: MapOverlay = MapOverlay.find(get_tree())
 		if map_ui != null and bool(map_ui.is_open()):
 			get_viewport().set_input_as_handled()
 			return
-		var console: Node = get_tree().get_first_node_in_group("debug_console_ui") if get_tree() != null else null
-		if console != null and console.has_method("is_open") and bool(console.call("is_open")):
+		var console: DebugConsoleOverlay = DebugConsoleOverlay.find(get_tree())
+		if console != null and console.is_open():
 			get_viewport().set_input_as_handled()
 			return
 		toggle()

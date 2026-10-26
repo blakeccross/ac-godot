@@ -835,24 +835,7 @@ func _poll_indoor_camera() -> void:
 
 
 func _menu_open() -> bool:
-	return (
-		_group_open("inventory_ui")
-		or _group_open("map_ui")
-		or _group_open("dialogue_ui")
-		or _group_open("shop_ui")
-		or _group_open("debug_console_ui")
-		or _group_open("design_ui")
-		or _group_open("design_list_ui")
-		or _group_open("design_album_ui")
-		or _group_open("name_entry_ui")
-	)
-
-
-func _group_open(group: String) -> bool:
-	if get_tree() == null:
-		return false
-	var ui: Node = get_tree().get_first_node_in_group(group)
-	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
+	return Menus.any_open(get_tree())
 
 
 func _unhandled_input(event: InputEvent) -> void:

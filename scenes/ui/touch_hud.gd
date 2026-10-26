@@ -76,9 +76,8 @@ func _refresh() -> void:
 func open_tab() -> StringName:
 	var tree := get_tree()
 	for action: StringName in TABS:
-		for node: Node in tree.get_nodes_in_group(TABS[action]):
-			if node.has_method(&"is_open") and bool(node.call(&"is_open")):
-				return action
+		if Menus.is_open(tree, TABS[action]):
+			return action
 	return &""
 
 

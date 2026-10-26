@@ -72,17 +72,7 @@ func wanted() -> bool:
 
 
 static func menu_open(tree: SceneTree) -> bool:
-	for group: StringName in MENU_GROUPS:
-		if _group_open(tree, group):
-			return true
-	return false
-
-
-static func _group_open(tree: SceneTree, group: StringName) -> bool:
-	for node: Node in tree.get_nodes_in_group(group):
-		if node.has_method(&"is_open") and bool(node.call(&"is_open")):
-			return true
-	return false
+	return Menus.any_open(tree, MENU_GROUPS)
 
 
 ## Whether a screen point is on the pad.
@@ -152,6 +142,6 @@ func taps_accept() -> bool:
 		if node is DialogueOverlay and (node as DialogueOverlay).is_open():
 			## A choice is picked with its own button or the arrows and OK.
 			return (node as DialogueOverlay).waits_for_page()
-	if _group_open(tree, &"letter_reader_ui"):
+	if Menus.is_open(tree, &"letter_reader_ui"):
 		return true
 	return Player.find(tree) == null and not menu_open(tree)
