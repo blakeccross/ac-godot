@@ -337,6 +337,27 @@ func is_busy() -> bool:
 	return _busy
 
 
+## `mPlayer_INDEX_WAIT`: the ground-item name window only opens while standing idle
+## (`Player_actor_Get_itemNo_forWindow`).
+func is_waiting() -> bool:
+	return (
+		not _busy
+		and not stung
+		and not shocked
+		and not in_pitfall
+		and not exercising
+		and not _cutscene_driven
+		and not _menu_open()
+		and not doors.door_entering
+		and not doors.is_demo_walking()
+		and not net.is_active()
+		and not fishing.holds_line()
+		and not furniture.gripping
+		and furniture.rest.is_empty()
+		and _motor.gait() == PlayerLocomotion.Gait.WAIT
+	)
+
+
 func play_wait_anim() -> void:
 	play_wait_idle()
 

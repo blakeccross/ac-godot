@@ -10,18 +10,18 @@
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_t_7/grd_s_t_7_mask.res" id="8_iwmip"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/6c442d1799c4.tres" id="9_3fv8h"]
 
-[node name="grd_s_t_7" type="Node3D" unique_id=392807658]
+[node name="grd_s_t_7" type="Node3D" unique_id=1148775054]
 script = ExtResource("1_yplru")
 visual_id = &"grd_s_t_7"
 grid = ExtResource("2_g7l1o")
 
-[node name="grd_s_t_72" type="MeshInstance3D" parent="." unique_id=1241065186]
+[node name="grd_s_t_72" type="MeshInstance3D" parent="." unique_id=1633807588]
 mesh = ExtResource("3_cyrap")
 surface_material_override/0 = ExtResource("4_j78cf")
 surface_material_override/1 = ExtResource("5_my1bj")
 surface_material_override/2 = ExtResource("6_6y1rh")
 surface_material_override/3 = ExtResource("7_gyp2i")
 
-[node name="grd_s_t_7_mask" type="MeshInstance3D" parent="." unique_id=1631832402]
+[node name="grd_s_t_7_mask" type="MeshInstance3D" parent="." unique_id=1446637921]
 mesh = ExtResource("8_iwmip")
 surface_material_override/0 = ExtResource("9_3fv8h")

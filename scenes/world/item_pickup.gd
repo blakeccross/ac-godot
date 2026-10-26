@@ -15,6 +15,9 @@ extends Node3D
 ## item and shows the present model on the ground.
 @export var wrapped: bool = false
 
+## Every ground item, including shells, mushrooms and things put down in a room.
+const GROUP := &"ground_item"
+
 var _fall: Tween
 var _pocket_pulling: bool = false
 signal landed
@@ -22,6 +25,7 @@ signal landed
 
 func _ready() -> void:
 	add_to_group("interactable")
+	add_to_group(GROUP)
 	if Game.town.is_removed(persist_id):
 		queue_free()
 		return

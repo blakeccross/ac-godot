@@ -111,6 +111,9 @@ var _indoor_yaw_add: float = 0.0
 var _room_box := AABB()
 var _room_clamp: bool = false
 var _fishing_return: float = 0.0
+## `watch_my_step`: the name window stays down while an indoor-camera morph is still above
+## 20 of its 80 ticks (`Camera2_main_Normal` sets `morph_counter` when the index changes).
+var _name_window_hold: float = 0.0
 
 
 ## The one in `tree`, or null.
@@ -168,7 +171,13 @@ func step_indoor(distance_step: int, direction_step: int) -> bool:
 		return false
 	_indoor_dist_idx = dist
 	_indoor_dir_idx = dir
+	_name_window_hold = 80.0 * DecompTime.TICK_SEC
 	return true
+
+
+## True while the name window should stay down (`morph_counter > 20`).
+func name_window_held() -> bool:
+	return _name_window_hold > 20.0 * DecompTime.TICK_SEC
 
 
 func indoor_index() -> Vector2i:
@@ -347,6 +356,8 @@ func offset_to_frame_span(span: float) -> Vector3:
 func _physics_process(delta: float) -> void:
 	## Same tick as the player. Following in `_process` while the body moves in
 	## `_physics_process` makes the character stutter against a smooth world.
+	if _name_window_hold > 0.0:
+		_name_window_hold = maxf(_name_window_hold - delta, 0.0)
 	if _suspended:
 		return
 	_follow(false, delta)
