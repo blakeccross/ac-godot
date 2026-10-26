@@ -1,0 +1,96 @@
+[gd_scene format=3 uid="uid://cdeditovl0001"]
+
+[ext_resource type="Script" path="res://features/shops/able_sisters/design_editor_overlay.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://dweo20i8dfae5" path="res://assets/generated/ui/design/window_shell.png" id="2"]
+[ext_resource type="Shader" path="res://features/shops/able_sisters/design_mark.gdshader" id="3"]
+[ext_resource type="Script" path="res://scenes/ui/edit_end_prompt.gd" id="4"]
+
+[sub_resource type="ShaderMaterial" id="color_mark"]
+shader = ExtResource("3")
+
+[sub_resource type="ShaderMaterial" id="pal_mark"]
+shader = ExtResource("3")
+
+[node name="DesignEditorOverlay" type="CanvasLayer"]
+script = ExtResource("1")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Dim" type="ColorRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.55)
+
+[node name="Screen" type="Control" parent="Root"]
+layout_mode = 0
+offset_right = 320.0
+offset_bottom = 240.0
+
+[node name="Board" type="TextureRect" parent="Root/Screen"]
+layout_mode = 0
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 340.0
+offset_bottom = 260.0
+mouse_filter = 2
+texture = ExtResource("2")
+expand_mode = 1
+
+[node name="Chrome" type="Control" parent="Root/Screen"]
+texture_repeat = 3
+layout_mode = 0
+offset_right = 320.0
+offset_bottom = 240.0
+mouse_filter = 2
+
+[node name="Tools" type="Control" parent="Root/Screen"]
+texture_repeat = 1
+layout_mode = 0
+offset_right = 320.0
+offset_bottom = 240.0
+mouse_filter = 2
+
+[node name="Marks" type="Control" parent="Root/Screen"]
+texture_repeat = 3
+layout_mode = 0
+offset_right = 320.0
+offset_bottom = 240.0
+mouse_filter = 2
+
+[node name="ColorMark" type="Control" parent="Root/Screen"]
+texture_repeat = 3
+material = SubResource("color_mark")
+layout_mode = 0
+offset_right = 320.0
+offset_bottom = 240.0
+mouse_filter = 2
+
+[node name="PalMark" type="Control" parent="Root/Screen"]
+texture_repeat = 3
+material = SubResource("pal_mark")
+layout_mode = 0
+offset_right = 320.0
+offset_bottom = 240.0
+mouse_filter = 2
+
+[node name="Cursor" type="Control" parent="Root/Screen"]
+texture_repeat = 3
+layout_mode = 0
+offset_right = 320.0
+offset_bottom = 240.0
+mouse_filter = 2
+
+[node name="Prompt" type="Control" parent="Root/Screen"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("4")

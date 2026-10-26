@@ -249,8 +249,8 @@ func test_scene_hosts_offer_expected_verbs() -> void:
 	var talk: Interaction = Interaction.primary(out_villager.get_interactions(ctx))
 	assert_that(talk).is_not_null()
 	assert_str(String(talk.id)).is_equal(String(Interaction.TALK))
-	_assert_verb("res://scenes/world/house.tscn", Interaction.ENTER, ctx)
-	_assert_verb("res://scenes/world/shop.tscn", Interaction.SHOP, ctx)
+	_assert_verb("res://features/house/house.tscn", Interaction.ENTER, ctx)
+	_assert_verb("res://features/shops/nook/shop.tscn", Interaction.SHOP, ctx)
 	_assert_verb("res://scenes/world/sign.tscn", Interaction.READ, ctx)
 	_assert_verb("res://scenes/world/door.tscn", Interaction.ENTER, ctx)
 
@@ -410,7 +410,7 @@ func test_world_scene_wires_interactables() -> void:
 
 
 func test_shop_hours_follow_clock() -> void:
-	var shop: Node = auto_free(load("res://scenes/world/shop.tscn").instantiate())
+	var shop: Node = auto_free(load("res://features/shops/nook/shop.tscn").instantiate())
 	var ctx := InteractionContext.new()
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 12, "minute": 0 })
 	var open_action: Interaction = Interaction.primary(shop.get_interactions(ctx))

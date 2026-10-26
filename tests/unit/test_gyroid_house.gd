@@ -240,7 +240,7 @@ func test_visitor_with_nothing_held_gets_the_apology() -> void:
 
 
 func test_scene_builds_and_offers_talk() -> void:
-	var node: Node = auto_free(load("res://scenes/world/gyroid.tscn").instantiate())
+	var node: Node = auto_free(load("res://features/house/gyroid.tscn").instantiate())
 	node.name = "player_gyroid_1"
 	add_child(node)
 	assert_int(int(node.get("house_idx"))).is_equal(1)

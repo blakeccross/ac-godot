@@ -64,7 +64,7 @@ func test_rain_plays_the_level_se_not_the_door_se() -> void:
 
 
 func test_the_players_clips_carry_their_marks_as_event_tracks() -> void:
-	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
 	var anim: BodyAnimator = player.animation_player()

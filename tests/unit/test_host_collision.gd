@@ -11,7 +11,7 @@ func test_box_matches_building_footprint() -> void:
 
 
 func test_player_house_sensor_not_a_physics_box() -> void:
-	var house: StaticBody3D = auto_free(load("res://scenes/world/house.tscn").instantiate()) as StaticBody3D
+	var house: StaticBody3D = auto_free(load("res://features/house/house.tscn").instantiate()) as StaticBody3D
 	house.visual_id = &"obj_s_myhome1"
 	house.footprint = Vector2i(2, 2)
 	add_child(house)
@@ -28,7 +28,7 @@ func test_player_house_sensor_not_a_physics_box() -> void:
 
 
 func test_npc_house_door_is_south_porch_not_aabb_face() -> void:
-	var house: StaticBody3D = auto_free(load("res://scenes/world/house.tscn").instantiate()) as StaticBody3D
+	var house: StaticBody3D = auto_free(load("res://features/house/house.tscn").instantiate()) as StaticBody3D
 	house.footprint = Vector2i(3, 3)
 	add_child(house)
 	var col: CollisionShape3D = house.get_node("CollisionShape3D") as CollisionShape3D
@@ -46,7 +46,7 @@ func test_npc_house_door_is_south_porch_not_aabb_face() -> void:
 
 
 func test_shop_disables_physics() -> void:
-	var shop: StaticBody3D = auto_free(load("res://scenes/world/shop.tscn").instantiate()) as StaticBody3D
+	var shop: StaticBody3D = auto_free(load("res://features/shops/nook/shop.tscn").instantiate()) as StaticBody3D
 	add_child(shop)
 	var col: CollisionShape3D = shop.get_node("CollisionShape3D") as CollisionShape3D
 	assert_bool(col.disabled).is_true()

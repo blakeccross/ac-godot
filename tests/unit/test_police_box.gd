@@ -252,7 +252,7 @@ func test_presenter_places_one_card_per_kept_item() -> void:
 	var session := IndoorSession.new()
 	session.bind(room)
 	## Booker, the clock and the window beams are authored in the room scene's Furniture.
-	var scene: Node3D = auto_free(load("res://scenes/world/interiors/police_box.tscn").instantiate()) as Node3D
+	var scene: Node3D = auto_free(load("res://features/shops/police_box/police_box.tscn").instantiate()) as Node3D
 	add_child(scene)
 	var root: Node3D = scene.get_node("Furniture") as Node3D
 	PolicePresenter.new().present(root, session)
@@ -292,7 +292,7 @@ func test_presenter_adds_shelf_hulls_and_clock() -> void:
 	var room: Room = InteriorCatalog.room_template(&"police_box")
 	var session := IndoorSession.new()
 	session.bind(room)
-	var scene: Node3D = auto_free(load("res://scenes/world/interiors/police_box.tscn").instantiate()) as Node3D
+	var scene: Node3D = auto_free(load("res://features/shops/police_box/police_box.tscn").instantiate()) as Node3D
 	add_child(scene)
 	var root: Node3D = scene.get_node("Furniture") as Node3D
 	PolicePresenter.new().present(root, session)
@@ -394,7 +394,7 @@ func test_booker_claim_full_pockets_line() -> void:
 
 
 func test_booker_scene_is_a_character_waiting_outside_the_room() -> void:
-	var packed: PackedScene = load("res://scenes/world/interiors/booker.tscn") as PackedScene
+	var packed: PackedScene = load("res://features/shops/police_box/booker.tscn") as PackedScene
 	var booker: Node = packed.instantiate()
 	auto_free(booker)
 	add_child(booker)

@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 
 ## A bee nest's startle (`m_player_main_shock`) and the swarm's chase (`ac_bee`).
 
-const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
+const PLAYER_SCENE := preload("res://features/player/player.tscn")
 
 
 func before_test() -> void:

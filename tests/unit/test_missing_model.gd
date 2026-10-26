@@ -70,7 +70,7 @@ func test_detach_removes_the_marker() -> void:
 
 
 func test_furniture_without_a_model_shows_the_marker_sized_to_its_footprint() -> void:
-	var furniture := load("res://scenes/world/furniture.tscn").instantiate() as StaticBody3D
+	var furniture := load("res://features/house/furniture.tscn").instantiate() as StaticBody3D
 	## The scene's default `data` would override `visual_id`.
 	furniture.set("data", null)
 	furniture.set("visual_id", NO_SUCH_VISUAL)

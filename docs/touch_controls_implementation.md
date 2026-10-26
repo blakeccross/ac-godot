@@ -24,7 +24,7 @@ Two facts change the original plan:
 2. **The player ignores keys while a source is installed** (`player.gd:743`). So the `TouchDriver` has to uninstall itself on the first key or pad event (from `InputDeviceTracker.device_changed`), or the keyboard goes dead after a tap.
 
 Gameplay still reads input directly in two places, outside the player:
-- Gracie's car wash: `scenes/world/events/gracie.gd:103` uses `Input.is_action_just_pressed("interact")`. Switch it to `player.a_just_pressed()` in phase 2.
+- Gracie's car wash: `features/events/actors/gracie.gd:103` uses `Input.is_action_just_pressed("interact")`. Switch it to `player.a_just_pressed()` in phase 2.
 - The intro station's debug walk: `intro_station_stage.gd:782`. This is debug only, so leave it.
 
 ---
@@ -36,10 +36,10 @@ Gameplay still reads input directly in two places, outside the player:
 *Playable:* hold a finger on the ground and the player walks after it; tap yourself for A; B / pockets / map / pause from buttons. There is no on-screen joystick or d-pad, and nothing is drawn under the finger.
 
 ### Files
-- `scenes/actors/touch_driver.gd` (new): a `Node`, child of the player in `player.tscn`.
+- `features/player/touch_driver.gd` (new): a `Node`, child of the player in `player.tscn`.
 - `scripts/systems/ui/touch_pick.gd` (new, static): screen to ground (moved here from phase 3, because following the finger needs the ground point under it). See *TouchPick.ground* in phase 3.
 - `scenes/ui/touch_hud.tscn` + `touch_hud.gd` (new): a `CanvasLayer` instanced in `world.tscn` beside `ClockHud`, and in the interior scene roots that carry a HUD.
-- `scenes/world/events/gracie.gd`: read A through the player.
+- `features/events/actors/gracie.gd`: read A through the player.
 - `project.godot`: nothing new.
 
 ### TouchDriver
@@ -93,7 +93,7 @@ With no joystick on screen, you can walk around the town by holding a finger whe
 ### Files
 - `scripts/systems/ui/touch_path.gd` (new, static): A* on the grid.
 - `scripts/systems/town/field_collision.gd`: make `_edge_is_wall` and `_forbids_enter` public (`edge_is_wall`, `forbids_enter`), keeping the old names as thin wrappers until their callers move.
-- `scenes/actors/touch_driver.gd`: the walk-to steering.
+- `features/player/touch_driver.gd`: the walk-to steering.
 - `scenes/ui/touch_marker.tscn` (new): a ground ring (a flat `MeshInstance3D` with an unshaded additive material, plus an `AnimationPlayer` clip "pop" that scales 0.6→1 and fades over 0.4 s). Instanced into the world by the driver.
 
 ### TouchPick.ground(cam, screen) → { hit, pos, cell, water }
@@ -148,8 +148,8 @@ Tapping anywhere walks there along a sensible path, round ponds and up ramps, at
 ### Files
 - `scripts/systems/ui/touch_pick.gd`: add `object(cam, screen) → InteractVolume`.
 - `scripts/systems/ui/touch_path.gd`: add `approach(data, grid, from, host_pos, reach) → path`.
-- `scenes/actors/touch_driver.gd`: targets, arrival and the verb.
-- `scenes/actors/player.gd`: add a public `verb_preview(pickup: bool) -> InteractionQuery`. It wraps `_query_focus` / `_resolve_interact` so the driver can ask what A or B would do without doing it.
+- `features/player/touch_driver.gd`: targets, arrival and the verb.
+- `features/player/player.gd`: add a public `verb_preview(pickup: bool) -> InteractionQuery`. It wraps `_query_focus` / `_resolve_interact` so the driver can ask what A or B would do without doing it.
 - `scenes/ui/touch_chips.tscn` (new): a row of `Button`s over a host, positioned with `cam.unproject_position`.
 
 ### Picking an object

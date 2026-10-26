@@ -161,7 +161,7 @@ func test_each_chest_type_has_its_own_clips() -> void:
 
 
 func test_open_offers_the_matching_open_clip() -> void:
-	var node: Node = auto_free(load("res://scenes/world/furniture.tscn").instantiate())
+	var node: Node = auto_free(load("res://features/house/furniture.tscn").instantiate())
 	var wardrobe: FurnitureData = FurnitureData.new()
 	wardrobe.id = &"test_wardrobe"
 	wardrobe.kind = FurnitureData.Kind.STORAGE
@@ -378,7 +378,7 @@ func test_the_aerobics_radio_plays_its_own_music_and_silences_players() -> void:
 func test_the_radio_only_answers_from_the_front() -> void:
 	var radio := FurnitureData.new()
 	radio.radio_aerobics = true
-	var node: Node = auto_free(load("res://scenes/world/furniture.tscn").instantiate())
+	var node: Node = auto_free(load("res://features/house/furniture.tscn").instantiate())
 	node.set("data", radio)
 	add_child(node)
 	var ctx := InteractionContext.new()

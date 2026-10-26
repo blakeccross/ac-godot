@@ -13,12 +13,12 @@ func test_project_name() -> void:
 
 func test_main_scene_is_title() -> void:
 	assert_str(ProjectSettings.get_setting("application/run/main_scene")).is_equal(
-		"res://scenes/ui/title.tscn"
+		"res://features/intro/title.tscn"
 	)
 
 
 func test_player_scene_is_character_body() -> void:
-	var packed: PackedScene = load("res://scenes/actors/player.tscn")
+	var packed: PackedScene = load("res://features/player/player.tscn")
 	assert_that(packed).is_not_null()
 	var player: Node = auto_free(packed.instantiate()) as Node
 	assert_bool(player is CharacterBody3D).is_true()

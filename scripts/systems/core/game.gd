@@ -7,10 +7,10 @@ extends Node
 
 enum Phase { TITLE, INTRO, PLAYING }
 
-const TITLE_SCENE := "res://scenes/ui/title.tscn"
+const TITLE_SCENE := "res://features/intro/title.tscn"
 ## K.K. player-select opening (`ac_npc_p_sel`) before the Rover train.
-const INTRO_KK_SCENE := "res://scenes/ui/intro_kk.tscn"
-const INTRO_SCENE := "res://scenes/ui/intro_train.tscn"
+const INTRO_KK_SCENE := "res://features/intro/intro_kk.tscn"
+const INTRO_SCENE := "res://features/intro/intro_train.tscn"
 const WORLD_SCENE := "res://scenes/world/world.tscn"
 const INTERIOR_SCENE := "res://scenes/world/interior.tscn"
 

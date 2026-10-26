@@ -102,20 +102,20 @@ Needs a local disc (`game_files`) and `decomp_root` (same as FG / villagers) for
 assets/generated/audio/          # gitignored
   catalog.json                   # bgm / sfx / voice sections
   bgm/
-    title.ogg
-    field_00.ogg … field_23.ogg
-    rain.ogg
-    shop0.ogg
-    …
+	title.ogg
+	field_00.ogg … field_23.ogg
+	rain.ogg
+	shop0.ogg
+	…
   sfx/
-    cursol.ogg
-    bebe.ogg
-    hanabi0.ogg
-    …
+	cursol.ogg
+	bebe.ogg
+	hanabi0.ogg
+	…
   voice/
-    spec_1/ph_00.ogg …           # seq 243
-    spec_2/ph_00.ogg …           # seq 244
-    spec_3/ph_00.ogg …           # seq 245
+	spec_1/ph_00.ogg …           # seq 243
+	spec_2/ph_00.ogg …           # seq 244
+	spec_3/ph_00.ogg …           # seq 245
   waves/                         # optional debug WAVs; not loaded by the game
 ```
 

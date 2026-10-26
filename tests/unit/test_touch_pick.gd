@@ -24,7 +24,7 @@ func test_a_projected_point_picks_back_to_itself() -> void:
 
 func test_the_stick_walks_the_world_direction() -> void:
 	var cam: Camera3D = _cam()
-	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
 	add_child(player)
 	for dir: Vector3 in [Vector3.RIGHT, Vector3.BACK, Vector3(-1, 0, 1).normalized()]:
 		var stick: Vector2 = TouchPick.stick_for(cam, dir)

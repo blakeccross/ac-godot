@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## Design editor tool maths + Able trade / trend ops
 ## (`m_design_ovl.c`, `ac_npc_needlework_talk.c_inc`).
 
-const EDITOR := preload("res://scenes/ui/design_editor_overlay.tscn")
+const EDITOR := preload("res://features/shops/able_sisters/design_editor_overlay.tscn")
 
 
 func _editor() -> Node:

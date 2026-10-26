@@ -34,7 +34,7 @@ tools/test.sh -v field_catalog        # full runner output
 
 tools/capture.sh target=visual:TREE_APPLE_FRUIT date=2001-01-15,2001-04-05
 tools/capture.sh target=node:Buildings/station cam=-6,5,9 name=station
-tools/capture.sh scene=res://scenes/ui/intro_train.tscn wait=300
+tools/capture.sh scene=res://features/intro/intro_train.tscn wait=300
 tools/capture.sh --import target=acre:acre_5_6   # refresh imports after regenerating assets
 tools/capture.sh room=police_box target=pos:-6,0,-5 cam=0,22,18   # an interior, entered like the game does
 tools/capture.sh target=villager: console=leave console_delay=10 after=1,4,8 name=go_out   # one run, a shot at each count

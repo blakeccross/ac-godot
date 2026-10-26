@@ -623,7 +623,7 @@ func execute(raw: String) -> String:
 				if bd_player == null or bd_world == null:
 					return "No field here."
 				var bd_yaw: float = float(bd_player.call("facing_yaw"))
-				var bd_npc: Node3D = load("res://scenes/world/present_npc.gd").spawn(
+				var bd_npc: Node3D = load("res://features/events/present_npc.gd").spawn(
 					bd_world.get_node("Characters"), bd_kind, bd_player.global_position, bd_yaw)
 				return "Present visit." if bd_npc != null else "Nobody to send."
 			var bd_ui: BirthdayOverlay = BirthdayOverlay.find(bd_tree)

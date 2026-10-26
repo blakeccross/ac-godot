@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://features/shops/able_sisters/sewing_cloth.gd" id="1"]
+
+[node name="SewingCloth" type="Node3D"]
+script = ExtResource("1")
+
+[node name="Pivot" type="Node3D" parent="."]

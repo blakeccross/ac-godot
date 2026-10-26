@@ -173,7 +173,7 @@ func test_cast_lands_partway_through_the_swing() -> void:
 		assert_float(dig.effect_frame).is_less(0.0)
 
 	## And the release is genuinely inside the swing, not past the end of it.
-	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
 	var anim: BodyAnimator = player.animation_player()
@@ -191,7 +191,7 @@ func test_show_off_pose_waits_for_the_catch_report() -> void:
 		auto_free(load("res://scenes/ui/dialogue_overlay.tscn").instantiate()) as DialogueOverlay
 	)
 	add_child(overlay)
-	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
 	var motor: PlayerLocomotion = player._motor
@@ -417,7 +417,7 @@ func test_reel_clips_exist_on_the_pipeline_meshes() -> void:
 
 
 func test_player_resolves_every_reel_clip() -> void:
-	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
 	var anim: BodyAnimator = player.animation_player()
@@ -435,7 +435,7 @@ func test_player_resolves_every_reel_clip() -> void:
 
 
 func test_player_turns_to_the_camera_for_the_show_off_pose() -> void:
-	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
 	var motor: PlayerLocomotion = player._motor
@@ -563,7 +563,7 @@ func test_the_coelacanth_waits_for_rain() -> void:
 ## `aUKI_catch` puts `uki_pos` (and so the hooked fish) at `left_hand_pos` while the bobber
 ## goes to the right hand, so the catch really is in the player's other hand.
 func test_the_catch_hangs_off_the_free_hand() -> void:
-	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(player._mesh)
@@ -730,7 +730,7 @@ func test_the_show_off_beat_carries_the_fish() -> void:
 
 
 func test_the_pose_holds_the_fish_until_the_report_closes() -> void:
-	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(player._mesh)
@@ -766,7 +766,7 @@ func test_the_pose_holds_the_fish_until_the_report_closes() -> void:
 ## to `putaway_rod`, which plays `PUTAWAY_T1` before the player is free again. Without it the
 ## catch simply vanished out of a raised hand.
 func test_the_catch_is_put_away_once_the_report_is_done() -> void:
-	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
 	var anim: BodyAnimator = player._anim
@@ -869,7 +869,7 @@ func test_the_line_holds_the_caster_and_a_goes_to_the_bobber() -> void:
 func test_the_player_cannot_walk_off_and_turns_to_the_bobber() -> void:
 	## `Player_actor_Movement_Relax_rod`: `SetPlayerAngle_forUki` + braking — the stick does
 	## nothing, and the body eases round to face the float.
-	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
 	var ctx := InteractionContext.new()

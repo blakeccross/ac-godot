@@ -4,9 +4,9 @@ extends Node3D
 ## Playable acre. Owns a WorldGrid; children are presentation only.
 ## Layout comes from WorldData (test town or generator), not a catalog in this .tscn.
 
-const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
+const PLAYER_SCENE := preload("res://features/player/player.tscn")
 const PORTER_SCENE := preload("res://scenes/world/station_porter.tscn")
-const BLANCA_SCENE := preload("res://scenes/world/events/blanca.tscn")
+const BLANCA_SCENE := preload("res://features/events/actors/blanca.tscn")
 
 var grid: WorldGrid = WorldGrid.new()
 var layout: WorldData
@@ -134,7 +134,7 @@ func _ready() -> void:
 	if _door_stand != Vector3.INF and not Game.intro.active and not Game.title_demo_active:
 		present = PresentVisit.decide_now()
 		if present != PresentVisit.Kind.NONE:
-			load("res://scenes/world/present_npc.gd").spawn($Characters, present, _door_stand, _door_yaw,
+			load("res://features/events/present_npc.gd").spawn($Characters, present, _door_stand, _door_yaw,
 				IntroStationStage.house_index(PlayerHouse.owned_building_id()))
 	if (present == PresentVisit.Kind.NONE and Game.reset_flag and not Game.resetti_disabled
 			and not Game.intro.active and not Game.title_demo_active):
@@ -145,7 +145,7 @@ func _ready() -> void:
 	if event_mgr != null:
 		event_mgr.setup(self)
 	if Game.intro.active:
-		var director: Node = load("res://scenes/world/intro_station_director.gd").new()
+		var director: Node = load("res://features/intro/intro_station_director.gd").new()
 		add_child(director)
 		if director.has_method("setup"):
 			director.call("setup", self)

@@ -1,0 +1,216 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://features/intro/title_logo.gd" id="1"]
+
+[sub_resource type="Animation" id="Animation_in"]
+resource_name = "in"
+length = 4.2
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Stage/Viewport3D/SubViewport/LogoRoot/BackRoot:visible")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 4),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [false, true]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:back_opacity")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 4, 4.183333),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.0, 0.0, 0.8627451]
+}
+
+[sub_resource type="Animation" id="Animation_hold"]
+resource_name = "hold"
+length = 1.0
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Stage/Viewport3D/SubViewport/Tm:visible")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+
+[sub_resource type="Animation" id="Animation_pulse"]
+resource_name = "pulse"
+length = 1.200570
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Stage/Overlay2D/PressStart:visible")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:pulse")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.833791, 1.200570),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.0, 1.0, 2.0]
+}
+
+[sub_resource type="Animation" id="Animation_start"]
+resource_name = "start"
+length = 0.433333
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Stage/Overlay2D/PressStart:modulate:a")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [1.0]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_logo"]
+_data = {
+&"hold": SubResource("Animation_hold"),
+&"in": SubResource("Animation_in"),
+&"pulse": SubResource("Animation_pulse"),
+&"start": SubResource("Animation_start")
+}
+
+[node name="TitleLogo" type="CanvasLayer"]
+layer = 5
+script = ExtResource("1")
+
+[node name="Stage" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Viewport3D" type="SubViewportContainer" parent="Stage"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 320.0
+offset_bottom = 240.0
+mouse_filter = 2
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="Stage/Viewport3D"]
+own_world_3d = true
+transparent_bg = true
+handle_input_locally = false
+msaa_3d = 2
+size = Vector2i(320, 240)
+render_target_update_mode = 4
+
+[node name="Camera" type="Camera3D" parent="Stage/Viewport3D/SubViewport"]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 50)
+projection = 1
+current = true
+size = 28.444
+near = 0.05
+far = 200.0
+
+[node name="LogoRoot" type="Node3D" parent="Stage/Viewport3D/SubViewport"]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.4074, 0)
+
+[node name="BackRoot" type="Node3D" parent="Stage/Viewport3D/SubViewport/LogoRoot"]
+unique_name_in_owner = true
+visible = false
+
+[node name="Animal" type="Node3D" parent="Stage/Viewport3D/SubViewport/LogoRoot"]
+unique_name_in_owner = true
+
+[node name="Cros" type="Node3D" parent="Stage/Viewport3D/SubViewport/LogoRoot"]
+unique_name_in_owner = true
+
+[node name="Sing" type="Node3D" parent="Stage/Viewport3D/SubViewport/LogoRoot"]
+unique_name_in_owner = true
+
+[node name="Tm" type="Node3D" parent="Stage/Viewport3D/SubViewport"]
+unique_name_in_owner = true
+visible = false
+transform = Transform3D(1.2006, 0, 0, 0, 1.2006, 0, 0, 0, 1.2006, 11.3333, 5.1111, 0)
+
+[node name="Overlay2D" type="Control" parent="Stage"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 320.0
+offset_bottom = 240.0
+mouse_filter = 2
+
+[node name="FallbackTitle" type="Label" parent="Stage/Overlay2D"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_top = 52.0
+offset_right = 320.0
+offset_bottom = 96.0
+theme_override_font_sizes/font_size = 30
+text = "Animal Crossing"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PressStart" type="Control" parent="Stage/Overlay2D"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+anchors_preset = 0
+mouse_filter = 2
+
+[node name="Half0" type="TextureRect" parent="Stage/Overlay2D/PressStart"]
+layout_mode = 0
+offset_left = 96.0
+offset_top = 159.0
+offset_right = 160.0
+offset_bottom = 175.0
+mouse_filter = 2
+texture_filter = 2
+expand_mode = 1
+
+[node name="Half1" type="TextureRect" parent="Stage/Overlay2D/PressStart"]
+layout_mode = 0
+offset_left = 160.0
+offset_top = 159.0
+offset_right = 224.0
+offset_bottom = 175.0
+mouse_filter = 2
+texture_filter = 2
+expand_mode = 1
+
+[node name="Sequence" type="AnimationPlayer" parent="."]
+unique_name_in_owner = true
+editor_description = "`ac_animal_logo`, in 60 Hz ticks. `in`: the three logo clips run 240 ticks (`cKF_SkeletonInfo_R_init` frames 1–121 at speed 0.5), then the backdrop fades in at 20/255 a tick, reaching 220/255 on tick 11 and moving on at tick 12 (`aAL_back_fadein`'s strict `> 220`). `hold`: `aAL_TIMER` 60 ticks with the TM mark up, START ignored. `pulse`: `aAL_game_start_wait`, the phase turning 32768/50 s16 a tick on the bright half and 32768/22 on the dim. `start`: `aAL_FADEOUT_TIMER` 26 ticks of solid PRESS START with the chime, then start_selected."
+libraries = {
+&"": SubResource("AnimationLibrary_logo")
+}
+
+[connection signal="animation_started" from="Sequence" to="." method="_on_sequence_started"]
+[connection signal="animation_finished" from="Sequence" to="." method="_on_sequence_finished"]

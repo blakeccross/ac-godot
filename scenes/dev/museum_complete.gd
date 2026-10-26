@@ -7,7 +7,7 @@ extends Node3D
 ##
 ## Keys 1–5 switch rooms. Walk south from the entrance to leave → title.
 
-const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
+const PLAYER_SCENE := preload("res://features/player/player.tscn")
 const WING_IDS: Array[StringName] = [
 	&"museum_entrance",
 	&"museum_painting",

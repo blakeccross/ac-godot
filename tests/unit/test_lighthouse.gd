@@ -4,9 +4,9 @@ extends GdUnitTestSuite
 ## Lighthouse (`ac_toudai`, `ac_lighthouse_switch`, `mSC_LightHouse_*`): the quest state,
 ## the tower lamp's schedule and sweep, the north door, and the switch room.
 
-const LAMP_SCENE := "res://scenes/world/buildings/lighthouse_beacon.tscn"
-const TOWER_SCENE := "res://scenes/world/buildings/lighthouse.tscn"
-const SWITCH_SCENE := "res://scenes/world/interiors/lighthouse_switch.tscn"
+const LAMP_SCENE := "res://features/lighthouse/lighthouse_beacon.tscn"
+const TOWER_SCENE := "res://features/lighthouse/lighthouse_building.tscn"
+const SWITCH_SCENE := "res://features/lighthouse/interior/lighthouse_switch.tscn"
 
 var _saved_book: Dictionary = {}
 var _saved_clock: Dictionary = {}
@@ -212,7 +212,7 @@ func test_room_template_matches_rom_toudai() -> void:
 	assert_that(room.door_cell).is_equal(Vector2i(2, 0))
 	assert_that(room.inner_origin).is_equal(Vector2i(1, 1))
 	assert_that(room.inner_size).is_equal(Vector2i(4, 5))
-	assert_str(InteriorCatalog.scene_path(&"lighthouse")).ends_with("interiors/lighthouse.tscn")
+	assert_str(InteriorCatalog.scene_path(&"lighthouse")).ends_with("lighthouse/interior/lighthouse.tscn")
 	var gaps: Array[Dictionary] = InteriorShellBuilder.shell_door_gaps(room, WorldGrid.new())
 	assert_int(gaps.size()).is_equal(1)
 	assert_str(String(gaps[0]["side"])).is_equal("north")

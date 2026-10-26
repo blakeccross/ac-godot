@@ -4,7 +4,7 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 
 ## Godot
 
-`LighthouseBook` on `Game` (saved as `lighthouse`) decides everything: lamp on/off, door open, switch mode. Outdoor tower `scenes/world/buildings/lighthouse.tscn` (`building.gd` + `Door` + `Beacon` lamp). Switch room `scenes/world/interiors/lighthouse.tscn` (`lighthouse_room.gd`) with `lighthouse_switch.tscn` (lever, lens drive, room light). Layout constants: `LighthouseRoom`. Debug: `/lighthouse start|lit|clear|status`.
+`LighthouseBook` on `Game` (saved as `lighthouse`) decides everything: lamp on/off, door open, switch mode. Outdoor tower `features/lighthouse/lighthouse_building.tscn` (`building.gd` + `Door` + `Beacon` lamp). Switch room `features/lighthouse/interior/lighthouse.tscn` (`lighthouse_room.gd`) with `lighthouse_switch.tscn` (lever, lens drive, room light). Layout constants: `LighthouseRoom`. Debug: `/lighthouse start|lit|clear|status`.
 
 ## Decomp sources
 

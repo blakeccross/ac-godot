@@ -183,6 +183,6 @@ func test_copper_leaves_his_post_for_the_aerobics() -> void:
 
 
 func test_aerobics_map_puts_copper_and_tortimer_out_front() -> void:
-	var leaders: Dictionary = load("res://scripts/systems/events/festival_presenter.gd").AEROBICS_LEADERS
+	var leaders: Dictionary = load("res://features/events/festival_presenter.gd").AEROBICS_LEADERS
 	assert_str(String(leaders["SP_NPC_EV_TAISOU_0"])).is_equal("plc")
 	assert_str(String(leaders["SP_NPC_SONCHO_D078"])).is_equal("ttl")

@@ -3,12 +3,12 @@
 [ext_resource type="Script" uid="uid://dq270fa7etm8j" path="res://scenes/dev/museum_complete.gd" id="1"]
 [ext_resource type="Script" uid="uid://cv8yyhwgkgtii" path="res://scenes/world/follow_camera.gd" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/clock_hud.tscn" id="3"]
-[ext_resource type="Script" uid="uid://xvhu0kdhg1ar" path="res://scenes/world/museum_wing_keys.gd" id="4"]
-[ext_resource type="PackedScene" path="res://scenes/world/museum/museum_entrance.tscn" id="5"]
-[ext_resource type="PackedScene" path="res://scenes/world/museum/museum_painting.tscn" id="6"]
-[ext_resource type="PackedScene" path="res://scenes/world/museum/museum_fossil.tscn" id="7"]
-[ext_resource type="PackedScene" path="res://scenes/world/museum/museum_insect.tscn" id="8"]
-[ext_resource type="PackedScene" path="res://scenes/world/museum/museum_fish.tscn" id="9"]
+[ext_resource type="Script" uid="uid://xvhu0kdhg1ar" path="res://features/museum/museum_wing_keys.gd" id="4"]
+[ext_resource type="PackedScene" path="res://features/museum/museum_entrance.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://features/museum/museum_painting.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://features/museum/museum_fossil.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://features/museum/museum_insect.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://features/museum/museum_fish.tscn" id="9"]
 
 [sub_resource type="Environment" id="Env"]
 background_mode = 1

@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## The touch tab bar: Map, Pockets and Menu send their keys' actions, stay up over their own
 ## screens with that tab lit, and switch between them.
 
-const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
+const PLAYER_SCENE := preload("res://features/player/player.tscn")
 const HUD_SCENE := preload("res://scenes/ui/touch_hud.tscn")
 
 

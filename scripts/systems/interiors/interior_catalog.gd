@@ -222,23 +222,21 @@ static func _register_all() -> void:
 
 
 static func _register_scene_paths() -> void:
-	## Authored indoor layouts under `scenes/world/interiors/` (+ museum wings).
-	var interiors := "res://scenes/world/interiors/"
-	var museum := "res://scenes/world/museum/"
-	_scene_paths[&"shop0"] = interiors + "shop0.tscn"
-	_scene_paths[&"shop1"] = interiors + "shop1.tscn"
-	_scene_paths[&"shop2"] = interiors + "shop2.tscn"
-	_scene_paths[&"shop3_1"] = interiors + "shop3_1.tscn"
-	_scene_paths[&"shop3_2"] = interiors + "shop3_2.tscn"
-	_scene_paths[&"needlework"] = interiors + "needlework.tscn"
-	_scene_paths[&"police_box"] = interiors + "police_box.tscn"
-	_scene_paths[&"post_office"] = interiors + "post_office.tscn"
-	_scene_paths[&"lighthouse"] = interiors + "lighthouse.tscn"
-	_scene_paths[&"museum_entrance"] = museum + "museum_entrance.tscn"
-	_scene_paths[&"museum_painting"] = museum + "museum_painting.tscn"
-	_scene_paths[&"museum_fossil"] = museum + "museum_fossil.tscn"
-	_scene_paths[&"museum_insect"] = museum + "museum_insect.tscn"
-	_scene_paths[&"museum_fish"] = museum + "museum_fish.tscn"
+	## Authored indoor layouts, each with the feature it belongs to.
+	_scene_paths[&"shop0"] = "res://features/shops/nook/shop0.tscn"
+	_scene_paths[&"shop1"] = "res://features/shops/nook/shop1.tscn"
+	_scene_paths[&"shop2"] = "res://features/shops/nook/shop2.tscn"
+	_scene_paths[&"shop3_1"] = "res://features/shops/nook/shop3_1.tscn"
+	_scene_paths[&"shop3_2"] = "res://features/shops/nook/shop3_2.tscn"
+	_scene_paths[&"needlework"] = "res://features/shops/able_sisters/needlework.tscn"
+	_scene_paths[&"police_box"] = "res://features/shops/police_box/police_box.tscn"
+	_scene_paths[&"post_office"] = "res://features/shops/post_office/post_office.tscn"
+	_scene_paths[&"lighthouse"] = "res://features/lighthouse/interior/lighthouse.tscn"
+	_scene_paths[&"museum_entrance"] = "res://features/museum/museum_entrance.tscn"
+	_scene_paths[&"museum_painting"] = "res://features/museum/museum_painting.tscn"
+	_scene_paths[&"museum_fossil"] = "res://features/museum/museum_fossil.tscn"
+	_scene_paths[&"museum_insect"] = "res://features/museum/museum_insect.tscn"
+	_scene_paths[&"museum_fish"] = "res://features/museum/museum_fish.tscn"
 
 
 ## --- Authoring API used by the `InteriorCatalog*` registrar classes ---

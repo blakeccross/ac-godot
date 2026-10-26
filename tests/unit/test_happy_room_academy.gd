@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 
 ## `m_mark_room.c` / `m_mark_room_ovl.c`.
 
-const HRA := preload("res://scripts/systems/interiors/happy_room_academy.gd")
+const HRA := preload("res://features/house/happy_room_academy.gd")
 
 
 func _first(pred: Callable) -> int:

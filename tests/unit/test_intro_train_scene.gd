@@ -19,7 +19,7 @@ func after_test() -> void:
 
 
 func test_intro_scene_loads_and_has_stage_hosts() -> void:
-	var packed: PackedScene = load("res://scenes/ui/intro_train.tscn")
+	var packed: PackedScene = load("res://features/intro/intro_train.tscn")
 	assert_that(packed).is_not_null()
 	var scene: Node3D = auto_free(packed.instantiate()) as Node3D
 	assert_that(scene).is_not_null()
@@ -44,7 +44,7 @@ func test_intro_scene_loads_and_has_stage_hosts() -> void:
 
 
 func test_window_scenery_fits_and_scrolls() -> void:
-	var packed: PackedScene = load("res://scenes/ui/intro_train.tscn")
+	var packed: PackedScene = load("res://features/intro/intro_train.tscn")
 	var scene: Node3D = auto_free(packed.instantiate()) as Node3D
 	add_child(scene)
 	await get_tree().process_frame
@@ -151,15 +151,15 @@ func test_stage_cues_follow_decomp_action_order() -> void:
 
 
 func test_game_start_intro_targets_train_scene() -> void:
-	assert_str(Game.INTRO_KK_SCENE).is_equal("res://scenes/ui/intro_kk.tscn")
-	assert_str(Game.INTRO_SCENE).is_equal("res://scenes/ui/intro_train.tscn")
+	assert_str(Game.INTRO_KK_SCENE).is_equal("res://features/intro/intro_kk.tscn")
+	assert_str(Game.INTRO_SCENE).is_equal("res://features/intro/intro_train.tscn")
 	assert_that(ResourceLoader.exists(Game.INTRO_KK_SCENE)).is_true()
 	assert_that(ResourceLoader.exists(Game.INTRO_SCENE)).is_true()
 
 
 func test_tree_palette_row_follows_decomp_dates() -> void:
 	## `aTrainWindow_GetTreePalletIdx` `till_data` bounds.
-	var car := preload("res://scenes/ui/intro_train_car.gd")
+	var car := preload("res://features/intro/intro_train_car.gd")
 	assert_int(car.tree_palette_row(1, 15)).is_equal(0)
 	assert_int(car.tree_palette_row(2, 3)).is_equal(0)
 	assert_int(car.tree_palette_row(2, 4)).is_equal(1)

@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 
 ## Groundhog Day's pop-up (`ac_ev_majin`, `aEMJ_set_force_talk_info`).
 
-const GroundhogResetti := preload("res://scenes/world/events/groundhog_resetti.gd")
+const GroundhogResetti := preload("res://features/events/actors/groundhog_resetti.gd")
 
 
 func test_the_line_follows_the_weather() -> void:

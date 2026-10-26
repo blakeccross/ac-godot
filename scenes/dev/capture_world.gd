@@ -7,7 +7,7 @@ extends Node3D
 ##   tools/capture.sh target=visual:TREE_APPLE_FRUIT date=2001-01-15,2001-04-05
 ##   tools/capture.sh target=node:Buildings/station cam=-6,5,9
 ##   tools/capture.sh target=acre:acre_5_6 cam=0,8,9 look=0,0,-1.5
-##   tools/capture.sh scene=res://scenes/ui/intro_train.tscn wait=240
+##   tools/capture.sh scene=res://features/intro/intro_train.tscn wait=240
 ##
 ## Args (all optional):
 ##   scene=res://…     Scene to instance instead of the generated town.

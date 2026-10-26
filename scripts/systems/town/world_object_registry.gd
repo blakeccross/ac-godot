@@ -32,24 +32,24 @@ static func ensure() -> void:
 	register(&"prop", "res://scenes/world/prop.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS, true)
 	register(&"lotus", "res://scenes/world/lotus.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS)
 	register(&"mailbox", "res://scenes/world/mailbox.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS, true)
-	register(&"gyroid", "res://scenes/world/gyroid.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS)
+	register(&"gyroid", "res://features/house/gyroid.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS)
 	register(&"statue", "res://scenes/world/statue.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS)
 	register(&"waterfall", "res://scenes/world/waterfall.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS)
-	register(&"furniture", "res://scenes/world/furniture.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS, true)
+	register(&"furniture", "res://features/house/furniture.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS, true)
 	register(&"door", "res://scenes/world/door.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS)
 	register(&"villager", "res://features/villagers/villager.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_CHARACTERS)
-	register(&"tortimer", "res://scenes/world/tortimer.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_CHARACTERS)
+	register(&"tortimer", "res://features/events/tortimer.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_CHARACTERS)
 	register(&"copper", "res://scenes/world/copper.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_CHARACTERS)
-	register(&"house", "res://scenes/world/house.tscn", WorldGrid.PlaceKind.BUILDING, GROUP_BUILDINGS)
-	register(&"shop", "res://scenes/world/shop.tscn", WorldGrid.PlaceKind.BUILDING, GROUP_BUILDINGS)
+	register(&"house", "res://features/house/house.tscn", WorldGrid.PlaceKind.BUILDING, GROUP_BUILDINGS)
+	register(&"shop", "res://features/shops/nook/shop.tscn", WorldGrid.PlaceKind.BUILDING, GROUP_BUILDINGS)
 	register(&"building", "res://scenes/world/building.tscn", WorldGrid.PlaceKind.BUILDING, GROUP_BUILDINGS)
 	## Dedicated outdoor shells (preferred over generic `building` when id matches).
-	_building_scenes[&"able_sisters"] = "res://scenes/world/buildings/able_sisters.tscn"
-	_building_scenes[&"police"] = "res://scenes/world/buildings/police_station.tscn"
-	_building_scenes[&"post_office"] = "res://scenes/world/buildings/post_office.tscn"
-	_building_scenes[&"lighthouse"] = "res://scenes/world/buildings/lighthouse.tscn"
+	_building_scenes[&"able_sisters"] = "res://features/shops/able_sisters/able_sisters.tscn"
+	_building_scenes[&"police"] = "res://features/shops/police_box/police_station.tscn"
+	_building_scenes[&"post_office"] = "res://features/shops/post_office/post_office_building.tscn"
+	_building_scenes[&"lighthouse"] = "res://features/lighthouse/lighthouse_building.tscn"
 	_building_scenes[&"wishing_well"] = "res://scenes/world/buildings/wishing_well.tscn"
-	_building_scenes[&"acre_shop"] = "res://scenes/world/shop.tscn"
+	_building_scenes[&"acre_shop"] = "res://features/shops/nook/shop.tscn"
 
 
 static func register(

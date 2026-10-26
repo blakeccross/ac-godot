@@ -13,7 +13,7 @@ config_version=5
 config/name="AC Godot"
 config/description="A Godot-native recreation inspired by Animal Crossing (GameCube)."
 config/version="0.1.0"
-run/main_scene="res://scenes/ui/title.tscn"
+run/main_scene="res://features/intro/title.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="uid://cwa4625x2q3up"
 

@@ -5,8 +5,8 @@ extends GdUnitTestSuite
 ## trade ops' effect on wearers, Sable's story pick, Mabel's goodbye trigger and the
 ## design album (`DesignBook.album`).
 
-const MABEL := preload("res://scenes/world/interiors/mabel.gd")
-const ALBUM := preload("res://scenes/ui/design_album_overlay.gd")
+const MABEL := preload("res://features/shops/able_sisters/mabel.gd")
+const ALBUM := preload("res://features/shops/able_sisters/design_album_overlay.gd")
 
 
 func _states(n: int) -> Array[VillagerState]:

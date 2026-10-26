@@ -125,7 +125,7 @@ func test_the_runner_holds_the_page_for_the_hand_over() -> void:
 
 ## `aPST_exit`: the north pair runs up the path between the houses, the south pair down it.
 func test_the_visitor_leaves_along_the_path_between_the_houses() -> void:
-	var npc: GDScript = load("res://scenes/world/present_npc.gd")
+	var npc: GDScript = load("res://features/events/present_npc.gd")
 	var s: float = FieldCatalog.GX_TO_METERS
 	var north: Array = npc.call("exit_points", Vector3.ZERO, 0)
 	assert_int(north.size()).is_equal(2)

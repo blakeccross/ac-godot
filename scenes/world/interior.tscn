@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scenes/world/interior.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/ui/clock_hud.tscn" id="2"]
 [ext_resource type="Script" path="res://scenes/world/follow_camera.gd" id="3"]
-[ext_resource type="Script" path="res://scenes/world/furniture_ambience.gd" id="4"]
+[ext_resource type="Script" path="res://features/house/furniture_ambience.gd" id="4"]
 
 [sub_resource type="Environment" id="Env"]
 background_mode = 1

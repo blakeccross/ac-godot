@@ -25,9 +25,9 @@ func after_test() -> void:
 
 
 func test_game_start_intro_targets_kk_scene() -> void:
-	assert_str(Game.INTRO_KK_SCENE).is_equal("res://scenes/ui/intro_kk.tscn")
+	assert_str(Game.INTRO_KK_SCENE).is_equal("res://features/intro/intro_kk.tscn")
 	assert_that(ResourceLoader.exists(Game.INTRO_KK_SCENE)).is_true()
-	assert_str(Game.INTRO_SCENE).is_equal("res://scenes/ui/intro_train.tscn")
+	assert_str(Game.INTRO_SCENE).is_equal("res://features/intro/intro_train.tscn")
 
 
 func test_kk_opening_dialogue_exists() -> void:
@@ -117,7 +117,7 @@ func test_outro_strums_and_stops_the_music() -> void:
 
 
 func _scene() -> Node3D:
-	var scene: Node3D = auto_free((load("res://scenes/ui/intro_kk.tscn") as PackedScene).instantiate()) as Node3D
+	var scene: Node3D = auto_free((load("res://features/intro/intro_kk.tscn") as PackedScene).instantiate()) as Node3D
 	add_child(scene)
 	await get_tree().process_frame
 	return scene
@@ -146,7 +146,7 @@ func test_stage_clear_is_black_void() -> void:
 
 
 func test_kk_scene_loads() -> void:
-	var packed: PackedScene = load("res://scenes/ui/intro_kk.tscn")
+	var packed: PackedScene = load("res://features/intro/intro_kk.tscn")
 	assert_that(packed).is_not_null()
 	var scene: Node3D = auto_free(packed.instantiate()) as Node3D
 	assert_that(scene).is_not_null()

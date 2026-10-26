@@ -1,0 +1,48 @@
+[gd_scene format=3 uid="uid://b4vedrewi57tb"]
+
+[ext_resource type="Script" path="res://features/shops/nook/nook_room.gd" id="1"]
+[ext_resource type="Script" uid="uid://dfxx8v5xbuuao" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://features/shops/nook/tom_nook.tscn" id="4"]
+[ext_resource type="Script" path="res://features/house/house_clock.gd" id="5"]
+[ext_resource type="PackedScene" uid="uid://dcud4qlxae1id" path="res://assets/generated/environment/interiors/rom_shop4_2f.glb" id="10"]
+[ext_resource type="PackedScene" uid="uid://wdglhp2g5vmk" path="res://assets/generated/environment/interiors/rom_shop4_2w.glb" id="11"]
+
+[node name="shop3_2" type="Node3D" unique_id=1096328692]
+script = ExtResource("1")
+room_id = &"shop3_2"
+
+[node name="Shell" type="Node3D" parent="." unique_id=246332896]
+script = ExtResource("2")
+
+[node name="GeneratedVisual" type="Node3D" parent="Shell" unique_id=80824155]
+
+[node name="rom_shop4_2f" parent="Shell/GeneratedVisual" unique_id=552176266 instance=ExtResource("10")]
+
+[node name="rom_shop4_2w" parent="Shell/GeneratedVisual" unique_id=673047425 instance=ExtResource("11")]
+
+[node name="Terrain" type="Node3D" parent="." unique_id=515211537]
+
+[node name="Furniture" type="Node3D" parent="." unique_id=205435852]
+
+[node name="Twin0" parent="Furniture" instance=ExtResource("4")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, -7)
+clerk = 0
+
+[node name="Twin1" parent="Furniture" instance=ExtResource("4")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, -7)
+clerk = 1
+
+[node name="NookClock" type="Node3D" parent="Furniture"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 2, -14)
+script = ExtResource("5")
+visual = &"obj_clock_shop4"
+
+[node name="Doors" type="Node3D" parent="." unique_id=194966633]
+
+[node name="Exit" parent="Doors" unique_id=698597540 instance=ExtResource("3")]
+label = "Leave"
+exits_interior = true
+
+[node name="PlayerSpawn" type="Marker3D" parent="." unique_id=1539877728]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)

@@ -79,10 +79,10 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `jaudio_NES` / `m_bgm` / `audiorom.img` | Sequenced BGM (24 hourly field tracks, rooms, rain swap); SE seq 242; animalese seqs 243–245; town tune is 16 notes into seq 248 | `Audio.play_bgm` / `play_se` / `play_voice` + catalogs; `--kind audio` renders gitignored OGG from `audiorom.img` ([audio](decomp_notes/audio.md)). Not a Nas port |
 | `m_event`, `m_quest` | Scripted events / errands | Event/quest data + a small runner system |
 | `m_common_data`, `m_private` | Giant global save/state | Split save via `SaveService` |
-| `m_scene`, `m_start_data_init` | Boot: new town vs load; scene changes | `Game` phase + `scenes/ui/title.tscn` → world |
-| `m_trademark`, `m_titledemo`, `ac_animal_logo` | Title = live demo town + scripted player + animated logo actor; START → player select | `scenes/ui/title.tscn` hosts `world.tscn`; `TitleDemo.begin`, `TitleDemo` / `TitleDemoInput`, `title_logo.tscn` (`Sequence` AnimationPlayer); `--kind title` extracts the recordings ([title](decomp_notes/title.md)). Nintendo logo stage not reproduced |
-| `ac_npc_p_sel` (K.K. player select) | New-town opening: Totakeke strums → fade into train | `IntroKkStage` + `scenes/ui/intro_kk.tscn` (`end_1`, `grd_player_select`, BGM `intro_kk`); title **Intro Sequence** ([intro](decomp_notes/intro.md)) |
-| `ac_npc_guide` (Rover train) | New-town character creation on the train | `IntroSequence` + `IntroTrainStage` + `scenes/ui/intro_train.tscn` (GLBs + `npc_1_*` clips, BGM `intro_train`); follows KK opening ([intro](decomp_notes/intro.md)) |
+| `m_scene`, `m_start_data_init` | Boot: new town vs load; scene changes | `Game` phase + `features/intro/title.tscn` → world |
+| `m_trademark`, `m_titledemo`, `ac_animal_logo` | Title = live demo town + scripted player + animated logo actor; START → player select | `features/intro/title.tscn` hosts `world.tscn`; `TitleDemo.begin`, `TitleDemo` / `TitleDemoInput`, `title_logo.tscn` (`Sequence` AnimationPlayer); `--kind title` extracts the recordings ([title](decomp_notes/title.md)). Nintendo logo stage not reproduced |
+| `ac_npc_p_sel` (K.K. player select) | New-town opening: Totakeke strums → fade into train | `IntroKkStage` + `features/intro/intro_kk.tscn` (`end_1`, `grd_player_select`, BGM `intro_kk`); title **Intro Sequence** ([intro](decomp_notes/intro.md)) |
+| `ac_npc_guide` (Rover train) | New-town character creation on the train | `IntroSequence` + `IntroTrainStage` + `features/intro/intro_train.tscn` (GLBs + `npc_1_*` clips, BGM `intro_train`); follows KK opening ([intro](decomp_notes/intro.md)) |
 | `ac_intro_demo` / `ac_train0` / `ac_train1` / `ac_npc_station_master` / `ac_npc_rcn_guide` | Station arrival → Porter → Nook → house pick → first job start | `IntroStationStage` + `IntroStationDirector` in generated `world.tscn` (loco `obj_train1_1` + passenger `obj_train1_3`); title **Station Arrival** ([intro](decomp_notes/intro.md)) |
 | `ac_npc_rcn_guide2` / `mQst_SetFirstJob*` | First job: cloth → plant → hello → furniture/map → letter → open → carpet → axe → notice | `FirstJob` on `Game` + `TomNook` + villager/mail/sign/Tortimer hooks; uniform `shirt_016` ([intro](decomp_notes/intro.md)) |
 | `m_island`, GBA, Famicom, e-Reader | Specialized extras | Tracked as not-started in [feature-checklist.md](feature-checklist.md) |
@@ -102,7 +102,7 @@ Classes, files and members that once carried decomp or romaji names (refactor pl
 | `BugSemi` (`bug_semi.gd`) | `Cicada` (`cicada.gd`), with `Bee` split out | `ac_ins_semi.c` |
 | `BugGoki` | `Cockroach` | `ac_ins_goki.c` |
 | `HouseGoki` (`scripts/systems/house_goki.gd`) | `HouseCockroaches` (`house_cockroaches.gd`) | `m_cockroach.c` |
-| `scenes/world/house_goki.tscn` / `.gd` | `scenes/world/house_cockroach.tscn` / `.gd` | `ac_house_goki.c` |
+| `scenes/world/house_goki.tscn` / `.gd` | `features/house/house_cockroach.tscn` / `.gd` | `ac_house_goki.c` |
 | `BugDango` | `PillBug` | `ac_ins_dango.c` |
 | `BugBatta` | `Grasshopper` | `ac_ins_batta.c` |
 | `BugKera` | `MoleCricket` | `ac_ins_kera.c` |
@@ -119,7 +119,7 @@ Classes, files and members that once carried decomp or romaji names (refactor pl
 | `BugProgram` | `BugBehavior` | `ac_insect_move.c_inc` |
 | `BugBg` | `BugTerrain` | `aINS_BGcheck` |
 | `BugData.Program.CHOU`, `BATTA`, `TONBO`, … | `BUTTERFLY`, `GRASSHOPPER`, `DRAGONFLY`, … | `aINS_program_type[]` |
-| `HaniwaStore`, `HaniwaTalk`, `scenes/world/haniwa.tscn` | `GyroidStore`, `GyroidTalk`, `scenes/world/gyroid.tscn` | `ac_haniwa.c` |
+| `HaniwaStore`, `HaniwaTalk`, `scenes/world/haniwa.tscn` | `GyroidStore`, `GyroidTalk`, `features/house/gyroid.tscn` | `ac_haniwa.c` |
 | `KabuMarket`, `ShopBook.kabu` | `StalkMarket`, `ShopBook.stalk_market` | `m_kabu_manager.c` |
 | `Ongen` | `SoundEmitter` | `sAdo_Ongen*` |
 | `FtrCatalog` | `FurnitureCatalog` | `ftr` tables |

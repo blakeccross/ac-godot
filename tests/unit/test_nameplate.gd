@@ -18,7 +18,7 @@ func test_sign_reads_from_the_south_only() -> void:
 	var world: _GridWorld = auto_free(_GridWorld.new())
 	world.grid.configure(16, 16, 2.0, Vector3.ZERO)
 	add_child(world)
-	var house: Node3D = auto_free(load("res://scenes/world/house.tscn").instantiate())
+	var house: Node3D = auto_free(load("res://features/house/house.tscn").instantiate())
 	house.name = "npc_house_0"
 	world.grid.place(&"npc_house_0", Vector2i(4, 4), Vector2i(3, 3), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.BUILDING)
 	assert_that(house.call("nameplate_cell", world.grid)).is_equal(Vector2i(4, 6))

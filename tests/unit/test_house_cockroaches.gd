@@ -225,7 +225,7 @@ func test_grip_reports_the_cells_a_piece_left() -> void:
 
 
 func _goki(cell: Vector2i, fade: bool = false) -> Node3D:
-	var node: Node3D = auto_free(load("res://scenes/world/house_cockroach.tscn").instantiate()) as Node3D
+	var node: Node3D = auto_free(load("res://features/house/house_cockroach.tscn").instantiate()) as Node3D
 	add_child(node)
 	node.position = _session.grid.cell_to_world(cell)
 	node.call("setup", _session, fade)

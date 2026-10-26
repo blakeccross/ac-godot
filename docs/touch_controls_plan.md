@@ -35,7 +35,7 @@ When a host offers more than one verb, a small row of chips appears over it with
 
 ## Architecture
 
-### `PlayerInput` (new, `scripts/systems/player/player_input.gd`)
+### `PlayerInput` (new, `features/player/player_input.gd`)
 - This is the base type the player reads from. It is promoted out of `TitleDemoInput`, which becomes a subclass. Its fields are `move: Vector2` (get_vector convention, 0–1 magnitude) and `a_held`, `a_pressed`, `b_held` and `b_pressed`, plus `consume_a_pressed()` and `consume_b_pressed()`.
 - `player.scripted_input` is retyped to `PlayerInput`. The title-demo-only behaviour moves behind a `demo` flag on the source. That covers no sprint, the `TitleDemo.allows_verb` gate, and the skipped bad-luck trip and NPC wade checks.
 - The remaining direct `Input` readers move to read through the source (they fall back to `Input` when it is null):
@@ -44,7 +44,7 @@ When a host offers more than one verb, a small row of chips appears over it with
   - `_struggle`
   - sprint (`player.gd:442`)
 
-### `TouchDriver` (new, `scenes/actors/touch_driver.gd`, a child node of the player)
+### `TouchDriver` (new, `features/player/touch_driver.gd`, a child node of the player)
 - It owns a `PlayerInput`. It installs it on the player only while touch is active, and removes it when a pad or key is pressed.
 - It turns gestures into the source's fields each physics tick:
   - **Walk-to.** Follow a path of world points, and set `move` from the camera-relative direction to the next point. Use the inverse of `_camera_wish`, and keep full deflection until the last metre, then ease. Stop on arrival, on a blocked step (`FieldCollision.revise_xz` makes no progress for 0.3 s) or on a new tap.

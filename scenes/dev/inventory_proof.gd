@@ -117,7 +117,7 @@ func _extra_checks() -> void:
 	_letter_reader.close()
 
 	## Pencil tab: the design book opens beside the pockets (`mNW_OPEN_INV`).
-	var list_ui: CanvasLayer = load("res://scenes/ui/design_list_overlay.tscn").instantiate()
+	var list_ui: CanvasLayer = load("res://features/shops/able_sisters/design_list_overlay.tscn").instantiate()
 	add_child(list_ui)
 	await get_tree().process_frame
 	var click := InputEventMouseButton.new()

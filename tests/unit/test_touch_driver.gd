@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 
 ## Touch through the player's `PlayerInput`: hold to follow, tap the player for A.
 
-const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
+const PLAYER_SCENE := preload("res://features/player/player.tscn")
 
 var _cam: Camera3D
 

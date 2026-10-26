@@ -249,7 +249,7 @@ func test_generic_fossil_donation_plays_return_handover() -> void:
 	## `_say_line`, same as the pre-existing `_play_putaway` accept path), so call the
 	## handover directly rather than standing up a dialogue UI double.
 	Game.inventory.add(ItemCatalog.get_item(&"fossil"), 1)
-	var blathers: Node = load("res://scenes/world/museum/blathers.tscn").instantiate()
+	var blathers: Node = load("res://features/museum/blathers.tscn").instantiate()
 	auto_free(blathers)
 	add_child(blathers)
 	var listener := Node3D.new()
@@ -267,7 +267,7 @@ func test_play_return_skips_when_item_not_held() -> void:
 	## No animation for an item the player no longer has (defensive, not decomp-driven).
 	TestIsolation.free_leftovers(get_tree(), "HandOverItem")
 	await get_tree().process_frame
-	var blathers: Node = load("res://scenes/world/museum/blathers.tscn").instantiate()
+	var blathers: Node = load("res://features/museum/blathers.tscn").instantiate()
 	auto_free(blathers)
 	add_child(blathers)
 	var listener := Node3D.new()
@@ -294,7 +294,7 @@ func _find_hand_over_item(root: Node) -> HandOverItem:
 
 func test_blathers_sleep_window_matches_decomp_hours() -> void:
 	## `aCR_SLEEP_TIME_START`/`_END` (`ac_npc_curator.h`): 06:00–18:00, not 05:00–19:00.
-	var blathers: Node = load("res://scenes/world/museum/blathers.tscn").instantiate()
+	var blathers: Node = load("res://features/museum/blathers.tscn").instantiate()
 	auto_free(blathers)
 	add_child(blathers)
 	Clock.hour = 5
@@ -312,7 +312,7 @@ func test_blathers_holds_wait_pose_during_sleep_grace_then_sleeps() -> void:
 	## `aCR_SLEEP_WAIT_TIMER` = 6s) -> `aCR_ACTION_SLEEP` (`WAIT_NEMU1`) on first crossing
 	## into the drowsy window; no such grace when already drowsy.
 	Clock.hour = 3
-	var blathers: Node = load("res://scenes/world/museum/blathers.tscn").instantiate()
+	var blathers: Node = load("res://features/museum/blathers.tscn").instantiate()
 	auto_free(blathers)
 	add_child(blathers)
 	assert_bool(bool(blathers.call("_is_drowsy"))).is_false()

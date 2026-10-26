@@ -17,14 +17,14 @@ func after_test() -> void:
 
 
 func test_each_museum_room_is_its_own_scene() -> void:
-	for wing: String in [
-		"museum_entrance",
-		"museum_painting",
-		"museum_fossil",
-		"museum_insect",
-		"museum_fish",
+	for path: String in [
+		"res://features/museum/museum_entrance.tscn",
+		"res://features/museum/museum_painting.tscn",
+		"res://features/museum/museum_fossil.tscn",
+		"res://features/museum/museum_insect.tscn",
+		"res://features/museum/museum_fish.tscn",
 	]:
-		var path := "res://scenes/world/museum/%s.tscn" % wing
+		var wing: String = path.get_file().get_basename()
 		var packed: PackedScene = load(path)
 		assert_that(packed).is_not_null()
 		var room: Node3D = auto_free(packed.instantiate()) as Node3D
@@ -37,13 +37,13 @@ func test_each_museum_room_is_its_own_scene() -> void:
 		assert_that(room.get_node_or_null("PlayerSpawn")).is_not_null()
 		assert_bool(room.has_method("populate")).is_true()
 	## Shells match field_data.
-	var painting: Node = load("res://scenes/world/museum/museum_painting.tscn").instantiate()
+	var painting: Node = load("res://features/museum/museum_painting.tscn").instantiate()
 	auto_free(painting)
 	assert_that(painting.get_node_or_null("Shell/GeneratedVisual/rom_museum3")).is_not_null()
-	var fossil: Node = load("res://scenes/world/museum/museum_fossil.tscn").instantiate()
+	var fossil: Node = load("res://features/museum/museum_fossil.tscn").instantiate()
 	auto_free(fossil)
 	assert_that(fossil.get_node_or_null("Shell/GeneratedVisual/rom_museum2")).is_not_null()
-	var entrance: Node = load("res://scenes/world/museum/museum_entrance.tscn").instantiate()
+	var entrance: Node = load("res://features/museum/museum_entrance.tscn").instantiate()
 	auto_free(entrance)
 	var doors: Node = entrance.get_node("Doors")
 	assert_that(doors.get_node_or_null("Link_museum_painting")).is_not_null()

@@ -1,7 +1,7 @@
 class_name TestNeedleworkInterior
 extends GdUnitTestSuite
 
-const SCENE := "res://scenes/world/interiors/needlework.tscn"
+const SCENE := "res://features/shops/able_sisters/needlework.tscn"
 
 ## Able Sisters interior build (`NeedleworkPresenter`).
 
@@ -80,7 +80,7 @@ func test_the_scene_places_sisters_and_displays_on_the_decomp_tables() -> void:
 
 
 func test_sable_sews_at_the_machine() -> void:
-	var sable: Node = auto_free(load("res://scenes/world/interiors/sable.tscn").instantiate())
+	var sable: Node = auto_free(load("res://features/shops/able_sisters/sable.tscn").instantiate())
 	add_child(sable)
 	var ap: AnimationPlayer = _find_anim(sable)
 	assert_that(ap).is_not_null()
@@ -99,7 +99,7 @@ func test_sable_sews_at_the_machine() -> void:
 
 
 func test_mabel_roams_and_collides_with_the_world() -> void:
-	var mabel: Node = load("res://scenes/world/interiors/mabel.tscn").instantiate()
+	var mabel: Node = load("res://features/shops/able_sisters/mabel.tscn").instantiate()
 	add_child(mabel)
 	auto_free(mabel)
 	## `CharacterBody3D` so she can roam / follow the player (`aNNW_MY_PROC_*`).
@@ -188,7 +188,7 @@ func test_present_adds_both_window_sunbeams() -> void:
 	assert_float(right.position.x).is_greater(left.position.x)
 ## `mPr_FOREIGNER`: Sable treats a visitor as a stranger and doesn't count the day.
 func test_sable_keeps_her_count_for_residents_only() -> void:
-	var sable: Node = auto_free(load("res://scenes/world/interiors/sable.tscn").instantiate())
+	var sable: Node = auto_free(load("res://features/shops/able_sisters/sable.tscn").instantiate())
 	add_child(sable)
 	Game.designs.sable_days = 6
 	Game.designs.sable_last_date = ""
@@ -203,8 +203,8 @@ func test_sable_keeps_her_count_for_residents_only() -> void:
 
 
 func test_displays_carry_their_bodies_and_reach_in_the_scene() -> void:
-	var mannequin: StaticBody3D = auto_free(load("res://scenes/world/interiors/able_fixture.tscn").instantiate())
-	var stand: StaticBody3D = auto_free(load("res://scenes/world/interiors/umbrella_stand.tscn").instantiate())
+	var mannequin: StaticBody3D = auto_free(load("res://features/shops/able_sisters/able_fixture.tscn").instantiate())
+	var stand: StaticBody3D = auto_free(load("res://features/shops/able_sisters/umbrella_stand.tscn").instantiate())
 	for display: StaticBody3D in [mannequin, stand]:
 		assert_int(display.collision_layer).is_equal(PhysicsLayers.WORLD)
 		assert_int(display.collision_mask).is_equal(0)

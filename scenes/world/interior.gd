@@ -7,9 +7,9 @@ extends Node3D
 
 const GROUP := &"interior"
 
-const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
+const PLAYER_SCENE := preload("res://features/player/player.tscn")
 const VILLAGER_SCENE := preload("res://features/villagers/villager.tscn")
-const GOKI_SCENE := preload("res://scenes/world/house_cockroach.tscn")
+const GOKI_SCENE := preload("res://features/house/house_cockroach.tscn")
 
 var grid: WorldGrid
 var session: IndoorSession

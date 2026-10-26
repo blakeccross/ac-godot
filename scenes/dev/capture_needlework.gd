@@ -26,7 +26,7 @@ func _run() -> void:
 	var session := IndoorSession.new()
 	session.bind(room)
 	## The room scene carries the shell and every fixture; the presenter adds hulls + beams.
-	var scene: Node3D = load("res://scenes/world/interiors/needlework.tscn").instantiate()
+	var scene: Node3D = load("res://features/shops/able_sisters/needlework.tscn").instantiate()
 	add_child(scene)
 	var shell: Node3D = scene.get_node("Shell/GeneratedVisual")
 	GeneratedVisual.layout_authored_interior(shell, room, session.grid, 3.0)

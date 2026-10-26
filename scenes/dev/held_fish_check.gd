@@ -108,7 +108,7 @@ func _shoot_alone(id: StringName, fish: FishData) -> void:
 ## whose space is scaled, and land somewhere the camera can actually see.
 func _shoot_on_player(id: StringName) -> void:
 	var viewport: SubViewport = _viewport()
-	var player: Player = load("res://scenes/actors/player.tscn").instantiate() as Player
+	var player: Player = load("res://features/player/player.tscn").instantiate() as Player
 	viewport.add_child(player)
 	for _i in 4:
 		await get_tree().process_frame

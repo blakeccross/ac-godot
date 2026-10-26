@@ -143,7 +143,7 @@ func test_shop_id_from_room_kind() -> void:
 func test_tom_nook_offers_talk_only() -> void:
 	## Sell / order go through his menu; goods are bought at the shelf.
 	Game.current_room_id = &"shop0"
-	var nook: Node = auto_free(load("res://scenes/world/interiors/tom_nook.tscn").instantiate())
+	var nook: Node = auto_free(load("res://features/shops/nook/tom_nook.tscn").instantiate())
 	var actions: Array[Interaction] = nook.get_interactions(InteractionContext.new())
 	assert_int(actions.size()).is_equal(1)
 	assert_str(String(actions[0].id)).is_equal(String(Interaction.TALK))
@@ -201,7 +201,7 @@ func test_tom_nook_model_follows_shop_level() -> void:
 		if FieldCatalog.villager_path(species).is_empty():
 			continue
 		Game.current_room_id = rooms[level]
-		var nook: Node = auto_free(load("res://scenes/world/interiors/tom_nook.tscn").instantiate())
+		var nook: Node = auto_free(load("res://features/shops/nook/tom_nook.tscn").instantiate())
 		add_child(nook)
 		var vis: Node = nook.get_node_or_null("Model/GeneratedVisual")
 		assert_that(vis).is_not_null()
@@ -313,7 +313,7 @@ func test_authored_public_interior_scenes_exist() -> void:
 		"police_station.tscn"
 	)
 	assert_str(WorldObjectRegistry.scene_for_building(&"post_office", &"building")).contains(
-		"post_office.tscn"
+		"post_office_building.tscn"
 	)
 
 

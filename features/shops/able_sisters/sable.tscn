@@ -1,0 +1,33 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://features/shops/able_sisters/sable.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="2"]
+
+[sub_resource type="BoxShape3D" id="body_shape"]
+size = Vector3(1.0, 1.6, 1.0)
+
+[sub_resource type="BoxShape3D" id="reach_shape"]
+size = Vector3(2.0, 2.0, 2.0)
+
+[node name="Sable" type="StaticBody3D"]
+script = ExtResource("1")
+collision_layer = 1
+collision_mask = 0
+
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("body_shape")
+
+[node name="InteractVolume" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+collision_layer = 8
+collision_mask = 0
+monitoring = false
+monitorable = true
+script = ExtResource("2")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractVolume"]
+shape = SubResource("reach_shape")
+
+[node name="Model" type="Node3D" parent="."]

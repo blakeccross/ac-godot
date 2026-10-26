@@ -140,7 +140,7 @@ func test_wallpaper_and_carpet_from_inventory() -> void:
 
 func test_chair_has_no_button_verbs() -> void:
 	## Sitting is walking into the chair (`FurnitureSeat`), not an A prompt.
-	var node: Node = auto_free(load("res://scenes/world/furniture.tscn").instantiate())
+	var node: Node = auto_free(load("res://features/house/furniture.tscn").instantiate())
 	add_child(node)
 	var ctx := InteractionContext.new()
 	ctx.inventory = Inventory.new()
@@ -150,7 +150,7 @@ func test_chair_has_no_button_verbs() -> void:
 func test_decorating_does_not_add_pickup_or_rotate_verbs() -> void:
 	## A grips and the stick turns / moves the piece; B picks it up (`FurnitureGrip`).
 	Game.current_room_id = &"player_main"
-	var node: Node = auto_free(load("res://scenes/world/furniture.tscn").instantiate())
+	var node: Node = auto_free(load("res://features/house/furniture.tscn").instantiate())
 	add_child(node)
 	var ctx := InteractionContext.new()
 	ctx.inventory = Game.inventory
@@ -164,7 +164,7 @@ func test_decorating_does_not_add_pickup_or_rotate_verbs() -> void:
 
 func test_drawers_only_open_from_the_front() -> void:
 	var dresser: FurnitureData = ItemCatalog.get_item(&"wood_dresser") as FurnitureData
-	var node: Node = auto_free(load("res://scenes/world/furniture.tscn").instantiate())
+	var node: Node = auto_free(load("res://features/house/furniture.tscn").instantiate())
 	node.set("data", dresser)
 	add_child(node)
 	var ctx := InteractionContext.new()

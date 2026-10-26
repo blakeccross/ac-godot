@@ -4,7 +4,7 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 
 ## Godot
 
-`PostBook` / `PoliceBook` on `Game`. Authored rooms `post_office.tscn` / `police_box.tscn` under `scenes/world/interiors/`. Layout tables: `PostDisplay`, `PoliceDisplay`. Police talk: `PoliceTalk` (Booker, `booker_talk.json`), `CopperTalk` (Copper, `copper_talk.json`). Actors: `booker.tscn` (interior), `copper.tscn` (outdoors, placed by `WorldGenerator._place_copper`), `police_sunshine.tscn` (window beams). Play through outdoor enter → `interior.tscn` mounts the room and calls `populate()`. F6 on the room `.tscn` alone uses `public_room`’s standalone preview (camera + light + populate).
+`PostBook` / `PoliceBook` on `Game`. Authored rooms `post_office.tscn` / `police_box.tscn` in `features/shops/post_office/` and `features/shops/police_box/`. Layout tables: `PostDisplay`, `PoliceDisplay`. Police talk: `PoliceTalk` (Booker, `booker_talk.json`), `CopperTalk` (Copper, `copper_talk.json`). Actors: `booker.tscn` (interior), `copper.tscn` (outdoors, placed by `WorldGenerator._place_copper`), `police_sunshine.tscn` (window beams). Play through outdoor enter → `interior.tscn` mounts the room and calls `populate()`. F6 on the room `.tscn` alone uses `public_room`’s standalone preview (camera + light + populate).
 
 ## Decomp sources
 

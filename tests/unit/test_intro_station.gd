@@ -24,7 +24,7 @@ func after_test() -> void:
 
 func test_game_intro_station_starts_generated_world() -> void:
 	assert_that(ResourceLoader.exists(Game.WORLD_SCENE)).is_true()
-	assert_that(ResourceLoader.exists("res://scenes/world/intro_station_director.gd")).is_true()
+	assert_that(ResourceLoader.exists("res://features/intro/intro_station_director.gd")).is_true()
 
 
 func test_porter_and_nook_dialogue_authored() -> void:

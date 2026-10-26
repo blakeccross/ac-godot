@@ -247,7 +247,7 @@ func test_villager_doors_get_a_knock_first() -> void:
 	assert_bool(StructureDoor.needs_knock(&"obj_s_myhome1")).is_false()
 	assert_bool(StructureDoor.needs_knock(&"obj_s_toudai")).is_false()
 	assert_bool(StructureDoor.needs_knock(&"obj_s_shop1")).is_false()
-	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
 	if player.animation_player() == null:

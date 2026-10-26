@@ -9,7 +9,7 @@ Resource data  -->  systems (behavior)  -->  scenes (presentation)
 ```
 
 - **Resources** describe what something is (an item, a villager definition, a tile type). Scripts live in `scripts/data/` with `class_name`. Instances are `.tres` files under `data/`.
-- **Systems** implement game-wide rules (clock, inventory, schedules, economy, save). Scripts live in `scripts/systems/<area>/` (`core/`, `town/`, `npc/`, `interiors/`, `shops/`, `player/`, `tools/`, `events/`, …). A feature that has been co-located keeps its scenes and scripts together under `features/<name>/` instead (`features/fishing/`: the rules, the bobber, the field fish, the spawner; `features/bugs/`: the field, catalog, spawning, the insect scene and sounds, bees and the wasp nest, with the species programs in `behaviors/`; `features/villagers/`: the residents' rules, friendships and quests, and `villager.tscn` with its components in `components/`). Presentation every NPC shares (faces, head look, reactions) is in `scripts/systems/npc/`. They must be testable without the world scene.
+- **Systems** implement game-wide rules (clock, inventory, schedules, economy, save). Scripts live in `scripts/systems/<area>/` (`core/`, `audio/`, `dialogue/`, `interaction/`, `interiors/`, `items/`, `mail/`, `npc/`, `tools/`, `town/`, `ui/`, `visuals/`): what every feature leans on. A feature that has been co-located keeps its scenes and scripts together under `features/<name>/` instead (`features/fishing/`: the rules, the bobber, the field fish, the spawner; `features/bugs/`: the field, catalog, spawning, the insect scene and sounds, bees and the wasp nest, with the species programs in `behaviors/`; `features/villagers/`: the residents' rules, friendships and quests, and `villager.tscn` with its components in `components/`). Presentation every NPC shares (faces, head look, reactions) is in `scripts/systems/npc/`. They must be testable without the world scene.
 - **Scenes** are what the player sees and touches (player, tree, shop counter, HUD). Scripts stay thin: they wire nodes and call systems.
 
 Keep those layers separate. A tree scene should not own growth formulas. An item `.tres` should not run shop logic.
@@ -38,8 +38,8 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | --- | --- |
 | Player, Villager | `scenes/actors/` |
 | World, Tree, Rock, Flower, Hole, Furniture, ItemPickup, House, Shop, ShopStock, Building, Door, Sign, Prop (fences / boards), Lotus, Mailbox, Haniwa (house gyroid / save point) | `scenes/world/` |
-| Able Sisters, Police, Post Office (outdoor) | `scenes/world/buildings/` |
-| Nook / Able / police / post interiors; museum wings | `scenes/world/interiors/`, `scenes/world/museum/` |
+| Able Sisters, Police, Post Office (outdoor) | `features/shops/<shop>/` (`able_sisters.tscn`, `police_station.tscn`, `post_office_building.tscn`) |
+| Nook / Able / police / post interiors; museum wings | `features/shops/<shop>/`, `features/museum/` |
 | InteractVolume | `scenes/world/interact_volume.gd` (sensor only; host implements verbs) |
 | Title, Clock HUD, Dialogue / Shop / Map / Debug Console overlays | `scenes/ui/` |
 
@@ -141,7 +141,7 @@ Pipeline details: [decomp_notes/world_generation.md](decomp_notes/world_generati
 | Concern | Godot approach |
 | --- | --- |
 | Game time | `Clock` autoload; subscribers, not OS `Time` in each system |
-| Player | `scenes/actors/player.tscn` + `PlayerLocomotion`; generated `boy_1.glb` if present; `HeldTool` on HAND |
+| Player | `features/player/player.tscn` + `PlayerLocomotion`; generated `boy_1.glb` if present; `HeldTool` on HAND |
 | Field A-button | `InteractionQuery` + host `get_interactions` / `interact`; `InteractVolume` sensors; `ToolUse` field verbs |
 | Items | `ItemData` / `ToolData` resources + `Inventory` on `Game` |
 | Town layout | `WorldData` + `WorldGenerator` / `WorldBuilder` / `WorldObjectRegistry` + `WorldGrid` + `FieldCollision`; world `.tscn` is a shell |
@@ -175,6 +175,6 @@ Build presentation in `.tscn` files whenever the layout is knowable at edit time
 
 **Still instantiate at runtime** when content is procedural or session-dynamic: generated town cells from `WorldData`, dig holes, dropped items, fishing bobber / fish shadows, bug actors, weather particles, dialogue choice buttons. Those systems still **instance authored packed scenes** (tree, hole, bobber) rather than building visuals from scratch in code.
 
-Good reference: `scenes/dev/museum_complete.tscn` and `scenes/world/interiors/*.tscn` nest shells and doors in the editor. Prefer that shape for fixed interiors and UI over builders constructing rooms entirely in GDScript when the layout is stable. Live play mounts catalog `scene_path` rooms into `interior.tscn`.
+Good reference: `scenes/dev/museum_complete.tscn` and the authored rooms (`features/shops/*/*.tscn`, `features/museum/museum_*.tscn`) nest shells and doors in the editor. Prefer that shape for fixed interiors and UI over builders constructing rooms entirely in GDScript when the layout is stable. Live play mounts catalog `scene_path` rooms into `interior.tscn`.
 
 When adding or refactoring a feature, ask: *Could a designer open the scene and see the composition?* If yes, put it in the `.tscn` — including correct resting positions.

@@ -9,7 +9,7 @@ extends RefCounted
 ## `NeedleworkPresenter`, `PostPresenter`, `PolicePresenter`, `MuseumPresenter`).
 ## Scene-less rooms use `furnish_fallback`.
 
-const FURNITURE_SCENE := preload("res://scenes/world/furniture.tscn")
+const FURNITURE_SCENE := preload("res://features/house/furniture.tscn")
 ## `Furniture/*` nodes that presenters build in code and that survive a re-populate.
 ## Anything the room's `.tscn` authors survives too (its owner is the room), as does
 ## the `"authored_fixture"` group; only the data-driven exhibits / stock rebuild.

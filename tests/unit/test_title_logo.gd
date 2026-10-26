@@ -19,7 +19,7 @@ const S := DecompTime.TICK_SEC
 
 
 func _logo() -> CanvasLayer:
-	var logo: CanvasLayer = auto_free((load("res://scenes/ui/title_logo.tscn") as PackedScene).instantiate())
+	var logo: CanvasLayer = auto_free((load("res://features/intro/title_logo.tscn") as PackedScene).instantiate())
 	add_child(logo)
 	## Step it by hand: the tests own the clock.
 	_seq(logo).callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL

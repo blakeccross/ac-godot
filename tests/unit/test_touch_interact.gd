@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 
 ## Touch on things: tap a host, walk up, face it, press the button its verb is on.
 
-const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
+const PLAYER_SCENE := preload("res://features/player/player.tscn")
 const HUD_SCENE := preload("res://scenes/ui/touch_hud.tscn")
 
 
