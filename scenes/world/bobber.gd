@@ -1,3 +1,4 @@
+class_name Bobber
 extends Node3D
 
 ## Uki (`ac_uki.h`) presentation: a backswing on the rod and a parabola out to the cast
@@ -5,6 +6,9 @@ extends Node3D
 ## yanked up out of the water once struck. `Fishing` owns all the timing and
 ## the bobber's position once it lands (`aUKI_movement`'s drift), including when this node
 ## is freed — this script only reads it.
+
+## The line this float is on; set before it enters the tree.
+var line: Fishing
 
 const VISUAL_ID := &"tol_uki_1"
 
@@ -56,20 +60,20 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if not Fishing.is_active():
+	if line == null or not line.is_active():
 		return
 	## The landing spot while it flies, then wherever the current has taken it.
-	_base = Fishing.anchor()
+	_base = line.anchor()
 	_phase += delta
 	var offset: Vector3 = Vector3.ZERO
-	if Fishing.state() == Fishing.State.CAST:
+	if line.state() == Fishing.State.CAST:
 		## Swinging back on the rod, then `parabola_vec`'s arc out to the landing spot.
-		offset = Fishing.cast_position() - _base
+		offset = line.cast_position() - _base
 	else:
-		if Fishing.state() == Fishing.State.BITE:
-			offset.y = Fishing.rise()
+		if line.state() == Fishing.State.BITE:
+			offset.y = line.rise()
 		else:
-			offset.y = sin(_phase * BOB_RATE) * BOB_AMPLITUDE - Fishing.dip() * DIP_DEPTH
+			offset.y = sin(_phase * BOB_RATE) * BOB_AMPLITUDE - line.dip() * DIP_DEPTH
 	if is_inside_tree():
 		global_position = _base + offset
 	else:
@@ -84,7 +88,7 @@ func _tilt(delta: float, height: float) -> void:
 	var half_life: float = CAST_HALF_LIFE
 	var max_rate: float = CAST_MAX_RATE
 	var drawn := true
-	match Fishing.state():
+	match line.state():
 		Fishing.State.BITE:
 			## `aUKI_PROC_BITE` draws no RotateX at all: the float stands straight while a
 			## fish has it, struck or not. Only a struck one is turned toward the rod. The
@@ -93,7 +97,7 @@ func _tilt(delta: float, height: float) -> void:
 		Fishing.State.FLOAT:
 			## `aUKI_PROC_WAIT` lies flat at the cast rates while `cast_timer` runs, then
 			## stands up fast — the beat that tells you fish can see it now.
-			if Fishing.is_settled():
+			if line.is_settled():
 				target = 0.0
 				half_life = SETTLE_HALF_LIFE
 				max_rate = SETTLE_MAX_RATE
@@ -102,7 +106,7 @@ func _tilt(delta: float, height: float) -> void:
 	_rgb = chase_color(_rgb, height < -UNDERWATER, delta)
 	## Every proc but an unstruck bite turns the float to face the rod (`uki_angle.y`); all
 	## but the bite then tip it.
-	var faces_rod: bool = drawn or Fishing.is_struck()
+	var faces_rod: bool = drawn or line.is_struck()
 	var to_rod: Vector3 = _origin() - global_position if is_inside_tree() else Vector3.ZERO
 	var yaw: float = atan2(to_rod.x, to_rod.z) if faces_rod and to_rod.length_squared() > 0.0 else 0.0
 	_float.rotation = Vector3(REST_PITCH + (_pitch if drawn else 0.0), yaw, 0.0)

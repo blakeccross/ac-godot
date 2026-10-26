@@ -72,7 +72,7 @@ func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 		return []
 	## With villagers queueing, a wish is made by taking a place in the line
 	## (`aHTC_wait` only starts on the queue's signal).
-	if ShrineQueue.members > 0 and Game.events != null and Game.events.is_active(NEW_YEAR):
+	if ShrineQueue.find(get_tree()) != null and Game.events != null and Game.events.is_active(NEW_YEAR):
 		return []
 	if _talk != null or (ctx != null and not _in_front(ctx.actor as Node3D)):
 		return []

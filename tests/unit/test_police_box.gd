@@ -193,7 +193,11 @@ func test_renew_waits_while_in_the_police_box() -> void:
 	TownUpkeep.on_field_renewed(1)
 	assert_array(Game.police.keep_items().slice(0, 3)).is_equal([&"", &"axe", &"shovel"])
 	assert_bool(Game.police.topup_waiting).is_true()
-	Game.exit_interior()
+	## What `Game.exit_interior` does on leaving the police box. Not `exit_interior` itself:
+	## that changes scene to the whole town, which then outlives this suite and steals the
+	## dialogue window, music and player from the suites after it.
+	Game.police.player_left()
+	Game.current_room_id = &""
 	assert_bool(Game.police.topup_waiting).is_false()
 	assert_that(Game.police.item_at(0)).is_equal(&"axe")
 	assert_that(Game.police.item_at(1)).is_equal(&"shovel")

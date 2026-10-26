@@ -24,6 +24,10 @@ var _cheer_spot: int = 0
 ## Foot race (`FootRace`): the phase last seen, the angle round the shrine, a trip in progress.
 ## The foot race this runner / starter belongs to (`FootRace.join`).
 var _foot_race: FootRace
+## The tug this referee / puller belongs to (`TugOfWar.join`).
+var _tug_rope: TugOfWar
+## The New Year's queue this villager is in (`ShrineQueue.join`).
+var _queue: ShrineQueue
 var _race_phase: int = -1
 var _race_angle: float = 0.0
 var _race_trip: int = 0
@@ -97,8 +101,8 @@ func setup() -> void:
 ## pullers take their places along it, facing in.
 func _setup_tug() -> void:
 	var gx := FieldCatalog.GX_TO_METERS
+	_tug_rope = TugOfWar.join(get_parent())
 	if slot == 0:
-		TugOfWar.reset()
 		_rope = Node3D.new()
 		_rope.name = "TugRope"
 		get_parent().add_child(_rope)
@@ -115,13 +119,12 @@ func _setup_tug() -> void:
 
 
 func _exit_tree() -> void:
-	if _foot_race != null:
-		_foot_race.leave()
-		_foot_race = null
-	if _well != null:
-		ShrineQueue.members -= 1
-		if ShrineQueue.members <= 0:
-			ShrineQueue.reset()
+	for crew: EventCrew in [_foot_race, _tug_rope, _queue]:
+		if crew != null:
+			crew.leave()
+	_foot_race = null
+	_tug_rope = null
+	_queue = null
 	if _rope != null and is_instance_valid(_rope):
 		_rope.queue_free()
 	## The cheerleader clears the balls away when the ball toss ends.
@@ -349,15 +352,14 @@ func _cheer(delta: float) -> void:
 ## One frame of the tug: the shared rope moves, the pullers move with it and pick their next
 ## heave when a clip ends; the referee keeps the rope where it is pulled to.
 func _tug(delta: float) -> void:
-	TugOfWar.advance_once(delta, rng())
 	var gx := FieldCatalog.GX_TO_METERS
 	if slot == 0:
 		if _rope != null:
-			_rope.global_position = _rope_home + Vector3(TugOfWar.rope * gx, 0.0, 0.0)
+			_rope.global_position = _rope_home + Vector3(_tug_rope.rope * gx, 0.0, 0.0)
 		return
-	global_position.x = _home.x + TugOfWar.rope_base * gx
+	global_position.x = _home.x + _tug_rope.rope_base * gx
 	if clip_done():
-		play_clip(TugOfWar.clip_for(TugOfWar.dir_of(slot)), false)
+		play_clip(_tug_rope.clip_for(TugOfWar.dir_of(slot)), false)
 
 
 func make_context() -> DialogueContext:
@@ -374,10 +376,10 @@ func make_context() -> DialogueContext:
 func make_talk() -> BankTalk:
 	if _well != null:
 		_sq_offer = null
-		if _sq_state == Shrine.FRONT and ShrineQueue.can_offer(slot):
+		if _sq_state == Shrine.FRONT and _queue.can_offer(slot):
 			_sq_offer = BankTalk.Fixed.new(ShrineQueue.offer_msg(_looks()))
 			return _sq_offer
-		return BankTalk.Fixed.new(ShrineQueue.talk_msg(_looks(), slot, rng()))
+		return BankTalk.Fixed.new(_queue.talk_msg(_looks(), slot, rng()))
 	var alt_event: StringName = _data.get("alt_event", &"")
 	var alt: bool = alt_event != &"" and Game != null and Game.events != null and Game.events.is_active(alt_event)
 	var term: int = FestivalCrowd.term_of(family, Clock.now_sec())
@@ -389,7 +391,7 @@ func talk_ended(script: BankTalk) -> void:
 	super.talk_ended(script)
 	if _well != null:
 		if _sq_offer != null and script == _sq_offer and _sq_offer.chosen == 0:
-			ShrineQueue.queue_player(slot)
+			_queue.queue_player(slot)
 			_sq_let_in = true
 		_sq_offer = null
 		if _sq_state == Shrine.SAISEN or _sq_state == Shrine.OMAIRI or _sq_state == Shrine.BOW:
@@ -410,15 +412,13 @@ func _setup_shrine() -> void:
 	_well = get_tree().get_first_node_in_group("wishing_well") as Node3D if get_tree() != null else null
 	if _well == null:
 		return
-	if ShrineQueue.members <= 0:
-		ShrineQueue.reset()
-	ShrineQueue.members += 1
+	_queue = ShrineQueue.join(get_parent())
 	_sq_leg = ShrineQueue.start_leg(slot)
 	if _sq_leg == ShrineQueue.LEG_FRONT:
-		ShrineQueue.take_front(slot)
+		_queue.take_front(slot)
 	elif _sq_leg == ShrineQueue.LEG_OFFER:
-		ShrineQueue.step_up(slot)
-		ShrineQueue.turn = ShrineQueue.column_of(slot)
+		_queue.step_up(slot)
+		_queue.turn = ShrineQueue.column_of(slot)
 	global_position = _sq_world(_sq_leg)
 	_arrive_leg()
 
@@ -439,9 +439,9 @@ func _sq_go(leg: int) -> void:
 	_sq_leg = leg
 	_sq_state = Shrine.WALK
 	if leg == ShrineQueue.LEG_FRONT:
-		ShrineQueue.take_front(slot)
+		_queue.take_front(slot)
 	elif leg == ShrineQueue.LEG_OFFER:
-		ShrineQueue.step_up(slot)
+		_queue.step_up(slot)
 	move_to(_sq_world(leg), ShrineQueue.RUN_SPEED, ShrineQueue.CLIP_RUN)
 
 
@@ -490,20 +490,20 @@ func _shrine(delta: float) -> void:
 				play_clip("npc_1_wait1", true)
 		Shrine.AFTER:
 			if _sq_timer >= ShrineQueue.AFTER_SEC:
-				ShrineQueue.step_down(slot)
+				_queue.step_down(slot)
 				_sq_go(ShrineQueue.next_leg(ShrineQueue.LEG_OFFER))
 		Shrine.BOW:
 			if clip_done():
 				_sq_state = Shrine.BACK
 				play_clip("npc_1_wait1", true)
 		Shrine.BACK:
-			if ShrineQueue.can_take_front(slot):
+			if _queue.can_take_front(slot):
 				_sq_go(ShrineQueue.LEG_FRONT)
 		Shrine.FRONT:
 			turn_to(ShrineQueue.facing_well(_well), delta)
 			if _sq_let_in:
 				_lead_player()
-			elif ShrineQueue.may_step_up(slot):
+			elif _queue.may_step_up(slot):
 				_sq_go(ShrineQueue.LEG_OFFER)
 
 
@@ -512,13 +512,13 @@ func _shrine(delta: float) -> void:
 ## round without praying.
 func _lead_player() -> void:
 	var player := player_node() as Player
-	match ShrineQueue.player_state:
+	match _queue.player_state:
 		ShrineQueue.PlayerState.QUEUED:
 			if player == null:
 				return
-			if ShrineQueue.player_may_step_up():
-				ShrineQueue.offering_by = ShrineQueue.PLAYER
-				ShrineQueue.player_state = ShrineQueue.PlayerState.UP
+			if _queue.player_may_step_up():
+				_queue.offering_by = ShrineQueue.PLAYER
+				_queue.player_state = ShrineQueue.PlayerState.UP
 				_player_offering(player)
 				return
 			var wait: Vector3 = ShrineQueue.to_world(_well, ShrineQueue.PLAYER_WAIT)
@@ -532,7 +532,7 @@ func _lead_player() -> void:
 				begin_talk(player, BankTalk.Fixed.new(ShrineQueue.thanks_msg(_looks(), rng())))
 				return
 			_sq_let_in = false
-			ShrineQueue.front_by[ShrineQueue.column_of(slot)] = -1
+			_queue.front_by[ShrineQueue.column_of(slot)] = -1
 			_sq_go(ShrineQueue.next_leg(ShrineQueue.LEG_OFFER))
 
 
@@ -540,8 +540,8 @@ func _sq_let_through() -> void:
 	var player := player_node() as Player
 	if player == null:
 		return
-	var want: bool = ShrineQueue.player_state == ShrineQueue.PlayerState.QUEUED \
-		or ShrineQueue.player_state == ShrineQueue.PlayerState.UP
+	var want: bool = _queue.player_state == ShrineQueue.PlayerState.QUEUED \
+		or _queue.player_state == ShrineQueue.PlayerState.UP
 	if want == _sq_excepted:
 		return
 	_sq_excepted = want
@@ -566,8 +566,8 @@ func _player_offering(player: Player) -> void:
 	var ui := DialogueOverlay.find(get_tree()) if is_inside_tree() else null
 	if ui != null and is_instance_valid(player) and is_instance_valid(_well):
 		await _well.call("offer_wish", ui, player)
-	ShrineQueue.step_down(ShrineQueue.PLAYER)
-	ShrineQueue.player_state = ShrineQueue.PlayerState.DONE
+	_queue.step_down(ShrineQueue.PLAYER)
+	_queue.player_state = ShrineQueue.PlayerState.DONE
 
 
 func think(delta: float) -> void:

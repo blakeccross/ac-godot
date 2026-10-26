@@ -204,7 +204,7 @@ func lift(at: Vector2) -> void:
 	if _held >= TAP_SEC or _now.distance_to(_start) >= TAP_SLOP_PX * _px():
 		return
 	## With the line out every tap reels (`relax_rod` takes A and nothing else).
-	if _on_self or Fishing.holds(_player):
+	if _on_self or (_player != null and _player.fishing.holds_line()):
 		source.tap_a()
 		return
 	if _tap_object(at) or _tap_tool(at):

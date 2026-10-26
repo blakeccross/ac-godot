@@ -4,12 +4,11 @@ extends GdUnitTestSuite
 ## The New Year's queue at the wishing well (`ShrineQueue`, `ac_hatumode_npc0`).
 
 
+var _q: ShrineQueue
+
+
 func before_test() -> void:
-	ShrineQueue.reset()
-
-
-func after_test() -> void:
-	ShrineQueue.reset()
+	_q = auto_free(ShrineQueue.new())
 
 
 func test_each_column_goes_out_round_the_back_and_up_the_front() -> void:
@@ -36,50 +35,50 @@ func test_villagers_start_where_the_decomp_puts_them() -> void:
 
 
 func test_the_columns_take_turns_at_the_well() -> void:
-	ShrineQueue.step_up(0)
-	ShrineQueue.turn = ShrineQueue.column_of(0)
-	ShrineQueue.take_front(1)
-	ShrineQueue.take_front(2)
-	assert_bool(ShrineQueue.may_step_up(1)).is_false()  ## the well is taken
-	ShrineQueue.step_down(0)
-	assert_int(ShrineQueue.turn).is_equal(ShrineQueue.column_of(1))
-	assert_bool(ShrineQueue.may_step_up(2)).is_false()  ## not its column's turn
-	assert_bool(ShrineQueue.may_step_up(1)).is_true()
-	ShrineQueue.step_up(1)
-	assert_int(ShrineQueue.front_by[ShrineQueue.column_of(1)]).is_equal(-1)
+	_q.step_up(0)
+	_q.turn = ShrineQueue.column_of(0)
+	_q.take_front(1)
+	_q.take_front(2)
+	assert_bool(_q.may_step_up(1)).is_false()  ## the well is taken
+	_q.step_down(0)
+	assert_int(_q.turn).is_equal(ShrineQueue.column_of(1))
+	assert_bool(_q.may_step_up(2)).is_false()  ## not its column's turn
+	assert_bool(_q.may_step_up(1)).is_true()
+	_q.step_up(1)
+	assert_int(_q.front_by[ShrineQueue.column_of(1)]).is_equal(-1)
 
 
 func test_one_villager_at_a_time_at_each_front() -> void:
-	ShrineQueue.take_front(1)
-	assert_bool(ShrineQueue.can_take_front(3)).is_false()
-	assert_bool(ShrineQueue.can_take_front(1)).is_true()
-	assert_bool(ShrineQueue.can_take_front(2)).is_true()
+	_q.take_front(1)
+	assert_bool(_q.can_take_front(3)).is_false()
+	assert_bool(_q.can_take_front(1)).is_true()
+	assert_bool(_q.can_take_front(2)).is_true()
 
 
 func test_the_player_goes_in_place_of_whoever_let_them_in() -> void:
-	ShrineQueue.take_front(1)
-	assert_bool(ShrineQueue.can_offer(1)).is_true()
-	assert_bool(ShrineQueue.can_offer(3)).is_false()  ## not at the front
-	ShrineQueue.queue_player(1)
-	assert_bool(ShrineQueue.can_offer(1)).is_false()  ## asked only once
-	ShrineQueue.turn = ShrineQueue.column_of(1)
-	assert_bool(ShrineQueue.may_step_up(1)).is_false()
-	assert_bool(ShrineQueue.player_may_step_up()).is_true()
-	ShrineQueue.offering_by = ShrineQueue.PLAYER
-	assert_bool(ShrineQueue.player_may_step_up()).is_false()
-	ShrineQueue.step_down(ShrineQueue.PLAYER)
-	assert_int(ShrineQueue.offering_by).is_equal(-1)
-	assert_int(ShrineQueue.turn).is_equal(1 - ShrineQueue.column_of(1))
+	_q.take_front(1)
+	assert_bool(_q.can_offer(1)).is_true()
+	assert_bool(_q.can_offer(3)).is_false()  ## not at the front
+	_q.queue_player(1)
+	assert_bool(_q.can_offer(1)).is_false()  ## asked only once
+	_q.turn = ShrineQueue.column_of(1)
+	assert_bool(_q.may_step_up(1)).is_false()
+	assert_bool(_q.player_may_step_up()).is_true()
+	_q.offering_by = ShrineQueue.PLAYER
+	assert_bool(_q.player_may_step_up()).is_false()
+	_q.step_down(ShrineQueue.PLAYER)
+	assert_int(_q.offering_by).is_equal(-1)
+	assert_int(_q.turn).is_equal(1 - ShrineQueue.column_of(1))
 
 
 func test_queue_talk_counts_places_from_the_one_at_the_well() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
-	ShrineQueue.offering_by = 0
+	_q.offering_by = 0
 	assert_int(ShrineQueue.place_in_line(1, 0)).is_equal(1)
 	assert_int(ShrineQueue.place_in_line(3, 0)).is_equal(3)
 	assert_int(ShrineQueue.place_in_line(0, 0)).is_equal(4)
-	var n: int = ShrineQueue.talk_msg(0, 2, rng)
+	var n: int = _q.talk_msg(0, 2, rng)
 	assert_int(n).is_between(7679 + 6, 7679 + 8)
 	assert_int(ShrineQueue.offer_msg(5)).is_equal(7751)
 	assert_int(ShrineQueue.thanks_msg(1, rng)).is_between(7697 + 15, 7697 + 17)
@@ -93,3 +92,17 @@ func test_queue_points_follow_the_wells_facing() -> void:
 	assert_float(at.x).is_equal_approx(100.0 * FieldCatalog.GX_TO_METERS, 0.001)
 	assert_float(at.z).is_equal_approx(0.0, 0.001)
 	assert_float(angle_difference(ShrineQueue.facing_well(well), -PI * 0.5)).is_equal_approx(0.0, 0.001)
+
+
+## The villagers in line share one queue; the last to leave takes it with them, and the well
+## finds it while it's there.
+func test_the_crowd_shares_one_queue_until_the_last_leaves() -> void:
+	var host: Node = auto_free(Node.new())
+	add_child(host)
+	var a := ShrineQueue.join(host)
+	assert_that(ShrineQueue.join(host)).is_same(a)
+	assert_that(ShrineQueue.find(get_tree())).is_same(a)
+	a.leave()
+	assert_bool(a.is_queued_for_deletion()).is_false()
+	a.leave()
+	assert_bool(a.is_queued_for_deletion()).is_true()

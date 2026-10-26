@@ -399,7 +399,7 @@ Lessons from the pilot, to apply to every later conversion:
   - `TreeFx` integrates constant acceleration exactly (`p += v·dt + ½·a·dt²`) and drag exactly (`(kᵗ − 1) / ln k`).
   - Plain `v += a·dt; p += v·dt` drifted 22 cm between 60 Hz and 15 Hz on a falling leaf.
 - **Split the step at phase changes.** A leaf switches from rising to falling at the instant its upward speed reaches zero, not on whichever frame notices. Without the split, the switch lands on a different frame at each frame rate.
-- **Convert where the constant is written.** Keep the decomp value visible (`80.0 / 60.0`, `0.125 * GX * 3600.0`) and cite it in a comment, and use small `_speed` / `_accel` helpers where launch values are rolled in decomp units.
+- **Convert where the constant is written.** Keep the decomp value visible and name its clock (`80.0 * DecompTime.TICK_SEC` for 60 Hz ticks, `33.0 * DecompTime.FRAME_SEC` for 30 fps animation frames, `0.125 * GX * 3600.0`) and cite it in a comment, and use small `_speed` / `_accel` helpers where launch values are rolled in decomp units.
 - **Test the frame-rate independence directly.** Run the same scenario at 60 Hz and 15 Hz and assert the results agree within 1 cm.
 
 ## 4. What not to change

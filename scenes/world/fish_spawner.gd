@@ -47,7 +47,7 @@ func _process(delta: float) -> void:
 	## turns.
 	var sense: FishShadow.Sense = _make_sense()
 	_school.tick(delta, sense)
-	Fishing.tick(delta, _school)
+	_school.line.tick(delta, _school)
 	_sync()
 
 
@@ -57,7 +57,8 @@ func _make_sense() -> FishShadow.Sense:
 	if player != null:
 		sense.player_position = player.global_position
 		sense.player_dashing = player.is_dashing()
-	Fishing.fill_sense(sense)
+	if _school != null:
+		_school.line.fill_sense(sense)
 	return sense
 
 

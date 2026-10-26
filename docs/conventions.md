@@ -55,7 +55,13 @@ Convert once, where the constant is written, and cite the source in a comment so
 const CRY_DELAY := 2.0
 ## `add_calc(&speed, target, 0.1, …)` per tick.
 var _speed_half_life := Motion.half_life_from_fraction(0.1)
+## `aNPS_schedule_init_proc`: 440 ticks of strumming before the first talk.
+const TALK_DELAY := 440.0 * DecompTime.TICK_SEC
 ```
+
+When the seconds aren't round, multiply by the clock the count is in (`DecompTime.TICK_SEC` for the 60 Hz play loop's counters, `FRAME_SEC` for 30 fps animation frames) rather than dividing by a bare `60.0`, so the source and its rate stay visible.
+
+A timing that a `Timer` or an `AnimationPlayer` clip runs belongs on that node in the `.tscn`, with the decomp count in its `editor_description`. Don't mirror it in a script constant; a test checks the node against the decomp count instead (`test_intro_kk.gd`, `test_title_logo.gd`).
 
 `DecompTime` (frame and tick rates, `frames_to_sec`) and `Motion.half_life_from_fraction` / `rate_from_chance` are **authoring helpers** for writing those constants. Animation GLBs are baked in seconds already (`tools/asset_pipeline/ckf.py` `FPS`), so clips play at the right speed with no conversion. A clip event that names a decomp frame becomes a method-call track or a time in seconds.
 

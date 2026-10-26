@@ -236,11 +236,12 @@ func execute(raw: String) -> String:
 			if not args.is_empty() and args[0] == "queue":
 				## `wish queue`: the villager at the front of a column lets the player in, as if
 				## they'd said Yes (`aHN0_talk_saisen_suru`).
+				var ws_queue: ShrineQueue = ShrineQueue.find(ws_tree)
 				for ws_v: Node in ws_tree.get_nodes_in_group("event_npc"):
-					if ws_v.get("_well") != null and int(ws_v.get("_sq_state")) == 1 \
-							and ShrineQueue.can_offer(int(ws_v.get("slot"))):
+					if ws_queue != null and ws_v.get("_well") != null and int(ws_v.get("_sq_state")) == 1 \
+							and ws_queue.can_offer(int(ws_v.get("slot"))):
 						ws_player.global_position = (ws_v as Node3D).global_position + Vector3(0.0, 0.0, 1.2)
-						ShrineQueue.queue_player(int(ws_v.get("slot")))
+						ws_queue.queue_player(int(ws_v.get("slot")))
 						ws_v.set("_sq_let_in", true)
 						return "Queued behind slot %d." % int(ws_v.get("slot"))
 				return "Nobody at the front."

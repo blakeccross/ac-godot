@@ -13,6 +13,7 @@ class _FacingActor extends Node3D:
 
 class _GridWorld extends Node:
 	var grid: WorldGrid = WorldGrid.new()
+	var fish: FishSchool = FishSchool.new()
 
 
 func before_test() -> void:
@@ -23,7 +24,6 @@ func before_test() -> void:
 
 
 func after_test() -> void:
-	Fishing.reset()
 	Game.reset_session()
 	Clock.reset_to_default()
 	Clock.paused = false
@@ -121,7 +121,6 @@ func test_watering_can_has_no_field_verb() -> void:
 
 
 func test_rod_casts_only_at_water() -> void:
-	Fishing.reset()
 	var world := auto_free(_GridWorld.new()) as _GridWorld
 	world.grid.configure(16, 16, 2.0, Vector3(-16, 0, -16))
 	var actor := auto_free(_FacingActor.new()) as _FacingActor
@@ -141,10 +140,11 @@ func test_rod_casts_only_at_water() -> void:
 	assert_int(air.priority).is_equal(0)
 	assert_str(String(air.player_anim)).is_equal("ply_1_sao_swing1")
 	assert_bool(ToolUse.apply_field(air, ctx)).is_true()
-	assert_bool(Fishing.is_active()).is_false()
+	var line: Fishing = world.fish.line
+	assert_bool(line.is_active()).is_false()
 	## The swing goes over into `NOT_SAO_SWING1` from the frame the water check ran.
-	assert_bool(Fishing.take_cut_swing()).is_true()
-	var beats: Array[Fishing.ReelBeat] = Fishing.take_reel_beats()
+	assert_bool(line.take_cut_swing()).is_true()
+	var beats: Array[Fishing.ReelBeat] = line.take_reel_beats()
 	assert_int(beats.size()).is_equal(1)
 	assert_str(String(beats[0].player_anim)).is_equal(String(Fishing.REEL_AIR))
 	assert_float(beats[0].start_frame).is_equal(Fishing.CAST_RELEASE_FRAME)
@@ -158,7 +158,7 @@ func test_rod_casts_only_at_water() -> void:
 	assert_str(String(action.id)).is_equal(String(Interaction.CAST))
 	assert_bool(ToolUse.apply_field(action, ctx)).is_true()
 	## The cast opens a `Fishing` session; the hook verb replaces it until the line is in.
-	Fishing.cancel()
+	line.cancel()
 	actor.yaw = -PI * 0.5
 	assert_str(String(ToolUse.field_action(ctx).id)).is_equal(String(Interaction.AIR_ROD))
 

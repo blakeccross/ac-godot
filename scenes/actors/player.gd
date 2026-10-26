@@ -438,7 +438,7 @@ func _physics_process(delta: float) -> void:
 			_try_pick_up()
 
 	## `cast_rod` / `relax_rod` / `vib_rod`: `Movement_Base_Braking_common`, stick ignored.
-	var rod_locked: bool = Fishing.holds(self)
+	var rod_locked: bool = fishing.holds_line()
 	if rod_locked:
 		wish = Vector3.ZERO
 		stick = 0.0
@@ -1474,7 +1474,7 @@ func _try_interact() -> void:
 func _try_pick_up() -> void:
 	if _motor.gait() in [PlayerLocomotion.Gait.TUMBLE, PlayerLocomotion.Gait.TUMBLE_GETUP]:
 		return
-	if net.net_swing.state != NetSwing.State.NONE or Fishing.holds(self):
+	if net.net_swing.state != NetSwing.State.NONE or fishing.holds_line():
 		return
 	var hit: InteractionQuery = _query_focus(true)
 	if hit == null or hit.action == null:
@@ -1516,7 +1516,7 @@ func _run_interact(hit: InteractionQuery) -> void:
 	else:
 		ToolUse.apply_field(hit.action, ctx)
 	var spent: float = float(Time.get_ticks_msec() - t0) / 1000.0
-	if Fishing.take_cut_swing():
+	if fishing.line != null and fishing.line.take_cut_swing():
 		tail = 0.0
 	await _finish_action(maxf(0.0, tail - spent))
 	await fishing.play_reel()

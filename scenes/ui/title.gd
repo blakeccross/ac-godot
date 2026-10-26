@@ -162,7 +162,6 @@ func _end_demo() -> void:
 	_logo.demo_ended = true
 	await SceneTransition.play_wipe_out(SceneTransition.Style.FADE)
 	await get_tree().create_timer(END_HOLD_SEC).timeout
-	Fishing.reset()
 	get_tree().reload_current_scene()
 
 

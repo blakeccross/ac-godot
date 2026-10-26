@@ -461,7 +461,8 @@ func _follow_item(delta: float) -> void:
 ## The fishing camera while `Fishing` holds the target (and briefly after). False when it is
 ## not in play.
 func _follow_fishing(delta: float) -> bool:
-	var fishing: bool = Fishing.faces_bobber(_target)
+	var line: Fishing = Fishing.in_tree(get_tree())
+	var fishing: bool = line != null and line.faces_bobber(_target)
 	if fishing and not _fishing_active:
 		_take_shot()
 		_fishing_active = true
@@ -475,7 +476,7 @@ func _follow_fishing(delta: float) -> bool:
 	var distance: float = FOLLOW_DISTANCE
 	if fishing:
 		var eye: Vector3 = _look_point()
-		var bobber: Vector3 = Fishing.anchor()
+		var bobber: Vector3 = line.anchor()
 		var share: float = 0.35
 		if (eye.y - bobber.y) / PlayerLocomotion.UNIT_METERS > FISHING_DROP_GX:
 			share = 0.45

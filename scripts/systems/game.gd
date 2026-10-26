@@ -1059,7 +1059,6 @@ func reset_session() -> void:
 	_reset_session_flags()
 	VillagerWalk.reset()
 	VillagerOutdoor.reset()
-	Fishing.reset()
 	MoneyRock.reset()
 	rainbow = Rainbow.new()
 	notice_board = NoticeBoard.new()
@@ -1082,5 +1081,4 @@ func _set_phase(next: Phase) -> void:
 
 
 func _change_scene(path: String) -> void:
-	Fishing.reset()
 	get_tree().call_deferred("change_scene_to_file", path)

@@ -3,8 +3,12 @@ extends GdUnitTestSuite
 ## Sports Fair games (`ac_tunahiki_*`).
 
 
+var _tug: TugOfWar
+
+
 func before_test() -> void:
-	TugOfWar.reset()
+	## Out of the tree, so only the test steps it.
+	_tug = auto_free(TugOfWar.new())
 
 
 func test_teams_face_each_other_from_their_units() -> void:
@@ -19,38 +23,38 @@ func test_teams_face_each_other_from_their_units() -> void:
 func test_the_rope_moves_only_while_they_heave_and_stays_within_ten() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	TugOfWar.next_speed = 20.0
-	TugOfWar.advance(TugOfWar.HEAVE_AT - 0.01, rng)
-	assert_float(TugOfWar.rope_base).is_equal(0.0)
-	TugOfWar.advance(0.02, rng)
-	assert_bool(TugOfWar.shake).is_true()
+	_tug.next_speed = 20.0
+	_tug.advance(TugOfWar.HEAVE_AT - 0.01, rng)
+	assert_float(_tug.rope_base).is_equal(0.0)
+	_tug.advance(0.02, rng)
+	assert_bool(_tug.shake).is_true()
 	## 20 a frame for 0.01 s: 0.15 GX.
-	assert_float(TugOfWar.rope_base).is_equal_approx(20.0 * TugOfWar.PULL_RATE * 0.01, 0.0001)
+	assert_float(_tug.rope_base).is_equal_approx(20.0 * TugOfWar.PULL_RATE * 0.01, 0.0001)
 	for i: int in 2000:
-		TugOfWar.advance(1.0 / 30.0, rng)
-		assert_float(absf(TugOfWar.rope_base)).is_less_equal(TugOfWar.LIMIT_GX)
+		_tug.advance(1.0 / 30.0, rng)
+		assert_float(absf(_tug.rope_base)).is_less_equal(TugOfWar.LIMIT_GX)
 
 
 func test_one_long_step_heaves_eases_and_rolls_the_next_pull() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	TugOfWar.next_speed = 20.0
+	_tug.next_speed = 20.0
 	## A 0.9 s hitch passes both marks: the rope moves for exactly the 0.6 s heave.
-	TugOfWar.advance(0.9, rng)
-	assert_bool(TugOfWar.shake).is_false()
-	assert_float(TugOfWar.rope_base).is_equal_approx(20.0 * TugOfWar.PULL_RATE * 0.6, 0.0001)
-	assert_float(TugOfWar.time).is_equal_approx(0.9, 0.0001)
+	_tug.advance(0.9, rng)
+	assert_bool(_tug.shake).is_false()
+	assert_float(_tug.rope_base).is_equal_approx(20.0 * TugOfWar.PULL_RATE * 0.6, 0.0001)
+	assert_float(_tug.time).is_equal_approx(0.9, 0.0001)
 
 
 func test_a_side_being_dragged_hangs_on_and_a_winning_side_throws_its_weight() -> void:
-	TugOfWar.rope_base = -8.0
-	TugOfWar.next_speed = 5.0
-	assert_str(TugOfWar.clip_for(1)).is_equal(TugOfWar.CLIP_YURI)
-	assert_str(TugOfWar.clip_for(-1)).is_equal(TugOfWar.CLIP_AIKO)
-	TugOfWar.next_speed = -5.0
-	assert_str(TugOfWar.clip_for(-1)).is_equal(TugOfWar.CLIP_FURI)
-	TugOfWar.rope_base = 2.0
-	assert_str(TugOfWar.clip_for(1)).is_equal(TugOfWar.CLIP_AIKO)
+	_tug.rope_base = -8.0
+	_tug.next_speed = 5.0
+	assert_str(_tug.clip_for(1)).is_equal(TugOfWar.CLIP_YURI)
+	assert_str(_tug.clip_for(-1)).is_equal(TugOfWar.CLIP_AIKO)
+	_tug.next_speed = -5.0
+	assert_str(_tug.clip_for(-1)).is_equal(TugOfWar.CLIP_FURI)
+	_tug.rope_base = 2.0
+	assert_str(_tug.clip_for(1)).is_equal(TugOfWar.CLIP_AIKO)
 
 
 func test_ball_toss_teams_and_spots_round_their_basket() -> void:

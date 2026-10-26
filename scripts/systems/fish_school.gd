@@ -55,6 +55,8 @@ class Puff:
 		return age >= FishSize.puff_seconds()
 
 
+## This field's rod line (`ac_uki`): one per field.
+var line: Fishing = Fishing.new()
 var shadows: Array[FishShadow] = []
 var puffs: Array[Puff] = []
 var bodies: Array[WaterBodies.Body] = []

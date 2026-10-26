@@ -23,12 +23,21 @@ var _player: Player:
 		return _player
 
 
+## The field's line this player last used the rod on (`ToolUse` binds it); null before.
+var line: Fishing
+
+
+## The player has a line out, so is held at the rod.
+func holds_line() -> bool:
+	return line != null and line.holds(_player)
+
+
 ## `Player_actor_SetPlayerAngle_forUki`: `add_calc_short_angle2(1−√½, 13.73°, 0.27°)` a
 ## tick toward the bobber while the line is out.
 func face_bobber(delta: float) -> void:
-	if not Fishing.faces_bobber(_player):
+	if line == null or not line.faces_bobber(_player):
 		return
-	var to_uki: Vector3 = Fishing.anchor() - _player.global_position
+	var to_uki: Vector3 = line.anchor() - _player.global_position
 	if is_zero_approx(to_uki.x) and is_zero_approx(to_uki.z):
 		return
 	_player._motor.facing = MathUtil.short_angle2(
@@ -42,7 +51,7 @@ func face_bobber(delta: float) -> void:
 ## beats from what came up on the line.
 func play_reel() -> void:
 	await _wait_for_line()
-	var beats: Array = Fishing.take_reel_beats()
+	var beats: Array = line.take_reel_beats() if line != null else []
 	for beat: Fishing.ReelBeat in beats:
 		## `FLY_ROD` → `NOTICE_ROD` → `PUTAWAY_ROD`: a fish is coming out of the water.
 		if beat.fish != null:
@@ -63,8 +72,10 @@ func _wait_for_line() -> void:
 	var budget: float = 5.0
 	var pulling: bool = false
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_player._mesh)
-	while Fishing.is_reeling() and budget > 0.0:
-		if not pulling and Fishing.state() == Fishing.State.BITE:
+	if line == null:
+		return
+	while line.is_reeling() and budget > 0.0:
+		if not pulling and line.state() == Fishing.State.BITE:
 			pulling = true
 			var clip := _player._resolve_clip(String(Fishing.REEL_PULL))
 			if _player._anim != null and not clip.is_empty():
@@ -76,8 +87,8 @@ func _wait_for_line() -> void:
 			HeldTool.play(skeleton, Fishing.ROD_PULL, true)
 		await get_tree().process_frame
 		budget -= get_process_delta_time()
-	if Fishing.is_reeling():
-		Fishing.cancel(Fishing.school_of(_player._make_context()))
+	if line.is_reeling():
+		line.cancel(Fishing.school_of(_player._make_context()))
 	if pulling:
 		HeldTool.play(skeleton, _player.tools.tool_hold_anim, true)
 

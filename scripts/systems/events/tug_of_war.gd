@@ -1,12 +1,13 @@
 class_name TugOfWar
-extends RefCounted
+extends EventCrew
 
 ## The Sports Fair tug-of-war (`ac_tunahiki_control`, `ac_tunahiki_npc0/1`): one shared rope.
 ## Each one-second pull cycle the pullers heave at 0.2 s (the rope shakes and moves at `speed`)
 ## and ease off at 0.8 s, when the next pull is rolled: 45% one way, 45% the other, 10% a
 ## stand-off. The rope base stays within ±10 GX; a side being dragged more than 5 GX hangs on
 ## (`YURI`), a side winning by more than that throws its weight (`FURI`), otherwise they pull
-## together (`AIKO`). Not an autoload; the pullers drive it once per frame.
+## together (`AIKO`). One per tug, shared by the referee and pullers (an `EventCrew`); it steps
+## the rope itself, before they read it each frame.
 
 ## The 30-frame cycle with its heave on frame 6 and ease-off on frame 24, in seconds.
 const CYCLE := 30.0 / DecompTime.FRAME_HZ
@@ -30,25 +31,30 @@ const CLIP_YURI := "npc_1_tunahiki_yuri1"
 const CLIP_FURI := "npc_1_tunahiki_furi1"
 const CLIP_REFEREE := "npc_1_hatafuri1"
 
-static var rope_base: float = 0.0
-static var rope: float = 0.0
+var rope_base: float = 0.0
+var rope: float = 0.0
 ## The pull, in the decomp's units (3–23).
-static var speed: float = 0.0
-static var next_speed: float = 0.0
-static var shake: bool = false
+var speed: float = 0.0
+var next_speed: float = 0.0
+var shake: bool = false
 ## Seconds into the pull cycle.
-static var time: float = 0.0
-static var _last_engine_frame: int = -1
+var time: float = 0.0
+var rng := RandomNumberGenerator.new()
 
 
-static func reset() -> void:
-	rope_base = 0.0
-	rope = 0.0
-	speed = 0.0
-	next_speed = 0.0
-	shake = false
-	time = 0.0
-	_last_engine_frame = -1
+## The tug under `host`, made on first use. Pair with `leave`.
+static func join(host: Node) -> TugOfWar:
+	return gather(host, &"TugOfWar", func() -> Node: return TugOfWar.new()) as TugOfWar
+
+
+func _init() -> void:
+	## Ahead of the pullers' physics step, so they read this frame's rope.
+	process_physics_priority = -1
+	rng.randomize()
+
+
+func _physics_process(delta: float) -> void:
+	advance(delta, rng)
 
 
 ## +1 for the west team (slots 1, 2), −1 for the east (3, 4).
@@ -56,17 +62,8 @@ static func dir_of(slot: int) -> int:
 	return 1 if ((slot - 1) & 2) == 0 else -1
 
 
-## Once per engine frame, whoever calls first.
-static func advance_once(delta: float, rng: RandomNumberGenerator) -> void:
-	var now: int = Engine.get_process_frames()
-	if now == _last_engine_frame:
-		return
-	_last_engine_frame = now
-	advance(delta, rng)
-
-
 ## `delta` seconds of `aTNC_wait` and the pullers' checks, split at the heave and the ease-off.
-static func advance(delta: float, rng: RandomNumberGenerator) -> void:
+func advance(delta: float, roll: RandomNumberGenerator) -> void:
 	var left: float = delta
 	while left > 0.0:
 		var mark: float = HEAVE_AT if time < HEAVE_AT else (EASE_AT if time < EASE_AT else CYCLE)
@@ -79,24 +76,24 @@ static func advance(delta: float, rng: RandomNumberGenerator) -> void:
 		time += dt
 		left -= dt
 		if time >= mark:
-			_reach(mark, rng)
+			_reach(mark, roll)
 	var wobble: float = 0.0
 	if shake:
 		wobble = SHAKE_GX if int(time * SHAKE_HZ) % 2 == 0 else -SHAKE_GX
 	rope = rope_base + wobble
 
 
-static func _reach(mark: float, rng: RandomNumberGenerator) -> void:
+func _reach(mark: float, roll: RandomNumberGenerator) -> void:
 	if mark == HEAVE_AT:
 		shake = true
 		speed = next_speed
 	elif mark == EASE_AT:
 		shake = false
-		var r: float = rng.randf()
+		var r: float = roll.randf()
 		if r < 0.45:
-			next_speed = rng.randf_range(0.0, 20.0) + 3.0
+			next_speed = roll.randf_range(0.0, 20.0) + 3.0
 		elif r < 0.9:
-			next_speed = -(rng.randf_range(0.0, 20.0) + 3.0)
+			next_speed = -(roll.randf_range(0.0, 20.0) + 3.0)
 		else:
 			next_speed = 0.0
 	else:
@@ -104,7 +101,7 @@ static func _reach(mark: float, rng: RandomNumberGenerator) -> void:
 
 
 ## `aTNN1_aiko`'s end-of-clip choice for a puller on side `dir`.
-static func clip_for(dir: int) -> String:
+func clip_for(dir: int) -> String:
 	var lead: float = -(rope_base * float(dir))
 	if lead > LEAD_GX:
 		return CLIP_YURI

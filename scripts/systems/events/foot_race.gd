@@ -1,5 +1,5 @@
 class_name FootRace
-extends Node
+extends EventCrew
 
 ## The Sports Fair foot race (`ac_tokyoso_control`, `ac_tokyoso_npc0/1`). Two runners race
 ## four laps round the shrine while the other pair watch, then they swap. Each warms up
@@ -10,8 +10,8 @@ extends Node
 ## lap it runs for the finish; the first in cheers (`BANZAI1`), the second is spent (`TIRED1`),
 ## the watchers clap, and after 20 s the other pair goes.
 ##
-## One `foot_race.tscn` per race, shared by its runners: each `join`s it and `leave`s it, and
-## the last to leave frees it. `PhaseTimer` times the warm-up, the line-up and the goal; the
+## One `foot_race.tscn` per race, shared by its runners (an `EventCrew`): each `join`s it and
+## `leave`s it, and the last to leave frees it. `PhaseTimer` times the warm-up, the line-up and the goal; the
 ## race itself ends when both runners `cross`.
 
 ## The race moved on; runners and the starter react to it.
@@ -52,27 +52,13 @@ var team: int = 0
 ## Per lane: angle travelled (radians), finished (0 no, 1 first, 2 second).
 var travelled: Array[float] = [0.0, 0.0]
 var finish: Array[int] = [0, 0]
-## Festival villagers using this race.
-var _members: int = 0
 
 @onready var _timer: Timer = $PhaseTimer
 
 
 ## The race under `host`, made on first use. Pair with `leave`.
 static func join(host: Node) -> FootRace:
-	var race := host.get_node_or_null(^"FootRace") as FootRace
-	if race == null:
-		race = (load(SCENE) as PackedScene).instantiate() as FootRace
-		race.name = "FootRace"
-		host.add_child(race)
-	race._members += 1
-	return race
-
-
-func leave() -> void:
-	_members -= 1
-	if _members <= 0:
-		queue_free()
+	return gather(host, &"FootRace", func() -> Node: return (load(SCENE) as PackedScene).instantiate()) as FootRace
 
 
 func _ready() -> void:

@@ -1,5 +1,5 @@
 class_name ShrineQueue
-extends RefCounted
+extends EventCrew
 
 ## The New Year's queue at the wishing well (`ac_hatumode_control`, `ac_hatumode_npc0`).
 ## Villagers go round two loops, one each side of the well: from the waiting spot at the front
@@ -10,7 +10,8 @@ extends RefCounted
 ## they'd like to go first (`base_msg`, `aHN0_talk_saisen_suru`); on Yes the player is walked
 ## to the spot behind the well's front (`aHTMD_clip_player_move`), waits their turn, steps up
 ## and makes their wish at the well (`aHTC_request`…`aHTC_inori_end`), and the villager who let
-## them in goes round without praying (`aHN0_sanpai_wait` → think 10). Not an autoload.
+## them in goes round without praying (`aHN0_sanpai_wait` → think 10). One per New Year's
+## crowd, shared by the villagers in line (an `EventCrew`); the well looks it up with `find`.
 
 ## `aHN0_posX/Z` from the well's centre in GX (the decomp counts from its anchor unit,
 ## 20 GX across and 20 up): +X to the well's right as you face it, +Z out of its front.
@@ -54,25 +55,30 @@ enum PlayerState { NONE, QUEUED, UP, DONE }
 
 ## Who is at (or heading to) the offering spot: a slot, `PLAYER`, or -1.
 const PLAYER := 99
-static var offering_by: int = -1
+const GROUP := &"shrine_queue"
+var offering_by: int = -1
 ## The column whose turn it is at the well.
-static var turn: int = 0
+var turn: int = 0
 ## Per column, the slot at (or heading to) its front spot, or -1.
-static var front_by: Array[int] = [-1, -1]
-static var player_state: int = PlayerState.NONE
+var front_by: Array[int] = [-1, -1]
+var player_state: int = PlayerState.NONE
 ## The villager who let the player in.
-static var sponsor: int = -1
-## Villagers out in the queue (the well only takes wishes through it while any are).
-static var members: int = 0
+var sponsor: int = -1
 
 
-static func reset() -> void:
-	offering_by = -1
-	turn = 0
-	front_by = [-1, -1]
-	player_state = PlayerState.NONE
-	sponsor = -1
-	members = 0
+## The queue under `host`, made on first use. Pair with `leave`.
+static func join(host: Node) -> ShrineQueue:
+	return gather(host, &"ShrineQueue", func() -> Node: return ShrineQueue.new()) as ShrineQueue
+
+
+## The New Year's queue in `tree`, or null when nobody is queueing (the well only takes
+## wishes through it while anyone is).
+static func find(tree: SceneTree) -> ShrineQueue:
+	return tree.get_first_node_in_group(GROUP) as ShrineQueue if tree != null else null
+
+
+func _init() -> void:
+	add_to_group(GROUP)
 
 
 ## `aHN0_ready2` roots: slot 0 starts at the well on the right, 1 at the front on the left,
@@ -95,31 +101,31 @@ static func next_leg(leg: int) -> int:
 
 
 ## The front spot is free for `slot` (nobody else of its column there).
-static func can_take_front(slot: int) -> bool:
+func can_take_front(slot: int) -> bool:
 	var col: int = column_of(slot)
 	return front_by[col] == -1 or front_by[col] == slot
 
 
-static func take_front(slot: int) -> void:
+func take_front(slot: int) -> void:
 	front_by[column_of(slot)] = slot
 
 
 ## `aHN0_flag2_wait`: the well is free and it's this column's turn; a player let in by this
 ## villager goes in its place.
-static func may_step_up(slot: int) -> bool:
+func may_step_up(slot: int) -> bool:
 	if offering_by != -1 or turn != column_of(slot):
 		return false
 	return not (player_state == PlayerState.QUEUED and sponsor == slot)
 
 
-static func step_up(slot: int) -> void:
+func step_up(slot: int) -> void:
 	offering_by = slot
 	if front_by[column_of(slot)] == slot:
 		front_by[column_of(slot)] = -1
 
 
 ## Done at the well: the other column goes next.
-static func step_down(who: int) -> void:
+func step_down(who: int) -> void:
 	if offering_by == who:
 		offering_by = -1
 	var col: int = column_of(sponsor) if who == PLAYER and sponsor >= 0 else column_of(who)
@@ -127,18 +133,18 @@ static func step_down(who: int) -> void:
 
 
 ## The player's turn has come (their sponsor's column, the well free).
-static func player_may_step_up() -> bool:
+func player_may_step_up() -> bool:
 	return player_state == PlayerState.QUEUED and offering_by == -1 and sponsor >= 0 \
 		and turn == column_of(sponsor)
 
 
-static func queue_player(slot: int) -> void:
+func queue_player(slot: int) -> void:
 	player_state = PlayerState.QUEUED
 	sponsor = slot
 
 
 ## The villager at the front may offer the player a place.
-static func can_offer(slot: int) -> bool:
+func can_offer(slot: int) -> bool:
 	return player_state == PlayerState.NONE and front_by[column_of(slot)] == slot
 
 
@@ -148,7 +154,7 @@ static func place_in_line(slot: int, at_well: int) -> int:
 	return 4 if k == 0 else k
 
 
-static func talk_msg(looks: int, slot: int, rng: RandomNumberGenerator) -> int:
+func talk_msg(looks: int, slot: int, rng: RandomNumberGenerator) -> int:
 	var base: int = BASE_MSG[clampi(looks, 0, 5)]
 	return base + 3 * place_in_line(slot, offering_by) + rng.randi_range(0, 2)
 
