@@ -75,6 +75,8 @@ var catalog: CatalogBook = CatalogBook.new()
 var events: EventCalendar = EventCalendar.new()
 ## The waterfall rainbow after rain (`mEnv_rainbow_*`).
 var rainbow: Rainbow = Rainbow.new()
+## The town's wind for this session (`mEnv_wind_info`).
+var wind: Wind = Wind.new()
 ## The community board's posts (`m_notice`).
 var notice_board: NoticeBoard = NoticeBoard.new()
 ## The Happy Room Academy's membership and marks (`m_mark_room`).
@@ -1061,6 +1063,7 @@ func reset_session() -> void:
 	VillagerOutdoor.reset()
 	MoneyRock.reset()
 	rainbow = Rainbow.new()
+	wind = Wind.new()
 	notice_board = NoticeBoard.new()
 	notice_board.seed(Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute)
 	hra = HappyRoomAcademy.new()

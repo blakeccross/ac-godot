@@ -53,6 +53,8 @@ static func time_signal_quiet(minute: int, second: int) -> bool:
 
 
 func _process(delta: float) -> void:
+	## `mEnv_WindMove`.
+	Game.wind.advance(delta)
 	## Windows fade on at 18:00 and off at 05:00 (`aPBOX_actor_move`'s 320-a-tick chase).
 	VisualWindowLight.step_window_lights(self, delta)
 	if not Game.title_demo_active and not Game.intro.active:

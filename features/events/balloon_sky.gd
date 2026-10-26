@@ -36,7 +36,6 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	Wind.tick(delta)
 	if state == State.SPAWNED:
 		return
 	if Game != null and Game.first_job != null and Game.first_job.is_active() and not Game.first_job.open_quest:

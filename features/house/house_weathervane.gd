@@ -60,7 +60,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	_spin_angle = fposmod(_spin_angle - Wind.power() * SPIN_PER_FRAME * delta * 60.0, 65536.0)
+	_spin_angle = fposmod(_spin_angle - Game.wind.power() * SPIN_PER_FRAME * delta * 60.0, 65536.0)
 
 
 ## The draw callback's extra rotation for binangle `angle`.
@@ -79,7 +79,7 @@ func _process_modification() -> void:
 	if skel == null:
 		return
 	if _vane >= 0:
-		var angle: float = float((Wind.angle_s() + SIDE_ANGLE[side]) & 0xFFFF)
+		var angle: float = float((Game.wind.angle_s() + SIDE_ANGLE[side]) & 0xFFFF)
 		skel.set_bone_pose_rotation(_vane, turn(house_size, angle) * _vane_rest)
 	if _spin >= 0:
 		skel.set_bone_pose_rotation(_spin, turn(house_size, _spin_angle) * _spin_rest)

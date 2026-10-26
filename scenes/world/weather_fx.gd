@@ -87,7 +87,7 @@ func _process(delta: float) -> void:
 	_snow.global_position = center
 	_petals.global_position = center
 	if _snow.emitting:
-		var wind := Vector3(sin(Wind.yaw()), 0.0, cos(Wind.yaw())) * Wind.power() * SNOW_WIND_SCALE
+		var wind := Vector3(sin(Game.wind.yaw()), 0.0, cos(Game.wind.yaw())) * Game.wind.power() * SNOW_WIND_SCALE
 		(_snow.process_material as ShaderMaterial).set_shader_parameter("drift", wind)
 	_splash.global_position = center
 	if _rain.emitting:

@@ -28,6 +28,6 @@ func test_attaches_to_the_house_skeleton_and_turns_the_vane() -> void:
 	assert_int(bone).is_greater_equal(0)
 	vane._process_modification()
 	var rest := skel.get_bone_rest(bone).basis.get_rotation_quaternion()
-	var want := HouseWeathervane.turn(0, float(Wind.angle_s())) * rest
+	var want := HouseWeathervane.turn(0, float(Game.wind.angle_s())) * rest
 	assert_float(skel.get_bone_pose_rotation(bone).angle_to(want)).is_less(0.001)
 	host.queue_free()

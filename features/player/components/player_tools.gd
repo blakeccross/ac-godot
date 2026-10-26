@@ -172,7 +172,7 @@ func tick_pinwheel(delta: float) -> void:
 	var frames: float = maxf(delta * DecompTime.FRAME_HZ, 0.0001)
 	var moved: float = 0.0 if _pin_last == Vector3.INF else _player.global_position.distance_to(_pin_last)
 	_pin_last = _player.global_position
-	var target: float = HeldPinwheel.target_speed(moved / FieldCatalog.GX_TO_METERS / frames, Wind.power())
+	var target: float = HeldPinwheel.target_speed(moved / FieldCatalog.GX_TO_METERS / frames, Game.wind.power())
 	_pin_speed = HeldPinwheel.ease_speed(_pin_speed, target, frames)
 	anim.speed_scale = _pin_speed
 

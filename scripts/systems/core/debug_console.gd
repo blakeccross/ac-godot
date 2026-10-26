@@ -1015,9 +1015,9 @@ func _cmd_balloon(args: PackedStringArray) -> String:
 	if args.size() > 0 and String(args[0]).to_lower() == "near":
 		var player := Player.find(tree)
 		if player != null:
-			var yaw: float = Wind.yaw()
+			var yaw: float = Game.wind.yaw()
 			b.start_near(player.global_position - Vector3(sin(yaw), 0.0, cos(yaw)) * 8.0)
-	return "Balloon launched (wind %d°, power %.2f)." % [int(rad_to_deg(Wind.yaw())), Wind.power()]
+	return "Balloon launched (wind %d°, power %.2f)." % [int(rad_to_deg(Game.wind.yaw())), Game.wind.power()]
 
 
 func _cmd_bug(args: PackedStringArray) -> String:

@@ -12,9 +12,10 @@ func test_wind_terms_follow_the_calendar() -> void:
 
 
 func test_wind_power_stays_in_range() -> void:
+	var wind := Wind.new()
 	for _i: int in 50:
-		Wind.tick(10.0)
-		assert_float(Wind.power()).is_between(0.0, 1.0)
+		wind.advance(10.0)
+		assert_float(wind.power()).is_between(0.0, 1.0)
 
 
 func test_missed_rolls_raise_the_chance_and_a_launch_resets_it() -> void:
@@ -40,3 +41,13 @@ func test_present_is_rare_furniture_or_foreign_fruit() -> void:
 		assert_str(String(id)).is_not_equal(String(own))
 		if FurnitureCatalog.available() and not id in ShopBook.FRUITS:
 			assert_bool(FurnitureCatalog.named_list("ftr", "C").has(id)).is_true()
+
+
+## The wind belongs to the session: a fresh one comes with each, and it doesn't reset
+## when the town scene does (going into a building and back out).
+func test_the_wind_is_the_sessions_and_a_new_session_brings_a_new_one() -> void:
+	var before: Wind = Game.wind
+	assert_that(before).is_not_null()
+	Game.reset_session()
+	assert_that(Game.wind).is_not_null()
+	assert_that(Game.wind).is_not_same(before)

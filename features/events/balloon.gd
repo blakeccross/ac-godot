@@ -181,7 +181,7 @@ func _tint() -> void:
 
 ## `aFSN_birth_init`.
 func _birth() -> void:
-	heading = Wind.angle_s()
+	heading = Game.wind.angle_s()
 	var idx: int = BIRTH_INDEX[(heading >> 12) & 0xF]
 	var p: Vector2 = BIRTH_POS[idx]
 	var spread: Vector2 = BIRTH_SPREAD[idx]
@@ -231,7 +231,7 @@ func _step(delta: float) -> void:
 		_hold = maxf(_hold - delta, 0.0)
 	elif action != Action.WOOD_STOP:
 		## `Actor_position_moveF`: 1–1.5 GX a frame downwind.
-		var speed: float = (Wind.power() * 0.5 + 1.0) * FRAME_HZ if action == Action.MOVING else 0.0
+		var speed: float = (Game.wind.power() * 0.5 + 1.0) * FRAME_HZ if action == Action.MOVING else 0.0
 		var yaw: float = float(heading & 0xFFFF) / 65536.0 * TAU
 		pos.x += sin(yaw) * speed * delta
 		pos.z += cos(yaw) * speed * delta
@@ -273,7 +273,7 @@ func _moving(delta: float) -> void:
 				_turned = true
 				break
 	if not _turned:
-		heading = Wind.angle_s()
+		heading = Game.wind.angle_s()
 
 
 func _start_snag() -> void:
