@@ -20,8 +20,8 @@ const SEEK_WALK_GX := 1.5 * UNIT_GX
 const CALL_GX := 80.0
 const CALL_HEIGHT_GX := 60.0
 const CALL_MSG := 0x075F
-## `aNPC_setup_talk_end`: 300 frames before calling out again.
-const CALL_COOLDOWN_SEC := 300.0 / 60.0
+## `aNPC_setup_talk_end`: 300 ticks before calling out again.
+const CALL_COOLDOWN_SEC := 300.0 * DecompTime.TICK_SEC
 ## How far an avoiding villager heads off at a time.
 const AVOID_STEP_GX := 2.0 * UNIT_GX
 

@@ -16,10 +16,9 @@ const SPEED := GX * 30.0
 const GRAVITY := -CreatureRelease.GRAVITY * 60.0 * 30.0 * GX
 ## Noses over 0x800 a tick; gone after 160 ticks.
 const TILT_RATE := CreatureRelease.TILT_STEP * 60.0
-const LIFETIME := CreatureRelease.LIFE / 60.0
+const LIFETIME := CreatureRelease.LIFE * DecompTime.TICK_SEC
 ## Once over water it may not drift back out onto the bank after 3 ticks.
-const BANK_GRACE := 3.0 / 60.0
-
+const BANK_GRACE := 3.0 * DecompTime.TICK_SEC
 ## `exist_flag`: cleared once it is in the water or gone (the player stops watching).
 var exist: bool = true
 var fish: FishData = null

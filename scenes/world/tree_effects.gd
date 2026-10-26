@@ -18,15 +18,15 @@ const SPREAD_CEDAR_MED_GX := 30.0
 ## `eBushHappa_ct` arg1 4 (6 in cherry season) = shake leaf; scale 0.0106 on authored verts.
 const LEAF_SCALE := 0.0106
 ## 80 ticks, fading over the last 28.
-const LEAF_LIFE := 80.0 / 60.0
-const LEAF_FADE_TIME := 28.0 / 60.0
+const LEAF_LIFE := 80.0 * DecompTime.TICK_SEC
+const LEAF_FADE_TIME := 28.0 * DecompTime.TICK_SEC
 ## Bush leaves from a step: 60 ticks, 80 when running or tumbling.
-const BUSH_LEAF_LIFE := 60.0 / 60.0
-const BUSH_LEAF_LIFE_FAST := 80.0 / 60.0
+const BUSH_LEAF_LIFE := 60.0 * DecompTime.TICK_SEC
+const BUSH_LEAF_LIFE_FAST := 80.0 * DecompTime.TICK_SEC
 ## `eBushYuki_ct`: 60 ticks, scale 0.005, fades after 32.
 const SNOW_SCALE := 0.005
-const SNOW_LIFE := 60.0 / 60.0
-const SNOW_FADE_FROM := 32.0 / 60.0
+const SNOW_LIFE := 60.0 * DecompTime.TICK_SEC
+const SNOW_FADE_FROM := 32.0 * DecompTime.TICK_SEC
 ## −0.125 GX/tick² on snow, −0.05 on a leaf once it starts to fall.
 const SNOW_GRAVITY := 0.125 * GX * 3600.0
 const LEAF_FALL_GRAVITY := 0.05 * GX * 3600.0

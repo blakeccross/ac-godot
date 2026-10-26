@@ -11,8 +11,7 @@ const START_MSG := 0x1743
 const END_MSG := 0x1799
 const KEEP_AREA := &"title_keep"
 ## `scene_delay_timer`: 30 ticks of black after the window closes.
-const AFTER_SEC := 30.0 / 60.0
-
+const AFTER_SEC := 30.0 * DecompTime.TICK_SEC
 ## `get_title_no_for_event`.
 const TITLE_NO := {
 	&"fireworks_show": 0,

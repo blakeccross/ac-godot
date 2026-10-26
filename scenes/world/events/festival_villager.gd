@@ -22,6 +22,8 @@ var _toss_released: bool = false
 var _basket: Vector3 = Vector3.INF
 var _cheer_spot: int = 0
 ## Foot race (`FootRace`): the phase last seen, the angle round the shrine, a trip in progress.
+## The foot race this runner / starter belongs to (`FootRace.join`).
+var _foot_race: FootRace
 var _race_phase: int = -1
 var _race_angle: float = 0.0
 var _race_trip: int = 0
@@ -43,10 +45,8 @@ var _sq_thanked: bool = false
 ## columns).
 var _sq_excepted: bool = false
 var _sq_offer: BankTalk.Fixed = null
-## `SAISEN1`: the coin leaves the paw at frame 33.
-const SAISEN_COIN_SEC := 33.0 / 30.0
-
-
+## `SAISEN1`: the coin leaves the paw at the clip's frame 33 (30 fps).
+const SAISEN_COIN_SEC := 33.0 * DecompTime.FRAME_SEC
 ## Before `_ready`: copy the villager's looks onto the event actor.
 func assign(p_villager: VillagerData, p_family: StringName, p_slot: int, p_cloth: int = -1) -> void:
 	villager = p_villager
@@ -85,8 +85,7 @@ func setup() -> void:
 	elif family == &"tamaire":
 		_setup_toss()
 	elif family == &"tokyoso":
-		if slot == 0:
-			FootRace.reset()
+		_foot_race = FootRace.join(get_parent())
 		_race_center = _block_unit_pos(FootRace.CENTER_UNIT)
 	elif family == &"hatumode":
 		_setup_shrine()
@@ -116,6 +115,9 @@ func _setup_tug() -> void:
 
 
 func _exit_tree() -> void:
+	if _foot_race != null:
+		_foot_race.leave()
+		_foot_race = null
 	if _well != null:
 		ShrineQueue.members -= 1
 		if ShrineQueue.members <= 0:
@@ -138,14 +140,13 @@ func _block_unit_pos(unit: Vector2i) -> Vector3:
 
 ## One frame of the foot race (`aTKN0_*` for the starter, `aTKN1_*` for the runners).
 func _race(delta: float) -> void:
-	FootRace.advance(delta)
-	var phase: int = FootRace.phase
+	var phase: int = _foot_race.phase
 	var entered: bool = phase != _race_phase
 	_race_phase = phase
 	if slot == 0:
 		_race_starter(phase, entered, delta)
 		return
-	if not FootRace.racing(slot):
+	if not _foot_race.racing(slot):
 		if entered and phase == FootRace.Phase.RACE:
 			play_clip(FootRace.CLIP_CLAP, true)
 		elif entered and phase == FootRace.Phase.WARMUP:
@@ -176,7 +177,7 @@ func _race(delta: float) -> void:
 				_race_angle = atan2(-to.z, to.x)
 				_race_to_finish = false
 				_race_trip = 0
-			if FootRace.finish[lane] != 0 or is_moving():
+			if _foot_race.finish[lane] != 0 or is_moving():
 				return
 			if _race_trip == 1:
 				if clip_done():
@@ -188,10 +189,10 @@ func _race(delta: float) -> void:
 					return
 				_race_trip = 0
 			if _race_to_finish:
-				FootRace.cross(lane)
+				_foot_race.cross(lane)
 				play_clip("npc_1_wait1", true)
 				return
-			if FootRace.done_laps(lane):
+			if _foot_race.done_laps(lane):
 				_race_to_finish = true
 				move_to(_race_point(FootRace.finish_offset(lane)), 3.0, FootRace.CLIP_RUN)
 				return
@@ -199,12 +200,12 @@ func _race(delta: float) -> void:
 				_race_trip = 1
 				play_clip(FootRace.CLIP_TRIP, false)
 				return
-			var leg: Array = FootRace.next_leg(lane, _race_angle, rng())
+			var leg: Array = _foot_race.next_leg(lane, _race_angle, rng())
 			_race_angle = float(leg[1])
 			move_to(_race_point(leg[0] as Vector2), float(leg[2]) * RACE_MPS_PER_GX, FootRace.CLIP_RUN)
 		FootRace.Phase.GOAL:
 			if entered or (not is_moving() and clip_done()):
-				play_clip(FootRace.CLIP_WIN if FootRace.finish[lane] == 1 else FootRace.CLIP_LOSE, true)
+				play_clip(FootRace.CLIP_WIN if _foot_race.finish[lane] == 1 else FootRace.CLIP_LOSE, true)
 
 
 ## Between legs a runner keeps running; the next leg starts this frame.
@@ -212,7 +213,8 @@ func arrived() -> void:
 	if _well != null:
 		_arrive_leg()
 		return
-	if family == &"tokyoso" and FootRace.phase == FootRace.Phase.RACE and FootRace.racing(slot) and not _race_to_finish:
+	if (family == &"tokyoso" and _foot_race.phase == FootRace.Phase.RACE and _foot_race.racing(slot)
+			and not _race_to_finish):
 		return
 	super.arrived()
 

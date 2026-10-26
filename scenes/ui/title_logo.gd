@@ -1,8 +1,10 @@
 extends CanvasLayer
 
-## Title logo overlay: the presentation half of `ac_animal_logo`. All timing and state live in
-## `TitleLogoState`; this node updates it every frame, scrubs the three baked skeleton clips to its
-## `anim_seconds()`, and mirrors its opacities onto the backdrop, TM mark and "PRESS START".
+## Title logo overlay (`ac_animal_logo`). The `Sequence` player runs it: `in` (the logo
+## clips, then the backdrop fading in) → `hold` (TM mark up, START ignored) → `pulse`
+## ("PRESS START" breathing until START) → `start` (solid, with the chime, then
+## `start_selected`). START or A during `in` skips to its end. If the demo runs out while
+## "PRESS START" pulses, the logo idles with it hidden.
 ## Layout is authored in `title_logo.tscn` in the original 320x240 space
 ## (`mFont_SetMatrix`: ortho +-160x120 px, y up); generated art is attached here when present.
 ## The original copyright line is omitted on purpose.
@@ -27,14 +29,31 @@ const MASK_SHADER := preload("res://shaders/title_logo_mask.gdshader")
 const BACK_COLOR := Color8(80, 60, 0)
 const TM_COLOR := Color8(40, 40, 45)
 
-var state: TitleLogoState = TitleLogoState.new()
 var demo_index: int = 0
-## Set by the owner: land loaded and the fade-in finished / demo not in its lockout / demo over.
+## Set by the owner: land loaded and the fade-in finished (`mLd_CheckStartFlag`,
+## `aAL_wipe_end_check`) / demo not in its lockout (`mTD_tdemo_button_ok_check`).
 var can_start: bool = false
 var button_ok: bool = true
-var demo_ended: bool = false
+## The demo has run out (`FADE_TYPE_SELECT_END`).
+var demo_ended: bool = false:
+	set(value):
+		demo_ended = value
+		_idle_if_over()
+## `aAL_back_draw` opacity, keyed by the `in` clip.
+var back_opacity: float = 0.0:
+	set(value):
+		back_opacity = value
+		for mat: ShaderMaterial in _back_materials:
+			mat.set_shader_parameter("opacity", value)
+## Keyed by the `pulse` clip: 0–1 is the slow bright half of a beat, 1–2 the quick dim half.
+## The phase runs 0 → π, then −π → 0, and "PRESS START" shows at 0.5·sin(phase) + 0.5.
+var pulse: float = 0.0:
+	set(value):
+		pulse = value
+		var phase: float = value * PI if value < 1.0 else (value - 2.0) * PI
+		if _press_start != null:
+			_press_start.modulate.a = clampf(0.5 * sin(phase) + 0.5, 0.0, 1.0)
 
-var _start_latched: bool = false
 var _clips: Array[AnimationPlayer] = []
 var _back_materials: Array[ShaderMaterial] = []
 var _has_models: bool = false
@@ -50,6 +69,7 @@ var _has_models: bool = false
 @onready var _tm_slot: Node3D = %Tm
 @onready var _press_start: Control = %PressStart
 @onready var _fallback: Label = %FallbackTitle
+@onready var _sequence: AnimationPlayer = %Sequence
 
 
 func _ready() -> void:
@@ -64,36 +84,51 @@ func _ready() -> void:
 	_fallback.visible = not _has_models
 	get_viewport().size_changed.connect(_layout)
 	_layout()
-	state.start_chime.connect(start_chime.emit)
-	state.start_selected.connect(start_selected.emit)
-	_refresh()
-
-
-func _process(delta: float) -> void:
-	var pressed: bool = _start_latched
-	_start_latched = false
-	state.update(delta, pressed, can_start, button_ok, demo_ended)
-	_refresh()
+	_sequence.play(&"in")
+	_sequence.queue(&"hold")
+	_sequence.queue(&"pulse")
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	## START or A (`aAL_chk_start_key`).
 	if event.is_action_pressed("ui_accept") or event.is_action_pressed("interact"):
-		_start_latched = true
+		press_start()
 		get_viewport().set_input_as_handled()
 
 
-func _refresh() -> void:
-	var t: float = state.anim_seconds()
-	for player: AnimationPlayer in _clips:
-		player.seek(t, true)
-	_back_root.visible = state.back_visible() and _has_models
-	for mat: ShaderMaterial in _back_materials:
-		mat.set_shader_parameter("opacity", state.back_opacity)
-	## TM appears with the copyright stage in the original; we only show the mark.
-	_tm_slot.visible = state.copyright_visible() and _has_models
-	_press_start.visible = state.press_start_visible()
-	_press_start.modulate.a = state.press_start_opacity
+## START or A. During `in` it skips to the end (`aAL_start_key_chk_start_wait_init` snaps every
+## clip to its last frame); during `hold` it is ignored; while "PRESS START" pulses it starts
+## the game once the owner allows it.
+func press_start() -> void:
+	match _sequence.current_animation:
+		&"in":
+			_sequence.seek(_sequence.current_animation_length, true)
+			for player: AnimationPlayer in _clips:
+				player.seek(player.current_animation_length, true)
+		&"pulse":
+			if can_start and button_ok:
+				_sequence.clear_queue()
+				_sequence.play(&"start")
+				## `sAdo_SysTrgStart(0x44D)`.
+				start_chime.emit()
+
+
+func _on_sequence_started(clip: StringName) -> void:
+	if clip == &"pulse":
+		_idle_if_over()
+
+
+func _on_sequence_finished(clip: StringName) -> void:
+	## `aAL_title_game_data_init_start_select`: the owner fades to black and leaves.
+	if clip == &"start":
+		start_selected.emit()
+
+
+## Only from the pulse: the demo is over, so "PRESS START" goes and the logo stays put.
+func _idle_if_over() -> void:
+	if demo_ended and _sequence != null and _sequence.current_animation == &"pulse":
+		_sequence.stop()
+		_press_start.visible = false
 
 
 ## 4:3 stage, centred in the logical window. The 2D lines scale in that space. The logo
@@ -129,9 +164,10 @@ func _attach_models() -> void:
 	var animal: bool = _attach(_animal_slot, MODEL_ANIMAL)
 	var cros: bool = _attach(_cros_slot, MODEL_CROS)
 	var sing: bool = _attach(_sing_slot, MODEL_SING)
-	var back: bool = _attach(_back_root, MODEL_BACK)
-	var tm: bool = _attach(_tm_slot, MODEL_TM)
 	_has_models = animal and cros and sing
+	## Without the logo the fallback text stands alone: no backdrop or TM mark behind it.
+	var back: bool = _has_models and _attach(_back_root, MODEL_BACK)
+	var tm: bool = _has_models and _attach(_tm_slot, MODEL_TM)
 	for slot: Node3D in [_animal_slot, _cros_slot, _sing_slot]:
 		_unshade(slot)
 		for found: Node in slot.find_children("*", "AnimationPlayer", true, false):
@@ -139,8 +175,8 @@ func _attach_models() -> void:
 			var names: PackedStringArray = player.get_animation_list()
 			if names.is_empty():
 				continue
+			## The 4 s clips play once alongside `in`, which is timed to them.
 			player.play(names[0])
-			player.pause()
 			_clips.append(player)
 	if back:
 		_mask_materials(_back_root, BACK_COLOR, _back_materials)

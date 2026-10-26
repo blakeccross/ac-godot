@@ -18,7 +18,7 @@ const VISUAL_PER_SCALE := 100.0
 ## One GX per 30 fps frame (`ac_snowman`'s speed unit), in m/s.
 const FRAME := SnowmanRules.GX * 30.0
 ## Leaning on it this long (16 ticks) asks to push.
-const PUSH_REQUEST_TIME := 16.0 / 60.0
+const PUSH_REQUEST_TIME := 16.0 * DecompTime.TICK_SEC
 const PUSH_CONE := deg_to_rad(55.0)
 ## Shoved into a wall this long (120 ticks) and it gives way.
 const WALL_PUSH_TIME := 2.0

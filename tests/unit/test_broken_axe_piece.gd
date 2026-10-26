@@ -67,3 +67,12 @@ func test_they_fade_over_the_last_30_ticks() -> void:
 	assert_float(BrokenAxePiece.alpha_at(40.0 / 60.0)).is_equal(1.0)
 	assert_float(BrokenAxePiece.alpha_at(15.0 / 60.0)).is_equal_approx(0.5, 0.0001)
 	assert_float(BrokenAxePiece.alpha_at(0.0)).is_equal(0.0)
+
+
+## The halves fly on `AXE_BREAK1`'s frame 15 and the sting swells on `HATI2`'s frame 21, as
+## clip events on the player's body clips rather than counted frames.
+func test_break_and_sting_are_clip_events() -> void:
+	var player: Player = auto_free(load("res://scenes/actors/player.gd").new())
+	var marks: Dictionary = player._clip_marks()
+	assert_that(marks.get(AxeWear.ANIM_BREAK)).contains([[AxeWear.PIECES_FRAME, &"fx_axe_pieces"]])
+	assert_that(marks.get(&"ply_1_hati2")).contains([[Player.STUNG_SWELL_FRAME, &"sting_swell"]])

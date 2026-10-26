@@ -27,7 +27,6 @@ func test_intro_scene_loads_and_has_stage_hosts() -> void:
 	await get_tree().process_frame
 	assert_that(scene.get_node_or_null("%TrainCar")).is_not_null()
 	assert_that(scene.get_node_or_null("%Rover")).is_not_null()
-	assert_that((scene.get_node("%Rover") as Node3D).get_node_or_null("AnimationTree")).is_not_null()
 	assert_that(scene.get_node_or_null("%StageSync")).is_not_null()
 	assert_that(scene.get_node_or_null("%IntroCameraRig")).is_not_null()
 	assert_that(scene.get_node_or_null("%IntroCamera")).is_not_null()

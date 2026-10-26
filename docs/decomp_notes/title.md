@@ -2,7 +2,7 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — do not commit the recordings, logo art, or the disc textures.
 
-**Read before implementing:** `TitleLogoState`, `TitleDemoInput`, `TitleDemo`, `scenes/ui/title.tscn` / `title_logo.tscn`, `TitleDemo.begin`.
+**Read before implementing:** `title_logo.tscn` / `title_logo.gd`, `TitleDemoInput`, `TitleDemo`, `scenes/ui/title.tscn` / `title_logo.tscn`, `TitleDemo.begin`.
 
 There is **no static title image**. The title screen is a live town (`SCENE_TITLE_DEMO`, a normal `play` game state) with a scripted player, and the "Animal Crossing" logo is an *actor* (`ANIMAL_LOGO`, control actor 8) drawn over it in the font/ortho layer.
 
@@ -55,7 +55,7 @@ Rows 0–2 and the east river column are `h1`; rows 3–7 west of the river are 
 
 ## Logo actor (`ac_animal_logo.c`)
 
-All timings in 60 Hz ticks. `TitleLogoState` is a 1:1 port.
+All timings in 60 Hz ticks. The port is the `Sequence` AnimationPlayer in `scenes/ui/title_logo.tscn` (clips `in` → `hold` → `pulse`, then `start`), driven by `title_logo.gd`; `test_title_logo.gd` checks the clips against these counts.
 
 | Action | Behavior |
 | --- | --- |
@@ -88,7 +88,7 @@ Layout (font matrix = ortho ±160×120 px × 16, y up, 320×240 virtual): logo a
 | `data_fdd[SCENE_TITLE_DEMO]` | `--kind title` → `demos.json` `acres` (`parse_title_demo_acres`); `TitleDemo.acres()` remaps to generator ids; `WorldGenerator.generate(seed, true)` uses it and lays the fixed FG over it whole. |
 | `mTRC_mati_init` + `TRAIN0`/`TRAIN1`/engineer | `TitleDemo.has_parked_train` (demo 1) → `Game.train` (`TrainService`) parks `TrainControl` and drives the world's `FieldTrain`, exactly as in play. See [world_objects](world_objects.md) § Train. |
 | `title_demo_actable` Porter (`SP_NPC_STATION_MASTER`, block 3,1 unit 5,4) | `%Porter` (`scenes/world/station_porter.tscn`) placed by `Title._place_porter` in every demo: GX (2140, 820), no normal-play +1 unit shift; think 8 → `aSTM_look_player` (turn at `0x800`/tick with `WAIT1` when the player is ≥ 67.5° off, else wait a `WAIT1` loop); immovable body. |
-| `ac_animal_logo` | `TitleLogoState` (pure) + `scenes/ui/title_logo.tscn` (4:3 SubViewport with an ortho camera for the three skeleton GLBs, backdrop and TM via `shaders/title_logo_mask.gdshader`, 2D `TextureRect`s for the copyright and PRESS START). |
+| `ac_animal_logo` | `scenes/ui/title_logo.tscn`: the `Sequence` AnimationPlayer for the timing, plus a (4:3 SubViewport with an ortho camera for the three skeleton GLBs, backdrop and TM via `shaders/title_logo_mask.gdshader`, 2D `TextureRect`s for the copyright and PRESS START). |
 | `decide_next_scene_no` | After the fade, a New Game / Continue menu (plus the two dev shortcuts). New → `Game.start_intro_sequence`; Continue → `Game.continue_game`. |
 | `FADE_TYPE_SELECT_END` | `Title._end_demo`: `SceneTransition` fade, 1.4 s black hold, reload into the next demo. |
 

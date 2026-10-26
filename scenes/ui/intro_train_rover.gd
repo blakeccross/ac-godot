@@ -15,7 +15,6 @@ const _SIGNAL_FINISH_SUFFIXES: Array[String] = [
 const ROOT_BASE := Vector3(0.0, 1.0, 0.0)
 
 var _anim: AnimationPlayer
-var _tree: AnimationTree
 var _active_clip: String = ""
 var _active_suffix: String = ""
 var _clip_active: bool = false
@@ -66,8 +65,6 @@ func play_intro_clip(
 	var anim: Animation = _anim.get_animation(clip)
 	if anim != null:
 		anim.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
-	if _tree != null:
-		_tree.active = false
 	_active_suffix = suffix
 	_active_clip = clip
 	_looping = loop
@@ -144,9 +141,6 @@ func _emit_visual_ready(visual: Node3D) -> void:
 
 func _setup_player() -> void:
 	_anim = VisualAnimation.find_animation_player(self)
-	_tree = get_node_or_null("AnimationTree") as AnimationTree
-	if _tree != null:
-		_tree.active = false
 	if _anim != null and not _anim.animation_finished.is_connected(_on_anim_finished):
 		_anim.animation_finished.connect(_on_anim_finished)
 

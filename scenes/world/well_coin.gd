@@ -10,9 +10,9 @@ const SCENE_PATH := "res://scenes/world/well_coin.tscn"
 const VISUAL := &"ef_coin"
 const GX := FieldCatalog.GX_TO_METERS
 ## Gives up on a coin still flying after 100 ticks.
-const FLY_TIME := 100.0 / 60.0
+const FLY_TIME := 100.0 * DecompTime.TICK_SEC
 ## Gone 300 ticks after the splash, fading all the way.
-const SINK_TIME := 300.0 / 60.0
+const SINK_TIME := 300.0 * DecompTime.TICK_SEC
 ## Thrown from this far off the player (GX).
 const START_GX := Vector3(9.0, 11.0, -15.0)
 ## 5.5 GX a tick up, 0.77 across, under 0.2 GX/tick² of gravity.

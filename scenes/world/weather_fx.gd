@@ -33,8 +33,8 @@ const RAIN_VISUAL := &"ef_ame02_04"
 const SPLASH_VISUALS: Array[StringName] = [&"ef_ame02_00", &"ef_ame02_01", &"ef_ame02_02", &"ef_ame02_03"]
 const SNOW_SPRITE := "res://assets/generated/effects/ef_yuki01_sprite.png"
 const PETAL_SPRITE := "res://assets/generated/effects/ef_hanabira01_sprite.png"
-## The rain sound steps one level toward its aim every 180 frames (`aWeather_RenewWeatherLevel`).
-const LEVEL_STEP_TIME := Weather.LEVEL_STEP_FRAMES / 60.0
+## The rain sound steps one level toward its aim every 180 ticks (`aWeather_RenewWeatherLevel`).
+const LEVEL_STEP_TIME := Weather.LEVEL_STEP_FRAMES * DecompTime.TICK_SEC
 ## `aWeatherSnow_SetWind2Snow`: flakes ride half the day's wind power, in GX a tick.
 const SNOW_WIND_SCALE := 0.5 * GX * 60.0
 

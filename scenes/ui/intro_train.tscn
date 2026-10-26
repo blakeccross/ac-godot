@@ -155,8 +155,6 @@ transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
 unique_name_in_owner = true
 script = ExtResource("12")
 
-[node name="AnimationTree" type="AnimationTree" parent="Rover" unique_id=1645751971]
-
 [node name="GeneratedVisual" type="Node3D" parent="Rover" unique_id=1003936420]
 transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0.008804, 0)
 
@@ -175,8 +173,6 @@ script = ExtResource("16")
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.7, 0, 7.8)
 script = ExtResource("13")
-
-[node name="AnimationTree" type="AnimationTree" parent="SleepPassenger" unique_id=118229981]
 
 [node name="GeneratedVisual" type="Node3D" parent="SleepPassenger" unique_id=485028508]
 transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)

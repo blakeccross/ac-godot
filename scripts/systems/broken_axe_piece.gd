@@ -13,9 +13,9 @@ const VISUAL: Array[StringName] = [&"ef_axe1", &"ef_axe2"]
 const GRAVITY := 0.25 * GX * 3600.0
 const BOUNCE := 0.6
 ## Fades over its last 30 ticks.
-const FADE_TIME := 30.0 / 60.0
+const FADE_TIME := 30.0 * DecompTime.TICK_SEC
 ## Ignores the ground for its first 5 ticks (it starts below the player's shoulder line).
-const GROUND_GRACE := 5.0 / 60.0
+const GROUND_GRACE := 5.0 * DecompTime.TICK_SEC
 ## In water: speed × 0.8 and spin × √0.9 every tick.
 const WATER_DRAG := 13.388  ## −ln(0.8) · 60
 const WATER_SPIN_DRAG := 3.161  ## −ln(√0.9) · 60

@@ -1,5 +1,5 @@
 class_name FootRace
-extends RefCounted
+extends Node
 
 ## The Sports Fair foot race (`ac_tokyoso_control`, `ac_tokyoso_npc0/1`). Two runners race
 ## four laps round the shrine while the other pair watch, then they swap. Each warms up
@@ -8,15 +8,23 @@ extends RefCounted
 ## for a point 22–44° further round (`aTKC_clip_next_run`): 160–180 GX out on the outside lane,
 ## 35 GX in on the inside, now and then tripping (`KOKERU1`, `KOKERU_GETUP1`). After the last
 ## lap it runs for the finish; the first in cheers (`BANZAI1`), the second is spent (`TIRED1`),
-## the watchers clap, and after 20 s the other pair goes. Not an autoload.
+## the watchers clap, and after 20 s the other pair goes.
+##
+## One `foot_race.tscn` per race, shared by its runners: each `join`s it and `leave`s it, and
+## the last to leave frees it. `PhaseTimer` times the warm-up, the line-up and the goal; the
+## race itself ends when both runners `cross`.
+
+## The race moved on; runners and the starter react to it.
+signal phase_changed(phase: Phase)
 
 enum Phase { WARMUP, READY, RACE, GOAL }
 
+const SCENE := "res://scenes/world/events/foot_race.tscn"
 const LAP_NUM := 4
 ## 240, 115 and 600 frames at 30 fps.
-const WARMUP_TIME := 240.0 / DecompTime.FRAME_HZ
-const READY_TIME := 115.0 / DecompTime.FRAME_HZ
-const GOAL_TIME := 600.0 / DecompTime.FRAME_HZ
+const WARMUP_TIME := 240.0 * DecompTime.FRAME_SEC
+const READY_TIME := 115.0 * DecompTime.FRAME_SEC
+const GOAL_TIME := 600.0 * DecompTime.FRAME_SEC
 ## `aTKC_ANGLE_FOR_LAP_COMPLETION` (≈22°): each leg is one to two of these.
 const LEG_ANGLE := 4000.0 / 65536.0 * TAU
 ## A trip now and then on a leg.
@@ -38,24 +46,64 @@ const CLIP_LOAD := "npc_1_tamakome1"
 const CLIP_SET := "npc_1_youi1"
 const CLIP_FIRE := "npc_1_don1"
 
-static var phase: int = Phase.WARMUP
-## Seconds left in this phase.
-static var timer: float = WARMUP_TIME
+var phase: Phase = Phase.WARMUP
 ## 0: slots 1 and 2 race; 1: slots 3 and 4.
-static var team: int = 0
+var team: int = 0
 ## Per lane: angle travelled (radians), finished (0 no, 1 first, 2 second).
-static var travelled: Array[float] = [0.0, 0.0]
-static var finish: Array[int] = [0, 0]
-static var _last_engine_frame: int = -1
+var travelled: Array[float] = [0.0, 0.0]
+var finish: Array[int] = [0, 0]
+## Festival villagers using this race.
+var _members: int = 0
+
+@onready var _timer: Timer = $PhaseTimer
 
 
-static func reset() -> void:
-	phase = Phase.WARMUP
-	timer = WARMUP_TIME
-	team = 0
-	travelled = [0.0, 0.0]
-	finish = [0, 0]
-	_last_engine_frame = -1
+## The race under `host`, made on first use. Pair with `leave`.
+static func join(host: Node) -> FootRace:
+	var race := host.get_node_or_null(^"FootRace") as FootRace
+	if race == null:
+		race = (load(SCENE) as PackedScene).instantiate() as FootRace
+		race.name = "FootRace"
+		host.add_child(race)
+	race._members += 1
+	return race
+
+
+func leave() -> void:
+	_members -= 1
+	if _members <= 0:
+		queue_free()
+
+
+func _ready() -> void:
+	_enter(Phase.WARMUP)
+
+
+func _enter(next: Phase) -> void:
+	phase = next
+	match next:
+		Phase.WARMUP:
+			_timer.start(WARMUP_TIME)
+		Phase.READY:
+			_timer.start(READY_TIME)
+		Phase.RACE:
+			travelled = [0.0, 0.0]
+			finish = [0, 0]
+		Phase.GOAL:
+			_timer.start(GOAL_TIME)
+	phase_changed.emit(next)
+
+
+## `aTKC_*`: warm-up → line-up → race; after the goal the other pair goes.
+func _on_phase_timer_timeout() -> void:
+	match phase:
+		Phase.WARMUP:
+			_enter(Phase.READY)
+		Phase.READY:
+			_enter(Phase.RACE)
+		Phase.GOAL:
+			team = 1 - team
+			_enter(Phase.WARMUP)
 
 
 ## Lane 0 (outside) or 1 (inside) for a runner slot.
@@ -67,59 +115,26 @@ static func team_of(slot: int) -> int:
 	return 0 if slot <= 2 else 1
 
 
-static func racing(slot: int) -> bool:
+func racing(slot: int) -> bool:
 	return slot > 0 and team_of(slot) == team
 
 
-## Once per engine frame, whoever calls first.
-static func advance(delta: float) -> void:
-	var now: int = Engine.get_process_frames()
-	if now == _last_engine_frame:
-		return
-	_last_engine_frame = now
-	step(delta)
-
-
-## `delta` seconds of `aTKC_*`.
-static func step(delta: float) -> void:
-	match phase:
-		Phase.WARMUP:
-			timer -= delta
-			if timer <= 0.0:
-				phase = Phase.READY
-				timer = READY_TIME
-		Phase.READY:
-			timer -= delta
-			if timer <= 0.0:
-				phase = Phase.RACE
-				travelled = [0.0, 0.0]
-				finish = [0, 0]
-		Phase.RACE:
-			if finish[0] != 0 and finish[1] != 0:
-				phase = Phase.GOAL
-				timer = GOAL_TIME
-		Phase.GOAL:
-			timer -= delta
-			if timer <= 0.0:
-				team = 1 - team
-				phase = Phase.WARMUP
-				timer = WARMUP_TIME
-
-
-## A runner reached the finish.
-static func cross(lane: int) -> void:
+## A runner reached the finish; once both are in, the goal.
+func cross(lane: int) -> void:
 	if finish[lane] != 0:
 		return
 	finish[lane] = 2 if finish[1 - lane] != 0 else 1
+	if finish[0] != 0 and finish[1] != 0:
+		_enter(Phase.GOAL)
 
 
-static func done_laps(lane: int) -> bool:
+func done_laps(lane: int) -> bool:
 	return travelled[lane] >= TAU * float(LAP_NUM)
 
 
 ## `aTKC_clip_next_run`: the next point round, from `angle` (radians, from the centre), and the
 ## run speed (GX a frame). Returns `[point_offset_gx: Vector2, new_angle, speed_gx]`.
-static func next_leg(lane: int, angle: float, rng: RandomNumberGenerator) -> Array:
+func next_leg(lane: int, angle: float, rng: RandomNumberGenerator) -> Array:
 	var leg: float = LEG_ANGLE + rng.randf_range(0.0, LEG_ANGLE)
 	var a: float = angle + leg
 	var radius: float = 160.0 + rng.randf_range(0.0, 20.0) - float(lane) * 35.0

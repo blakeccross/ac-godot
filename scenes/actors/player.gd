@@ -172,6 +172,8 @@ var _radio := RadioExercise.new()
 var exercising: bool = false
 ## Inside `Stung_bee` / `Notice_bee` (`mPlib_Check_end_stung_bee` is its fall).
 var stung: bool = false
+## This sting has swollen the face (`HATI2`'s clip event).
+var _sting_swelled: bool = false
 ## `m_player_main_shock` is running (`request_shock`).
 var shocked: bool = false
 ## Between stepping on a pitfall and climbing out of it.
@@ -985,6 +987,10 @@ const AXE_MARKS: Dictionary = {
 	&"ply_1_axe_swing1": [[12.0, &"fx_axe_start"]],
 	&"ply_1_axe_suka1": [[12.0, &"fx_axe_start"]],
 	&"ply_1_axe_hane1": [[12.0, &"fx_axe_start"], [15.0, &"fx_axe_bounce"]],
+	## `Player_actor_SetEffect_Broken_axe`: the halves fly at frame 15.
+	AxeWear.ANIM_BREAK: [[AxeWear.PIECES_FRAME, &"fx_axe_pieces"]],
+	## `HATI2`'s frame 21 swells the face (`Stung_bee`).
+	&"ply_1_hati2": [[STUNG_SWELL_FRAME, &"sting_swell"]],
 }
 
 
@@ -1017,6 +1023,14 @@ func _on_clip_event(_clip: StringName, event: StringName) -> void:
 			FootstepEffects.axe_start(_bg(), global_position, _motor.facing)
 		&"fx_axe_bounce":
 			FootstepEffects.axe_bounce(_bg(), global_position, _motor.facing)
+		&"fx_axe_pieces":
+			var rng := RandomNumberGenerator.new()
+			rng.randomize()
+			BrokenAxePiece.spawn_pair(get_parent(), global_position, facing_yaw(), rng)
+		&"sting_swell":
+			if stung and not _sting_swelled:
+				_sting_swelled = true
+				Game.bees.sting()
 		&"fx_fill_3", &"fx_fill_4", &"fx_fill_5", &"fx_fill_scoop":
 			var ctx: InteractionContext = _make_context()
 			var grid: WorldGrid = ctx.world.get("grid") as WorldGrid if ctx.world != null else null
@@ -1783,22 +1797,18 @@ func broken_axe() -> void:
 		return
 	_busy = true
 	HeldTool.unbind(HeldTool.find_skeleton(_mesh))
+	## The halves fly on the clip's own `fx_axe_pieces` event; `AXE_BREAKWAIT1` follows it.
 	_play_body_once(AxeWear.ANIM_BREAK)
-	var elapsed: float = 0.0
-	var waiting: bool = false
-	var thrown: bool = false
-	while elapsed < AxeWear.REPORT_DELAY_FRAMES / DecompTime.FRAME_HZ and is_inside_tree():
-		await get_tree().physics_frame
-		elapsed += get_physics_process_delta_time()
-		## `Player_actor_SetEffect_Broken_axe`: the halves fly at frame 15.
-		if not thrown and elapsed >= AxeWear.PIECES_FRAME / DecompTime.FRAME_HZ:
-			thrown = true
-			var rng := RandomNumberGenerator.new()
-			rng.randomize()
-			BrokenAxePiece.spawn_pair(get_parent(), global_position, facing_yaw(), rng)
-		if not waiting and _anim != null and not _anim.is_playing():
-			waiting = true
+	var then_wait := func(clip: StringName) -> void:
+		if String(clip).ends_with(String(AxeWear.ANIM_BREAK)):
 			_play_body_loop(AxeWear.ANIM_BREAK_WAIT)
+	if _anim != null:
+		_anim.animation_finished.connect(then_wait, CONNECT_ONE_SHOT)
+	await get_tree().create_timer(AxeWear.REPORT_DELAY_FRAMES * DecompTime.FRAME_SEC, false).timeout
+	if _anim != null and _anim.animation_finished.is_connected(then_wait):
+		_anim.animation_finished.disconnect(then_wait)
+	if not is_inside_tree():
+		return
 	var ui: DialogueOverlay = DialogueOverlay.find(get_tree()) if is_inside_tree() else null
 	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % AxeWear.MSG_BROKEN))
 	if ui != null and data != null:
@@ -2314,27 +2324,25 @@ func run_stung_bee() -> void:
 	## `mBGMPsComp_make_ps_quiet` (and the chase music goes with it).
 	EventManager.demo_bgm = &"_quiet"
 	Audio.stop_bgm()
-	var elapsed: float = 0.0
-	var swelled := false
+	## `HATI1` flinches into `HATI2`, whose `sting_swell` clip event swells the face.
+	_sting_swelled = false
 	var clip: String = _start_one_shot(ANIM_HATI1)
-	var on_hati2: bool = clip.is_empty()
-	var hati2_t: float = 0.0
-	while elapsed <= STUNG_NOTICE_SEC:
+	if clip.is_empty():
+		_start_one_shot(ANIM_HATI2)
+	else:
+		## Whatever ends first (`HATI1`, or whatever cut it off) hands over, as before.
+		_anim.animation_finished.connect(func(_done: StringName) -> void: _start_one_shot(ANIM_HATI2), CONNECT_ONE_SHOT)
+	await get_tree().create_timer(STUNG_TURN_SEC, false).timeout
+	## Then the back to the camera, easing round until the notice.
+	var turn_left: float = STUNG_NOTICE_SEC - STUNG_TURN_SEC
+	while turn_left >= 0.0:
 		await get_tree().process_frame
 		var delta: float = get_process_delta_time()
-		elapsed += delta
-		if not on_hati2 and (_anim == null or not _anim.is_playing() or _anim.current_animation != clip):
-			on_hati2 = true
-			_start_one_shot(ANIM_HATI2)
-		elif on_hati2:
-			hati2_t += delta
-		if on_hati2 and not swelled and hati2_t >= STUNG_SWELL_FRAME / DecompTime.FRAME_HZ:
-			swelled = true
-			Game.bees.sting()
-		if elapsed > STUNG_TURN_SEC:
-			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW + PI, delta)
-			_mesh.rotation.y = _motor.facing
-	if not swelled:
+		turn_left -= delta
+		_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW + PI, delta)
+		_mesh.rotation.y = _motor.facing
+	if not _sting_swelled:
+		_sting_swelled = true
 		Game.bees.sting()
 	await _notice_bee()
 	stung = false
@@ -2363,7 +2371,7 @@ func _notice_bee() -> void:
 	else:
 		Game.post_notice("You've been stung by bees!")
 	while not clip.is_empty() and _anim != null and _anim.is_playing() and _anim.current_animation == clip:
-		await get_tree().process_frame
+		await _anim.animation_finished
 	## `settle_main_Notice_bee`: `HATI3`'s half-turn lives on joint_0 here (the original moves
 	## it onto the actor with `AnimationMove` ROT_Y), so hand it to the facing and cut to the
 	## wait without a blend — the pose reads the same either side of the swap.

@@ -36,8 +36,7 @@ const HANE_SCALE: Array[float] = [0.01, 0.013, 0.014, 0.009, 0.007]
 ## `ef_turi_suiteki`: launched at 74.53° from level, 5 GX a tick along it, falling 0.75.
 const SUITEKI_ANGLE := 74.53125 * PI / 180.0
 ## A drop lies where it lands for 14 ticks, playing its splat.
-const SPLAT_TIME := 14.0 / 60.0
-
+const SPLAT_TIME := 14.0 * DecompTime.TICK_SEC
 var kind: FieldEffects.Kind = FieldEffects.Kind.DUST
 var _style: Style = null
 

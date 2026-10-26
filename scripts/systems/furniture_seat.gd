@@ -8,7 +8,7 @@ extends RefCounted
 enum Rest { NONE, SIT, LIE }
 
 ## `sit_timer > 14` / `bed_timer > 14`: the 15th tick of holding.
-const HOLD_TIME := 15.0 / 60.0
+const HOLD_TIME := 15.0 * DecompTime.TICK_SEC
 ## Slack so 15 steps of `1 / 60` count as 15 ticks.
 const TIME_SLACK := 0.0001
 ## `aMR_3DStickNuetral` + `move_pR > 0.6`.

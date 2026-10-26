@@ -12,11 +12,11 @@ extends Node3D
 const VISUAL := &"ef_star01_00"
 const PRIM := Color8(255, 255, 100)
 ## 40 ticks.
-const LIFETIME := 40.0 / 60.0
+const LIFETIME := 40.0 * DecompTime.TICK_SEC
 ## Shrinks from full size over the first 14 ticks…
-const SHRINK_TIME := 14.0 / 60.0
+const SHRINK_TIME := 14.0 * DecompTime.TICK_SEC
 ## …and fades out over the last 10.
-const FADE_TIME := 10.0 / 60.0
+const FADE_TIME := 10.0 * DecompTime.TICK_SEC
 ## 6 GX a tick at launch.
 const LAUNCH_SPEED := 6.0 * 60.0 * FieldCatalog.GX_TO_METERS
 ## Speed × √0.85 a tick halves it every 8.53 ticks.

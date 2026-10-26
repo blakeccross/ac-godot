@@ -8,7 +8,7 @@ extends Node3D
 
 const VISUAL := &"ef_carhosi01_00"
 ## Swells over 12 ticks, shrinks over the next 12.
-const HALF_LIFE := 12.0 / 60.0
+const HALF_LIFE := 12.0 * DecompTime.TICK_SEC
 const LIFETIME := 2.0 * HALF_LIFE
 ## `eDouzou_Light_ct` / `_dw` by rank: peak scale and env colour.
 const PEAK: Array[float] = [0.012, 0.011, 0.010, 0.009]

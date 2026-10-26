@@ -5,10 +5,8 @@ extends Node3D
 
 signal landed
 
-const LIE_SECONDS := 120.0 / 60.0
-const FADE_SECONDS := (255.0 / 5.0) / 60.0
-
-
+const LIE_SECONDS := 120.0 * DecompTime.TICK_SEC
+const FADE_SECONDS := (255.0 / 5.0) * DecompTime.TICK_SEC
 func _ready() -> void:
 	var visual := StringName("obj_%s_honeycomb" % FieldCatalog.season_letter())
 	if GeneratedVisual.attach(self, visual) == null:

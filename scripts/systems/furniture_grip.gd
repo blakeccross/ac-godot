@@ -14,9 +14,9 @@ enum Phase { IDLE, GRIPPED, BUSY }
 enum ContactSide { FRONT, BACK, LEFT, RIGHT }
 
 ## `switch_timer < 14`: an A press shorter than 14 ticks is a tap.
-const TAP_TIME := 14.0 / 60.0
+const TAP_TIME := 14.0 * DecompTime.TICK_SEC
 ## `push_timer > 16` / `pull_timer > 16`: the stick held for 17 ticks moves the piece.
-const MOVE_TIME := 17.0 / 60.0
+const MOVE_TIME := 17.0 * DecompTime.TICK_SEC
 ## Slack on the timers so 60 steps of `1 / 60` still add up to a second.
 const TIME_SLACK := 0.0001
 ## `move_pR >= 0.8` and the axis component above 0.8.

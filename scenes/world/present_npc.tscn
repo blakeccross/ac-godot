@@ -5,3 +5,10 @@
 
 [node name="PresentNpc" instance=ExtResource("1")]
 script = ExtResource("2")
+
+[node name="ExitTimeout" type="Timer" parent="."]
+editor_description = "A safety net, not the decomp's: if the run off is blocked, the visitor still goes and the player is let go."
+wait_time = 8.0
+one_shot = true
+
+[connection signal="timeout" from="ExitTimeout" to="." method="_on_exit_timeout"]

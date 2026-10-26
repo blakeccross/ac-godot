@@ -22,7 +22,7 @@ const ROOM_LOOK_HEIGHT := 0.85
 const DOOR_DISTANCE := 350.0 * PlayerLocomotion.UNIT_METERS
 const DOOR_ELEVATION := 3692.0 * MathUtil.S16
 ## `Camera2_setup_main_Door`: going in (`flags & 1`) morphs over 140 ticks; coming out snaps.
-const DOOR_MORPH_SECONDS := 140.0 / 60.0
+const DOOR_MORPH_SECONDS := 140.0 * DecompTime.TICK_SEC
 ## `Camera2_SetPos_Item` (the player's report demos): the centre a little over and in front of
 ## the player, 250 GX closer than the normal 620 and 1400 short angles lower (about 37.3°),
 ## all on the normal camera's eases.
@@ -35,7 +35,7 @@ const ITEM_PITCH := -1400.0 * MathUtil.S16
 ## below). `simple_fishing_return` then closes 1/30 a tick back for the line coming in.
 const FISHING_STEP := 1.0 / 40.0
 const FISHING_RETURN_STEP := 1.0 / 30.0
-const FISHING_RETURN_SECONDS := 30.0 / 60.0
+const FISHING_RETURN_SECONDS := 30.0 * DecompTime.TICK_SEC
 const FISHING_DROP_GX := 70.0
 ## `Player_actor_Set_Indoor_Camera_Index` (homes and the museum wings): C-up / C-down step a
 ## distance index, C-left / C-right a direction index, each 0..2 from 1. The tables add to

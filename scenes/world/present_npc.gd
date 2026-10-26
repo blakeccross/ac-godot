@@ -10,8 +10,6 @@ extends EventNpc
 enum Think { WAIT, TALK, EXIT_TURN, EXIT }
 
 const RUN_SPEED := 3.0
-## Gone after this long even if a run leg never ends (blocked).
-const EXIT_TIMEOUT := 8.0
 ## `aPST_schedule_init_proc` `set_data`: where the visitor stands for each house
 ## (`mHS_get_arrange_idx`), in field GX.
 const SET_GX: Array[Vector2] = [
@@ -29,7 +27,6 @@ var think_state: Think = Think.WAIT
 ## `mHS_get_arrange_idx`: which of the four house plots this visit is at.
 var house_index: int = 0
 var _exit_points: Array[Vector3] = []
-var _exit_time: float = 0.0
 var _umbrella: HeldUmbrella
 var _umb_carry: ToolCarry
 
@@ -104,9 +101,8 @@ func think(delta: float) -> void:
 					_leave()
 		Think.EXIT_TURN:
 			_hold_player()
-			_exit_time -= delta
 			var to: Vector3 = _exit_points[0] - global_position
-			if turn_to(atan2(to.x, to.z), delta) or _exit_time <= 0.0:
+			if turn_to(atan2(to.x, to.z), delta):
 				think_state = Think.EXIT
 				_run_next()
 
@@ -116,9 +112,11 @@ func _physics_process(delta: float) -> void:
 	## `move_to` runs instead of `think` while the run goes; the player stays held all the way.
 	if think_state == Think.EXIT:
 		_hold_player()
-		_exit_time -= delta
-		if _exit_time <= 0.0:
-			_retire()
+
+
+## `ExitTimeout`: gone even if a run leg never ends (blocked).
+func _on_exit_timeout() -> void:
+	_retire()
 
 
 func talk_ended(_script: BankTalk) -> void:
@@ -169,7 +167,7 @@ func _retire() -> void:
 func _leave() -> void:
 	think_state = Think.EXIT_TURN
 	collision_layer = 0
-	_exit_time = EXIT_TIMEOUT
+	($ExitTimeout as Timer).start()
 	_hold_player()
 	_exit_points = exit_points(global_position, house_index)
 

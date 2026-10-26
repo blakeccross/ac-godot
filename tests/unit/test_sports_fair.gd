@@ -70,37 +70,53 @@ func test_ball_toss_teams_and_spots_round_their_basket() -> void:
 
 
 func test_the_foot_race_warms_up_lines_up_races_and_swaps_pairs() -> void:
-	FootRace.reset()
-	assert_bool(FootRace.racing(1)).is_true()
-	assert_bool(FootRace.racing(3)).is_false()
-	FootRace.step(FootRace.WARMUP_TIME)
-	assert_int(FootRace.phase).is_equal(FootRace.Phase.READY)
-	FootRace.step(FootRace.READY_TIME)
-	assert_int(FootRace.phase).is_equal(FootRace.Phase.RACE)
-	FootRace.cross(1)
-	FootRace.cross(0)
-	assert_int(FootRace.finish[1]).is_equal(1)
-	assert_int(FootRace.finish[0]).is_equal(2)
-	FootRace.step(1.0 / 60.0)
-	assert_int(FootRace.phase).is_equal(FootRace.Phase.GOAL)
-	FootRace.step(FootRace.GOAL_TIME)
-	assert_int(FootRace.phase).is_equal(FootRace.Phase.WARMUP)
-	assert_bool(FootRace.racing(3)).is_true()
-	assert_bool(FootRace.racing(1)).is_false()
+	var host: Node = auto_free(Node.new())
+	add_child(host)
+	var race := FootRace.join(host)
+	assert_that(FootRace.join(host)).is_same(race)
+	var timer := race.get_node("PhaseTimer") as Timer
+	## `aTKC_*`: 240, 115 and 600 frames at 30 fps.
+	assert_int(race.phase).is_equal(FootRace.Phase.WARMUP)
+	assert_float(timer.wait_time).is_equal_approx(240.0 * DecompTime.FRAME_SEC, 0.001)
+	assert_bool(race.racing(1)).is_true()
+	assert_bool(race.racing(3)).is_false()
+	timer.timeout.emit()
+	assert_int(race.phase).is_equal(FootRace.Phase.READY)
+	assert_float(timer.wait_time).is_equal_approx(115.0 * DecompTime.FRAME_SEC, 0.001)
+	timer.timeout.emit()
+	assert_int(race.phase).is_equal(FootRace.Phase.RACE)
+	race.cross(1)
+	assert_int(race.phase).is_equal(FootRace.Phase.RACE)
+	race.cross(0)
+	assert_int(race.finish[1]).is_equal(1)
+	assert_int(race.finish[0]).is_equal(2)
+	assert_int(race.phase).is_equal(FootRace.Phase.GOAL)
+	assert_float(timer.wait_time).is_equal_approx(600.0 * DecompTime.FRAME_SEC, 0.001)
+	timer.timeout.emit()
+	assert_int(race.phase).is_equal(FootRace.Phase.WARMUP)
+	assert_bool(race.racing(3)).is_true()
+	assert_bool(race.racing(1)).is_false()
+	## The last runner out frees it.
+	race.leave()
+	assert_bool(race.is_queued_for_deletion()).is_false()
+	race.leave()
+	assert_bool(race.is_queued_for_deletion()).is_true()
 
 
 func test_legs_go_round_the_shrine_and_four_laps_finish() -> void:
-	FootRace.reset()
+	var host: Node = auto_free(Node.new())
+	add_child(host)
+	var race := FootRace.join(host)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
 	var angle: float = 0.0
 	var legs: int = 0
-	while not FootRace.done_laps(1) and legs < 200:
-		var leg: Array = FootRace.next_leg(1, angle, rng)
+	while not race.done_laps(1) and legs < 200:
+		var leg: Array = race.next_leg(1, angle, rng)
 		var r: float = (leg[0] as Vector2).length()
 		assert_float(r).is_between(125.0, 145.0)
 		assert_float(float(leg[1]) - angle).is_between(FootRace.LEG_ANGLE, FootRace.LEG_ANGLE * 2.0)
 		angle = float(leg[1])
 		legs += 1
-	assert_bool(FootRace.done_laps(1)).is_true()
+	assert_bool(race.done_laps(1)).is_true()
 	assert_int(legs).is_between(30, 70)

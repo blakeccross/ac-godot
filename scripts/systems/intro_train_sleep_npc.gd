@@ -9,7 +9,6 @@ const SPAWN_GX := Vector3(174.0, 0.0, 156.0)
 const BENCH_FLOOR_Y_GX := 0.0
 
 var _anim: AnimationPlayer
-var _tree: AnimationTree
 var _d1: StringName = &""
 var _d2: StringName = &""
 var _loops_left: int = 0
@@ -56,9 +55,6 @@ func _setup_player() -> void:
 		return
 	if _d2.is_empty():
 		_d2 = _d1
-	_tree = get_node_or_null("AnimationTree") as AnimationTree
-	if _tree != null:
-		_tree.active = false
 	if not _anim.animation_finished.is_connected(_on_sleep_anim_finished):
 		_anim.animation_finished.connect(_on_sleep_anim_finished)
 
