@@ -89,7 +89,7 @@ func test_money_luck_turns_a_bell_tree_into_1000_bells() -> void:
 
 
 func test_the_nest_lies_then_fades_away() -> void:
-	var nest: Node3D = load("res://scenes/world/wasp_nest.tscn").instantiate()
+	var nest: Node3D = load("res://features/bugs/wasp_nest.tscn").instantiate()
 	add_child(nest)
 	nest.call("drop", Vector3(0, 3, 0), Vector3.ZERO, 0.1)
 	await await_millis(int((0.1 + 2.0) * 1000.0) - 200)

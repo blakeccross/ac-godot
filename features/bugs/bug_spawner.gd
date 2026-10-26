@@ -4,7 +4,7 @@ extends Node3D
 ## Runs the field's insects (`BugField`, the `Insect_Profile` move) and keeps one `Bug`
 ## scene in the world for each live one, adding and freeing them as insects come and go.
 
-const BUG_SCENE := preload("res://scenes/world/bugs/bug.tscn")
+const BUG_SCENE := preload("res://features/bugs/bug.tscn")
 const GROUP := &"bug_spawner"
 
 var _field: BugField = null

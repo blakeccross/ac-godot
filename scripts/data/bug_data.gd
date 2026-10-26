@@ -6,7 +6,7 @@ extends ItemData
 ## resolution the spawn tables have.
 
 ## `aINS_PROGRAM_*` from `ac_insect_h.h`, in decomp order. Drives movement AI: each
-## value selects a `BugBehavior` subclass under `scripts/systems/bugs/`.
+## value selects a `BugBehavior` subclass under `features/bugs/behaviors/`.
 enum Program {
 	BUTTERFLY,  ## butterflies (`ac_ins_chou.c`)
 	GRASSHOPPER,  ## locusts / crickets / grasshopper (`ac_ins_batta.c`)

@@ -6,7 +6,7 @@ extends RefCounted
 ## decomp held in `s32_work*` / `f32_work*` as its own named fields) and runs the shared per-frame framework from `ac_insect_move.c_inc`
 ## (`aINS_position_move`, `aINS_calc_patience`, `aINS_calc_life_time`,
 ## `aINS_calc_alpha_time`, catch-range register, cull flagging). All species
-## behaviour lives in a `BugBehavior` (`scripts/systems/bugs/`) reached via
+## behaviour lives in a `BugBehavior` (`features/bugs/behaviors/`) reached via
 ## `action_proc` each frame — this file never branches on `type`.
 ##
 ## Internally positions are GX and speeds GX per 30 fps frame, like the decomp; `position`

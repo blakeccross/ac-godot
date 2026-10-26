@@ -3,7 +3,7 @@ extends StaticBody3D
 ## Outdoor tree. Shake / chop / stump rules live in TreeUse; this scene presents them.
 ## Shake timing matches `mPlayer_ANIM_SHAKE1` frame 10; sway matches EffectBG shakeL/S.
 
-const WASP_NEST := preload("res://scenes/world/wasp_nest.tscn")
+const WASP_NEST := preload("res://features/bugs/wasp_nest.tscn")
 const STUMP_VISUAL := &"TREE_STUMP004"
 ## `mCoBG_MakeOneColumnCollisionData`: a grown stump (`TREE_STUMP004`) is an 18 GX column
 ## (the `*_STUMP001` saplings' stumps would be 10). Trees are 19 (`HostCollision`).

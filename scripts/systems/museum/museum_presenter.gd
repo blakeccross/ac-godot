@@ -5,7 +5,7 @@ extends RefCounted
 ## Fossils rewrite FG furniture; fish/insects are live actors; paintings swap art/frame.
 
 ## A donated insect in its case is the field's `Bug` scene in display mode.
-const BUG_SCENE := preload("res://scenes/world/bugs/bug.tscn")
+const BUG_SCENE := preload("res://features/bugs/bug.tscn")
 const PLAQUE_SCENE := preload("res://scenes/world/museum_plaque.tscn")
 const SUNSHINE_SCENE := preload("res://scenes/world/interiors/police_sunshine.tscn")
 
