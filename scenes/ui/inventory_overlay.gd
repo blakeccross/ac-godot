@@ -2090,13 +2090,12 @@ func _spawn_pickup(item: ItemData, _lateral_offset: float = 0.0, wrapped: bool =
 	var cell: Vector2i = FieldItems.drop_cell(grid, front, front - grid.world_to_cell(player.global_position))
 	if cell.x < 0:
 		return false
-	var pickup: Node3D = FieldItems.put(world, cell, item.id, wrapped)
+	var pickup: ItemPickup = FieldItems.put(world, cell, item.id, wrapped)
 	if pickup == null:
 		return false
 	var land: Vector3 = pickup.global_position
 	var start: Vector3 = player.global_position + Vector3(0.0, 50.0 * FieldCatalog.GX_TO_METERS, 0.0)
-	if pickup.has_method("begin_fall"):
-		pickup.call("begin_fall", start, land, 0.55)
+	pickup.begin_fall(start, land, 0.55)
 	return true
 
 

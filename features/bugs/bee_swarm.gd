@@ -109,7 +109,7 @@ func _exit_tree() -> void:
 		EventManager.demo_bgm = &""
 		var world: World = World.find(get_tree())
 		if world != null and is_instance_valid(world) and not world.is_queued_for_deletion():
-			world.call("_play_outdoor_bgm")
+			world.play_outdoor_bgm()
 
 
 func _process(delta: float) -> void:

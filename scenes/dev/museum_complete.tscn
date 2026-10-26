@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://burriwknr6l5n"]
 
 [ext_resource type="Script" uid="uid://dq270fa7etm8j" path="res://scenes/dev/museum_complete.gd" id="1"]
+[ext_resource type="PackedScene" path="res://features/player/player.tscn" id="40_player"]
 [ext_resource type="Script" uid="uid://cv8yyhwgkgtii" path="res://scenes/world/follow_camera.gd" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/clock_hud.tscn" id="3"]
 [ext_resource type="Script" uid="uid://xvhu0kdhg1ar" path="res://features/museum/museum_wing_keys.gd" id="4"]
@@ -19,6 +20,7 @@ ambient_light_energy = 0.72
 
 [node name="MuseumComplete" type="Node3D" unique_id=921213819]
 script = ExtResource("1")
+player_scene = ExtResource("40_player")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1843603471]
 environment = SubResource("Env")

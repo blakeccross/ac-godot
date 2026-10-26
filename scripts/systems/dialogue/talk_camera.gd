@@ -19,18 +19,18 @@ const YAW_TWEAK_DEG := rad_to_deg(YAW_TWEAK_SHORT * MathUtil.S16)
 static func begin(
 	speaker: Node3D, listener: Node3D, tree: SceneTree = null, turn: bool = true
 ) -> void:
-	var cam: Node = _camera(tree)
-	if cam != null and cam.has_method("begin_talk"):
-		cam.call("begin_talk", speaker, listener)
+	var cam: FollowCamera = FollowCamera.find(tree)
+	if cam != null:
+		cam.begin_talk(speaker, listener)
 	## `mDemo` TYPE_TALK defaults `turn = TRUE` → player faces the NPC.
 	if turn and speaker != null and speaker.has_method("begin_talk_face"):
 		speaker.call("begin_talk_face", listener)
 
 
 static func end(tree: SceneTree = null) -> void:
-	var cam: Node = _camera(tree)
-	if cam != null and cam.has_method("end_talk"):
-		cam.call("end_talk")
+	var cam: FollowCamera = FollowCamera.find(tree)
+	if cam != null:
+		cam.end_talk()
 	if tree == null:
 		return
 	for node: Node in tree.get_nodes_in_group("player"):
@@ -110,10 +110,4 @@ static func yaw_tweak_deg(speaker_pos: Vector3, listener_pos: Vector3) -> float:
 	return add
 
 
-static func _camera(tree: SceneTree) -> Node:
-	if tree == null:
-		return null
-	var cams: Array[Node] = tree.get_nodes_in_group("follow_camera")
-	if not cams.is_empty():
-		return cams[0]
-	return tree.get_first_node_in_group("follow_camera")
+

@@ -1,3 +1,4 @@
+class_name Mabel
 extends CharacterBody3D
 
 ## Mabel — the Able Sisters shopkeeper (`ac_npc_needlework` / `SP_NPC_NEEDLEWORK0`,

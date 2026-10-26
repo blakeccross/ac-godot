@@ -272,15 +272,15 @@ func execute(raw: String) -> String:
 		"cam":
 			## `cam <closer|farther|left|right>`: step the indoor camera index as C-stick would.
 			var cam_tree := Engine.get_main_loop() as SceneTree
-			var cam_node: Camera3D = cam_tree.root.get_viewport().get_camera_3d() if cam_tree != null else null
-			if cam_node == null or not cam_node.has_method("step_indoor"):
+			var cam_node := cam_tree.root.get_viewport().get_camera_3d() as FollowCamera if cam_tree != null else null
+			if cam_node == null:
 				return "No follow camera."
 			var cam_steps := {"closer": Vector2i(-1, 0), "farther": Vector2i(1, 0), "left": Vector2i(0, -1), "right": Vector2i(0, 1)}
 			if args.is_empty() or not cam_steps.has(String(args[0])):
 				return "Usage: cam <closer|farther|left|right>"
 			var cam_step: Vector2i = cam_steps[String(args[0])]
-			cam_node.call("step_indoor", cam_step.x, cam_step.y)
-			return "Camera index %s." % [cam_node.call("indoor_index")]
+			cam_node.step_indoor(cam_step.x, cam_step.y)
+			return "Camera index %s." % [cam_node.indoor_index()]
 		"leave":
 			## `leave`: the villager nearest the camera pops back indoors and walks out of its
 			## door again (`aNPC_think_leave_house`).

@@ -1,3 +1,4 @@
+class_name ItemPickup
 extends Node3D
 
 ## Ground item. Offers pick_up; pockets refuse if full (`mPr`).

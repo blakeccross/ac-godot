@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://features/events/event_manager.gd" id="15_evmgr"]
 [ext_resource type="Script" path="res://features/events/balloon_sky.gd" id="16_balloons"]
 [ext_resource type="Script" path="res://scenes/world/field_ambience.gd" id="17_ambience"]
+[ext_resource type="PackedScene" path="res://features/player/player.tscn" id="40_player"]
 [ext_resource type="Script" path="res://features/bugs/bug_sounds.gd" id="17_bugsounds"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
@@ -36,6 +37,7 @@ fog_depth_end = 170.0
 
 [node name="World" type="Node3D" unique_id=1196272859]
 script = ExtResource("1")
+player_scene = ExtResource("40_player")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=630079850]
 environment = SubResource("Env")

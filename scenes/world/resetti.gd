@@ -117,7 +117,7 @@ func _finish() -> void:
 	Game.reset_flag = false
 	var world: World = World.find(get_tree())
 	if world != null:
-		world.call("_play_outdoor_bgm")
+		world.play_outdoor_bgm()
 	queue_free()
 
 

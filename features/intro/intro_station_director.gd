@@ -46,7 +46,7 @@ const NOOK_SCENE := preload("res://features/intro/intro_rcn_guide.tscn")
 var _world: Node3D
 var _stage: IntroStationStage = IntroStationStage.new()
 var _player: Player
-var _camera: Camera3D
+var _camera: FollowCamera
 var _dialogue: DialogueOverlay
 var _porter: StationPorter
 var _nook: IntroRcnGuide
@@ -88,7 +88,7 @@ func _boot() -> void:
 		queue_free()
 		return
 	_player = _world.get_node_or_null("Characters/Player") as Player
-	_camera = _world.get_node_or_null("FollowCamera") as Camera3D
+	_camera = _world.get_node_or_null("FollowCamera") as FollowCamera
 	var hud: Node = _world.get_node_or_null("ClockHud")
 	if hud != null:
 		_dialogue = hud.get_node_or_null("DialogueOverlay") as DialogueOverlay
@@ -162,8 +162,7 @@ func _boot() -> void:
 		## `aID_first_set_init`: `BGM_INTRO_ARRIVE` + `train_coming_flag = 3`.
 		_play_bgm_chain([BGM_ARRIVE, &"intro_train"])
 		Game.train.request_arrival_demo()
-		if _camera.has_method("suspend"):
-			_camera.call("suspend")
+		_camera.suspend()
 		_player.set_busy(true)
 		_player.set_cutscene_driven(true)
 		_stage.reset()
@@ -424,11 +423,9 @@ func _on_stage_changed(action: StringName) -> void:
 func _resume_follow_camera(snap: bool) -> void:
 	if _camera == null:
 		return
-	if _camera.has_method("set_target"):
-		_camera.call("set_target", _player)
-	if _camera.has_method("resume"):
-		## Prefer smooth handoff from DEMO doorway framing (Godot 4 named args).
-		_camera.call("resume", snap)
+	_camera.set_target(_player)
+	## Prefer a smooth handoff from the DEMO doorway framing.
+	_camera.resume(snap)
 
 
 func _on_house_pick_enabled(enabled: bool) -> void:

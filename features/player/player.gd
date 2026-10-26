@@ -675,7 +675,7 @@ func request_shock(start_sec: float, face_yaw: float, chase_bgm: bool) -> void:
 		EventManager.demo_bgm = &""
 		var world: World = World.find(get_tree())
 		if world != null:
-			world.call("_play_outdoor_bgm")
+			world.play_outdoor_bgm()
 
 
 ## `mBGMPsComp_make_ps_quiet`: the field music drops out ahead of a bee startle.
@@ -827,10 +827,10 @@ func _poll_indoor_camera() -> void:
 		dir_step = 1
 	if dist_step == 0 and dir_step == 0:
 		return
-	var cam := get_viewport().get_camera_3d()
-	if cam == null or not cam.has_method("step_indoor"):
+	var cam := get_viewport().get_camera_3d() as FollowCamera
+	if cam == null:
 		return
-	if bool(cam.call("step_indoor", dist_step, dir_step)):
+	if cam.step_indoor(dist_step, dir_step):
 		Audio.play_se(&"camera_move2" if dist_step > 0 else &"camera_move1", null)
 
 
@@ -1761,7 +1761,7 @@ func run_stung_mosquito() -> void:
 	EventManager.demo_bgm = prior_bgm if prior_bgm != &"bee_stung" else &""
 	var world: World = World.find(get_tree())
 	if world != null:
-		world.call("_play_outdoor_bgm")
+		world.play_outdoor_bgm()
 	set_cutscene_driven(false)
 	play_wait_idle()
 	_busy = false
@@ -2016,7 +2016,7 @@ func run_stung_bee() -> void:
 	EventManager.demo_bgm = &""
 	var world: World = World.find(get_tree())
 	if world != null:
-		world.call("_play_outdoor_bgm")
+		world.play_outdoor_bgm()
 	set_cutscene_driven(false)
 	_busy = was_busy
 

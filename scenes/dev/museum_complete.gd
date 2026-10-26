@@ -7,7 +7,9 @@ extends Node3D
 ##
 ## Keys 1–5 switch rooms. Walk south from the entrance to leave → title.
 
-const PLAYER_SCENE := preload("res://features/player/player.tscn")
+## The player, set in the `.tscn` (a preload here would load the player's scripts, which
+## refer back to this one, while it compiles).
+@export var player_scene: PackedScene
 const WING_IDS: Array[StringName] = [
 	&"museum_entrance",
 	&"museum_painting",
@@ -19,7 +21,7 @@ const WING_IDS: Array[StringName] = [
 var grid: WorldGrid
 var session: IndoorSession
 
-@onready var _camera: Camera3D = $FollowCamera
+@onready var _camera: FollowCamera = $FollowCamera
 @onready var _rooms: Node3D = $Rooms
 @onready var _characters: Node3D = $Characters
 @onready var _missing: Label = %MissingBanner
@@ -148,11 +150,11 @@ func _spawn_or_move_player(room_node: Node3D) -> void:
 		yaw = WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH)
 		Game.arrival.at_room_door = false
 	if player == null:
-		player = PLAYER_SCENE.instantiate() as Player
+		player = player_scene.instantiate() as Player
 		_characters.add_child(player)
 	player.apply_spawn(pos, yaw)
-	if _camera != null and _camera.has_method("set_target"):
-		_camera.call("set_target", player)
+	if _camera != null:
+		_camera.set_target(player)
 	if _camera != null and "offset" in _camera:
 		_camera.set("offset", preload("res://scenes/world/follow_camera.gd").DEFAULT_OFFSET)
 	SceneTransition.play_wipe_in_if_pending()

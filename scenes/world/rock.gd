@@ -71,16 +71,16 @@ func _pay_out(ctx: InteractionContext) -> void:
 	if cell.x < 0:
 		return
 	var drop_id := StringName("%s_coin_%d_%d" % [String(occupant_id), MoneyRock.active_hits(), Time.get_ticks_msec()])
-	var pickup: Node3D = PICKUP_SCENE.instantiate() as Node3D
-	pickup.set("item", bag)
-	pickup.set("persist_id", drop_id)
-	pickup.set("occupant_id", drop_id)
+	var pickup := PICKUP_SCENE.instantiate() as ItemPickup
+	pickup.item = bag
+	pickup.persist_id = drop_id
+	pickup.occupant_id = drop_id
 	objects.add_child(pickup)
 	var land: Vector3 = grid.cell_to_world(cell)
 	if "layout" in world and world.layout != null:
 		land.y = FieldCollision.ground_y(world.layout, cell, FieldCollision.FG_GROUND_DIST)
 	var top: Vector3 = global_position + Vector3(0.0, 0.7, 0.0)
-	pickup.call("begin_fall", top, land, 0.4, false)
+	pickup.begin_fall(top, land, 0.4, false)
 	grid.place(drop_id, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM)
 	Audio.play_se(MoneyRock.SE_HIT, self)
 

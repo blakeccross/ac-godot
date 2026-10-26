@@ -1,3 +1,4 @@
+class_name PostGirl
 extends StaticBody3D
 
 ## Pelly / Phyllis at the post desk (`ac_npc_post_girl` / `SP_NPC_POST_GIRL` / `POST_GIRL2`).

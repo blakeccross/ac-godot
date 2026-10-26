@@ -181,7 +181,7 @@ func _end_show() -> void:
 		Game.set_weather(_saved_weather, _saved_intensity)
 	var world: World = World.find(get_tree())
 	if world != null:
-		world.call("_play_outdoor_bgm")
+		world.play_outdoor_bgm()
 	if _held_player != null and is_instance_valid(_held_player):
 		_held_player.set_busy(false)
 	play_clip(idle_clip(), true)

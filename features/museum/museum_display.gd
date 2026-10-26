@@ -680,17 +680,15 @@ static func map_item(item: ItemData) -> Dictionary:
 
 
 ## True when donating `index` completes its multi-part skeleton (`aCR_chk_fossil_parts_complete`).
-static func fossil_set_just_completed(book: Variant, index: int) -> bool:
+static func fossil_set_just_completed(book: MuseumBook, index: int) -> bool:
 	if book == null or index in FOSSIL_SOLO:
-		return false
-	if not book.has_method("fossil_info"):
 		return false
 	for group: Variant in FOSSIL_SETS:
 		var parts: Array = group as Array
 		if not parts.has(index):
 			continue
 		for part: Variant in parts:
-			var donator: int = int(book.call("fossil_info", int(part)))
+			var donator: int = book.fossil_info(int(part))
 			if donator < 1 or donator > 5:
 				return false
 		return true
@@ -715,15 +713,15 @@ static func fossil_set_group_index(index: int) -> int:
 
 ## How many OTHER parts of this fossil's skeleton are still undonated
 ## (`aCR_chk_fossil_parts_complete`'s completeness check, minus the part just donated).
-static func fossil_set_remaining(book: Variant, index: int) -> int:
+static func fossil_set_remaining(book: MuseumBook, index: int) -> int:
 	var gi: int = fossil_set_group_index(index)
-	if gi < 0 or book == null or not book.has_method("fossil_info"):
+	if gi < 0 or book == null:
 		return 0
 	var remaining := 0
 	for part: Variant in (FOSSIL_SETS[gi] as Array):
 		if int(part) == index:
 			continue
-		var donator: int = int(book.call("fossil_info", int(part)))
+		var donator: int = book.fossil_info(int(part))
 		if donator < 1 or donator > 5:
 			remaining += 1
 	return remaining

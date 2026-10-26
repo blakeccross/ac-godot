@@ -7,7 +7,9 @@ extends Node3D
 
 const GROUP := &"interior"
 
-const PLAYER_SCENE := preload("res://features/player/player.tscn")
+## The player, set in the `.tscn` (a preload here would load the player's scripts, which
+## refer back to this one, while it compiles).
+@export var player_scene: PackedScene
 const VILLAGER_SCENE := preload("res://features/villagers/villager.tscn")
 const GOKI_SCENE := preload("res://features/house/house_cockroach.tscn")
 
@@ -18,7 +20,7 @@ var _room_content: Node3D = null
 ## Last shop track chosen for the clock (`_on_shop_clock`).
 var _shop_bgm: StringName = &""
 
-@onready var _camera: Camera3D = $FollowCamera
+@onready var _camera: FollowCamera = $FollowCamera
 @onready var _spawn: Marker3D = $Characters/PlayerSpawn
 @onready var _world_env: WorldEnvironment = $WorldEnvironment
 
@@ -358,7 +360,7 @@ func _refresh_light() -> void:
 
 
 func _spawn_player() -> void:
-	var player: Player = PLAYER_SCENE.instantiate() as Player
+	var player: Player = player_scene.instantiate() as Player
 	$Characters.add_child(player)
 	var pos: Vector3 = _spawn.global_position
 	var yaw: float = Game.resident.player_yaw
@@ -376,8 +378,7 @@ func _spawn_player() -> void:
 		pos = Game.resident.player_position
 	player.apply_spawn(pos, yaw)
 	if not InteriorLighting.pins_follow_camera(session.room if session != null else null):
-		if _camera.has_method("set_target"):
-			_camera.call("set_target", player)
+		_camera.set_target(player)
 	SceneTransition.play_wipe_in_if_pending()
 	if Game.arrival.walks_in:
 		Game.arrival.walks_in = false

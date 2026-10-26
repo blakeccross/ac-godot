@@ -63,7 +63,7 @@ static func drop_cell(grid: WorldGrid, front: Vector2i, facing: Vector2i) -> Vec
 
 ## Lay `item_id` on `cell`. Returns the ground item (not yet positioned when `fall_from` is
 ## given: the caller drops it in), or null when the unit is taken.
-static func put(world: Node, cell: Vector2i, item_id: StringName, wrapped: bool = false) -> Node3D:
+static func put(world: Node, cell: Vector2i, item_id: StringName, wrapped: bool = false) -> ItemPickup:
 	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
 	if not can_put(grid, cell) or ItemCatalog.get_item(item_id) == null:
 		return null
@@ -221,7 +221,7 @@ static func _refresh_node(tree: SceneTree, pid: StringName) -> void:
 			node.call("set_item", ItemCatalog.get_item(StringName(str((Game.town.field_items[String(pid)] as Dictionary).get("id", "")))))
 
 
-static func _instance(world: Node, grid: WorldGrid, cell: Vector2i, pid: StringName) -> Node3D:
+static func _instance(world: Node, grid: WorldGrid, cell: Vector2i, pid: StringName) -> ItemPickup:
 	if world == null:
 		return null
 	var objects: Node = world.get_node_or_null("Objects")
@@ -229,12 +229,12 @@ static func _instance(world: Node, grid: WorldGrid, cell: Vector2i, pid: StringN
 	var item: ItemData = ItemCatalog.get_item(StringName(str(rec.get("id", ""))))
 	if objects == null or item == null or not ResourceLoader.exists(SCENE):
 		return null
-	var host: Node3D = (load(SCENE) as PackedScene).instantiate() as Node3D
-	host.set("item", item)
-	host.set("wrapped", bool(rec.get("wrapped", false)))
-	host.set("persist_id", pid)
-	host.set("occupant_id", pid)
-	host.set("occupy_grid", false)
+	var host := (load(SCENE) as PackedScene).instantiate() as ItemPickup
+	host.item = item
+	host.wrapped = bool(rec.get("wrapped", false))
+	host.persist_id = pid
+	host.occupant_id = pid
+	host.occupy_grid = false
 	host.add_to_group(GROUP)
 	objects.add_child(host)
 	var pos: Vector3 = grid.cell_to_world(cell)

@@ -4,9 +4,12 @@ extends Node3D
 ## Playable acre. Owns a WorldGrid; children are presentation only.
 ## Layout comes from WorldData (test town or generator), not a catalog in this .tscn.
 
-const PLAYER_SCENE := preload("res://features/player/player.tscn")
 const PORTER_SCENE := preload("res://scenes/world/station_porter.tscn")
 const BLANCA_SCENE := preload("res://features/events/actors/blanca.tscn")
+
+## The player, set in `world.tscn` rather than preloaded here: the player's scripts refer
+## back to the world and its camera, and a preload would load them while this one compiles.
+@export var player_scene: PackedScene
 
 var grid: WorldGrid = WorldGrid.new()
 var layout: WorldData
@@ -26,7 +29,7 @@ var _door_yaw: float = 0.0
 @onready var _spawn: Marker3D = $Characters/PlayerSpawn
 ## This load began with the player stepping off the train.
 var _train_arrival: bool = false
-@onready var _camera: Camera3D = $FollowCamera
+@onready var _camera: FollowCamera = $FollowCamera
 @onready var _navigation: NavigationRegion3D = $Navigation
 
 
@@ -64,14 +67,14 @@ func _process(delta: float) -> void:
 			if quiet:
 				Audio.stop_bgm()
 			else:
-				_play_outdoor_bgm()
+				play_outdoor_bgm()
 	## `mBGMFieldSchedEv_move`: event music follows the player from acre to acre.
 	_bgm_check -= delta
 	if _bgm_check <= 0.0:
 		_bgm_check = BGM_CHECK_SEC
 		var want: Dictionary = _event_bgm()
 		if want != _event_bgm_now:
-			_play_outdoor_bgm()
+			play_outdoor_bgm()
 
 
 func _ready() -> void:
@@ -121,7 +124,7 @@ func _ready() -> void:
 	Clock.season_changed.connect(_on_season_changed)
 	Game.weather_changed.connect(_on_weather_changed)
 	_apply_time_of_day()
-	_play_outdoor_bgm()
+	play_outdoor_bgm()
 	_spawn_player()
 	if not Game.title_demo_active and not Game.intro.active:
 		CalendarBook.note_today()
@@ -225,7 +228,7 @@ func _exit_tree() -> void:
 
 
 func _on_hour_changed(_hour: int) -> void:
-	_play_outdoor_bgm()
+	play_outdoor_bgm()
 	## `mBGMTime_signal_melody`: the town tune on the hour, outdoors, not in the title
 	## demo or the first arrival.
 	if not Game.title_demo_active and not Game.intro.active and Game.current_room_id == &"":
@@ -234,10 +237,10 @@ func _on_hour_changed(_hour: int) -> void:
 
 func _on_weather_changed(_weather: StringName) -> void:
 	_apply_time_of_day()
-	_play_outdoor_bgm()
+	play_outdoor_bgm()
 
 
-func _play_outdoor_bgm() -> void:
+func play_outdoor_bgm() -> void:
 	## `mBGM_init`: the title demo plays the title music (`mBGMPsComp_make_ps_demo(70, …)`)
 	## instead of the field track, whatever the hour or weather.
 	if Game.title_demo_active:
@@ -270,7 +273,7 @@ func _event_bgm() -> Dictionary:
 
 
 func _spawn_player() -> void:
-	var player: Player = PLAYER_SCENE.instantiate() as Player
+	var player: Player = player_scene.instantiate() as Player
 	$Characters.add_child(player)
 	var pos := Game.resident.player_position
 	if pos.is_equal_approx(Game.DEFAULT_SPAWN):
@@ -293,11 +296,11 @@ func _spawn_player() -> void:
 			_door_stand = pos
 			_door_yaw = yaw
 	player.apply_spawn(pos, yaw)
-	if Game.intro.active and _camera.has_method("suspend"):
+	if Game.intro.active:
 		## Station demo framing — do not snap-follow the house spawn first.
-		_camera.call("suspend")
-	elif _camera.has_method("set_target"):
-		_camera.call("set_target", player)
+		_camera.suspend()
+	else:
+		_camera.set_target(player)
 	SceneTransition.play_wipe_in_if_pending()
 	if Game.emerge_from_door:
 		Game.emerge_from_door = false

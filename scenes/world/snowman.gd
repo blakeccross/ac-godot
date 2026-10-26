@@ -91,12 +91,13 @@ func say(msg: int, player: Node3D = null) -> void:
 	_talking = true
 	var dctx: DialogueContext = DialogueContext.from_game()
 	dctx.speaker_name = "Snowman"
-	if player != null and player.has_method("begin_talk_face"):
-		player.call("begin_talk_face", self)
+	var faces := player as Player
+	if faces != null:
+		faces.begin_talk_face(self)
 	ui.play(data, dctx)
 	await ui.closed
-	if player != null and is_instance_valid(player) and player.has_method("end_talk_face"):
-		player.call("end_talk_face")
+	if faces != null and is_instance_valid(faces):
+		faces.end_talk_face()
 	_talking = false
 
 

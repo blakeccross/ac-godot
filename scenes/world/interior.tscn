@@ -1,6 +1,7 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/interior.gd" id="1"]
+[ext_resource type="PackedScene" path="res://features/player/player.tscn" id="40_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/clock_hud.tscn" id="2"]
 [ext_resource type="Script" path="res://scenes/world/follow_camera.gd" id="3"]
 [ext_resource type="Script" path="res://features/house/furniture_ambience.gd" id="4"]
@@ -15,6 +16,7 @@ fog_enabled = false
 
 [node name="Interior" type="Node3D"]
 script = ExtResource("1")
+player_scene = ExtResource("40_player")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Env")

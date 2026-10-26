@@ -9,26 +9,24 @@ func _ready() -> void:
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
-	var girl: Node = _post_girl()
-	if girl != null and girl.has_method("get_interactions"):
-		return girl.call("get_interactions", _ctx) as Array[Interaction]
+	var girl: PostGirl = _post_girl()
+	if girl != null:
+		return girl.get_interactions(_ctx)
 	return [Interaction.of(Interaction.TALK, "Talk to clerk", 20)]
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.TALK:
 		return false
-	var girl: Node = _post_girl()
-	if girl != null and girl.has_method("begin_talk"):
-		return bool(girl.call("begin_talk", ctx))
-	if girl != null and girl.has_method("interact"):
-		return bool(girl.call("interact", action, ctx))
+	var girl: PostGirl = _post_girl()
+	if girl != null:
+		return girl.begin_talk(ctx)
 	return false
 
 
-func _post_girl() -> Node:
+func _post_girl() -> PostGirl:
 	var parent: Node = get_parent()
 	if parent == null:
 		return null
-	return parent.get_node_or_null("PostGirl")
+	return parent.get_node_or_null("PostGirl") as PostGirl
 

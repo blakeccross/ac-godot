@@ -55,36 +55,36 @@ var _sun_target: float = 0.0
 var lamp_light: Vector3 = Vector3.ZERO
 
 
-func apply_tunnel(world_env: WorldEnvironment, train_car: Node) -> void:
+func apply_tunnel(world_env: WorldEnvironment, train_car: IntroTrainCar) -> void:
 	sun_percent = 0.0
 	_sun_target = 0.0
 	lamp_light = Vector3.ZERO
-	if train_car != null and train_car.has_method("apply_daylight"):
-		train_car.call("apply_daylight", false)
+	if train_car != null:
+		train_car.apply_daylight(false)
 	_apply_lighting(world_env, train_car)
 
 
 ## Begin the tunnel→daylight ramp (`sunlight_flag = TRUE` when sitdown finishes).
-func apply_daylight(world_env: WorldEnvironment, train_car: Node) -> void:
+func apply_daylight(world_env: WorldEnvironment, train_car: IntroTrainCar) -> void:
 	_sun_target = 1.0
-	if train_car != null and train_car.has_method("apply_daylight"):
-		train_car.call("apply_daylight", true)
+	if train_car != null:
+		train_car.apply_daylight(true)
 	_apply_lighting(world_env, train_car)
 
 
 ## Instant daylight (seated preview / capture helpers).
-func snap_daylight(world_env: WorldEnvironment, train_car: Node) -> void:
+func snap_daylight(world_env: WorldEnvironment, train_car: IntroTrainCar) -> void:
 	sun_percent = 1.0
 	_sun_target = 1.0
 	lamp_light = Vector3.ZERO
-	if train_car != null and train_car.has_method("apply_daylight"):
-		train_car.call("apply_daylight", true)
+	if train_car != null:
+		train_car.apply_daylight(true)
 	_apply_lighting(world_env, train_car)
 
 
 ## `delta` seconds of the kankyo update: `sun_percent` add_calc + `ef_lamp_light` chase, then
 ## relight. Returns true while `sun_percent` is still moving.
-func advance_sunlight(delta: float, world_env: WorldEnvironment, train_car: Node = null) -> bool:
+func advance_sunlight(delta: float, world_env: WorldEnvironment, train_car: IntroTrainCar = null) -> bool:
 	sun_percent = Motion.approach(sun_percent, _sun_target, SUN_HALF_LIFE, SUN_MAX_SPEED, SUN_MIN_SPEED, delta)
 	_step_lamp_light(delta)
 	_apply_lighting(world_env, train_car)
@@ -162,7 +162,7 @@ static func _tint_room_prim(node: Node, prim: Color) -> void:
 		_tint_room_prim(child, prim)
 
 
-func _apply_lighting(world_env: WorldEnvironment, train_car: Node) -> void:
+func _apply_lighting(world_env: WorldEnvironment, train_car: IntroTrainCar) -> void:
 	_apply_room_prim()
 	var light: Dictionary = current_light()
 	_apply_environment(world_env, light)
@@ -184,7 +184,7 @@ static func _apply_environment(world_env: WorldEnvironment, light: Dictionary) -
 	env.glow_enabled = false
 
 
-func _apply_car_lights(train_car: Node, light: Dictionary) -> void:
+func _apply_car_lights(train_car: IntroTrainCar, light: Dictionary) -> void:
 	if train_car == null:
 		return
 	var actor_lamp: OmniLight3D = train_car.get_node_or_null("%ActorLamp") as OmniLight3D

@@ -342,15 +342,12 @@ func drop_present(item: ItemData) -> void:
 	var cells: Array[Vector2i] = TreeUse.pick_drop_cells(origin, grid, 1, false)
 	if cells.is_empty():
 		return
-	var pickup: Node3D = FieldItems.put(world, cells[0], item.id, true)
+	var pickup: ItemPickup = FieldItems.put(world, cells[0], item.id, true)
 	if pickup == null:
 		return
 	var land: Vector3 = pickup.global_position
 	var crown: Vector3 = global_position + TreeUse.crown_offset(2, false, false)
-	if pickup.has_method("begin_fall"):
-		pickup.call("begin_fall", crown, land, TreeUse.drop_duration(2, false, false), false)
-	else:
-		pickup.global_position = land
+	pickup.begin_fall(crown, land, TreeUse.drop_duration(2, false, false), false)
 
 
 func _persist() -> StringName:
@@ -392,16 +389,13 @@ func _emit_drops(out: TreeUse.Outcome, ctx: InteractionContext) -> void:
 		var cell: Vector2i = cells[i] if i < cells.size() else origin
 		var is_ftr: bool = data is FurnitureData
 		## What lands stays on the field (`FieldItems`); no free unit, nothing lands.
-		var pickup: Node3D = FieldItems.put(ctx.world, cell, data.id)
+		var pickup: ItemPickup = FieldItems.put(ctx.world, cell, data.id)
 		if pickup == null:
 			continue
 		var land: Vector3 = pickup.global_position
 		var crown: Vector3 = global_position + TreeUse.crown_offset(i, false, is_palm)
 		var duration: float = TreeUse.drop_duration(i, false, is_ftr)
-		if pickup.has_method("begin_fall"):
-			pickup.call("begin_fall", crown, land, duration, is_ftr)
-		else:
-			pickup.global_position = land
+		pickup.begin_fall(crown, land, duration, is_ftr)
 
 
 ## The nest falls from the crown onto a free unit beside the tree and fades there; the

@@ -118,17 +118,16 @@ func _advance_story() -> void:
 	var msg: int = _story_ids[now] if now < _story_ids.size() else -1
 	_story_index += 1
 	var speaker := NeedleworkTalk.story_speaker(now)
-	var mabel: Node3D = _mabel()
+	var mabel: Mabel = _mabel()
 	var player: Node3D = Player.find(get_tree())
 	if speaker == "Mabel" and mabel != null:
-		if mabel.has_method("chime_in"):
-			mabel.call("chime_in", self)
+		mabel.chime_in(self)
 		TalkCamera.begin(mabel, self, get_tree(), false)
 	else:
 		## Every talk with Sable bumps Mabel to `aNNW_THINK_AINOTE`: she turns to watch
 		## her sister until the story ends, one-part stories included.
-		if mabel != null and mabel.has_method("chime_in"):
-			mabel.call("chime_in", self)
+		if mabel != null:
+			mabel.chime_in(self)
 		if now == 2 and _story_row == NeedleworkTalk.STORY_TURN_TO_PLAYER and player != null:
 			_face_toward(player.global_position)
 		if player != null:
@@ -169,17 +168,17 @@ func _end_talk() -> void:
 	_active_ui = null
 	if _body_anim != null:
 		_body_anim.speed_scale = 1.0
-	var mabel: Node3D = _mabel()
-	if mabel != null and mabel.has_method("chime_in"):
-		mabel.call("chime_in", null)
+	var mabel: Mabel = _mabel()
+	if mabel != null:
+		mabel.chime_in(null)
 	TalkCamera.end(get_tree())
 	## `aNNW_THINK_TURN` → back to the machine (`MISIN_WAIT`), which starts up again.
 	_face_machine()
 	NeedleworkPresenter.set_machine_running(get_parent(), true)
 
 
-func _mabel() -> Node3D:
-	return get_tree().get_first_node_in_group("needlework_mabel") as Node3D if get_tree() != null else null
+func _mabel() -> Mabel:
+	return get_tree().get_first_node_in_group("needlework_mabel") as Mabel if get_tree() != null else null
 
 
 func _start_talk_session(listener: Node3D) -> void:
