@@ -741,6 +741,26 @@ func test_post_office_plus_offset_matches_able() -> void:
 	assert_float(FieldCollision.height_at(data, body)).is_greater(FieldCollision.height_at(data, corner) + 2.0)
 
 
+func test_shrine_tree_units_are_walls() -> void:
+	## `aSHR_set_bgOffset`: north of the FG unit (z −1 and −2) is offset 11, the trunk.
+	var data: WorldData = _house_data()
+	var b := BuildingPlacement.new()
+	b.id = &"wishing_well"
+	b.kind = &"building"
+	b.cell = Vector2i(6, 5)
+	b.footprint = Vector2i(2, 2)
+	b.visual_id = &"obj_s_shrine"
+	data.buildings.append(b)
+	StructureOffset.apply(data)
+	var home: Vector2i = StructureOffset.shrine_home_cell(b)
+	assert_that(home).is_equal(Vector2i(6, 6))
+	var trunk: Vector2i = home + Vector2i(0, -1)
+	var far: Vector2i = home + Vector2i(1, -2)
+	var step: Vector2i = home + Vector2i(0, 1)
+	assert_float(FieldCollision.height_at(data, trunk)).is_greater(FieldCollision.height_at(data, step) + 2.0)
+	assert_float(FieldCollision.height_at(data, far)).is_greater(FieldCollision.height_at(data, step) + 2.0)
+
+
 func _house_data() -> WorldData:
 	var data := WorldData.new()
 	data.columns = 16

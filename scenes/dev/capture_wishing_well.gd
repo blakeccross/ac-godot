@@ -12,9 +12,12 @@ const ACRE_ID := &"grd_s_f_pk_2"
 const WELL_ID := &"obj_s_shrine"
 
 const SEASONS: Array[Dictionary] = [
-	{ "name": "summer", "month": 7, "day": 15 },
-	{ "name": "autumn", "month": 10, "day": 20 },
-	{ "name": "winter", "month": 1, "day": 15 },
+	## Dolphin save slot 9: Thursday 3 October, about 9:10pm. First so a stall
+	## later still leaves the comparison frames.
+	{ "name": "autumn_night", "month": 10, "day": 3, "hour": 21, "minute": 10 },
+	{ "name": "summer", "month": 7, "day": 15, "hour": 12, "minute": 0 },
+	{ "name": "autumn", "month": 10, "day": 20, "hour": 12, "minute": 0 },
+	{ "name": "winter", "month": 1, "day": 15, "hour": 12, "minute": 0 },
 ]
 
 @onready var _camera: Camera3D = $Camera3D
@@ -28,6 +31,7 @@ func _ready() -> void:
 	FieldCatalog.set_grass_pattern(WorldData.GrassPattern.TRIANGLE)
 	get_viewport().size = Vector2i(960, 540)
 	get_tree().root.size = Vector2i(960, 540)
+	OS.low_processor_usage_mode = false
 	call_deferred("_run")
 
 
@@ -44,10 +48,13 @@ func _run() -> void:
 		push_error("Failed to attach well %s" % WELL_ID)
 		get_tree().quit(1)
 		return
+	FieldLit.apply_solid(_well_host)
 
 	var acre_half: float = FieldCatalog.ACRE_METERS * 0.5
 	_well_host.position = Vector3(acre_half, 0.0, acre_half * 0.82)
 	var focus: Vector3 = _well_host.global_position + Vector3(0.0, 2.4, 0.0)
+	## Basin center in the shrine mesh (splash ring sits around z = 4).
+	var basin: Vector3 = _well_host.global_position + Vector3(0.0, 0.55, 4.0)
 	_camera.current = true
 
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
@@ -57,16 +64,18 @@ func _run() -> void:
 			"year": 2001,
 			"month": season["month"],
 			"day": season["day"],
-			"hour": 12,
-			"minute": 0,
+			"hour": season["hour"],
+			"minute": season["minute"],
 		})
+		_apply_outdoor_light()
 		GeneratedVisual.refresh(_acre_host, ACRE_ID)
 		GeneratedVisual.refresh(_well_host, WELL_ID)
+		FieldLit.apply_solid(_well_host)
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var label: String = String(season["name"])
 		print("season=", label, " letter=", FieldCatalog.season_letter())
-		for shot: Dictionary in _camera_shots(focus):
+		for shot: Dictionary in _camera_shots(focus, basin):
 			_camera.position = shot["pos"]
 			_camera.look_at(shot["look"])
 			var path := "%s/%s_%s.png" % [OUT_DIR, label, shot["name"]]
@@ -80,8 +89,41 @@ func _run() -> void:
 	get_tree().quit()
 
 
-func _camera_shots(focus: Vector3) -> Array[Dictionary]:
+func _apply_outdoor_light() -> void:
+	## Same kankyo row the field uses, so the basin shader's shade matches the stone.
+	var pal := Clock.outdoor_light()
+	var sun := $Sun as DirectionalLight3D
+	var moon := $Fill as DirectionalLight3D
+	sun.light_color = pal["sun"]
+	sun.light_energy = float(pal["sun_energy"])
+	moon.light_color = pal["moon"]
+	moon.light_energy = float(pal["moon_energy"])
+	var env := ($WorldEnvironment as WorldEnvironment).environment
+	env.ambient_light_color = pal["ambient"]
+	env.background_color = pal["bg"]
+	for pair: Array in [
+		[&"field_ambient", pal["ambient"]],
+		[&"field_sun_color", pal["sun"]],
+		[&"field_moon_color", pal["moon"]],
+	]:
+		var color: Color = pair[1]
+		RenderingServer.global_shader_parameter_set(pair[0], Vector3(color.r, color.g, color.b))
+	RenderingServer.global_shader_parameter_set(&"field_sun_dir", pal["sun_dir"])
+	RenderingServer.global_shader_parameter_set(&"field_moon_dir", pal["moon_dir"])
+
+
+func _camera_shots(focus: Vector3, basin: Vector3) -> Array[Dictionary]:
 	return [
+		{
+			"name": "basin",
+			"pos": basin + Vector3(0.5, 3.4, 5.0),
+			"look": basin + Vector3(0.0, 0.15, -0.8),
+		},
+		{
+			"name": "basin_top",
+			"pos": basin + Vector3(0.05, 5.2, 0.12),
+			"look": basin,
+		},
 		{
 			"name": "front",
 			"pos": focus + Vector3(0.0, 1.4, 5.6),
@@ -101,9 +143,9 @@ func _camera_shots(focus: Vector3) -> Array[Dictionary]:
 
 
 func _save(path: String) -> void:
-	for _i in 4:
-		await get_tree().process_frame
-	await RenderingServer.frame_post_draw
+	await get_tree().process_frame
+	await get_tree().process_frame
+	RenderingServer.force_draw()
 	var tex := get_viewport().get_texture()
 	if tex == null:
 		push_error("No viewport texture for %s" % path)

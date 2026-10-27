@@ -55,6 +55,24 @@ func test_waterfall_layer_comes_from_the_stamp_then_primitive_order() -> void:
 	assert_that(_layer(VisualWaterMaterials.make_waterfall_water_material(std, unstamped, 7))).is_equal(1)
 
 
+func test_shrine_splash_sits_above_the_basin() -> void:
+	var std := StandardMaterial3D.new()
+	var water := VisualWaterMaterials.make_shrine_basin_material(std, false)
+	var splash := VisualWaterMaterials.make_shrine_basin_material(std, true)
+	assert_float(float(water.get_shader_parameter("base_alpha"))).is_equal_approx(50.0 / 255.0, 0.0001)
+	assert_float(float(splash.get_shader_parameter("base_alpha"))).is_equal_approx(1.0, 0.0001)
+	assert_float(float(water.get_shader_parameter("depth_bias"))).is_equal_approx(0.01, 0.0001)
+	assert_float(float(splash.get_shader_parameter("depth_bias"))).is_equal_approx(0.02, 0.0001)
+	var water_scroll: Vector2 = water.get_shader_parameter("scroll0")
+	var splash_scroll: Vector2 = splash.get_shader_parameter("scroll0")
+	assert_float(water_scroll.y).is_greater(0.0)
+	assert_float(splash_scroll.x).is_less(0.0)
+	assert_int(water.render_priority).is_equal(1)
+	assert_int(splash.render_priority).is_equal(2)
+	var bubble := VisualWaterMaterials.make_shrine_bubble_material(std)
+	assert_int(bubble.render_priority).is_equal(3)
+
+
 func test_wet_sand_prim_comes_from_the_stamp_else_sand() -> void:
 	var std := StandardMaterial3D.new()
 	var bed := VisualWaterMaterials.make_beach_wet_material(std, _material({"beach_prim": [32, 48, 144, 255]}))

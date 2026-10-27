@@ -48,6 +48,8 @@ func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group(GROUP)
 	GeneratedVisual.attach(self, visual_id)
+	## Same field shade the basin multiplies, so the stone matches the water.
+	FieldLit.apply_solid(self)
 	HostCollision.apply_building(self, visual_id, footprint, HostCollision.CELL)
 
 
@@ -57,6 +59,7 @@ func apply_grid_yaw(facing: WorldGrid.Facing) -> void:
 
 func refresh_seasonal_visual() -> void:
 	GeneratedVisual.refresh(self, visual_id)
+	FieldLit.apply_solid(self)
 
 
 func _in_front(actor: Node3D) -> bool:

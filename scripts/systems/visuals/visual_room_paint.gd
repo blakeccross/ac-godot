@@ -18,7 +18,9 @@ static func paint_room_surfaces(node: Node, wall_id: StringName, floor_id: Strin
 			if (
 				VisualWindowLight.is_window_spill_surface(mesh_instance, i, src)
 				or VisualWindowLight.is_window_pane_surface(mesh_instance, i, src)
-				or VisualWaterMaterials.water_kind(src) in ["river", "ocean", "splash", "beach_wet"]
+				or VisualWaterMaterials.water_kind(src) in [
+					"river", "ocean", "splash", "beach_wet", "shrine_water", "shrine_splash", "shrine_bubble"
+				]
 			):
 				continue
 			var kind := _room_surface_kind(mesh_instance, i)

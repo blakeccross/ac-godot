@@ -208,3 +208,35 @@ field_moon_dir={
 "type": "vec3",
 "value": Vector3(0, -30, -40)
 }
+field_lamp_pos={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+field_lamp_color={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+field_lamp_radius={
+"type": "float",
+"value": 0.0
+}
+field_glow0_pos={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+field_glow0_radius={
+"type": "float",
+"value": 0.0
+}
+field_glow1_pos={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+field_glow1_radius={
+"type": "float",
+"value": 0.0
+}
+field_glow_color={
+"type": "vec3",
+"value": Vector3(0, 0.588, 1)
+}

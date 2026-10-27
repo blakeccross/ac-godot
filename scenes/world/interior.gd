@@ -177,6 +177,7 @@ func _exit_tree() -> void:
 	if Clock.time_changed.is_connected(_refresh_light):
 		Clock.time_changed.disconnect(_refresh_light)
 	VisualWindowLight.clear_indoor_room_prim()
+	MuseumFishLight.clear_glow()
 	Audio.stop_syslev()
 	## Whatever is still scuttling goes back into the walls (`aMR_GokiInfoDt`).
 	if session != null and session.room != null and PlayerHouse.is_player_room(session.room.id):
@@ -377,6 +378,8 @@ func _spawn_player() -> void:
 	elif not Game.resident.player_position.is_equal_approx(Game.DEFAULT_SPAWN):
 		pos = Game.resident.player_position
 	player.apply_spawn(pos, yaw)
+	if session != null and session.room != null and session.room.id == &"museum_fish":
+		FieldLit.apply(player)
 	if not InteriorLighting.pins_follow_camera(session.room if session != null else null):
 		_camera.set_target(player)
 	SceneTransition.play_wipe_in_if_pending()

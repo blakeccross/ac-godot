@@ -57,6 +57,8 @@ static func apply(data: WorldData) -> void:
 			_apply_police(data, b)
 		elif HostCollision.is_lighthouse(b.visual_id) or b.id == &"lighthouse":
 			_apply_lighthouse(data, b)
+		elif b.id == &"wishing_well" or String(b.visual_id).contains("shrine"):
+			_apply_shrine(data, b)
 		elif b.kind == &"house":
 			_apply_npc(data, b)
 	FieldCollision.invalidate_segments(data)
@@ -77,6 +79,34 @@ static func _apply_lighthouse(data: WorldData, placement: BuildingPlacement) -> 
 		var cell: Vector2i = home + offset
 		if data.is_in_bounds(cell):
 			FieldCollision.set_plus(data, cell, body.duplicate())
+
+
+static func shrine_home_cell(placement: BuildingPlacement) -> Vector2i:
+	## FG unit. Occupancy NW is FG+(0,−1), so the stored cell is one north of home.
+	return placement.cell + Vector2i(0, 1)
+
+
+static func _apply_shrine(data: WorldData, placement: BuildingPlacement) -> void:
+	## `aSHR_set_bgOffset`: two columns (home, home+1) and four rows.
+	## addZ {+20,−20,−60,−100} → z +1, 0, −1, −2. The north pair is offset 11 (the tree).
+	var home: Vector2i = shrine_home_cell(placement)
+	var rows: Array = [
+		[1, 1, 1, 1, 1, 0],
+		[1, 1, 1, 1, 1, 0],
+		[2, 2, 1, 1, 4, 0],
+		[2, 4, 1, 1, 2, 0],
+		[11, 11, 11, 11, 11, 0],
+		[11, 11, 11, 11, 11, 0],
+		[11, 11, 11, 11, 11, 0],
+		[11, 11, 11, 11, 11, 0],
+	]
+	var zs: Array[int] = [1, 0, -1, -2]
+	for zi: int in 4:
+		for xi: int in 2:
+			var cell := Vector2i(home.x + xi, home.y + zs[zi])
+			if not data.is_in_bounds(cell):
+				continue
+			FieldCollision.set_plus(data, cell, _row(rows[zi * 2 + xi], 11))
 
 
 static func player_home_cell(placement: BuildingPlacement) -> Vector2i:

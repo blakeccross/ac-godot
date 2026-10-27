@@ -1122,7 +1122,22 @@ class WaterKindTests(unittest.TestCase):
             env=(0, 100, 255, 255),
         )
         self.assertEqual(river, "river")
-        ## Museum tank dual I4 uses dimmer env — not the outdoor river shader.
+        ## Tank caustic: dual I4 + env (150, 255, 255). Both tiles export; not the river shader.
+        self.assertEqual(
+            classify_water_surface(
+                coverage="xlu",
+                fmt0=G_IM_FMT_I,
+                fmt1=G_IM_FMT_I,
+                wrap0_s=GX_REPEAT,
+                wrap0_t=GX_REPEAT,
+                wrap1_s=GX_REPEAT,
+                wrap1_t=GX_REPEAT,
+                dual=True,
+                env=(150, 255, 255, 255),
+            ),
+            "tank_caustic",
+        )
+        ## Glass env on a dual I4 is not the caustic and not the outdoor river shader.
         self.assertEqual(
             classify_water_surface(
                 coverage="xlu",
@@ -1366,6 +1381,89 @@ class WaterKindTests(unittest.TestCase):
         ## The sprash still lands on the splash shader (I4/I4, PRIM-keyed alpha),
         ## keyed positively so it isn't caught by the MIRROR-S waterfall wrap rule.
         self.assertEqual(kind(G_IM_FMT_I, G_IM_FMT_I, sprash), "splash")
+
+    def test_shrine_basin_comes_from_the_combiner_mux(self) -> None:
+        ## obj_s_shrine water / sprash / bubble. Env is the default white, so the
+        ## river env heuristic must not claim the basin, and the bubble's prim/env
+        ## pair must not fire on a different lerp.
+        from asset_pipeline.gfx import (
+            classify_shrine_bubble,
+            classify_water_surface,
+            shrine_basin_kind,
+        )
+        from asset_pipeline.texbank import G_IM_FMT_I, GX_REPEAT
+
+        def lerp(c0, a0, c1, a1):
+            w0 = (0xFC << 24) | ((c0[0] & 0xF) << 20) | ((c0[2] & 0x1F) << 15)
+            w0 |= ((a0[0] & 7) << 12) | ((a0[2] & 7) << 9) | ((c1[0] & 0xF) << 5) | (c1[2] & 0x1F)
+            w1 = ((c0[1] & 0xF) << 28) | ((c1[1] & 0xF) << 24) | ((a1[0] & 7) << 21)
+            w1 |= ((a1[2] & 7) << 18) | ((c0[3] & 7) << 15) | ((a0[1] & 7) << 12)
+            w1 |= ((a0[3] & 7) << 9) | ((c1[3] & 7) << 6) | ((a1[1] & 7) << 3) | (a1[3] & 7)
+            return w0, w1
+
+        ## TEXEL0,0,TEXEL1_ALPHA,0 / TEXEL0,0,TEXEL1,0 / PRIM,0,SHADE,COMBINED / COMBINED,0,LOD,PRIM
+        water = lerp((1, 31, 9, 31), (1, 7, 2, 7), (3, 31, 4, 0), (0, 7, 6, 3))
+        splash = lerp((1, 31, 9, 31), (1, 7, 2, 7), (3, 31, 4, 0), (0, 7, 6, 7))
+        bubble = lerp((3, 31, 4, 5), (1, 7, 3, 7), (31, 31, 31, 0), (7, 7, 7, 0))
+        self.assertEqual(shrine_basin_kind(*water), "shrine_water")
+        self.assertEqual(shrine_basin_kind(*splash), "shrine_splash")
+        self.assertEqual(
+            classify_water_surface(
+                coverage="xlu",
+                fmt0=G_IM_FMT_I,
+                fmt1=G_IM_FMT_I,
+                wrap0_s=GX_REPEAT,
+                wrap0_t=GX_REPEAT,
+                wrap1_s=GX_REPEAT,
+                wrap1_t=GX_REPEAT,
+                dual=True,
+                env=(255, 255, 255, 255),
+                combine_w0=water[0],
+                combine_w1=water[1],
+            ),
+            "shrine_water",
+        )
+        self.assertEqual(
+            classify_water_surface(
+                coverage="xlu",
+                fmt0=G_IM_FMT_I,
+                fmt1=G_IM_FMT_I,
+                wrap0_s=GX_REPEAT,
+                wrap0_t=GX_REPEAT,
+                wrap1_s=GX_REPEAT,
+                wrap1_t=GX_REPEAT,
+                dual=True,
+                env=(255, 255, 255, 255),
+                combine_w0=splash[0],
+                combine_w1=splash[1],
+            ),
+            "shrine_splash",
+        )
+        self.assertEqual(
+            classify_shrine_bubble(
+                coverage="xlu",
+                fmt=G_IM_FMT_I,
+                dual=False,
+                prim=(255, 255, 255, 180),
+                env=(80, 80, 80, 255),
+                combine_w0=bubble[0],
+                combine_w1=bubble[1],
+            ),
+            "shrine_bubble",
+        )
+        ## Rain shares the lerp with different prim/env.
+        self.assertEqual(
+            classify_shrine_bubble(
+                coverage="xlu",
+                fmt=G_IM_FMT_I,
+                dual=False,
+                prim=(255, 50, 50, 80),
+                env=(100, 225, 225, 255),
+                combine_w0=bubble[0],
+                combine_w1=bubble[1],
+            ),
+            "",
+        )
 
     def test_wrapper_dedupe_tolerates_texture_rendermode_geometrymode_setup(self) -> None:
         ## `obj_fallS_model` opens with gsSPTexture + gsDPSetRenderMode +
@@ -1835,6 +1933,10 @@ class WaterKindTests(unittest.TestCase):
         self.assertEqual(tank_glass_inset("xlu", "int_gan_tank_evw_tex", "", True), 0.97)
         self.assertEqual(
             tank_glass_inset("xlu", "int_gan_tank_water2_tex", "", True), 0.94
+        )
+        ## The classified caustic still insets; a field river does not.
+        self.assertEqual(
+            tank_glass_inset("xlu", "obj_suisou1_water1_tex", "tank_caustic", True), 0.94
         )
         ## Not XLU, no texture name, or no vertices yet: never inset.
         self.assertEqual(tank_glass_inset("opa", "tank_water1_tex", "", True), 0.0)

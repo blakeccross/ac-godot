@@ -149,7 +149,17 @@ def _bake_wrap_group(group: dict) -> None:
     # leaves CLAMP V UVs outside 0–1 stuck on the solid-white I4 edge row.
     # Player-select spot keeps wrap-bake on the cone (MIRROR S) so the beam stays
     # soft; fog grain is layer1 REPEAT sampled in the shader.
-    if group.get("water_kind") in ("river", "ocean", "splash", "waterfall", "beach_wet"):
+    if group.get("water_kind") in (
+        "river",
+        "ocean",
+        "splash",
+        "waterfall",
+        "beach_wet",
+        "shrine_water",
+        "shrine_splash",
+        "shrine_bubble",
+        "tank_caustic",
+    ):
         return
     wrap_s = group["wrap_s"]
     wrap_t = group["wrap_t"]
@@ -270,7 +280,15 @@ def _group_alpha_mode(group: dict) -> str:
     ## OPA I4 band; alpha carries intensity for the runtime env pulse, not coverage.
     if group.get("water_kind") == "beach_wet":
         return "OPAQUE"
-    if group.get("water_kind") in ("river", "ocean", "splash", "waterfall"):
+    if group.get("water_kind") in (
+        "river",
+        "ocean",
+        "splash",
+        "waterfall",
+        "shrine_water",
+        "shrine_splash",
+        "shrine_bubble",
+    ):
         return "BLEND"
     modes = {part.alpha_mode for part in group["parts"]}
     if "BLEND" in modes:

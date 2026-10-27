@@ -82,6 +82,48 @@ static func refresh_light(host: Node3D, world_env: WorldEnvironment, grid: World
 	var prim: Color = light["room_prim"] as Color
 	VisualWindowLight.set_indoor_room_prim(prim)
 	VisualWindowLight.refresh_room_prim(host, prim)
+	_publish_palette(light)
+	## The room lamp falls off as 1−(d/r)² out to its radius. Lit meshes read these globals.
+	var lamp_pos: Vector3 = lamp.global_position if lamp != null else Vector3.ZERO
+	var lamp_color: Color = light["lamp_color"] as Color
+	var lamp_radius: float = float(light["lamp_power"]) * (
+		(grid.cell_size if grid != null else 2.0) / InteriorLightModel.UNITS_PER_CELL
+	)
+	RenderingServer.global_shader_parameter_set(&"field_lamp_pos", lamp_pos)
+	RenderingServer.global_shader_parameter_set(&"field_lamp_color", Vector3(lamp_color.r, lamp_color.g, lamp_color.b))
+	RenderingServer.global_shader_parameter_set(&"field_lamp_radius", lamp_radius)
+	_sync_fish_wing(host, grid, room)
+
+
+static func _publish_palette(light: Dictionary) -> void:
+	for pair: Array in [
+		[&"field_ambient", light["ambient"]],
+		[&"field_sun_color", light["sun"]],
+		[&"field_moon_color", light["moon"]],
+	]:
+		var c: Color = pair[1] as Color
+		RenderingServer.global_shader_parameter_set(pair[0], Vector3(c.r, c.g, c.b))
+	RenderingServer.global_shader_parameter_set(&"field_sun_dir", light["sun_dir"] as Vector3)
+	RenderingServer.global_shader_parameter_set(&"field_moon_dir", light["moon_dir"] as Vector3)
+
+
+static func _sync_fish_wing(host: Node3D, grid: WorldGrid, room: Room) -> void:
+	var node := host.get_node_or_null("MuseumFishLight") as MuseumFishLight
+	if room == null or room.id != &"museum_fish":
+		if node != null:
+			node.queue_free()
+		MuseumFishLight.clear_glow()
+		return
+	if node == null:
+		node = MuseumFishLight.new()
+		node.name = "MuseumFishLight"
+		host.add_child(node)
+	var origin := Vector3.ZERO
+	if grid != null:
+		origin = grid.origin
+	node.setup(origin)
+	## Fish, plants and (once spawned) the player. Shells stay vertex-shaded.
+	FieldLit.apply(host)
 
 
 static func _owner_home(room: Room) -> bool:

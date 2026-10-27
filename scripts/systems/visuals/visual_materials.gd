@@ -42,6 +42,12 @@ static func _apply_node(node: Node, as_decal: bool, mouth_river: bool, visual_id
 					mesh_instance.set_surface_override_material(i, std)
 				elif kind == "splash":
 					mesh_instance.set_surface_override_material(i, VisualWaterMaterials.make_splash_water_material(std))
+				elif kind == "shrine_water" or kind == "shrine_splash":
+					mesh_instance.set_surface_override_material(
+						i, VisualWaterMaterials.make_shrine_basin_material(std, kind == "shrine_splash")
+					)
+				elif kind == "shrine_bubble":
+					mesh_instance.set_surface_override_material(i, VisualWaterMaterials.make_shrine_bubble_material(std))
 				elif kind == "river":
 					mesh_instance.set_surface_override_material(
 						i, VisualWaterMaterials.make_river_water_material(std, mouth_river)
@@ -75,8 +81,10 @@ static func _apply_node(node: Node, as_decal: bool, mouth_river: bool, visual_id
 					VisualStructureMaterials.apply_museum_art_material(std)
 					mesh_instance.set_surface_override_material(i, std)
 				elif VisualStructureMaterials.is_fish_tank_visual(visual_id):
-					VisualStructureMaterials.apply_fish_tank_surface(std, VisualSurface.surface_label(mesh_instance, i, src))
-					mesh_instance.set_surface_override_material(i, std)
+					var tank_mat := VisualStructureMaterials.apply_fish_tank_surface(
+						std, VisualSurface.surface_label(mesh_instance, i, src), src, visual_id
+					)
+					mesh_instance.set_surface_override_material(i, tank_mat)
 				elif VisualStructureMaterials.is_single_sided_shell_visual(visual_id):
 					std.cull_mode = BaseMaterial3D.CULL_BACK
 					mesh_instance.set_surface_override_material(i, std)

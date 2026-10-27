@@ -178,6 +178,23 @@ func test_fish_tank_meshes_resolve() -> void:
 	)
 
 
+func test_tank_caustic_uses_both_water_tiles() -> void:
+	## emu64 cycle 1 samples tile 1. Tile 0 is albedo; tile 1 is the occlusion slot.
+	var std := StandardMaterial3D.new()
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var tile0 := GradientTexture2D.new()
+	var tile1 := GradientTexture2D.new()
+	std.albedo_texture = tile0
+	std.ao_texture = tile1
+	var mat := VisualStructureMaterials.apply_fish_tank_surface(
+		std, "obj_suisou1_water1_tex", std, &"obj_suisou1"
+	) as ShaderMaterial
+	assert_that(mat).is_not_null()
+	assert_str(String(mat.get_meta("tank_layer", &""))).is_equal("caustic")
+	assert_object(mat.get_shader_parameter("water1")).is_same(tile0)
+	assert_object(mat.get_shader_parameter("water2")).is_same(tile1)
+
+
 func test_fish_tank_materials_stop_layer_fighting() -> void:
 	## MASK frame + BLEND evw share wall planes; CULL_DISABLED made each quad fight itself.
 	var host := Node3D.new()
@@ -193,6 +210,17 @@ func test_fish_tank_materials_stop_layer_fighting() -> void:
 			continue
 		for i: int in mi.mesh.get_surface_count():
 			var mat: Material = mi.get_active_material(i)
+			if mat is ShaderMaterial:
+				saw_blend = true
+				var layer: StringName = (mat as ShaderMaterial).get_meta("tank_layer", &"")
+				assert_bool(layer in [&"evw", &"mizu", &"caustic"]).is_true()
+				if layer == &"caustic":
+					var water1: Texture2D = (mat as ShaderMaterial).get_shader_parameter("water1")
+					var water2: Texture2D = (mat as ShaderMaterial).get_shader_parameter("water2")
+					assert_that(water1).is_not_null()
+					assert_that(water2).is_not_null()
+					assert_object(water2).is_not_same(water1)
+				continue
 			if not mat is StandardMaterial3D:
 				continue
 			var std := mat as StandardMaterial3D
@@ -208,6 +236,42 @@ func test_fish_tank_materials_stop_layer_fighting() -> void:
 			assert_float(mi.scale.x).is_equal_approx(1.0, 0.0001)
 	assert_bool(saw_mask).is_true()
 	assert_bool(saw_blend).is_true()
+
+
+func test_museum_fish_glow_follows_the_tank_the_player_faces() -> void:
+	## Standing in tank 0: that light is full (55) and the far tank is out of the 60 GX fade.
+	var near: Array[Dictionary] = MuseumFishLight.glow_gx(Vector3(220.0, 0.0, 220.0))
+	assert_float(float(near[0]["power"])).is_equal_approx(55.0, 0.01)
+	assert_float(float(near[1]["power"])).is_equal_approx(0.0, 0.01)
+	## Sea tank: both lights offset ±20 GX from the player, still inside the bowl.
+	var sea: Array[Dictionary] = MuseumFishLight.glow_gx(Vector3(320.0, 0.0, 20.0))
+	assert_vector(sea[0]["pos"] as Vector3).is_equal_approx(Vector3(300.0, 0.0, 20.0), Vector3(0.01, 0.01, 0.01))
+	assert_vector(sea[1]["pos"] as Vector3).is_equal_approx(Vector3(340.0, 0.0, 20.0), Vector3(0.01, 0.01, 0.01))
+	assert_float(float(sea[0]["power"])).is_equal_approx(55.0 * 40.0 / 60.0, 0.01)
+	## Past the last tank the lights switch off.
+	var away: Array[Dictionary] = MuseumFishLight.glow_gx(Vector3(320.0, 0.0, 600.0))
+	assert_float(float(away[0]["power"])).is_equal_approx(0.0, 0.01)
+	assert_float(float(away[1]["power"])).is_equal_approx(0.0, 0.01)
+
+
+func test_sea_tank_highlight_uses_the_sea_prim() -> void:
+	var host := Node3D.new()
+	auto_free(host)
+	add_child(host)
+	var pivot: Node3D = GeneratedVisual.attach(host, &"obj_museum5")
+	var found := false
+	for node: Node in pivot.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		for i: int in mi.mesh.get_surface_count():
+			var mat := mi.get_active_material(i) as ShaderMaterial
+			if mat == null or mat.get_meta("tank_layer", &"") != &"evw":
+				continue
+			found = true
+			assert_float(float(mat.get_shader_parameter("base_alpha"))).is_equal_approx(60.0 / 255.0, 0.001)
+			assert_float(float(mat.get_shader_parameter("texture_alpha"))).is_equal_approx(20.0 / 256.0, 0.001)
+	assert_bool(found).is_true()
 
 
 func test_museum5_uses_acre_ground_datum() -> void:

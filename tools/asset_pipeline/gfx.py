@@ -262,9 +262,13 @@ def tank_glass_inset(
     this: the open-field river texture `mFM_grd_water1_tex` collides with the
     tank-glass name match on "water1" (real tank textures are named things like
     `int_gan_tank_water1_tex`) — applying the tank inset there scaled the whole
-    river mesh inward, opening a real ~4.5% edge gap at every acre boundary. Actual
-    tank-furniture panes never set `water_kind`.
+    river mesh inward, opening a real ~4.5% edge gap at every acre boundary.
+    `tank_caustic` is the exception: it is the museum sheet and still insets.
     """
+    ## `tank_caustic` is the museum water sheet. It still needs the inward pull;
+    ## field water kinds must not, or a river named water1 would shrink.
+    if water_kind == "tank_caustic":
+        return 0.94
     if coverage != "xlu" or not tex_name or not has_vertices or water_kind:
         return 0.0
     low = tex_name.lower()
@@ -275,6 +279,122 @@ def tank_glass_inset(
     if "water2" in low or "_mizu2" in low:
         return 0.94
     return 0.0
+
+
+def shrine_basin_kind(combine_w0: int, combine_w1: int) -> str:
+    """Wishing-well basin from the SetCombine mux (`obj_s_shrine` / `obj_w_shrine`).
+
+    Cycle 0 is ``t0 * t1.a`` / ``t0 * t1``. Cycle 1 RGB is ``prim * shade + combined``.
+    Cycle 1 alpha is ``combined * PRIM_LOD_FRAC + prim`` (the water sheet) or
+    ``+ 0`` (the splash rim). Those two muxes are the basin only — the river-mouth
+    sprash and the falls use a different cycle-0 RGB.
+    """
+    if combine_w0 == 0 and combine_w1 == 0:
+        return ""
+    a0 = (combine_w0 >> 20) & 0xF
+    c0 = (combine_w0 >> 15) & 0x1F
+    aa0 = (combine_w0 >> 12) & 7
+    ac0 = (combine_w0 >> 9) & 7
+    a1 = (combine_w0 >> 5) & 0xF
+    c1 = combine_w0 & 0x1F
+    b0 = (combine_w1 >> 28) & 0xF
+    b1 = (combine_w1 >> 24) & 0xF
+    aa1 = (combine_w1 >> 21) & 7
+    ac1 = (combine_w1 >> 18) & 7
+    d0 = (combine_w1 >> 15) & 7
+    ab0 = (combine_w1 >> 12) & 7
+    ad0 = (combine_w1 >> 9) & 7
+    d1 = (combine_w1 >> 6) & 7
+    ab1 = (combine_w1 >> 3) & 7
+    ad1 = combine_w1 & 7
+    ## G_CCMUX_0 is 31, stored in a 4-bit b-field as 15 and a 3-bit d-field as 7.
+    ## G_ACMUX_0 is 7. TEXEL0=1, TEXEL1=2, TEXEL1_ALPHA=9, PRIM=3, SHADE=4, LOD=6.
+    if not (
+        a0 == 1
+        and b0 == 0xF
+        and c0 == 9
+        and d0 == 7
+        and aa0 == 1
+        and ab0 == 7
+        and ac0 == 2
+        and ad0 == 7
+        and a1 == 3
+        and b1 == 0xF
+        and c1 == 4
+        and d1 == 0
+        and aa1 == 0
+        and ab1 == 7
+        and ac1 == 6
+    ):
+        return ""
+    if ad1 == 3:
+        return "shrine_water"
+    if ad1 == 7:
+        return "shrine_splash"
+    return ""
+
+
+def classify_shrine_bubble(
+    *,
+    coverage: str | None,
+    fmt: int,
+    dual: bool,
+    prim: tuple[int, int, int, int],
+    env: tuple[int, int, int, int],
+    combine_w0: int = 0,
+    combine_w1: int = 0,
+) -> str:
+    """Rising I4 card in the well (`obj_*_shrine_bubble_model`).
+
+    Combiner ``(PRIM−0)*SHADE+ENV`` / ``TEXEL0*PRIM``, then pass-through.
+    Prim (255,255,255,180) and env (80,80,80) together are this card only —
+    rain, ripples and insect XLU share the lerp with different ends.
+    """
+    from .texbank import G_IM_FMT_I
+
+    if dual or coverage != "xlu" or fmt != G_IM_FMT_I:
+        return ""
+    if prim != (255, 255, 255, 180) or env != (80, 80, 80, 255):
+        return ""
+    if combine_w0 == 0 and combine_w1 == 0:
+        return ""
+    a0 = (combine_w0 >> 20) & 0xF
+    c0 = (combine_w0 >> 15) & 0x1F
+    aa0 = (combine_w0 >> 12) & 7
+    ac0 = (combine_w0 >> 9) & 7
+    a1 = (combine_w0 >> 5) & 0xF
+    c1 = combine_w0 & 0x1F
+    b0 = (combine_w1 >> 28) & 0xF
+    b1 = (combine_w1 >> 24) & 0xF
+    aa1 = (combine_w1 >> 21) & 7
+    ac1 = (combine_w1 >> 18) & 7
+    d0 = (combine_w1 >> 15) & 7
+    ab0 = (combine_w1 >> 12) & 7
+    ad0 = (combine_w1 >> 9) & 7
+    d1 = (combine_w1 >> 6) & 7
+    ab1 = (combine_w1 >> 3) & 7
+    ad1 = combine_w1 & 7
+    ## PRIM=3, SHADE=4, ENV=5, TEXEL0=1, COMBINED=0. Zero muxes as above.
+    if (
+        a0 == 3
+        and b0 == 0xF
+        and c0 == 4
+        and d0 == 5
+        and aa0 == 1
+        and ab0 == 7
+        and ac0 == 3
+        and ad0 == 7
+        and a1 == 0xF
+        and b1 == 0xF
+        and c1 == 0x1F
+        and d1 == 0
+        and aa1 == 7
+        and ab1 == 7
+        and ac1 == 7
+        and ad1 == 0
+    ):
+        return "shrine_bubble"
+    return ""
 
 
 def classify_water_surface(
@@ -300,6 +420,9 @@ def classify_water_surface(
     ## α *= PRIM_LOD_FRAC — not water. Acre/fall water always sets XLU.
     if coverage != "xlu":
         return ""
+    basin = shrine_basin_kind(combine_w0, combine_w1)
+    if basin:
+        return basin
     ## `obj_fallS` grpAT/BT/CT/DT — identified by the combiner mux, not the tile
     ## format, because grpBT is IA8/IA8 (would read as ocean) and grpDT is IA8/I4
     ## (would read as splash). Do this before the format shortcuts below.
@@ -317,9 +440,12 @@ def classify_water_surface(
         if wrap0_t == GX_CLAMP or wrap1_t == GX_CLAMP:
             return "waterfall"
         ## Outdoor river: env is saturated blue (inland 0,100,255 / mouth 0,60,255).
-        ## Museum tanks share dual I4 + REPEAT but use dimmer env (0,30,120) — leave
-        ## untagged so convert keeps texel alpha and Godot skips the acre river shader.
+        ## Tank caustic is the same dual I4 + REPEAT with env (150,255,255): both
+        ## tiles stay raw and Godot adds them. A dimmer env such as glass (0,30,120)
+        ## stays untagged so it never picks up the acre river shader.
         er, eg, eb = int(env[0]), int(env[1]), int(env[2])
+        if (er, eg, eb) == (150, 255, 255):
+            return "tank_caustic"
         if eb >= 200 and er <= 40 and eg >= 40:
             return "river"
         return ""
@@ -1018,6 +1144,16 @@ def parse_gfx(
                     combine_w0=combine_w0,
                     combine_w1=combine_w1,
                 )
+            if not water_kind:
+                water_kind = classify_shrine_bubble(
+                    coverage=coverage,
+                    fmt=fmt0,
+                    dual=dual,
+                    prim=tex_state.prim,
+                    env=tex_state.env,
+                    combine_w0=combine_w0,
+                    combine_w1=combine_w1,
+                )
             ## Spot/shade I tiles share OPA+I with wet sand; name wins.
             if (
                 is_player_select_fog_tex(name0)
@@ -1048,12 +1184,30 @@ def parse_gfx(
             ## REPEAT/CLAMP sheet (not a 16-wide wrap atlas), so it keeps the
             ## full ACHD shore. River and falls skip ACHD below.
             bank.water_surface = water_kind in ("ocean", "splash")
-            if water_kind in ("river", "ocean", "splash", "waterfall") and tex_state.tile0 and tex_state.tile1:
+            if (
+                water_kind in (
+                    "river",
+                    "ocean",
+                    "splash",
+                    "waterfall",
+                    "shrine_water",
+                    "shrine_splash",
+                    "tank_caustic",
+                )
+                and tex_state.tile0
+                and tex_state.tile1
+            ):
                 ## Falls and river combiners add and multiply the raw I/IA levels.
                 ## An ACHD repaint turns the mist mask into a solid sheet, the
                 ## crest into a white bar, and the river's thin ripple web into
                 ## dark cells. Ocean stays on the HD cap.
-                native_texels = water_kind in ("waterfall", "river")
+                native_texels = water_kind in (
+                    "waterfall",
+                    "river",
+                    "shrine_water",
+                    "shrine_splash",
+                    "tank_caustic",
+                )
                 png, tex_name, _alpha = _decode_snap(
                     bank, tex_state, tex_state.tile0, skip_prim=True, allow_achd=not native_texels
                 )
@@ -1066,6 +1220,20 @@ def parse_gfx(
                 ## wave2 shore is REPEAT S / CLAMP T; wave3 open is REPEAT/REPEAT.
                 layer1_wrap_s = int(tex_state.tile1["wrap_s"])
                 layer1_wrap_t = int(tex_state.tile1["wrap_t"])
+                ## Tank caustic multiplies the raw I4 level by vertex shade. Park
+                ## that level in alpha (RGB white) so the shader sample is not
+                ## an sRGB-decoded .r.
+                if water_kind == "tank_caustic":
+                    if png and intensity_format_opaque_alpha(png):
+                        png = i4_png_as_alpha(png)
+                    if layer1_png and intensity_format_opaque_alpha(layer1_png):
+                        layer1_png = i4_png_as_alpha(layer1_png)
+            elif water_kind == "shrine_bubble":
+                saved_prim = tex_state.prim
+                tex_state.prim = (255, 255, 255, 255)
+                png, tex_name, texel_mode = bank.decode_current(tex_state, allow_achd=False)
+                tex_state.prim = saved_prim
+                texel_mode = "BLEND"
             elif (
                 not water_kind
                 and not dual
@@ -1236,7 +1404,16 @@ def parse_gfx(
             samples_transparent = uv_samples_transparent(
                 image, unique, triangles, wrap_s=wrap_s, wrap_t=wrap_t
             )
-        if water_kind in ("river", "ocean", "splash", "waterfall"):
+        if water_kind in (
+            "river",
+            "ocean",
+            "splash",
+            "waterfall",
+            "shrine_water",
+            "shrine_splash",
+            "shrine_bubble",
+            "tank_caustic",
+        ):
             alpha_mode = "BLEND"
         elif water_kind == "beach_wet":
             alpha_mode = "OPAQUE"

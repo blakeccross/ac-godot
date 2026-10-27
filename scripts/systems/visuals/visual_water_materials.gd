@@ -7,11 +7,16 @@ const _SPLASH_WATER_SHADER := preload("res://shaders/splash_water.gdshader")
 const _OCEAN_WATER_SHADER := preload("res://shaders/ocean_water.gdshader")
 const _WATERFALL_WATER_SHADER := preload("res://shaders/waterfall_water.gdshader")
 const _BEACH_WET_SHADER := preload("res://shaders/beach_wet.gdshader")
+const _SHRINE_WATER_SHADER := preload("res://shaders/shrine_water.gdshader")
+const _SHRINE_BUBBLE_SHADER := preload("res://shaders/shrine_bubble.gdshader")
 ## Wet-sand beachA DL prim (206,189,148), used when a surface carries no `beach_prim` stamp.
 const _BEACH_PRIM_SAND := Color(206.0 / 255.0, 189.0 / 255.0, 148.0 / 255.0)
 ## Inland river env (0,100,255); mouth acres use (0,60,255) when sprash is present.
 const _RIVER_ENV_INLAND := Color(0.0, 100.0 / 255.0, 1.0, 1.0)
 const _RIVER_ENV_MOUTH := Color(0.0, 60.0 / 255.0, 1.0, 1.0)
+## UV per second on the 32×16 well sheet. 7.5 texels/second.
+const _BASIN_SPEED := 7.5
+const _BASIN_SIZE := Vector2(32.0, 16.0)
 ## Some river acres (verified: `grd_s_c5_r2`, `grd_s_r2`) convert with their XLU
 ## water surface stopping short of the acre's own edge on one side by a small,
 ## consistent margin (~0.46 of a ~10.24-unit acre) while every opaque ground
@@ -146,7 +151,8 @@ static func _fit_water_to_ground_edge(mi: MeshInstance3D, ground_aabb: AABB) -> 
 
 
 ## `water_kind` glTF extra the pipeline stamps from Gfx state: river, ocean, splash, waterfall,
-## beach_wet, or "" for anything else. The only water classification; there is no name matching.
+## beach_wet, shrine_water, shrine_splash, shrine_bubble, or "" for anything else.
+## The only water classification; there is no name matching.
 static func water_kind(mat: Material) -> String:
 	return str(VisualSurface.gltf_extras(mat).get("water_kind", ""))
 
@@ -307,6 +313,50 @@ static func make_splash_water_material(std: StandardMaterial3D) -> ShaderMateria
 	## Slightly above river/ocean XLU so the mouth foam composites cleanly.
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.75)
 	sh.set_meta("splash_water", true)
+	return sh
+
+
+static func make_shrine_basin_material(std: StandardMaterial3D, splash: bool) -> ShaderMaterial:
+	## Water sits under the splash rim. The rim is the opaque grey sheet.
+	var sh := ShaderMaterial.new()
+	sh.shader = _SHRINE_WATER_SHADER
+	sh.render_priority = 2 if splash else 1
+	var tile0: Texture2D = std.albedo_texture
+	var tile1: Texture2D = _layer1_texture(std)
+	if tile1 == null or tile1 == tile0:
+		push_warning("GeneratedVisual: shrine basin tile1 missing; the well water will look flat")
+	sh.set_shader_parameter("tile0", tile0)
+	sh.set_shader_parameter("tile1", tile1)
+	var scroll0 := Vector2(0.0, 5.0)
+	var scroll1 := Vector2(0.0, 3.0)
+	var tint := Vector3(0.0, 100.0 / 255.0, 1.0)
+	var mask_alpha := 50.0 / 255.0
+	var base_alpha := 50.0 / 255.0
+	var depth_bias := 0.01
+	if splash:
+		scroll0 = Vector2(-50.0, 0.0)
+		scroll1 = Vector2(0.0, -13.0)
+		tint = Vector3(127.0 / 255.0, 160.0 / 255.0, 160.0 / 255.0)
+		mask_alpha = 120.0 / 255.0
+		base_alpha = 1.0
+		depth_bias = 0.02
+	sh.set_shader_parameter("scroll0", scroll0 * _BASIN_SPEED / _BASIN_SIZE)
+	sh.set_shader_parameter("scroll1", scroll1 * _BASIN_SPEED / _BASIN_SIZE)
+	sh.set_shader_parameter("tint", tint)
+	sh.set_shader_parameter("mask_alpha", mask_alpha)
+	sh.set_shader_parameter("base_alpha", base_alpha)
+	sh.set_shader_parameter("depth_bias", depth_bias)
+	sh.set_meta("shrine_water", true)
+	return sh
+
+
+static func make_shrine_bubble_material(std: StandardMaterial3D) -> ShaderMaterial:
+	## Rising card above the rim. Colour and scroll live in the shader.
+	var sh := ShaderMaterial.new()
+	sh.shader = _SHRINE_BUBBLE_SHADER
+	sh.render_priority = 3
+	sh.set_shader_parameter("bubble_tex", std.albedo_texture)
+	sh.set_meta("shrine_bubble", true)
 	return sh
 
 
