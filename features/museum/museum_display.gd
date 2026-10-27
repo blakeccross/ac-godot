@@ -65,6 +65,63 @@ const TANK_POS: Array[Vector3] = [
 	Vector3(320.0, 40.0, 20.0) * FieldCatalog.GX_TO_METERS,
 ]
 
+## Acre shells author the walkable floor at 40 GX and the room snaps that to world 0.
+const WATER_LINE_GX := 40.0
+
+## `kusa_model` / `kusa_pos` / `kusa_group_tbl` / `kusa_start_frame`. Draw Y is 0
+## (`Museum_Fish_Kusa_Draw`); the skeleton carries its own height. Tank 2 sways at
+## cKF speed 1.5, the rest at 0.5.
+const PLANT_VISUAL: PackedStringArray = [
+	"obj_museum5_kusa1", "obj_museum5_kusa1", "obj_museum5_kusa1", "obj_museum5_kusa1", "obj_museum5_kusa1",
+	"obj_museum5_kusa2", "obj_museum5_kusa2", "obj_museum5_kusa2", "obj_museum5_kusa2", "obj_museum5_kusa2",
+	"obj_museum5_kusa3", "obj_museum5_kusa3", "obj_museum5_kusa3", "obj_museum5_kusa3",
+]
+const PLANT_POS: Array[Vector3] = [
+	Vector3(179.0, 0.0, 170.0), Vector3(253.0, 0.0, 495.0), Vector3(376.0, 0.0, 260.0),
+	Vector3(397.0, 0.0, 412.0), Vector3(467.0, 0.0, 432.0), Vector3(141.0, 0.0, -18.0),
+	Vector3(206.0, 0.0, -25.0), Vector3(346.0, 0.0, -38.0), Vector3(473.0, 0.0, -29.0),
+	Vector3(495.0, 0.0, -21.0), Vector3(210.0, 0.0, 215.0), Vector3(266.0, 0.0, 507.0),
+	Vector3(393.0, 0.0, 270.0), Vector3(415.0, 0.0, 415.0),
+]
+const PLANT_TANK: PackedInt32Array = [0, 2, 1, 3, 3, 4, 4, 4, 4, 4, 0, 2, 1, 3]
+const PLANT_START_FRAME: PackedFloat32Array = [
+	25.0, 0.0, 25.0, 0.0, 50.0, 0.0, 20.0, 60.0, 80.0, 0.0, 0.0, 25.0, 0.0, 75.0,
+]
+
+## `hasu_pos`. Drawn with a half turn (`Matrix_RotateY(-180)`).
+const LILY_POS := Vector3(420.0, 0.0, 220.0)
+const LILY_YAW := PI
+
+## `suisou_awa_pos` / `suisou_awa_group`. Y is the vent, not the water line.
+const BUBBLE_POS: Array[Vector3] = [
+	Vector3(150.0, 60.0, -12.0), Vector3(192.0, 60.0, -20.0), Vector3(216.0, 60.0, -4.0),
+	Vector3(300.0, 60.0, -42.0), Vector3(332.0, 60.0, -28.0), Vector3(356.0, 60.0, -46.0),
+	Vector3(416.0, 60.0, -28.0), Vector3(456.0, 60.0, 20.0), Vector3(190.0, 60.0, 173.0),
+	Vector3(196.0, 60.0, 186.0), Vector3(232.0, 60.0, 178.0), Vector3(372.0, 60.0, 254.0),
+	Vector3(388.0, 60.0, 270.0), Vector3(434.0, 60.0, 173.0), Vector3(180.0, 60.0, 408.0),
+	Vector3(256.0, 60.0, 512.0), Vector3(270.0, 60.0, 500.0), Vector3(406.0, 60.0, 414.0),
+	Vector3(458.0, 60.0, 424.0), Vector3(447.0, 60.0, 442.0),
+]
+const BUBBLE_TANK: PackedInt32Array = [
+	4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3,
+]
+
+
+## World height of an absolute GX Y after the floor snap (`WATER_LINE_GX` → 0).
+static func tank_world_y(gx_y: float) -> float:
+	return (gx_y - WATER_LINE_GX) * FieldCatalog.GX_TO_METERS
+
+
+## cKF speed is keyframes per 60 Hz frame. Clips are keyed at 30 fps, so this is the
+## Godot `speed_scale`.
+static func ckf_to_speed_scale(ckf_speed: float) -> float:
+	return ckf_speed * DecompTime.TICK_HZ / 30.0
+
+
+## Tank 2's plants sway at cKF speed 1.5; the rest, and the lily, at 0.5.
+static func plant_speed_scale(index: int) -> float:
+	return ckf_to_speed_scale(1.5 if PLANT_TANK[index] == 2 else 0.5)
+
 ## `cKF_bs_r_act_mus_*` stems in `aGYO_TYPE_*` order. Empty = no museum mesh (jellyfish).
 const FISH_MUS_STEMS: PackedStringArray = [
 	"funa",

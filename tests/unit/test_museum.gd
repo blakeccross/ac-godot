@@ -168,6 +168,41 @@ func test_insect_actor_pose_flaps() -> void:
 	assert_bool(seen.has(1)).is_true()
 
 
+func test_fish_tank_decor_follows_the_decomp_layout() -> void:
+	assert_int(MuseumDisplay.PLANT_POS.size()).is_equal(14)
+	assert_int(MuseumDisplay.BUBBLE_POS.size()).is_equal(20)
+	assert_int(MuseumDisplay.BUBBLE_TANK.size()).is_equal(20)
+	assert_vector(MuseumDisplay.PLANT_POS[0]).is_equal_approx(Vector3(179.0, 0.0, 170.0), Vector3.ONE * 0.001)
+	assert_vector(MuseumDisplay.LILY_POS).is_equal_approx(Vector3(420.0, 0.0, 220.0), Vector3.ONE * 0.001)
+	assert_int(MuseumDisplay.PLANT_TANK[1]).is_equal(2)
+	assert_float(MuseumDisplay.plant_speed_scale(0)).is_equal_approx(1.0, 0.001)
+	assert_float(MuseumDisplay.plant_speed_scale(1)).is_equal_approx(3.0, 0.001)
+	## Floor snap: GX 40 is the walkable floor, vents start at 60, the surface is 115.
+	assert_float(MuseumDisplay.tank_world_y(60.0)).is_equal_approx(1.0, 0.001)
+	assert_float(MuseumDisplay.tank_world_y(115.0)).is_equal_approx(3.75, 0.001)
+	var bubbles: GDScript = load("res://features/museum/museum_bubbles.gd") as GDScript
+	## Largest bubble (effect scale 0.005) on the 0.8-unit card is 0.2 m across.
+	assert_float(bubbles.call("node_scale_for", 0.005)).is_equal_approx(0.25, 0.0001)
+	assert_float(bubbles.call("node_scale_for", 0.00125)).is_equal_approx(0.0625, 0.0001)
+
+
+func test_museum_bubbles_grow_to_the_vent_scale() -> void:
+	var host := Node3D.new()
+	host.set_script(load("res://features/museum/museum_bubbles.gd"))
+	add_child(host)
+	host._vents[0].wait = 0.0
+	host._step_vents()
+	for _i: int in 6:
+		host._step_bubbles()
+	var bubble: Variant = host._live[0]
+	## The billboard shader scales the quad; the node itself stays at 1.
+	var card: Vector2 = (bubble.mat as ShaderMaterial).get_shader_parameter("card_scale")
+	assert_float(card.x).is_greater(0.05)
+	assert_float(card.x).is_less(0.3)
+	assert_float((bubble.host as Node3D).position.y).is_greater(0.9)
+	host.free()
+
+
 func test_fish_tank_meshes_resolve() -> void:
 	assert_bool(FieldCatalog.mesh_paths(&"obj_suisou1").size() > 0).is_true()
 	assert_bool(FieldCatalog.mesh_paths(&"obj_museum5").size() > 0).is_true()

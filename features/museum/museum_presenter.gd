@@ -239,31 +239,64 @@ func _spawn_fish_tanks(root: Node3D, interior: IndoorSession) -> void:
 	_add_tank_decor(root, grid)
 
 
-## Sea-tank greenery + rising bubbles (`obj_museum5_kusa*` / `hasu`, `ef_museum5_awa1`).
+## Plants in every tank, the lily on tank 1, and the vent bubbles
+## (`kusa_pos` / `hasu_pos` / `suisou_awa_pos`).
 func _add_tank_decor(root: Node3D, grid: WorldGrid) -> void:
-	var acre := Vector3(grid.origin.x, 0.0, grid.origin.z)
-	for visual: StringName in [
-		&"obj_museum5_kusa1", &"obj_museum5_kusa2", &"obj_museum5_kusa3", &"obj_museum5_hasu"
-	]:
+	## Draw Y is absolute GX with the floor at 0. The shell has already lifted that
+	## floor to world 0, so the host sits one water-line below the walkable floor.
+	var drop := MuseumDisplay.tank_world_y(0.0)
+	for i: int in MuseumDisplay.PLANT_POS.size():
+		var visual := StringName(MuseumDisplay.PLANT_VISUAL[i])
 		if FieldCatalog.mesh_paths(visual).is_empty():
 			continue
+		var gx: Vector3 = MuseumDisplay.PLANT_POS[i]
 		var host := Node3D.new()
-		host.name = "Decor_%s" % String(visual)
+		host.name = "Decor_kusa_%02d" % i
 		host.add_to_group("museum_set")
-		host.position = acre
+		host.position = WorldGrid.room_point(
+			grid, Vector3(gx.x * FieldCatalog.GX_TO_METERS, drop, gx.z * FieldCatalog.GX_TO_METERS)
+		)
 		root.add_child(host)
-		GeneratedVisual.attach(host, visual)
+		var pivot: Node3D = GeneratedVisual.attach(host, visual)
+		_play_sway(pivot, MuseumDisplay.PLANT_START_FRAME[i], MuseumDisplay.plant_speed_scale(i))
+	if not FieldCatalog.mesh_paths(&"obj_museum5_hasu").is_empty():
+		var lily := Node3D.new()
+		lily.name = "Decor_hasu"
+		lily.add_to_group("museum_set")
+		var at: Vector3 = MuseumDisplay.LILY_POS
+		lily.position = WorldGrid.room_point(
+			grid, Vector3(at.x * FieldCatalog.GX_TO_METERS, drop, at.z * FieldCatalog.GX_TO_METERS)
+		)
+		lily.rotation.y = MuseumDisplay.LILY_YAW
+		root.add_child(lily)
+		var lily_pivot: Node3D = GeneratedVisual.attach(lily, &"obj_museum5_hasu")
+		_play_sway(lily_pivot, 0.0, MuseumDisplay.ckf_to_speed_scale(0.5))
 	if not FieldCatalog.mesh_paths(&"ef_museum5_awa1").is_empty():
-		var centers: Array[Vector3] = []
-		for i: int in MuseumDisplay.TANK_POS.size():
-			var tank: Vector3 = MuseumDisplay.TANK_POS[i]
-			centers.append(WorldGrid.room_point(grid, Vector3(tank.x, 0.0, tank.z)))
 		var bubbles := Node3D.new()
 		bubbles.name = "TankBubbles"
 		bubbles.add_to_group("museum_set")
 		bubbles.set_script(load("res://features/museum/museum_bubbles.gd"))
-		bubbles.set("tank_centers", centers)
+		bubbles.set("room_origin", grid.origin)
 		root.add_child(bubbles)
+
+
+## cKF sway. `start_frame` is a keyframe index; the clip is keyed at 30 fps.
+func _play_sway(pivot: Node3D, start_frame: float, speed_scale: float) -> void:
+	if pivot == null:
+		return
+	var anim := VisualAnimation.find_animation_player(pivot)
+	if anim == null:
+		return
+	var clips := anim.get_animation_list()
+	if clips.is_empty():
+		return
+	var clip := clips[0]
+	var res := anim.get_animation(clip)
+	if res != null:
+		res.loop_mode = Animation.LOOP_LINEAR
+	anim.speed_scale = speed_scale
+	anim.play(clip)
+	anim.seek(start_frame / 30.0, true)
 
 
 func _add_tank_collision(host: Node3D, half: Vector3, local_center: Vector3 = Vector3.ZERO) -> void:

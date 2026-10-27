@@ -90,10 +90,14 @@ func test_museum_complete_instances_room_scenes() -> void:
 	## Phase 5 atmosphere: window beams + fish-wing tank greenery / bubbles.
 	assert_that(rooms.get_node_or_null("museum_entrance/Furniture/Sunshine_3")).is_not_null()
 	assert_that(rooms.get_node_or_null("museum_insect/Furniture/Sunshine_1")).is_not_null()
-	assert_that(
-		rooms.get_node_or_null("museum_fish/Furniture/Decor_obj_museum5_kusa1")
-	).is_not_null()
-	assert_that(rooms.get_node_or_null("museum_fish/Furniture/TankBubbles")).is_not_null()
+	var fish_furniture: Node = rooms.get_node("museum_fish/Furniture")
+	var plants := 0
+	for child: Node in fish_furniture.get_children():
+		if str(child.name).begins_with("Decor_kusa_"):
+			plants += 1
+	assert_int(plants).is_equal(14)
+	assert_that(fish_furniture.get_node_or_null("Decor_hasu")).is_not_null()
+	assert_that(fish_furniture.get_node_or_null("TankBubbles")).is_not_null()
 	assert_bool(Game.try_enter_interior(&"museum_painting")).is_true()
 	await get_tree().process_frame
 	assert_that(Game.current_room_id).is_equal(&"museum_painting")
