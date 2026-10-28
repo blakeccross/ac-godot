@@ -14,16 +14,41 @@ const _BEACH_PRIM_SAND := Color(206.0 / 255.0, 189.0 / 255.0, 148.0 / 255.0)
 ## Inland river env (0,100,255); mouth acres use (0,60,255) when sprash is present.
 const _RIVER_ENV_INLAND := Color(0.0, 100.0 / 255.0, 1.0, 1.0)
 const _RIVER_ENV_MOUTH := Color(0.0, 60.0 / 255.0, 1.0, 1.0)
+## Sheet opacity, and how much each ripple map adds to it. The decomp's prim alpha and
+## PRIM_LOD_FRAC are both 50/255, but the RDP blended in 8-bit gamma and Godot blends in
+## linear light, which lifts the crests. These were fitted by capture to the gamma composite.
+const _RIVER_BASE_ALPHA := 0.14
+const _RIVER_RIPPLE_ALPHA := 0.10
+## The `game_frame` rate the scrolling water was tuned to by eye (the decomp runs 60), for
+## maps at their native 32 px. emu64 moves a tile 1/8 texel per unit of EVW scroll.
+const _WATER_FRAME_RATE := 45.0
+## EVW SCROLL2 {1,-1} / {-1,-2}; evw flips T, so the sheets drift (-1,-1) and (1,-2).
+const _RIVER_SCROLL_UNIT := _WATER_FRAME_RATE / 8.0 / 32.0
+## `aFD_MakeMarinScrollInfo`: wave1 climbs 0.42666667 per frame, pre-shifted so it moves a
+## quarter texel per unit.
+const _OCEAN_SCROLL := Vector2(0.0, 0.42666667 * _WATER_FRAME_RATE / 4.0 / 32.0)
+## Its 300-frame cosine, at the 180 frames/second it was tuned to (the decomp's 60 is 5 s).
+## Ocean crests and wet sand share it; the sand runs 1.2 radians behind.
+const _OCEAN_SWELL_PERIOD := 300.0 / 180.0
+const _BEACH_SWELL_PHASE := -1.2
+## Map b swings 16 texels (half of map a) in the decomp. The acres have always shown a
+## quarter of that, from 4× maps read as native ones; kept so the shore looks the same.
+const _OCEAN_SWELL_REACH := 0.125
 ## UV per second on the 32×16 well sheet. 7.5 texels/second.
 const _BASIN_SPEED := 7.5
 const _BASIN_SIZE := Vector2(32.0, 16.0)
+## The well water's resting opacity and how much the ripple adds (decomp 50/255 each). The
+## RDP blended in 8-bit gamma and Godot blends in linear light, so these were fitted by
+## capture to the gamma composite, as for the river.
+const _SHRINE_BASE_ALPHA := 0.09
+const _SHRINE_RIPPLE_ALPHA := 0.15
 ## Some river acres (verified: `grd_s_c5_r2`, `grd_s_r2`) convert with their XLU
 ## water surface stopping short of the acre's own edge on one side by a small,
 ## consistent margin (~0.46 of a ~10.24-unit acre) while every opaque ground
 ## surface reaches the full edge. `world_builder.gd` places acres edge-to-edge
 ## with no overlap, so that shortfall shows up in-game as a flat, unpatterned
-## seam right at the acre boundary — nothing draws there, so the water shader's
-## screen-texture read shows through with no pattern. Reproduced directly:
+## seam right at the acre boundary — no water sheet draws there, so the bed shows
+## through with no ripple pattern. Reproduced directly:
 ## placing two such acres side by side (their real `world_builder.gd` layout)
 ## renders exactly this gap.
 ##
@@ -216,16 +241,18 @@ static func make_river_water_material(std: StandardMaterial3D, mouth: bool = fal
 	var sh := ShaderMaterial.new()
 	sh.shader = _RIVER_WATER_SHADER
 	sh.render_priority = 1
-	var water1: Texture2D = std.albedo_texture
-	var water2: Texture2D = _layer1_texture(std)
-	if water2 == null or water2 == water1:
+	var ripple_a: Texture2D = std.albedo_texture
+	var ripple_b: Texture2D = _layer1_texture(std)
+	if ripple_b == null or ripple_b == ripple_a:
 		push_warning("GeneratedVisual: river water2 missing; dual scroll will look wrong")
-	sh.set_shader_parameter("water1", water1)
-	sh.set_shader_parameter("water2", water2)
-	sh.set_shader_parameter("env_color", _RIVER_ENV_MOUTH if mouth else _RIVER_ENV_INLAND)
-	sh.set_shader_parameter("prim_color", Color(1.0, 1.0, 1.0, 50.0 / 255.0))
-	## Native 32² water_1/2; 45 keeps the old 180 tune against 4× repaints.
-	sh.set_shader_parameter("game_fps", 45.0)
+	sh.set_shader_parameter("ripple_texture_a", ripple_a)
+	sh.set_shader_parameter("ripple_texture_b", ripple_b)
+	sh.set_shader_parameter("deep_color", _RIVER_ENV_MOUTH if mouth else _RIVER_ENV_INLAND)
+	sh.set_shader_parameter("crest_color", Color.WHITE)
+	sh.set_shader_parameter("base_alpha", _RIVER_BASE_ALPHA)
+	sh.set_shader_parameter("ripple_alpha", _RIVER_RIPPLE_ALPHA)
+	sh.set_shader_parameter("scroll_a", Vector2(-1.0, -1.0) * _RIVER_SCROLL_UNIT)
+	sh.set_shader_parameter("scroll_b", Vector2(1.0, -2.0) * _RIVER_SCROLL_UNIT)
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
 	sh.set_meta("river_water", true)
 	return sh
@@ -241,15 +268,18 @@ static func make_ocean_water_material(std: StandardMaterial3D, src: Material) ->
 	var wave2: Texture2D = _layer1_texture(std)
 	if wave2 == null or wave2 == wave1:
 		push_warning("GeneratedVisual: ocean tile1 missing; wave crests will look wrong")
-	sh.set_shader_parameter("wave1", wave1)
-	sh.set_shader_parameter("wave2", wave2)
-	sh.set_shader_parameter("prim_color", Color(60.0 / 255.0, 120.0 / 255.0, 1.0, 1.0))
-	sh.set_shader_parameter("game_fps", 180.0)
+	sh.set_shader_parameter("wave_texture_a", wave1)
+	sh.set_shader_parameter("wave_texture_b", wave2)
+	sh.set_shader_parameter("water_color", Color(60.0 / 255.0, 120.0 / 255.0, 1.0))
+	sh.set_shader_parameter("scroll_a", _OCEAN_SCROLL)
+	sh.set_shader_parameter("swell_period", _OCEAN_SWELL_PERIOD)
+	sh.set_shader_parameter("swell_reach", _OCEAN_SWELL_REACH)
+	## The mesh UVs count wave1 tiles; the shore's wave2 is a taller map.
+	if wave1 != null and wave2 != null:
+		sh.set_shader_parameter("wave_b_scale", wave1.get_size() / wave2.get_size())
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
 	## Shore band tile1 is wave2 with GX_CLAMP T; open water is wave3 REPEAT.
-	sh.set_shader_parameter(
-		"wave2_clamp_v", 1.0 if bool(VisualSurface.gltf_extras(src).get("wave2_clamp_t", false)) else 0.0
-	)
+	sh.set_shader_parameter("wave_b_clamp_v", bool(VisualSurface.gltf_extras(src).get("wave2_clamp_t", false)))
 	sh.set_meta("ocean_water", true)
 	return sh
 
@@ -269,31 +299,81 @@ static func _waterfall_layer_index(mat: Material, surface: int) -> int:
 	return surface if surface >= 0 and surface <= 3 else 1
 
 
+## The four `obj_fallS` sheets (grpAT, BT, CT, DT), in draw order. Colours are the
+## combiners' fixed PRIM / ENV; `*_lit` / `*_add` are their TEXEL terms (LOD 32 / 47 on AT /
+## CT). Scroll is the EVW SCROLL2 pair as evw hands it to the tile (Y negated: AT {0,2}
+## becomes (0,-2)); `uv` is each tile's shift (AT tile1 (0,14) ×4 V, CT tile0 (15,15) ×2, DT tile1 (0,1)
+## ½ V) times its size against the 32 px tile 0 (AT / CT tile1 is 16 px).
+const _WATERFALL_LAYERS: Array[Dictionary] = [
+	{
+		"water": Color8(200, 220, 255), "glow": Color8(20, 30, 40),
+		"a_lit": 0.0, "a_add": 0.0, "b_add": 32.0 / 255.0, "a_alpha_offset": 0.0,
+		"scroll_a": Vector2(0.0, 0.0), "scroll_b": Vector2(0.0, -2.0),
+		"uv_a": Vector2(1.0, 1.0), "uv_b": Vector2(2.0, 8.0), "native_b": 16.0,
+		"alpha_a": false, "alpha_b": false,
+	},
+	{
+		"water": Color8(100, 140, 255), "glow": Color8(0, 0, 0),
+		"a_lit": 1.0, "a_add": 0.0, "b_add": 1.0, "a_alpha_offset": 0.0,
+		"scroll_a": Vector2(0.0, 3.0), "scroll_b": Vector2(0.0, 8.0),
+		"uv_a": Vector2(1.0, 1.0), "uv_b": Vector2(1.0, 1.0), "native_b": 32.0,
+		"alpha_a": true, "alpha_b": true,
+	},
+	{
+		"water": Color8(200, 220, 255), "glow": Color8(30, 40, 50),
+		"a_lit": 0.0, "a_add": 47.0 / 255.0, "b_add": 0.0, "a_alpha_offset": 1.0,
+		"scroll_a": Vector2(-1.0, -1.0), "scroll_b": Vector2(0.0, 0.0),
+		"uv_a": Vector2(2.0, 2.0), "uv_b": Vector2(2.0, 2.0), "native_b": 16.0,
+		"alpha_a": false, "alpha_b": false,
+	},
+	{
+		## Tile 1 is only the crest mask; adding it as colour clamps the lip to white.
+		"water": Color8(100, 140, 255), "glow": Color8(0, 0, 0),
+		"a_lit": 1.0, "a_add": 1.0, "b_add": 0.0, "a_alpha_offset": 0.0,
+		"scroll_a": Vector2(0.0, 8.0), "scroll_b": Vector2(0.0, 0.0),
+		"uv_a": Vector2(1.0, 1.0), "uv_b": Vector2(1.0, 0.5), "native_b": 32.0,
+		"alpha_a": true, "alpha_b": false,
+	},
+]
+
+
 static func make_waterfall_water_material(
 	std: StandardMaterial3D, src: Material, surface: int
 ) -> ShaderMaterial:
 	## Decomp obj_fallS grpAT/BT/CT/DT — dual-scroll EVW_ANIME SCROLL2.
 	var sh := ShaderMaterial.new()
 	sh.shader = _WATERFALL_WATER_SHADER
+	var index := _waterfall_layer_index(src, surface)
+	var layer: Dictionary = _WATERFALL_LAYERS[index]
 	## Draw AT → DT so each sheet composites over the one before it.
-	sh.render_priority = 2 + _waterfall_layer_index(src, surface)
+	sh.render_priority = 2 + index
 	var tile0: Texture2D = std.albedo_texture
 	var tile1: Texture2D = _layer1_texture(std)
 	if tile1 == null or tile1 == tile0:
 		push_warning("GeneratedVisual: waterfall tile1 missing; dual scroll will look wrong")
-	sh.set_shader_parameter("tile0", tile0)
-	sh.set_shader_parameter("tile1", tile1)
-	sh.set_shader_parameter("waterfall_layer", _waterfall_layer_index(src, surface))
-	## Native 32² tiles. 45 matches the old 180 Hz tune, which was compensating
-	## for 4× upscaled sheets (180/128 = 45/32).
-	sh.set_shader_parameter("game_fps", 45.0)
+	sh.set_shader_parameter("texture_a", tile0)
+	sh.set_shader_parameter("texture_b", tile1)
+	sh.set_shader_parameter("water_color", layer["water"])
+	sh.set_shader_parameter("glow_color", layer["glow"])
+	for term: String in ["a_lit", "a_add", "b_add", "a_alpha_offset"]:
+		sh.set_shader_parameter(term, layer[term])
+	sh.set_shader_parameter("uv_scale_a", layer["uv_a"])
+	sh.set_shader_parameter("uv_scale_b", layer["uv_b"])
+	## emu64 moves a tile 1/8 texel per unit; the drift runs against the texel offset.
+	sh.set_shader_parameter("scroll_a", -(layer["scroll_a"] as Vector2) * _WATER_FRAME_RATE / 8.0 / 32.0)
+	sh.set_shader_parameter(
+		"scroll_b", -(layer["scroll_b"] as Vector2) * _WATER_FRAME_RATE / 8.0 / float(layer["native_b"])
+	)
+	sh.set_shader_parameter("coverage_a_in_alpha", layer["alpha_a"])
+	sh.set_shader_parameter("coverage_b_in_alpha", layer["alpha_b"])
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
 	var extras := VisualSurface.gltf_extras(src)
-	sh.set_shader_parameter("tile0_mirror_s", 1.0 if bool(extras.get("tile0_mirror_s", false)) else 0.0)
-	sh.set_shader_parameter("tile0_clamp_v", 1.0 if bool(extras.get("tile0_clamp_v", false)) else 0.0)
-	sh.set_shader_parameter("tile1_mirror_s", 1.0 if bool(extras.get("tile1_mirror_s", false)) else 0.0)
-	sh.set_shader_parameter("tile1_clamp_v", 1.0 if bool(extras.get("tile1_clamp_v", false)) else 0.0)
+	sh.set_shader_parameter("mirror_a_u", bool(extras.get("tile0_mirror_s", false)))
+	sh.set_shader_parameter("clamp_a_v", bool(extras.get("tile0_clamp_v", false)))
+	sh.set_shader_parameter("mirror_b_u", bool(extras.get("tile1_mirror_s", false)))
+	sh.set_shader_parameter("clamp_b_v", bool(extras.get("tile1_clamp_v", false)))
 	sh.set_meta("waterfall_water", true)
+	sh.set_meta("waterfall_layer", index)
 	return sh
 
 
@@ -306,10 +386,15 @@ static func make_splash_water_material(std: StandardMaterial3D) -> ShaderMateria
 	var sprash_a: Texture2D = _layer1_texture(std)
 	if sprash_a == null or sprash_a == sprash_c:
 		push_warning("GeneratedVisual: sprashA missing; mouth splash will look wrong")
-	sh.set_shader_parameter("sprash_c", sprash_c)
-	sh.set_shader_parameter("sprash_a", sprash_a)
-	sh.set_shader_parameter("prim_color", Color(100.0 / 255.0, 140.0 / 255.0, 1.0, 200.0 / 255.0))
-	sh.set_shader_parameter("game_fps", 180.0)
+	sh.set_shader_parameter("streak_texture", sprash_c)
+	sh.set_shader_parameter("foam_texture", sprash_a)
+	sh.set_shader_parameter("water_color", Color8(100, 140, 255))
+	## The T1 add, 45% of the way from the prim to white.
+	sh.set_shader_parameter("foam_color", Color8(170, 192, 255))
+	sh.set_shader_parameter("opacity", 200.0 / 255.0)
+	## Evw {0,-6}, 1/8 texel per unit on the 32 px map. The foam map's shift_t 1 halves V.
+	sh.set_shader_parameter("streak_scroll", Vector2(0.0, -6.0 * _WATER_FRAME_RATE / 8.0 / 32.0))
+	sh.set_shader_parameter("foam_scale", Vector2(1.0, 0.5))
 	## Slightly above river/ocean XLU so the mouth foam composites cleanly.
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.75)
 	sh.set_meta("splash_water", true)
@@ -325,25 +410,26 @@ static func make_shrine_basin_material(std: StandardMaterial3D, splash: bool) ->
 	var tile1: Texture2D = _layer1_texture(std)
 	if tile1 == null or tile1 == tile0:
 		push_warning("GeneratedVisual: shrine basin tile1 missing; the well water will look flat")
-	sh.set_shader_parameter("tile0", tile0)
-	sh.set_shader_parameter("tile1", tile1)
-	var scroll0 := Vector2(0.0, 5.0)
-	var scroll1 := Vector2(0.0, 3.0)
-	var tint := Vector3(0.0, 100.0 / 255.0, 1.0)
-	var mask_alpha := 50.0 / 255.0
-	var base_alpha := 50.0 / 255.0
+	sh.set_shader_parameter("ripple_texture_a", tile0)
+	sh.set_shader_parameter("ripple_texture_b", tile1)
+	## Texels per second on the 32×16 sheet; the masks drift against their texel offset.
+	var scroll_a := Vector2(0.0, 5.0)
+	var scroll_b := Vector2(0.0, 3.0)
+	var water_color := Color8(0, 100, 255)
+	var ripple_alpha := _SHRINE_RIPPLE_ALPHA
+	var base_alpha := _SHRINE_BASE_ALPHA
 	var depth_bias := 0.01
 	if splash:
-		scroll0 = Vector2(-50.0, 0.0)
-		scroll1 = Vector2(0.0, -13.0)
-		tint = Vector3(127.0 / 255.0, 160.0 / 255.0, 160.0 / 255.0)
-		mask_alpha = 120.0 / 255.0
+		scroll_a = Vector2(-50.0, 0.0)
+		scroll_b = Vector2(0.0, -13.0)
+		water_color = Color8(127, 160, 160)
+		ripple_alpha = 120.0 / 255.0
 		base_alpha = 1.0
 		depth_bias = 0.02
-	sh.set_shader_parameter("scroll0", scroll0 * _BASIN_SPEED / _BASIN_SIZE)
-	sh.set_shader_parameter("scroll1", scroll1 * _BASIN_SPEED / _BASIN_SIZE)
-	sh.set_shader_parameter("tint", tint)
-	sh.set_shader_parameter("mask_alpha", mask_alpha)
+	sh.set_shader_parameter("scroll_a", -scroll_a * _BASIN_SPEED / _BASIN_SIZE)
+	sh.set_shader_parameter("scroll_b", -scroll_b * _BASIN_SPEED / _BASIN_SIZE)
+	sh.set_shader_parameter("water_color", water_color)
+	sh.set_shader_parameter("ripple_alpha", ripple_alpha)
 	sh.set_shader_parameter("base_alpha", base_alpha)
 	sh.set_shader_parameter("depth_bias", depth_bias)
 	sh.set_meta("shrine_water", true)
@@ -351,11 +437,13 @@ static func make_shrine_basin_material(std: StandardMaterial3D, splash: bool) ->
 
 
 static func make_shrine_bubble_material(std: StandardMaterial3D) -> ShaderMaterial:
-	## Rising card above the rim. Colour and scroll live in the shader.
+	## Rising card above the rim: the lit colour lifted by 80, coverage 180.
 	var sh := ShaderMaterial.new()
 	sh.shader = _SHRINE_BUBBLE_SHADER
 	sh.render_priority = 3
-	sh.set_shader_parameter("bubble_tex", std.albedo_texture)
+	sh.set_shader_parameter("bubble_texture", std.albedo_texture)
+	sh.set_shader_parameter("lift", Color8(80, 80, 80))
+	sh.set_shader_parameter("opacity", 180.0 / 255.0)
 	sh.set_meta("shrine_bubble", true)
 	return sh
 
@@ -367,8 +455,12 @@ static func make_beach_wet_material(
 	var sh := ShaderMaterial.new()
 	sh.shader = _BEACH_WET_SHADER
 	sh.set_shader_parameter("albedo_texture", std.albedo_texture)
-	sh.set_shader_parameter("prim_color", _beach_prim_color(src))
-	sh.set_shader_parameter("game_fps", 180.0)
+	sh.set_shader_parameter("surface_color", _beach_prim_color(src))
+	## `aFD_MakeMarinScrollInfo` env: (144,128,96) plus up to (42,36,28) on the swell.
+	sh.set_shader_parameter("wet_color_low", Color8(144, 128, 96))
+	sh.set_shader_parameter("wet_color_high", Color8(186, 164, 124))
+	sh.set_shader_parameter("swell_period", _OCEAN_SWELL_PERIOD)
+	sh.set_shader_parameter("swell_phase", _BEACH_SWELL_PHASE)
 	sh.set_meta("beach_wet", true)
 	return sh
 

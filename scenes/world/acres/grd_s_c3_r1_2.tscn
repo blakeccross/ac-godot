@@ -11,14 +11,14 @@
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_c3_r1_2/grd_s_c3_r1_2_mask.res" id="9_8a7qb"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/202a112f0287.tres" id="10_6josr"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_c3_r1_2/grd_s_c3_r1_2_blend.res" id="11_ef5eo"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/river_6c1924ebe8e3.tres" id="12_jlsts"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/river_413876017366.tres" id="12_jlsts"]
 
-[node name="grd_s_c3_r1_2" type="Node3D" unique_id=1340769692]
+[node name="grd_s_c3_r1_2" type="Node3D" unique_id=727559425]
 script = ExtResource("1_g52vh")
 visual_id = &"grd_s_c3_r1_2"
 grid = ExtResource("2_gn8ay")
 
-[node name="grd_s_c3_r1_22" type="MeshInstance3D" parent="." unique_id=614564438]
+[node name="grd_s_c3_r1_22" type="MeshInstance3D" parent="." unique_id=440101383]
 mesh = ExtResource("3_yj4u6")
 surface_material_override/0 = ExtResource("4_7hojm")
 surface_material_override/1 = ExtResource("5_ub0xq")
@@ -26,10 +26,10 @@ surface_material_override/2 = ExtResource("6_5kuk5")
 surface_material_override/3 = ExtResource("7_t8evp")
 surface_material_override/4 = ExtResource("8_ouy6n")
 
-[node name="grd_s_c3_r1_2_mask" type="MeshInstance3D" parent="." unique_id=1264099039]
+[node name="grd_s_c3_r1_2_mask" type="MeshInstance3D" parent="." unique_id=2143243131]
 mesh = ExtResource("9_8a7qb")
 surface_material_override/0 = ExtResource("10_6josr")
 
-[node name="grd_s_c3_r1_2_blend" type="MeshInstance3D" parent="." unique_id=995028143]
+[node name="grd_s_c3_r1_2_blend" type="MeshInstance3D" parent="." unique_id=1571681291]
 mesh = ExtResource("11_ef5eo")
 surface_material_override/0 = ExtResource("12_jlsts")

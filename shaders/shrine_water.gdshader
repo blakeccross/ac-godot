@@ -1,42 +1,34 @@
 shader_type spatial;
-// Wishing-well sheet. Two scrolling masks multiply, then add to a tinted shade.
-// Blend in gamma against the framebuffer: a linear blend lifts the bright crests.
-render_mode unshaded, blend_mix, depth_draw_opaque, cull_disabled, shadows_disabled,
-		specular_disabled, ambient_light_disabled, fog_disabled;
+// Wishing-well water, and the splash rim under its spout. Two scrolling masks
+// multiply into a ripple that brightens the lit water colour and adds to its
+// opacity. The rim runs the same shader opaque and faster.
+render_mode unshaded, cull_disabled, world_vertex_coords;
 
 #include "field_shade.gdshaderinc"
 
-uniform sampler2D tile0 : source_color, filter_linear, repeat_enable;
-uniform sampler2D tile1 : source_color, filter_linear, repeat_enable;
-uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_nearest;
-uniform vec3 tint = vec3(0.0, 0.39215687, 1.0);
-uniform float mask_alpha = 0.19607843;
-uniform float base_alpha = 0.19607843;
-// UV per second. The splash rim overrides these.
-uniform vec2 scroll0 = vec2(0.0, 2.34375);
-uniform vec2 scroll1 = vec2(0.0, 1.40625);
+uniform sampler2D ripple_texture_a : hint_default_black, filter_linear, repeat_enable;
+uniform sampler2D ripple_texture_b : hint_default_black, filter_linear, repeat_enable;
+uniform vec3 water_color : source_color = vec3(0.0, 0.392, 1.0);
+uniform float base_alpha : hint_range(0.0, 1.0) = 0.09;
+uniform float ripple_alpha : hint_range(0.0, 1.0) = 0.15;
+// UV per second.
+uniform vec2 scroll_a = vec2(0.0, -2.34375);
+uniform vec2 scroll_b = vec2(0.0, -1.40625);
 // Metres toward the camera, so the sheet sits on the stone.
 uniform float depth_bias = 0.01;
 
 varying vec3 vertex_shade;
 
 void vertex() {
-	vec3 n = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	vertex_shade = field_shade(n, world);
-	vec3 view = (VIEW_MATRIX * vec4(world, 1.0)).xyz;
-	view.z += depth_bias;
-	POSITION = PROJECTION_MATRIX * vec4(view, 1.0);
+	vertex_shade = field_shade(normalize(NORMAL), VERTEX);
+	VERTEX += normalize(CAMERA_POSITION_WORLD - VERTEX) * depth_bias;
 }
 
 void fragment() {
-	// Grey masks. source_color returns linear; the tint multiply is in gamma.
-	float t0 = linear_to_srgb(vec3(texture(tile0, UV - scroll0 * TIME).r)).r;
-	float t1 = linear_to_srgb(vec3(texture(tile1, UV - scroll1 * TIME).r)).r;
-	float mask = t0 * t1;
-	vec3 rgb = clamp(tint * vertex_shade + vec3(mask), vec3(0.0), vec3(1.0));
-	float a = clamp(mask * mask_alpha + base_alpha, 0.0, 1.0);
-	vec3 back = linear_to_srgb(textureLod(screen_texture, SCREEN_UV, 0.0).rgb);
-	ALBEDO = srgb_to_linear(mix(back, rgb, a));
-	ALPHA = 1.0;
+	float ripple = texture(ripple_texture_a, UV + scroll_a * TIME).r
+			* texture(ripple_texture_b, UV + scroll_b * TIME).r;
+	// The decomp adds 8-bit gamma values.
+	vec3 rgb = linear_to_srgb(water_color) * vertex_shade + ripple;
+	ALBEDO = srgb_to_linear(clamp(rgb, 0.0, 1.0));
+	ALPHA = clamp(base_alpha + ripple * ripple_alpha, 0.0, 1.0);
 }

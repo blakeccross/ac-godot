@@ -5,19 +5,19 @@
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_player_select/grd_player_select2.res" id="3_xackn"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/7b2d4ecabd13.tres" id="4_4kdh1"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_player_select/grd_player_select_blend.res" id="5_irpjo"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/f1949539be1d.tres" id="6_auuwo"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/f0a6d86296ae.tres" id="6_auuwo"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/1551b8aad7e9.tres" id="7_tpkpc"]
 
-[node name="grd_player_select" type="Node3D" unique_id=251991299]
+[node name="grd_player_select" type="Node3D" unique_id=1638472734]
 script = ExtResource("1_o3umr")
 visual_id = &"grd_player_select"
 grid = ExtResource("2_r54nf")
 
-[node name="grd_player_select2" type="MeshInstance3D" parent="." unique_id=1631918905]
+[node name="grd_player_select2" type="MeshInstance3D" parent="." unique_id=83307566]
 mesh = ExtResource("3_xackn")
 surface_material_override/0 = ExtResource("4_4kdh1")
 
-[node name="grd_player_select_blend" type="MeshInstance3D" parent="." unique_id=1839977393]
+[node name="grd_player_select_blend" type="MeshInstance3D" parent="." unique_id=1271709455]
 mesh = ExtResource("5_irpjo")
 surface_material_override/0 = ExtResource("6_auuwo")
 surface_material_override/1 = ExtResource("7_tpkpc")

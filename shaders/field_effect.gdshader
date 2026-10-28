@@ -29,6 +29,8 @@ uniform bool intensity_alpha = false;
 // turi_hamon: the texture is one quarter of the ring and `GX_MIRROR` folds it out to the
 // whole quad, whose UVs (0–1 here) cover two tiles each way.
 uniform bool mirror_uv = false;
+// How often sunahane's noise re-rolls, per second (every 60 Hz frame).
+const float NOISE_RATE = 60.0;
 
 void vertex() {
 	if (billboard) {
@@ -66,7 +68,7 @@ void fragment() {
 		rgb = mix(prim_color.rgb, vec3(1.0), t0.r);
 		add = env_color.rgb;
 	} else if (mode == 3) {
-		float noise = hash(floor(UV * 16.0) + vec2(floor(TIME * 60.0)));
+		float noise = hash(floor(UV * 16.0) + vec2(floor(TIME * NOISE_RATE)));
 		rgb = clamp((vec3(noise) - t0.rgb) * prim_color.rgb + env_color.rgb, 0.0, 1.0);
 	} else if (mode == 4) {
 		rgb = t0.rgb;

@@ -17,7 +17,6 @@ var _shown: int = -1
 var _lift: float = 0.0
 var _scale: float = 1.0
 var _swarm_mat: ShaderMaterial = null
-var _swarm_ticks: float = 0.0
 
 
 func build(bug: BugData, p_swarm: bool = false) -> void:
@@ -98,9 +97,7 @@ func sync(actor: BugActor, _delta: float) -> void:
 	)
 	transform = Transform3D(basis.scaled(Vector3.ONE * _scale), Vector3(0.0, actor.height - _lift, 0.0))
 	if _swarm_mat != null:
-		## `act_ant_evw_anime` scrolls per tick; PRIM alpha carries the fade.
-		_swarm_ticks = fmod(_swarm_ticks + _delta * DecompTime.TICK_HZ, 8192.0)
-		_swarm_mat.set_shader_parameter(&"ticks", _swarm_ticks)
+		## The crawl scrolls on shader TIME; PRIM alpha carries the fade.
 		_swarm_mat.set_shader_parameter(&"opacity", actor.alpha)
 		return
 	_apply_alpha(actor.alpha)

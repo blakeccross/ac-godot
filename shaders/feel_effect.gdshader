@@ -4,8 +4,8 @@ render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabl
 // Villager feel effects (`ef_pun`, `ef_siawase`, `ef_think`, `ef_namida`, `ef_kaze`, …).
 // Almost every one draws `PRIMITIVE, ENVIRONMENT, TEXEL, ENVIRONMENT`: the texel's intensity
 // blends ENV → PRIM, alpha is the texel's alpha × PRIM.a. The two-tile ones first mix the
-// tiles by PRIM_LOD_FRAC, and some scroll a tile (`Evw_Anime` SCROLL2 /
-// `two_tex_scroll_dolphin`, texels per tick ÷ 8 as on the waterfall).
+// tiles by PRIM_LOD_FRAC, and some scroll a tile (`Evw_Anime` SCROLL2, as UV per
+// second).
 //   alpha_mode 0  T0.a
 //              1  mix(T0.a, T1.a, lod)
 //              2  T0.a · T1.a
@@ -28,7 +28,7 @@ uniform bool i4_0 = false;
 uniform bool i4_1 = false;
 uniform bool mirror0 = false;
 uniform bool mirror1 = false;
-// Texels the tile has moved, already scaled to the tick.
+// Each tile's drift, UV per second.
 uniform vec2 scroll0 = vec2(0.0);
 uniform vec2 scroll1 = vec2(0.0);
 // UV scale of each tile: the tile's shift, and tile 1's size against tile 0's (the mesh
@@ -46,16 +46,14 @@ vec2 wrap_uv(vec2 uv, bool mirror) {
 }
 
 void fragment() {
-	vec2 s0 = max(vec2(textureSize(tex0, 0)), vec2(1.0));
-	vec4 t0 = texture(tex0, wrap_uv(UV * uv0_scale - scroll0 / s0, mirror0));
+	vec4 t0 = texture(tex0, wrap_uv(UV * uv0_scale + scroll0 * TIME, mirror0));
 	if (i4_0) {
 		t0.a = t0.r;
 	}
 	float c = t0.r;
 	float a = t0.a;
 	if (two_tiles) {
-		vec2 s1 = max(vec2(textureSize(tex1, 0)), vec2(1.0));
-		vec4 t1 = texture(tex1, wrap_uv(UV * uv1_scale - scroll1 / s1, mirror1));
+		vec4 t1 = texture(tex1, wrap_uv(UV * uv1_scale + scroll1 * TIME, mirror1));
 		if (i4_1) {
 			t1.a = t1.r;
 		}

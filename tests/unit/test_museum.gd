@@ -226,8 +226,8 @@ func test_tank_caustic_uses_both_water_tiles() -> void:
 	) as ShaderMaterial
 	assert_that(mat).is_not_null()
 	assert_str(String(mat.get_meta("tank_layer", &""))).is_equal("caustic")
-	assert_object(mat.get_shader_parameter("water1")).is_same(tile0)
-	assert_object(mat.get_shader_parameter("water2")).is_same(tile1)
+	assert_object(mat.get_shader_parameter("ripple_texture_a")).is_same(tile0)
+	assert_object(mat.get_shader_parameter("ripple_texture_b")).is_same(tile1)
 
 
 func test_fish_tank_materials_stop_layer_fighting() -> void:
@@ -250,8 +250,8 @@ func test_fish_tank_materials_stop_layer_fighting() -> void:
 				var layer: StringName = (mat as ShaderMaterial).get_meta("tank_layer", &"")
 				assert_bool(layer in [&"evw", &"mizu", &"caustic"]).is_true()
 				if layer == &"caustic":
-					var water1: Texture2D = (mat as ShaderMaterial).get_shader_parameter("water1")
-					var water2: Texture2D = (mat as ShaderMaterial).get_shader_parameter("water2")
+					var water1: Texture2D = (mat as ShaderMaterial).get_shader_parameter("ripple_texture_a")
+					var water2: Texture2D = (mat as ShaderMaterial).get_shader_parameter("ripple_texture_b")
 					assert_that(water1).is_not_null()
 					assert_that(water2).is_not_null()
 					assert_object(water2).is_not_same(water1)

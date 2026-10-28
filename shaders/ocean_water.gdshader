@@ -1,92 +1,52 @@
 shader_type spatial;
-render_mode unshaded, blend_mix, depth_draw_opaque, cull_disabled, shadows_disabled, specular_disabled, ambient_light_disabled;
+// Translucent wave crests over the opaque ocean bed (`beach_wet.gdshader` draws
+// the blue body underneath). Decomp reference: the `grd_*_modelT` XLU combiner
+// and `aFD_MakeMarinScrollInfo`. Colour is water_color × brightness + a × (b + 1),
+// and opacity is a × b, so this layer is only a thin white crest wash (peak
+// alpha ≈ 0.18).
+// Map a slides steadily up the shore. Map b swells back and forth on a cosine.
+// The shore band's map b clamps in V (its crest line must not repeat), and the
+// open-water bands repeat.
+// The maps sample linear: they are 32 px cells stretched across a whole acre.
+render_mode unshaded, cull_disabled, world_vertex_coords;
 
-// Acre XLU ocean — decomp `grd_*_modelT` + `aFD_MakeMarinScrollInfo`.
-//
-// CombineLERP:
-//   TEXEL1, 0, TEXEL0, TEXEL0,  TEXEL1, 0, TEXEL0, 0,
-//   PRIMITIVE, 0, SHADE, COMBINED,  0, 0, 0, COMBINED
-// Cycle1 RGB (TEXEL1 - 0) * TEXEL0 + TEXEL0 = TEXEL0 * (TEXEL1 + 1)
-// Cycle2 RGB PRIM * SHADE + COMBINED;  A = TEXEL0.a * TEXEL1.a. Prim (60,120,255).
-//
-// Both tiles are IA8, so .rgb is intensity and .a is coverage. Peak alpha is only
-// ~0.18, so this layer is a thin white crest wash — the blue body is the OPA
-// beach2/beachB bed (prim 32,48,144) drawn underneath by beach_wet.gdshader.
-//
-// TEXEL0 is wave1 32x32 REPEAT/REPEAT on every band. TEXEL1 is wave2 32x64
-// REPEAT/CLAMP on the shore band and wave3 32x32 REPEAT/REPEAT further out.
-//
-// Sampling is linear, not nearest like the rest of the project: m_rcp sets
-// G_TF_BILERP globally, and these 32px cell maps are stretched over a whole acre,
-// so point sampling turns the soft crests into hard single-pixel cracks.
-uniform sampler2D wave1 : filter_linear, repeat_enable;
-uniform sampler2D wave2 : filter_linear, repeat_enable;
-uniform vec4 prim_color : source_color = vec4(0.23529412, 0.47058824, 1.0, 1.0);
-// `play->game_frame` (evw_anime.c) increments once per rendered frame; the
-// texel-conversion chain below it (two_tex_scroll_dolphin -> emu64 SETTILESIZE,
-// verified against src/static/libforest/emu64/emu64.c) is exact — tune this
-// constant, not the /8 or /4 below. Bisecting against in-game feel: 60 too slow,
-// 120 closer but still slow. 180 is the current test point, not a verified value.
-uniform float game_fps = 180.0;
-uniform float ground_lift = 0.02;
-uniform float wave2_clamp_v = 0.0;
-// G_LIGHTING is on, but acre-edge normals are faceted and turn the sheet into
-// visible triangle seams, so SHADE stands in as a constant.
-uniform float shade : hint_range(0.0, 1.0) = 0.85;
+#include "gamma.gdshaderinc"
 
-vec3 srgb_to_linear(vec3 c) {
-	bvec3 cutoff = lessThanEqual(c, vec3(0.04045));
-	vec3 lo = c / 12.92;
-	vec3 hi = pow((c + vec3(0.055)) / 1.055, vec3(2.4));
-	return mix(hi, lo, vec3(cutoff));
-}
-
-vec3 linear_to_srgb(vec3 c) {
-	bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
-	vec3 lo = c * 12.92;
-	vec3 hi = 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055;
-	return mix(hi, lo, vec3(cutoff));
-}
+uniform sampler2D wave_texture_a : hint_default_black, filter_linear, repeat_enable;
+uniform sampler2D wave_texture_b : hint_default_black, filter_linear, repeat_enable;
+uniform vec3 water_color : source_color = vec3(0.235, 0.471, 1.0);
+// Stands in for the vertex light. Acre-edge normals are faceted and would show
+// the triangles.
+uniform float brightness : hint_range(0.0, 1.0) = 0.85;
+// UV per second.
+uniform vec2 scroll_a = vec2(0.0, 0.15);
+// Map b's swell: the seconds per cycle, and the map-a UV it travels at the peak.
+uniform float swell_period = 1.6666667;
+uniform float swell_reach = 0.5;
+// Map b's UV per map-a UV (the shore map is twice as tall as map a).
+uniform vec2 wave_b_scale = vec2(1.0);
+uniform bool wave_b_clamp_v = false;
+// Metres the sheet floats above the coplanar bed.
+uniform float ground_lift = 0.025;
 
 void vertex() {
-	vec4 world = MODEL_MATRIX * vec4(VERTEX, 1.0);
-	world.y += ground_lift;
-	POSITION = PROJECTION_MATRIX * VIEW_MATRIX * world;
+	VERTEX.y += ground_lift;
 }
 
 void fragment() {
-	float frame = TIME * game_fps;
-	float wave_cos = cos(mod(frame, 300.0) / 300.0 * TAU);
-
-	// aFD_MakeMarinScrollInfo feeds two_tex_scroll_dolphin(scroll << 1); emu64 then
-	// takes sl = x << 1 over 16 subtexels, so both tiles move scroll/4 texels in T.
-	float t0_texels = (frame * -0.42666667 - 7.0) / 4.0;
-	float t1_texels = (32.0 * (1.0 - wave_cos)) / 4.0;
-
-	vec2 s0 = max(vec2(textureSize(wave1, 0)), vec2(1.0));
-	vec2 s1 = max(vec2(textureSize(wave2, 0)), vec2(1.0));
-
-	// UVs are authored in tile0 texel space, so tile1 rescales by the size ratio
-	// (the 32x64 shore wave2 covers V 0..0.5, not 0..1).
-	vec2 uv0 = fract(UV - vec2(0.0, t0_texels / s0.y));
-	vec2 uv1 = UV * (s0 / s1) - vec2(0.0, t1_texels / s1.y);
-	uv1.x = fract(uv1.x);
-	if (wave2_clamp_v > 0.5) {
-		// GX_CLAMP T. The sampler repeats, so stop a half texel short of the edge —
-		// clamping to exactly 1.0 wraps back to row 0 and streaks the shore band.
-		float half_texel = 0.5 / s1.y;
-		uv1.y = clamp(uv1.y, half_texel, 1.0 - half_texel);
-	} else {
-		uv1.y = fract(uv1.y);
+	float swell = 0.5 - 0.5 * cos(TIME / swell_period * TAU);
+	vec2 uv_a = UV + scroll_a * TIME;
+	vec2 uv_b = (UV - vec2(0.0, swell * swell_reach)) * wave_b_scale;
+	if (wave_b_clamp_v) {
+		// The sampler repeats, so stop half a texel short of the edge or the
+		// linear tap wraps back to row 0 and streaks the shore band.
+		float half_texel = 0.5 / float(textureSize(wave_texture_b, 0).y);
+		uv_b.y = clamp(uv_b.y, half_texel, 1.0 - half_texel);
 	}
-
-	vec4 t0 = texture(wave1, uv0);
-	vec4 t1 = texture(wave2, uv1);
-
-	// The combiner lerps 8-bit gamma values and Godot uploads Color uniforms already
-	// linearized, so PRIM goes back to sRGB and the result converts once at the end.
-	vec3 prim_srgb = linear_to_srgb(prim_color.rgb);
-	vec3 rgb = clamp(prim_srgb * shade + t0.rgb * (t1.rgb + 1.0), vec3(0.0), vec3(1.0));
-	ALBEDO = srgb_to_linear(rgb);
-	ALPHA = clamp(t0.a * t1.a, 0.0, 1.0);
+	// Both maps are IA: rgb is intensity, a is coverage.
+	vec4 a = texture(wave_texture_a, uv_a);
+	vec4 b = texture(wave_texture_b, uv_b);
+	vec3 rgb = linear_to_srgb(water_color) * brightness + a.rgb * (b.rgb + 1.0);
+	ALBEDO = srgb_to_linear(clamp(rgb, 0.0, 1.0));
+	ALPHA = clamp(a.a * b.a, 0.0, 1.0);
 }

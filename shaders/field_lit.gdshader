@@ -3,7 +3,7 @@ shader_type spatial;
 // A solid shell uses field_lit_opaque: writing ALPHA draws in the transparent
 // pass, and a large mesh then sorts in front of the player.
 render_mode unshaded, cull_disabled, shadows_disabled, specular_disabled,
-		ambient_light_disabled, fog_disabled;
+		ambient_light_disabled;
 
 #include "field_shade.gdshaderinc"
 

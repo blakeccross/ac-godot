@@ -644,7 +644,7 @@ func _waterfall_layer_hits(node: Node, out: Dictionary) -> void:
 		for i: int in n:
 			var mat: Material = mi.get_surface_override_material(i)
 			if mat is ShaderMaterial and (mat as ShaderMaterial).has_meta("waterfall_water"):
-				var idx: Variant = (mat as ShaderMaterial).get_shader_parameter("waterfall_layer")
+				var idx: Variant = (mat as ShaderMaterial).get_meta("waterfall_layer", null)
 				if idx != null:
 					out[int(idx)] = true
 	for child in node.get_children():
@@ -676,7 +676,7 @@ func _beach_wet_hits(node: Node) -> Dictionary:
 			var mat: Material = mi.get_surface_override_material(i)
 			if mat is ShaderMaterial and (mat as ShaderMaterial).has_meta("beach_wet"):
 				found = true
-				var prim: Variant = (mat as ShaderMaterial).get_shader_parameter("prim_color")
+				var prim: Variant = (mat as ShaderMaterial).get_shader_parameter("surface_color")
 				if prim is Color:
 					var c: Color = prim
 					if is_equal_approx(c.r, 206.0 / 255.0) and is_equal_approx(c.g, 189.0 / 255.0):

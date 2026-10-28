@@ -7,12 +7,15 @@ extends RefCounted
 const SHADER := preload("res://shaders/player_select_spot.gdshader")
 const GRAIN_PATH := "res://assets/generated/environment/player_select/rom_open_spot2.png"
 const CONE_PATH := "res://assets/generated/environment/player_select/rom_open_spot.png"
-## `gsDPSetEnvColor` (255, 255, 130). Prim is white.
-const ENV_COLOR := Color(1.0, 1.0, 130.0 / 255.0)
-## `gsDPSetPrimColor` lod level, stored in emu64 TEVREG0 alpha.
+## `gsDPSetEnvColor` (255, 255, 130): the beam where the grain is empty. Prim is white.
+const BEAM_COLOR := Color(1.0, 1.0, 130.0 / 255.0)
+## `gsDPSetPrimColor` lod level 150, which scales the cone's alpha.
 const LOD_FRAC := 150.0 / 255.0
-## The sheet reads heavier here than in the 8-bit framebuffer blend. Scale it down.
-const BEAM_OPACITY := 1.0
+## The cone's alpha scale. The shader converts the result for Godot's linear blend.
+const OPACITY := LOD_FRAC
+## EVW SCROLL2 (1, 1) per frame with Y flipped, 1/8 texel per unit on the 32 px grain, at
+## the 60 Hz play rate. The grain drifts against the texel offset.
+const GRAIN_SCROLL := Vector2(-1.0, 1.0) * DecompTime.TICK_HZ / 8.0 / 32.0
 
 
 static func apply(root: Node) -> void:
@@ -55,13 +58,14 @@ static func _shader_material(std: StandardMaterial3D) -> ShaderMaterial:
 	var spot := ShaderMaterial.new()
 	spot.shader = SHADER
 	spot.resource_name = std.resource_name
-	spot.set_shader_parameter("grain_tex", load(GRAIN_PATH))
-	spot.set_shader_parameter("cone_tex", load(CONE_PATH))
+	spot.set_shader_parameter("grain_texture", load(GRAIN_PATH))
+	spot.set_shader_parameter("cone_texture", load(CONE_PATH))
 	spot.set_shader_parameter("wrap_tiles", _wrap_tiles(std))
-	spot.set_shader_parameter("game_fps", DecompTime.TICK_HZ)
-	spot.set_shader_parameter("env_color", ENV_COLOR)
-	spot.set_shader_parameter("lod_frac", LOD_FRAC)
-	spot.set_shader_parameter("beam_opacity", BEAM_OPACITY)
+	spot.set_shader_parameter("beam_color", BEAM_COLOR)
+	spot.set_shader_parameter("opacity", OPACITY)
+	## Shift 15 doubles the grain over the cone, and the cone UV halves V (32 / 64).
+	spot.set_shader_parameter("grain_scale", Vector2(2.0, 4.0))
+	spot.set_shader_parameter("grain_scroll", GRAIN_SCROLL)
 	return spot
 
 

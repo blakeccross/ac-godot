@@ -125,7 +125,7 @@ When shine spots or pitfall holes exist, they reuse the same hole fan and should
 
 **Window panes** (`*_light_model`, museum `*_lightT_model`): opaque quads in the wall TEX_EDGE holes. The combiner ignores the wall SETTIMG and fills with prim/env — black when off, yellow (255, 255, 150) when on (`mEnv_NPC_LIGHTS_*` 18:00–05:00). Convert keeps them untextured (`unlit_fill`) so they do not merge into the MASK wall surface.
 
-**Window ground spill** (`*_window_model`, `*_windowL/R_model`, `windowT_model`): a coplanar I4 fan drawn on the **shadow pass** as `G_RM_AA_ZB_XLU_DECAL2` (prim yellow × I4 × LOD frac 120). Draw callbacks null that joint in OPA. Convert bakes I4 into PNG alpha. `GeneratedVisual` draws it unshaded, 1 GX above the acre, so it does not z-fight the grass. The spill shader composites in **8-bit sRGB** via `hint_screen_texture` (Godot’s linear `blend_mix` made the same alpha read as opaque yellow).
+**Window ground spill** (`*_window_model`, `*_windowL/R_model`, `windowT_model`): a coplanar I4 fan drawn on the **shadow pass** as `G_RM_AA_ZB_XLU_DECAL2` (prim yellow × I4 × LOD frac 120). Draw callbacks null that joint in OPA. Convert bakes I4 into PNG alpha. `GeneratedVisual` draws it unshaded, 1 GX above the acre, so it does not z-fight the grass. Godot’s linear `blend_mix` made the decomp's alpha read as opaque yellow, so the spill uses a capture-fitted 0.25 in place of 120/255.
 
 ## Behavior notes
 

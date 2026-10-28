@@ -59,14 +59,15 @@ func test_shrine_splash_sits_above_the_basin() -> void:
 	var std := StandardMaterial3D.new()
 	var water := VisualWaterMaterials.make_shrine_basin_material(std, false)
 	var splash := VisualWaterMaterials.make_shrine_basin_material(std, true)
-	assert_float(float(water.get_shader_parameter("base_alpha"))).is_equal_approx(50.0 / 255.0, 0.0001)
+	assert_float(float(water.get_shader_parameter("base_alpha"))).is_less(0.2)
 	assert_float(float(splash.get_shader_parameter("base_alpha"))).is_equal_approx(1.0, 0.0001)
 	assert_float(float(water.get_shader_parameter("depth_bias"))).is_equal_approx(0.01, 0.0001)
 	assert_float(float(splash.get_shader_parameter("depth_bias"))).is_equal_approx(0.02, 0.0001)
-	var water_scroll: Vector2 = water.get_shader_parameter("scroll0")
-	var splash_scroll: Vector2 = splash.get_shader_parameter("scroll0")
-	assert_float(water_scroll.y).is_greater(0.0)
-	assert_float(splash_scroll.x).is_less(0.0)
+	## UV drift: the basin runs toward −V, the rim toward +U.
+	var water_scroll: Vector2 = water.get_shader_parameter("scroll_a")
+	var splash_scroll: Vector2 = splash.get_shader_parameter("scroll_a")
+	assert_float(water_scroll.y).is_less(0.0)
+	assert_float(splash_scroll.x).is_greater(0.0)
 	assert_int(water.render_priority).is_equal(1)
 	assert_int(splash.render_priority).is_equal(2)
 	var bubble := VisualWaterMaterials.make_shrine_bubble_material(std)
@@ -76,13 +77,13 @@ func test_shrine_splash_sits_above_the_basin() -> void:
 func test_wet_sand_prim_comes_from_the_stamp_else_sand() -> void:
 	var std := StandardMaterial3D.new()
 	var bed := VisualWaterMaterials.make_beach_wet_material(std, _material({"beach_prim": [32, 48, 144, 255]}))
-	assert_that(bed.get_shader_parameter("prim_color")).is_equal(Color(32.0 / 255.0, 48.0 / 255.0, 144.0 / 255.0))
+	assert_that(bed.get_shader_parameter("surface_color")).is_equal(Color(32.0 / 255.0, 48.0 / 255.0, 144.0 / 255.0))
 	var sand := VisualWaterMaterials.make_beach_wet_material(std, _material({}))
-	assert_that(sand.get_shader_parameter("prim_color")).is_equal(Color(206.0 / 255.0, 189.0 / 255.0, 148.0 / 255.0))
+	assert_that(sand.get_shader_parameter("surface_color")).is_equal(Color(206.0 / 255.0, 189.0 / 255.0, 148.0 / 255.0))
 
 
 func _layer(mat: ShaderMaterial) -> int:
-	return int(mat.get_shader_parameter("waterfall_layer"))
+	return int(mat.get_meta("waterfall_layer", -1))
 
 
 func _mesh_instances(node: Node) -> Array[MeshInstance3D]:

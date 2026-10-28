@@ -2,6 +2,10 @@
 // publish field_* as 0–1 colours in the same gamma as the painted textures.
 // A directional light contributes colour × clamp(n · L). A point light falls
 // off as 1 − (distance / radius)² and ends at the radius. The sum clamps at 1.
+#ifndef FIELD_SHADE_GDSHADERINC
+#define FIELD_SHADE_GDSHADERINC
+
+#include "gamma.gdshaderinc"
 
 global uniform vec3 field_ambient;
 global uniform vec3 field_sun_color;
@@ -16,20 +20,6 @@ global uniform float field_glow0_radius;
 global uniform vec3 field_glow1_pos;
 global uniform float field_glow1_radius;
 global uniform vec3 field_glow_color;
-
-vec3 linear_to_srgb(vec3 c) {
-	bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
-	vec3 lo = c * 12.92;
-	vec3 hi = 1.055 * pow(max(c, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055;
-	return mix(hi, lo, vec3(cutoff));
-}
-
-vec3 srgb_to_linear(vec3 c) {
-	bvec3 cutoff = lessThanEqual(c, vec3(0.04045));
-	vec3 lo = c / 12.92;
-	vec3 hi = pow((c + vec3(0.055)) / 1.055, vec3(2.4));
-	return mix(hi, lo, vec3(cutoff));
-}
 
 float ndotl(vec3 n, vec3 dir) {
 	float len2 = dot(dir, dir);
@@ -66,3 +56,5 @@ vec3 field_shade(vec3 n, vec3 world) {
 vec3 shaded_albedo(vec3 texel_linear, vec3 shade) {
 	return srgb_to_linear(clamp(linear_to_srgb(texel_linear) * shade, vec3(0.0), vec3(1.0)));
 }
+
+#endif

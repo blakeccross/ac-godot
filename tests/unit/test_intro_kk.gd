@@ -175,9 +175,8 @@ func test_kk_scene_loads() -> void:
 		var spot := _first_spot(scene)
 		assert_that(spot).is_not_null()
 		assert_vector(spot.get_shader_parameter("wrap_tiles") as Vector2).is_equal(Vector2(2, 1))
-		assert_float(float(spot.get_shader_parameter("game_fps"))).is_equal_approx(DecompTime.TICK_HZ, 0.01)
-		assert_float(float(spot.get_shader_parameter("lod_frac"))).is_equal_approx(PlayerSelectSpot.LOD_FRAC, 0.001)
-		assert_float(float(spot.get_shader_parameter("beam_opacity"))).is_equal_approx(PlayerSelectSpot.BEAM_OPACITY, 0.001)
+		assert_vector(spot.get_shader_parameter("grain_scroll") as Vector2).is_equal(PlayerSelectSpot.GRAIN_SCROLL)
+		assert_float(float(spot.get_shader_parameter("opacity"))).is_equal_approx(PlayerSelectSpot.OPACITY, 0.001)
 
 
 func test_ndotl_skips_unshaded_and_replaces_lit_standard() -> void:
@@ -237,8 +236,8 @@ func test_spot_shader_uses_wrap_tiles_and_leaves_the_curtain() -> void:
 	assert_that(spot).is_not_null()
 	assert_that(spot.shader).is_same(PlayerSelectSpot.SHADER)
 	assert_vector(spot.get_shader_parameter("wrap_tiles") as Vector2).is_equal(Vector2(2, 1))
-	assert_that(spot.get_shader_parameter("grain_tex")).is_not_null()
-	assert_that(spot.get_shader_parameter("cone_tex")).is_not_null()
+	assert_that(spot.get_shader_parameter("grain_texture")).is_not_null()
+	assert_that(spot.get_shader_parameter("cone_texture")).is_not_null()
 	assert_that(curtain.get_surface_override_material(0)).is_same(shade)
 
 

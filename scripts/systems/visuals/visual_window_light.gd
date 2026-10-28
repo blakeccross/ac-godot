@@ -5,9 +5,10 @@ extends RefCounted
 ## Facade window panes (`*_light_model`): opaque prim/env fill, black off / yellow on.
 const _WINDOW_PANE_ON := Color(1.0, 1.0, 150.0 / 255.0, 1.0)
 const _WINDOW_PANE_OFF := Color(0.0, 0.0, 0.0, 1.0)
-## Ground spill: prim RGB, I4 × PRIM_LOD_FRAC (120/255) as alpha (`ac_house_draw` / `ac_shop_draw`).
-## Composited in 8-bit sRGB by `window_ground_spill.gdshader` (not Godot linear blend_mix).
-const _WINDOW_SPILL_ON := Color(1.0, 1.0, 150.0 / 255.0, 120.0 / 255.0)
+## Ground spill: prim RGB, I4 × PRIM_LOD_FRAC as alpha (`ac_house_draw` / `ac_shop_draw`). The
+## decomp's 120/255 was blended in 8-bit gamma; Godot blends in linear light, which lifts the
+## night ground far more, so 0.25 is fitted by capture to the gamma result.
+const _WINDOW_SPILL_ON := Color(1.0, 1.0, 150.0 / 255.0, 0.25)
 const _WINDOW_SPILL_OFF := Color(1.0, 1.0, 150.0 / 255.0, 0.0)
 const _WINDOW_SPILL_SHADER := preload("res://shaders/window_ground_spill.gdshader")
 

@@ -62,7 +62,7 @@ func _tick(delta: float) -> void:
 	var tint: Color = palette.get(key, Color.WHITE) as Color
 	tint.a = alpha
 	for mat: ShaderMaterial in _materials:
-		mat.set_shader_parameter("prim", tint)
+		mat.set_shader_parameter("light_color", tint)
 
 
 ## `cull_check_from_camera`: the left beam hides once the camera eye is at or west of it,

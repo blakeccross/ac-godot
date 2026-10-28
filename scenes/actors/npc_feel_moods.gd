@@ -110,6 +110,8 @@ func _init(host: Node3D, p_kind: StringName, npc_yaw: float, view_diff_deg: floa
 			_body = _part(&"ef_siawase01_00", Vector3.ZERO, Vector3(0.0, 0.0, -22.0), 0)
 			_body.set_param(&"tex0", _rel(&"ef_siawase01_1"))
 			_body.set_param(&"tex1", _rel(&"ef_siawase01_2_int_i4"))
+			## `Evw_Anime` SCROLL2 {1, −4}, passed to the scroll as (1, 4).
+			_body.set_param(&"scroll0", _drift(Vector2(1.0, 4.0), _rel(&"ef_siawase01_1")))
 			_two_tiles(_body, true, true, true, false, true, 3)
 			_body.set_param(&"uv0_scale", Vector2(8.0, 8.0))
 			_body.set_param(&"lod_frac", 50.0 / 255.0)
@@ -149,6 +151,7 @@ func _init(host: Node3D, p_kind: StringName, npc_yaw: float, view_diff_deg: floa
 			_body.node.rotation.z = deg_to_rad(11.25 if side == 1 else -11.25)
 			_body.set_param(&"tex0", _rel(&"ef_kaze01_0_int_i4"))
 			_body.set_param(&"tex1", _rel(&"ef_kaze01_1_int_i4"))
+			_body.set_param(&"scroll1", _drift(Vector2(3.0, 2.0), _rel(&"ef_kaze01_1_int_i4")))
 			_two_tiles(_body, true, true, true, true, false, 2)
 			_body.set_param(&"uv1_scale", Vector2(0.125, 1.0))
 			_body.set_param(&"lod_frac", 1.0)
@@ -163,6 +166,7 @@ func _init(host: Node3D, p_kind: StringName, npc_yaw: float, view_diff_deg: floa
 			_body2 = _part(&"ef_otikomi_us2", at, Vector3(0.0, 0.0, 19.0), 0)
 			_body2.set_param(&"tex0", _rel(&"ef_otikomi_us2_int_i4"))
 			_body2.set_param(&"tex1", _rel(&"ef_otikomi_us1_int_i4"))
+			_body2.set_param(&"scroll1", _drift(Vector2(0.0, 25.0), _rel(&"ef_otikomi_us1_int_i4")))
 			_two_tiles(_body2, true, true, true, true, false, 2)
 			_body2.set_param(&"uv1_scale", Vector2(0.5, 0.5))
 			_body2.set_param(&"lod_frac", 1.0)
@@ -274,8 +278,6 @@ func _emitter_step(n: float, delta: float) -> void:
 				alpha = _adjust(72 - timer, 0, 72, 150.0, 0.0)
 			_scale(_body, s, s, s)
 			_body.set_param(&"prim_color", _c(255, 255, 200, int(alpha)))
-			## `Evw_Anime` SCROLL2 {1, −4}: passed to the scroll as (1, 4), ÷ 8 texels a tick.
-			_body.set_param(&"scroll0", Vector2(1.0, 4.0) * float(t) / 8.0)
 			## `eSSHN_mv`: a petal every fourth tick while the clip plays.
 			if state != State.FINISHED:
 				for _i: int in _beats(timer, n, 4, 0):
@@ -315,7 +317,6 @@ func _emitter_step(n: float, delta: float) -> void:
 				a = _adjust(e, 80, 98, 150.0, 0.0)
 			_scale(_body, 0.063, 0.021, 0.021)
 			_body.set_param(&"prim_color", _c(255, 255, 255, int(a)))
-			_body.set_param(&"scroll1", Vector2(3.0, 2.0) * float(t) / 8.0)
 		&"otikomi":
 			_tick_gloom(n, delta)
 		&"neboke":
@@ -388,7 +389,6 @@ func _tick_gloom(n: float, delta: float) -> void:
 	_body.set_param(&"prim_color", _c(40, 30, 40, int(alpha)))
 	_scale(_body2, 0.015, lines_y, 0.01)
 	_body2.set_param(&"prim_color", _c(0, 255, 255, int(alpha2)))
-	_body2.set_param(&"scroll1", Vector2(0.0, 25.0) * float(t) / 8.0)
 
 
 # ---- children ------------------------------------------------------
@@ -736,6 +736,13 @@ func _kill_body() -> void:
 			_free(p)
 	_body = null
 	_body2 = null
+
+
+## An `Evw_Anime` SCROLL2 step (texels ÷ 8 a tick) as the tile's drift in UV per second.
+static func _drift(per_tick: Vector2, tex: Texture2D) -> Vector2:
+	if tex == null:
+		return Vector2.ZERO
+	return -per_tick / 8.0 * DecompTime.TICK_HZ / tex.get_size()
 
 
 func _rel(name: StringName) -> Texture2D:

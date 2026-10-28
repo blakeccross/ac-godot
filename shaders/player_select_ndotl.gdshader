@@ -14,21 +14,9 @@ uniform vec3 sun_direction = vec3(0.0, 115.0, 55.0);
 // 0 keeps an opaque surface. Face quads use the imported scissor threshold.
 uniform float alpha_scissor_threshold : hint_range(0.0, 1.0) = 0.0;
 
+#include "gamma.gdshaderinc"
+
 varying vec3 vertex_shade;
-
-vec3 srgb_to_linear(vec3 c) {
-	bvec3 cutoff = lessThanEqual(c, vec3(0.04045));
-	vec3 lo = c / 12.92;
-	vec3 hi = pow((c + vec3(0.055)) / 1.055, vec3(2.4));
-	return mix(hi, lo, vec3(cutoff));
-}
-
-vec3 linear_to_srgb(vec3 c) {
-	bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
-	vec3 lo = c * 12.92;
-	vec3 hi = 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055;
-	return mix(hi, lo, vec3(cutoff));
-}
 
 void vertex() {
 	vec3 n = normalize(MODEL_NORMAL_MATRIX * NORMAL);

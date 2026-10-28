@@ -98,7 +98,7 @@ func test_water_shader_and_textures_are_external_replaceable_files() -> void:
 				river = mat as ShaderMaterial
 	assert_that(river).is_not_null()
 	assert_str(river.resource_path).contains("/materials/water/")
-	for param: String in ["water1", "water2"]:
+	for param: String in ["ripple_texture_a", "ripple_texture_b"]:
 		var tex: Texture2D = river.get_shader_parameter(param) as Texture2D
 		assert_that(tex).is_not_null()
 		assert_str(tex.resource_path).contains("/textures/water/")

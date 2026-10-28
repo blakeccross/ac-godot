@@ -62,7 +62,7 @@ static func _tank_glass(std: StandardMaterial3D, wrap: Vector2, sea: bool) -> Sh
 	var mat := ShaderMaterial.new()
 	mat.shader = _TANK_GLASS
 	mat.set_shader_parameter("albedo_tex", std.albedo_texture)
-	mat.set_shader_parameter("tint", Vector3(0.0, 30.0 / 255.0, 120.0 / 255.0))
+	mat.set_shader_parameter("tint", Color8(0, 30, 120))
 	mat.set_shader_parameter("base_alpha", (60.0 if sea else 30.0) / 255.0)
 	mat.set_shader_parameter("texture_alpha", (20.0 if sea else 10.0) / 256.0)
 	mat.set_shader_parameter("wrap_tiles", wrap)
@@ -92,8 +92,9 @@ static func _tank_caustic(std: StandardMaterial3D) -> ShaderMaterial:
 		water2 = water1
 	var mat := ShaderMaterial.new()
 	mat.shader = _TANK_CAUSTIC
-	mat.set_shader_parameter("water1", water1)
-	mat.set_shader_parameter("water2", water2)
+	mat.set_shader_parameter("ripple_texture_a", water1)
+	mat.set_shader_parameter("ripple_texture_b", water2)
+	mat.set_shader_parameter("tint", Color8(150, 255, 255))
 	mat.render_priority = 3
 	mat.set_meta("tank_layer", &"caustic")
 	return mat

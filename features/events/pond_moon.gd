@@ -54,8 +54,7 @@ static func _tint(node: Node) -> void:
 		var mi := node as MeshInstance3D
 		var mat := ShaderMaterial.new()
 		mat.shader = SHADER
-		## After the pond water (`VisualWaterMaterials`, priority 2), which composites
-		## opaquely over whatever the transparent pass drew before it.
+		## After the pond water (`VisualWaterMaterials`, priority 1–2), so it lies on top.
 		mat.render_priority = 3
 		for pair: Array in [["disc_tex", DISC_TEX], ["ripple_tex", RIPPLE_TEX]]:
 			if ResourceLoader.exists(str(pair[1])):

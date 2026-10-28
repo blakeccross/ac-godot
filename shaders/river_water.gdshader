@@ -1,96 +1,39 @@
 shader_type spatial;
-// 1:1 acre XLU river (`grd_*_modelT` + Evw_Anime SCROLL2).
-// Decomp: ac_field_draw aFD_texture_scroll2_data, grd_*_modelT combiner.
-//
-// CombineLERP:
-//   PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT,  1, 0, TEXEL0, TEXEL1,
-//   COMBINED, 0, SHADE, TEXEL0,  COMBINED, 0, PRIM_LOD_FRAC, PRIMITIVE
-// Prim (0, 50, 255,255,255, 50); Env (0, 100, 255, 255).
-// emu64 runs this as two TEV stages, not the RDP cycles: stage 0 is
-// mix(env, prim, t0); stage 1 samples TEXMAP1, so the add is water2:
-//   rgb = mix(env, prim, t0) * shade + t1,  a = prim_a + (t0 + t1) * lod.
-//
-// Scroll: {+1,-1}/{−1,-2} → evw flips T → dolphin (x,y)=(frame,frame)/(-frame,2frame).
-// emu64 UV: (s - sl/16)/w with sl = x<<1 → texel scroll = x/8 per game_frame @ 60 Hz.
-// Subtracting that offset matches SetTileSize (PC port uses the same emu64 path).
-// Sampling is linear, not nearest like the rest of the project: m_rcp sets
-// G_TF_BILERP globally, and these 32px cell maps are stretched down a whole acre,
-// so point sampling turns the soft cells into a hard pixel grid.
-//
-// RDP blends XLU in 8-bit gamma; Godot blend_mix is linear HDR. At this layer's
-// 0.20–0.38 alpha that over-lifts water1 foam (measured crest ~135 vs hardware ~90).
-// Composite in sRGB against the screen, then emit opaque ALBEDO.
-render_mode unshaded, blend_mix, depth_draw_opaque, cull_disabled, shadows_disabled,
-		specular_disabled, ambient_light_disabled, fog_disabled;
+// Translucent river sheet over the opaque bed: two ripple maps scroll against
+// each other. Decomp reference: the `grd_*_modelT` combiner and Evw_Anime
+// SCROLL2 (`aFD_texture_scroll2_data`). Colour is mix(deep, crest, a) lit by the
+// field lights, plus b as a white crest. Opacity starts at base_alpha and both
+// maps add to it.
+// The ripple maps sample linear, not nearest like the rest of the project: they
+// are 32 px cells stretched across a whole acre.
+render_mode unshaded, cull_disabled, world_vertex_coords;
 
-uniform sampler2D water1 : filter_linear, repeat_enable;
-uniform sampler2D water2 : filter_linear, repeat_enable;
-uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_nearest;
-uniform vec4 prim_color : source_color = vec4(1.0, 1.0, 1.0, 0.19607843);
-uniform vec4 env_color : source_color = vec4(0.0, 0.39215687, 1.0, 1.0);
-// `play->game_frame` (evw_anime.c) increments once per rendered frame; the
-// texel-conversion chain below it (two_tex_scroll_dolphin -> emu64 SETTILESIZE,
-// verified against src/static/libforest/emu64/emu64.c) is exact — tune this
-// constant, not the /8 below. Scroll is in native texels (water_1/2 are 32²);
-// 45 keeps the rate previously tuned as 180 against 4× repaints.
-uniform float game_fps = 45.0;
-uniform float ground_lift = 0.02;
+#include "field_shade.gdshaderinc"
 
-// Outdoor kankyo light (`l_mEnv_kcolor_*`), set by World. 0–1 palette values.
-global uniform vec3 field_ambient;
-global uniform vec3 field_sun_color;
-global uniform vec3 field_sun_dir;
-global uniform vec3 field_moon_color;
-global uniform vec3 field_moon_dir;
+uniform sampler2D ripple_texture_a : hint_default_black, filter_linear, repeat_enable;
+uniform sampler2D ripple_texture_b : hint_default_black, filter_linear, repeat_enable;
+uniform vec3 deep_color : source_color = vec3(0.0, 0.392, 1.0);
+uniform vec3 crest_color : source_color = vec3(1.0);
+uniform float base_alpha : hint_range(0.0, 1.0) = 0.14;
+uniform float ripple_alpha : hint_range(0.0, 1.0) = 0.10;
+// UV per second.
+uniform vec2 scroll_a = vec2(-0.176, -0.176);
+uniform vec2 scroll_b = vec2(0.176, -0.352);
+// Metres the sheet floats above the coplanar bed.
+uniform float ground_lift = 0.025;
 
-// G_LIGHTING + G_SHADING_SMOOTH: lit per vertex, then interpolated.
 varying vec3 vertex_shade;
 
-// Godot uploads Color uniforms already linearized. The combiner works on 8-bit
-// gamma values and TEXEL0/1 arrive raw, so PRIM/ENV go back to sRGB for the
-// cycles and the result converts once. Mixing the two spaces blew the ripples
-// out to white early (red was +72 at TEXEL0 = 0.15).
-vec3 srgb_to_linear(vec3 c) {
-	bvec3 cutoff = lessThanEqual(c, vec3(0.04045));
-	vec3 lo = c / 12.92;
-	vec3 hi = pow((c + vec3(0.055)) / 1.055, vec3(2.4));
-	return mix(hi, lo, vec3(cutoff));
-}
-
-vec3 linear_to_srgb(vec3 c) {
-	bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
-	vec3 lo = c * 12.92;
-	vec3 hi = 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055;
-	return mix(hi, lo, vec3(cutoff));
-}
-
 void vertex() {
-	vec3 n = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	float sun = max(dot(n, normalize(field_sun_dir)), 0.0);
-	float moon = max(dot(n, normalize(field_moon_dir)), 0.0);
-	vertex_shade = clamp(field_ambient + field_sun_color * sun + field_moon_color * moon, 0.0, 1.0);
-	vec4 world = MODEL_MATRIX * vec4(VERTEX, 1.0);
-	world.y += ground_lift;
-	POSITION = PROJECTION_MATRIX * VIEW_MATRIX * world;
+	VERTEX.y += ground_lift;
+	vertex_shade = field_shade(normalize(NORMAL), VERTEX);
 }
 
 void fragment() {
-	float frame = TIME * game_fps;
-	float texels = frame / 8.0;
-	vec2 native = vec2(32.0);
-	vec2 uv0 = UV - vec2(1.0, 1.0) * texels / native;
-	vec2 uv1 = UV - vec2(-1.0, 2.0) * texels / native;
-	float t0 = texture(water1, uv0).r;
-	float t1 = texture(water2, uv1).r;
-
-	// Stage 0: mix(env, prim, t0). Stage 1: CPREV * shade + t1.
-	vec3 combined = mix(linear_to_srgb(env_color.rgb), linear_to_srgb(prim_color.rgb), t0);
-	vec3 rgb_srgb = clamp(combined * vertex_shade + vec3(t1), vec3(0.0), vec3(1.0));
-	// Stage 0 A: prim_a + t0 * lod. Stage 1 A: APREV + t1 * lod.  (LOD = A = 50)
-	float a = clamp(0.19607843 + (t0 + t1) * 0.19607843, 0.0, 1.0);
-
-	vec3 back_srgb = linear_to_srgb(textureLod(screen_texture, SCREEN_UV, 0.0).rgb);
-	ALBEDO = srgb_to_linear(mix(back_srgb, rgb_srgb, a));
-	// Keep the transparent pass (screen_texture filled) while replacing the pixel.
-	ALPHA = 1.0;
+	float a = texture(ripple_texture_a, UV + scroll_a * TIME).r;
+	float b = texture(ripple_texture_b, UV + scroll_b * TIME).r;
+	// Combine in the palette's gamma like every field surface, then hand linear back.
+	vec3 water = mix(linear_to_srgb(deep_color), linear_to_srgb(crest_color), a) * vertex_shade;
+	ALBEDO = srgb_to_linear(clamp(water + b, 0.0, 1.0));
+	ALPHA = clamp(base_alpha + (a + b) * ripple_alpha, 0.0, 1.0);
 }

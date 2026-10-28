@@ -1,76 +1,48 @@
 shader_type spatial;
-render_mode unshaded, blend_mix, depth_draw_opaque, cull_disabled, shadows_disabled, specular_disabled, ambient_light_disabled;
+// Foam where the river drops into the sea. Streaks scroll down through a fixed
+// foam mask. The mask sets the opacity and adds a pale foam colour on top.
+// Decomp reference: the mouth `sprash` combiner `(PRIM + T0) × SHADE + T1`,
+// alpha `T1 × PRIM.a`. foam_color tones the T1 add down from white so the
+// mouth reads as blue foam rather than a white slab.
+// Both maps mirror in U (the mouth is one half, folded) and sample linear.
+render_mode unshaded, cull_disabled, world_vertex_coords;
 
-// River-mouth sprash — decomp combiner with softer add so Godot does not chalk.
-// RGB: (PRIM+t0)*SHADE + t1; A: t1*PRIM.a. Prim (100,140,255,200).
-// Seg 0x09 Evw {0,-6}/{0,0} → ΔT = 6*frame/8. Tile1 shift_t=1.
-// Linear like the river/ocean tiles — m_rcp sets G_TF_BILERP globally and these
-// are 32px maps stretched across the mouth.
-uniform sampler2D sprash_c : filter_linear, repeat_enable;
-uniform sampler2D sprash_a : filter_linear, repeat_enable;
-uniform vec4 prim_color : source_color = vec4(0.39215687, 0.54901963, 1.0, 0.78431374);
-// `play->game_frame` (evw_anime.c) increments once per rendered frame; the
-// texel-conversion chain below it (two_tex_scroll_dolphin -> emu64 SETTILESIZE,
-// verified against src/static/libforest/emu64/emu64.c) is exact — tune this
-// constant, not the /8 or /4 below. Bisecting against in-game feel: 60 too slow,
-// 120 closer but still slow. 180 is the current test point, not a verified value.
-uniform float game_fps = 180.0;
-uniform float ground_lift = 0.03;
+#include "field_shade.gdshaderinc"
 
-// Godot uploads Color uniforms already linearized. The combiner works on 8-bit
-// gamma values and TEXEL0/1 arrive raw, so PRIM goes back to sRGB for the cycles
-// and the result converts once.
-vec3 srgb_to_linear(vec3 c) {
-	bvec3 cutoff = lessThanEqual(c, vec3(0.04045));
-	vec3 lo = c / 12.92;
-	vec3 hi = pow((c + vec3(0.055)) / 1.055, vec3(2.4));
-	return mix(hi, lo, vec3(cutoff));
-}
+uniform sampler2D streak_texture : hint_default_black, filter_linear, repeat_enable;
+uniform sampler2D foam_texture : hint_default_black, filter_linear, repeat_enable;
+uniform vec3 water_color : source_color = vec3(0.392, 0.549, 1.0);
+uniform vec3 foam_color : source_color = vec3(0.667, 0.753, 1.0);
+uniform float opacity : hint_range(0.0, 1.0) = 0.784;
+// UV per second.
+uniform vec2 streak_scroll = vec2(0.0, -1.0546875);
+// The foam map's UV per mesh UV.
+uniform vec2 foam_scale = vec2(1.0, 0.5);
+// Metres the sheet floats above the river and ocean.
+uniform float ground_lift = 0.0375;
 
-vec3 linear_to_srgb(vec3 c) {
-	bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
-	vec3 lo = c * 12.92;
-	vec3 hi = 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055;
-	return mix(hi, lo, vec3(cutoff));
-}
+varying vec3 vertex_shade;
 
-float mirror_fract(float u) {
-	float x = fract(u * 0.5) * 2.0;
-	return x > 1.0 ? 2.0 - x : x;
-}
-
-float mirror_uv(float u, float texels) {
-	// GX_MIRROR folds on the edge texel, sampling it twice. The sampler repeats, so
-	// a linear tap at the fold would blend across to the opposite edge and leave a
-	// dark seam down the middle of the mouth. Stop a half texel short instead.
-	float half_texel = 0.5 / texels;
-	return clamp(mirror_fract(u), half_texel, 1.0 - half_texel);
+// Mirrored repeat that stops half a texel short of each fold: the sampler
+// repeats, so a linear tap on the fold would blend in the opposite edge and
+// leave a dark seam down the middle of the mouth.
+float mirror_u(float u, sampler2D tex) {
+	float x = 1.0 - abs(mod(u, 2.0) - 1.0);
+	float half_texel = 0.5 / float(textureSize(tex, 0).x);
+	return clamp(x, half_texel, 1.0 - half_texel);
 }
 
 void vertex() {
-	vec4 world = MODEL_MATRIX * vec4(VERTEX, 1.0);
-	world.y += ground_lift;
-	POSITION = PROJECTION_MATRIX * VIEW_MATRIX * world;
+	VERTEX.y += ground_lift;
+	vertex_shade = field_shade(normalize(NORMAL), VERTEX);
 }
 
 void fragment() {
-	float frame = TIME * game_fps;
-	float texels = 6.0 * frame / 8.0;
-	vec2 s0 = max(vec2(textureSize(sprash_c, 0)), vec2(1.0));
-	vec2 s1 = max(vec2(textureSize(sprash_a, 0)), vec2(1.0));
-	vec2 uv0 = vec2(mirror_uv(UV.x, s0.x), fract(UV.y - texels / s0.y));
-	vec2 uv1 = vec2(mirror_uv(UV.x, s1.x), fract(UV.y * 0.5));
-	float t0 = texture(sprash_c, uv0).r;
-	float t1 = texture(sprash_a, uv1).r;
-
-	vec3 n = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	float shade = mix(0.5, 1.0, clamp(dot(n, normalize(vec3(0.35, 0.9, 0.2))), 0.0, 1.0));
-	vec3 prim_srgb = linear_to_srgb(prim_color.rgb);
-	vec3 combined = prim_srgb + vec3(t0);
-	// Tint the TEXEL1 add with prim so the mouth stays blue-foam, not a white slab.
-	vec3 out_srgb = clamp(
-		combined * shade + mix(prim_srgb, vec3(1.0), 0.45) * t1, vec3(0.0), vec3(1.0)
-	);
-	ALBEDO = srgb_to_linear(out_srgb);
-	ALPHA = clamp(t1 * prim_color.a, 0.0, 1.0);
+	vec2 uv_streak = UV + streak_scroll * TIME;
+	vec2 uv_foam = UV * foam_scale;
+	float streak = texture(streak_texture, vec2(mirror_u(uv_streak.x, streak_texture), uv_streak.y)).r;
+	float foam = texture(foam_texture, vec2(mirror_u(uv_foam.x, foam_texture), uv_foam.y)).r;
+	vec3 rgb = (linear_to_srgb(water_color) + streak) * vertex_shade + linear_to_srgb(foam_color) * foam;
+	ALBEDO = srgb_to_linear(clamp(rgb, 0.0, 1.0));
+	ALPHA = clamp(foam * opacity, 0.0, 1.0);
 }

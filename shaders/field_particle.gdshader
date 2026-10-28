@@ -29,6 +29,10 @@ uniform int mode = 1;
 uniform vec3 env : source_color = vec3(0.0);
 uniform bool billboard = true;
 uniform bool intensity_alpha = true;
+// Table steps per second: one every two 60 Hz ticks.
+const float STEP_RATE = 30.0;
+// How often sunahane's noise re-rolls, per second (every 60 Hz frame).
+const float NOISE_RATE = 60.0;
 
 varying vec4 tint;
 varying flat int step;
@@ -37,7 +41,7 @@ void vertex() {
 	tint = COLOR;
 	float age = max(INSTANCE_CUSTOM.w - hold, 0.0);
 	float since = land_time >= 0.0 ? (age >= land_time ? age - land_time : -1.0) : age;
-	step = since < 0.0 ? 0 : clamp(int(since * 30.0), 0, steps - 1);
+	step = since < 0.0 ? 0 : clamp(int(since * STEP_RATE), 0, steps - 1);
 	VERTEX *= sizes[step];
 	if (billboard) {
 		vec3 s = vec3(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz), length(MODEL_MATRIX[2].xyz));
@@ -75,7 +79,7 @@ void fragment() {
 		rgb = mix(tint.rgb, vec3(1.0), t0.r);
 		add = env;
 	} else if (mode == 3) {
-		float noise = hash(floor(UV * 16.0) + vec2(floor(TIME * 60.0)));
+		float noise = hash(floor(UV * 16.0) + vec2(floor(TIME * NOISE_RATE)));
 		rgb = clamp((vec3(noise) - t0.rgb) * tint.rgb + env, 0.0, 1.0);
 	} else if (mode == 4) {
 		rgb = t0.rgb * tint.rgb;

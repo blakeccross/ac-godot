@@ -2,7 +2,7 @@ shader_type spatial;
 // Same lighting as field_lit, drawn in the opaque pass. Writing ALPHA would
 // put a tree-sized shell in the transparent pass, in front of the player.
 render_mode unshaded, cull_disabled, shadows_disabled, specular_disabled,
-		ambient_light_disabled, fog_disabled;
+		ambient_light_disabled;
 
 #include "field_shade.gdshaderinc"
 

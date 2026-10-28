@@ -3,19 +3,19 @@
 [ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_k4ek3"]
 [ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_o_9.tres" id="2_usxje"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_o_9/grd_s_o_92.res" id="3_dh3e8"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/beach_wet_9d1f0a745a20.tres" id="4_fcneq"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/beach_wet_0b372246e8e2.tres" id="4_fcneq"]
 [ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_o_9/grd_s_o_9_blend.res" id="5_cdm56"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/ocean_bea416965ffa.tres" id="6_jaor4"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/ocean_8ad332b37321.tres" id="6_jaor4"]
 
-[node name="grd_s_o_9" type="Node3D" unique_id=2060875663]
+[node name="grd_s_o_9" type="Node3D" unique_id=203527840]
 script = ExtResource("1_k4ek3")
 visual_id = &"grd_s_o_9"
 grid = ExtResource("2_usxje")
 
-[node name="grd_s_o_92" type="MeshInstance3D" parent="." unique_id=643008176]
+[node name="grd_s_o_92" type="MeshInstance3D" parent="." unique_id=514002748]
 mesh = ExtResource("3_dh3e8")
 surface_material_override/0 = ExtResource("4_fcneq")
 
-[node name="grd_s_o_9_blend" type="MeshInstance3D" parent="." unique_id=2032774047]
+[node name="grd_s_o_9_blend" type="MeshInstance3D" parent="." unique_id=1447434925]
 mesh = ExtResource("5_cdm56")
 surface_material_override/0 = ExtResource("6_jaor4")

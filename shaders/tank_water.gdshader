@@ -1,8 +1,7 @@
 shader_type spatial;
 // Water surface on the small tanks. Colour is the texture times the vertex
 // colour. Alpha is a flat base plus a little of the texture.
-render_mode unshaded, cull_back, blend_mix, depth_draw_never, shadows_disabled,
-		specular_disabled, ambient_light_disabled, fog_disabled;
+render_mode unshaded, cull_back, depth_draw_never, shadows_disabled, fog_disabled;
 
 uniform sampler2D albedo_tex : source_color, filter_linear, repeat_disable;
 uniform float base_alpha = 0.352941;
