@@ -1180,9 +1180,9 @@ def parse_gfx(
                     env=tex_state.env,
                 )
             skip_prim = bool(water_kind)
-            ## Ocean and splash stay on the 128 REPEAT cap. Wet sand is one
+            ## Ocean stays on the 128 REPEAT cap. Wet sand is one
             ## REPEAT/CLAMP sheet (not a 16-wide wrap atlas), so it keeps the
-            ## full ACHD shore. River and falls skip ACHD below.
+            ## full ACHD shore. River, falls and splash skip ACHD below.
             bank.water_surface = water_kind in ("ocean", "splash")
             if (
                 water_kind in (
@@ -1200,10 +1200,13 @@ def parse_gfx(
                 ## Falls and river combiners add and multiply the raw I/IA levels.
                 ## An ACHD repaint turns the mist mask into a solid sheet, the
                 ## crest into a white bar, and the river's thin ripple web into
-                ## dark cells. Ocean stays on the HD cap.
+                ## dark cells. The river-mouth sprash repaint gives the foam mask a
+                ## hard-rimmed plateau (a cut edge across the mouth) and sharpens
+                ## the streak. Ocean stays on the HD cap.
                 native_texels = water_kind in (
                     "waterfall",
                     "river",
+                    "splash",
                     "shrine_water",
                     "shrine_splash",
                     "tank_caustic",

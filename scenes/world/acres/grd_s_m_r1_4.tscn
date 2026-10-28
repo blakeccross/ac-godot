@@ -13,7 +13,7 @@
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/ocean_8b84d5d0166b.tres" id="11_4jhim"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/ocean_8ad332b37321.tres" id="12_3eehn"]
 [ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/river_579b4460d187.tres" id="13_76lcc"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/splash_69f9f7cc6b77.tres" id="14_20vdc"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/splash_e48957b9e7df.tres" id="14_20vdc"]
 
 [node name="grd_s_m_r1_4" type="Node3D" unique_id=1368720658]
 script = ExtResource("1_j8wfs")

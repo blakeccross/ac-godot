@@ -389,8 +389,6 @@ static func make_splash_water_material(std: StandardMaterial3D) -> ShaderMateria
 	sh.set_shader_parameter("streak_texture", sprash_c)
 	sh.set_shader_parameter("foam_texture", sprash_a)
 	sh.set_shader_parameter("water_color", Color8(100, 140, 255))
-	## The T1 add, 45% of the way from the prim to white.
-	sh.set_shader_parameter("foam_color", Color8(170, 192, 255))
 	sh.set_shader_parameter("opacity", 200.0 / 255.0)
 	## Evw {0,-6}, 1/8 texel per unit on the 32 px map. The foam map's shift_t 1 halves V.
 	sh.set_shader_parameter("streak_scroll", Vector2(0.0, -6.0 * _WATER_FRAME_RATE / 8.0 / 32.0))

@@ -1,9 +1,10 @@
 shader_type spatial;
 // Foam where the river drops into the sea. Streaks scroll down through a fixed
-// foam mask. The mask sets the opacity and adds a pale foam colour on top.
-// Decomp reference: the mouth `sprash` combiner `(PRIM + T0) × SHADE + T1`,
-// alpha `T1 × PRIM.a`. foam_color tones the T1 add down from white so the
-// mouth reads as blue foam rather than a white slab.
+// foam mask, which only sets the opacity.
+// Decomp reference: the mouth `sprash` combiner reads `(PRIM + T0) × SHADE + T1`,
+// but emu64 swaps in a hand-written TEV for it (`emu64.c`, combine cases):
+// stage 0 `T0 + SHADE × T0`, stage 1 `PREV + SHADE × PRIM`, alpha `PRIM.a × T1.a`.
+// T1 never reaches the colour, so the mouth is shaded blue with faint streaks.
 // Both maps mirror in U (the mouth is one half, folded) and sample linear.
 render_mode unshaded, cull_disabled, world_vertex_coords;
 
@@ -12,7 +13,6 @@ render_mode unshaded, cull_disabled, world_vertex_coords;
 uniform sampler2D streak_texture : hint_default_black, filter_linear, repeat_enable;
 uniform sampler2D foam_texture : hint_default_black, filter_linear, repeat_enable;
 uniform vec3 water_color : source_color = vec3(0.392, 0.549, 1.0);
-uniform vec3 foam_color : source_color = vec3(0.667, 0.753, 1.0);
 uniform float opacity : hint_range(0.0, 1.0) = 0.784;
 // UV per second.
 uniform vec2 streak_scroll = vec2(0.0, -1.0546875);
@@ -42,7 +42,7 @@ void fragment() {
 	vec2 uv_foam = UV * foam_scale;
 	float streak = texture(streak_texture, vec2(mirror_u(uv_streak.x, streak_texture), uv_streak.y)).r;
 	float foam = texture(foam_texture, vec2(mirror_u(uv_foam.x, foam_texture), uv_foam.y)).r;
-	vec3 rgb = (linear_to_srgb(water_color) + streak) * vertex_shade + linear_to_srgb(foam_color) * foam;
+	vec3 rgb = linear_to_srgb(water_color) * vertex_shade + streak * (1.0 + vertex_shade);
 	ALBEDO = srgb_to_linear(clamp(rgb, 0.0, 1.0));
 	ALPHA = clamp(foam * opacity, 0.0, 1.0);
 }
