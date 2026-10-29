@@ -26,6 +26,9 @@ extends Node3D
 const MUSEUM_STAND_RADIUS := 33.166 * FieldCatalog.GX_TO_METERS
 ## ...and facing the door to within 45° (`rotation.y` strictly between 0x6000 and 0xA000).
 const MUSEUM_STAND_FACING := PI / 4.0
+## `aPBOX_check_player`: the police box takes the same √1100 GX circle (the sensor sits on its
+## centre, actor + (24, 40)) with the player facing north-west (0x8000–0xC000). The exit stand
+## at + (60, 60) is outside it and faces south-east, so leaving never walks straight back in.
 
 
 func _ready() -> void:
@@ -53,7 +56,15 @@ func should_auto_enter() -> bool:
 	var room: Room = Game.interiors.room(room_id)
 	if room == null or not InteriorCatalog.is_open_now(room):
 		return false
-	return not _is_outdoor_museum() or _player_at_museum_stand()
+	if _is_outdoor_museum():
+		return _player_at_stand(Vector3(0.0, 0.0, -1.0))
+	if _is_outdoor_police():
+		return _player_at_stand(Vector3(-1.0, 0.0, -1.0))
+	## `aTOU_check_door_pos`: centre in the window north of the tower, facing south into it
+	## (`rotation.y` strictly between −0x2000 and 0x2000).
+	if _is_outdoor_lighthouse():
+		return _player_centre_on_sensor() and _player_facing(Vector3(0.0, 0.0, 1.0))
+	return true
 
 
 func _player_centre_on_sensor() -> bool:
@@ -71,15 +82,34 @@ func _is_outdoor_museum() -> bool:
 	return host != null and "visual_id" in host and HostCollision.is_museum(host.get("visual_id") as StringName)
 
 
-func _player_at_museum_stand() -> bool:
+func _is_outdoor_police() -> bool:
+	var host: Node = get_parent()
+	return host != null and "visual_id" in host and HostCollision.is_police(host.get("visual_id") as StringName)
+
+
+func _is_outdoor_lighthouse() -> bool:
+	var host: Node = get_parent()
+	return host != null and "visual_id" in host and HostCollision.is_lighthouse(host.get("visual_id") as StringName)
+
+
+## Centre within the stand circle, facing `into_local` (building space; the museum's is -Z, as
+## it faces south at yaw 0, like `-DEG2SHORT_ANGLE(180)`) to within 45°.
+func _player_at_stand(into_local: Vector3) -> bool:
 	var player := Player.find(get_tree())
 	if player == null:
 		return false
 	var to := Vector2(player.global_position.x - global_position.x, player.global_position.z - global_position.z)
 	if to.length() >= MUSEUM_STAND_RADIUS:
 		return false
-	## Into the door is the building's -Z (it faces south at yaw 0, like `-DEG2SHORT_ANGLE(180)`).
-	var into: Vector3 = -(get_parent() as Node3D).global_basis.z
+	return _player_facing(into_local)
+
+
+## The player faces `into_local` (building space) to within 45°.
+func _player_facing(into_local: Vector3) -> bool:
+	var player := Player.find(get_tree())
+	if player == null:
+		return false
+	var into: Vector3 = (get_parent() as Node3D).global_basis * into_local
 	var into_yaw: float = atan2(into.x, into.z)
 	return absf(angle_difference(player.facing_yaw(), into_yaw)) < MUSEUM_STAND_FACING
 

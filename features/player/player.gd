@@ -1535,8 +1535,12 @@ func _try_auto_enter() -> void:
 func _run_interact(hit: InteractionQuery) -> void:
 	_focus = hit.host
 	_busy = hit.action.locks_player
-	## `SHAKE_TREE` / `SWING_AXE` / scoop set `angle_y` toward the unit before the clip.
-	_face_host(hit)
+	## `SHAKE_TREE` / `SWING_AXE` / scoop set `angle_y` toward the unit before the clip; a
+	## verb with a stand slides onto it as the clip starts.
+	if hit.action.stand_sec > 0.0:
+		_slide_to(hit.action.stand_at, hit.action.stand_yaw, hit.action.stand_sec)
+	else:
+		_face_host(hit)
 	var tail: float = await _play_action(hit.action.player_anim, hit.action.effect_frame)
 	var ctx: InteractionContext = _make_context()
 	var t0: int = Time.get_ticks_msec()
@@ -1615,19 +1619,24 @@ func _finish_action(tail: float) -> void:
 ## `Player_actor_setup_main_Mail_jump`: `CONFIRM1` while sliding onto `to` and turning to
 ## `yaw` over its first 8 frames; the clip holds its last frame while the box is open.
 func mail_jump(to: Vector3, yaw: float) -> void:
+	_play_body_once(ANIM_CONFIRM)
+	await _slide_to(to, yaw, MAIL_JUMP_SEC).finished
+
+
+## Slide onto `to` (XZ) turning to `yaw` over `seconds` (`AnimationMove_ct_base`'s counter).
+func _slide_to(to: Vector3, yaw: float, seconds: float) -> Tween:
 	var from: Vector3 = global_position
 	var from_yaw: float = _motor.facing
 	_motor.reset(from_yaw)
-	_play_body_once(ANIM_CONFIRM)
-	var hop := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
-	hop.tween_method(
+	var slide := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	slide.tween_method(
 		func(k: float) -> void:
 			global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
 			set_facing(lerp_angle(from_yaw, yaw, k)),
-		0.0, 1.0, MAIL_JUMP_SEC
+		0.0, 1.0, seconds
 	)
-	await hop.finished
-	_motor.reset(yaw)
+	slide.tween_callback(_motor.reset.bind(yaw))
+	return slide
 
 
 ## `Player_actor_setup_main_Throw_money` → `_Pray`: step onto `to` turned to `yaw` over 5

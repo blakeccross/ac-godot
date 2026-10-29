@@ -757,15 +757,43 @@ func test_police_box_is_a_walk_in() -> void:
 	## `aPBOX_check_player` has no A button: walking into the doorway enters.
 	Game.block_auto_enter_doors = false
 	Game.current_room_id = &""
-	var police: Node = auto_free(load("res://features/shops/police_box/police_station.tscn").instantiate())
+	var police: Node3D = auto_free(load("res://features/shops/police_box/police_station.tscn").instantiate()) as Node3D
 	add_child(police)
-	var door: Node = police.get_node("Door")
+	var door: Node3D = police.get_node("Door") as Node3D
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
+	add_child(player)
+	## On the check circle, facing north-west into the doorway.
+	player.global_position = door.global_position
+	player.set_facing(-PI * 0.75)
 	assert_bool(bool(door.get("auto_enter"))).is_true()
 	assert_bool(door.call("should_auto_enter")).is_true()
 	var actions: Array = door.get_interactions(InteractionContext.new())
 	assert_int(actions.size()).is_equal(1)
 	assert_str((actions[0] as Interaction).prompt).is_equal("")
 	Game.block_auto_enter_doors = true
+	assert_bool(door.call("should_auto_enter")).is_false()
+
+
+func test_leaving_the_police_box_does_not_walk_back_in() -> void:
+	## `aPBOX_rewrite_out_data` puts the player at + (60, 60) GX facing south-east, outside the
+	## √1100 GX circle round + (24, 40) and facing away, so the walk-in check stays off.
+	Game.block_auto_enter_doors = false
+	Game.current_room_id = &""
+	var police: Node3D = auto_free(load("res://features/shops/police_box/police_station.tscn").instantiate()) as Node3D
+	add_child(police)
+	var door: Node3D = police.get_node("Door") as Node3D
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
+	add_child(player)
+	var stand: Vector3 = StructureDoor.exit_stand(police)
+	player.global_position = stand
+	player.set_facing(StructureDoor.leave_yaw(police, stand))
+	assert_bool(door.call("should_auto_enter")).is_false()
+	## Turned round on the stand it is still outside the circle.
+	player.set_facing(-PI * 0.75)
+	assert_bool(door.call("should_auto_enter")).is_false()
+	## Facing the door from inside the circle, but side-on, does not count.
+	player.global_position = door.global_position
+	player.set_facing(PI * 0.5)
 	assert_bool(door.call("should_auto_enter")).is_false()
 
 

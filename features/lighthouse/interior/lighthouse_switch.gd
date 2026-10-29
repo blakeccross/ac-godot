@@ -19,6 +19,16 @@ const CLIP_POLE := &"obj_toudai_pole"
 const PLAYER_ANIM := &"ply_1_light_on1"
 ## `mPlib_check_player_actor_start_switch_on_lighthouse`: past frame 1 of the player clip.
 const PLAYER_EFFECT_FRAME := 2.0
+## `aLS_CheckPlayerSwitchPositionAngle`: the player's centre within 33.57 GX of the lever,
+## facing strictly between 90° and 180° (east to north).
+const PANEL_REACH := 33.5684 * FieldCatalog.GX_TO_METERS
+const PANEL_FACING_MIN := PI / 2.0
+const PANEL_FACING_MAX := PI
+## `aLS_CheckPlayerAction` `nice_pos` {167.27, 40, 112.73} from the lever at {180, 100}, and
+## 135°: the clip slides the player there over its 9-frame `AnimationMove` counter.
+const PANEL_STAND := Vector3(-12.72792, 0.0, 12.72792) * FieldCatalog.GX_TO_METERS
+const PANEL_STAND_YAW := PI * 0.75
+const PANEL_STAND_SEC := 9.0 / DecompTime.FRAME_HZ
 ## `sAdo_OngenTrgStart(SE_ECHO(NA_SE_78))` when the lever passes frame 20 going on.
 const LEVER_SE := &"78"
 const LEVER_SE_FRAME := 20.0
@@ -138,10 +148,28 @@ func advance(mode: LighthouseBook.SwitchMode, delta: float) -> void:
 	_light_move(delta)
 
 
-func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
+func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 	if not can_throw():
 		return []
-	return [Interaction.of(Interaction.TOGGLE, "Turn on the light", 20, PLAYER_ANIM, PLAYER_EFFECT_FRAME)]
+	var actor: Node3D = ctx.actor as Node3D if ctx != null else null
+	if actor != null and not at_panel(actor):
+		return []
+	var action := Interaction.of(Interaction.TOGGLE, "Turn on the light", 20, PLAYER_ANIM, PLAYER_EFFECT_FRAME)
+	var face: Vector3 = global_basis * Vector3(sin(PANEL_STAND_YAW), 0.0, cos(PANEL_STAND_YAW))
+	return [action.with_stand(to_global(PANEL_STAND), atan2(face.x, face.z), PANEL_STAND_SEC)]
+
+
+## `aLS_CheckPlayerSwitchPositionAngle`, in this room's axes.
+func at_panel(actor: Node3D) -> bool:
+	var local: Vector3 = to_local(actor.global_position)
+	if Vector2(local.x, local.z).length() >= PANEL_REACH:
+		return false
+	if not actor.has_method("facing_yaw"):
+		return true
+	var yaw: float = float(actor.call("facing_yaw"))
+	var dir: Vector3 = global_basis.inverse() * Vector3(sin(yaw), 0.0, cos(yaw))
+	var local_yaw: float = atan2(dir.x, dir.z)
+	return local_yaw > PANEL_FACING_MIN and local_yaw < PANEL_FACING_MAX
 
 
 ## `aLS_CheckPlayerAction`: A at the panel on a quest night while the lever is off.

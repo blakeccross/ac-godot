@@ -4,7 +4,7 @@
 [ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="2"]
 
 [sub_resource type="BoxShape3D" id="PanelShape"]
-size = Vector3(1.6, 2.0, 1.6)
+size = Vector3(3.4, 2.0, 3.4)
 
 [node name="LighthouseSwitch" type="Node3D" groups=["authored_fixture"]]
 script = ExtResource("1")

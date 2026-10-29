@@ -155,6 +155,17 @@ func test_lamp_sweeps_at_half_speed_and_peaks_on_frame_51() -> void:
 	assert_float(lamp.get("beam_alpha")).is_less(1.0)
 
 
+func test_beam_ramps_down_after_the_peak_and_up_before_it() -> void:
+	var lamp: Script = load("res://features/lighthouse/lighthouse_beacon.gd")
+	## After 51 each frame takes its own ramp: 9 frames of the steep one, then the next.
+	assert_vector(lamp.beam_at(60.0)).is_equal_approx(Vector2(139.0, 114.0), Vector2(0.01, 0.01))
+	assert_vector(lamp.beam_at(61.0)).is_equal_approx(Vector2(136.5, 109.5), Vector2(0.01, 0.01))
+	assert_vector(lamp.beam_at(90.0)).is_equal_approx(Vector2(9.0, 14.0), Vector2(0.01, 0.01))
+	## Before 51 it has built up from nothing since frame 12.
+	assert_vector(lamp.beam_at(12.0)).is_equal_approx(Vector2(8.0, 1.0), Vector2(0.01, 0.01))
+	assert_vector(lamp.beam_at(50.0)).is_equal_approx(Vector2(211.0, 226.0), Vector2(0.01, 0.01))
+
+
 func test_lamp_finishes_its_turn_before_stopping() -> void:
 	var lamp: Node = _lamp()
 	lamp.set("lit", true)
@@ -295,3 +306,43 @@ func test_quest_night_switch_lights_tonight() -> void:
 	assert_bool(Game.lighthouse.lamp_on_now()).is_true()
 	assert_bool(Game.lighthouse.door_open_now()).is_false()
 	assert_array(node.get_interactions(null)).is_empty()
+
+
+class PanelActor:
+	extends Node3D
+	var yaw: float = 0.0
+
+	func facing_yaw() -> float:
+		return yaw
+
+
+func test_switch_panel_needs_the_player_at_the_lever_facing_it() -> void:
+	Game.lighthouse.start_quest(2002, 1, 15)
+	Clock.set_datetime(2002, 1, 16, 19)
+	var node: Node3D = auto_free(load(SWITCH_SCENE).instantiate()) as Node3D
+	add_child(node)
+	var actor := PanelActor.new()
+	auto_free(actor)
+	add_child(actor)
+	var ctx := InteractionContext.new()
+	ctx.actor = actor
+	var gx: float = FieldCatalog.GX_TO_METERS
+	## On the stand, facing the lever (north-east).
+	actor.global_position = node.to_global(Vector3(-12.7, 0.0, 12.7) * gx)
+	actor.yaw = PI * 0.75
+	var actions: Array[Interaction] = node.get_interactions(ctx)
+	assert_int(actions.size()).is_equal(1)
+	assert_vector(actions[0].stand_at).is_equal_approx(
+		node.to_global(Vector3(-12.72792, 0.0, 12.72792) * gx), Vector3(0.001, 0.001, 0.001)
+	)
+	assert_float(actions[0].stand_yaw).is_equal_approx(PI * 0.75, 0.001)
+	assert_float(actions[0].stand_sec).is_equal_approx(9.0 / 30.0, 0.001)
+	## Facing south or west: nothing.
+	actor.yaw = 0.0
+	assert_array(node.get_interactions(ctx)).is_empty()
+	actor.yaw = -PI * 0.5
+	assert_array(node.get_interactions(ctx)).is_empty()
+	## Facing it from too far away: nothing.
+	actor.yaw = PI * 0.75
+	actor.global_position = node.to_global(Vector3(-30.0, 0.0, 30.0) * gx)
+	assert_array(node.get_interactions(ctx)).is_empty()

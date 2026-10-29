@@ -26,6 +26,8 @@ const NPC_HOUSE_DOOR := Vector2(0.0, 40.0) * FieldCatalog.GX_TO_METERS
 const SHOP_DOOR := Vector2(-50.0, 50.0) * FieldCatalog.GX_TO_METERS
 const ABLE_DOOR := Vector2(-40.0, 50.0) * FieldCatalog.GX_TO_METERS
 const POLICE_DOOR := Vector2(50.0, 50.0) * FieldCatalog.GX_TO_METERS
+## `aPBOX_check_player` circle centre (the walk-in sensor; `Door` checks radius and facing).
+const POLICE_CHECK := Vector2(24.0, 40.0) * FieldCatalog.GX_TO_METERS
 const MUSEUM_DOOR := Vector2(0.0, 100.0) * FieldCatalog.GX_TO_METERS
 ## `aTOU_check_door_pos`: |dx| < 20 and −65 < dz < 0 from the tower — the door is on the
 ## **north** face (the tower stands on the beach facing town). Centre of that window.
@@ -112,7 +114,7 @@ static func door_offset(visual_id: StringName) -> Vector3:
 	if is_able_sisters(visual_id) or is_post_office(visual_id):
 		return _door_at(ABLE_DOOR)
 	if is_police(visual_id):
-		return _door_at(POLICE_DOOR)
+		return _door_at(POLICE_CHECK)
 	if is_museum(visual_id):
 		return _door_at(MUSEUM_DOOR)
 	if is_lighthouse(visual_id):
@@ -216,7 +218,8 @@ static func apply_building(host: Node3D, visual_id: StringName, occupancy: Vecto
 			if is_museum(visual_id):
 				box = Vector3(4.0, 2.6, 1.4)
 			elif is_police(visual_id):
-				box = Vector3(2.0, 2.0, 2.0)
+				## Covers the √1100 GX check circle (33 GX radius).
+				box = Vector3(3.4, 2.0, 3.4)
 			elif is_lighthouse(visual_id):
 				box = LIGHTHOUSE_DOOR_BOX
 			place_door_sensor(host, door, box)

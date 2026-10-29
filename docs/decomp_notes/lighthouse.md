@@ -30,12 +30,20 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 - **Room** (`rom_toudai`): spawn `{120,0,100}` facing south, `EXIT_DOOR` at units (2,0)/(3,0) on the north rim. Floor units 4 counts, the pit rail 6 (20 GX), walls 31. BGM 90 is empty: the room is quiet.
 - **Switch room** (`ac_lighthouse_switch`): mode by `aLS_GetNiceStatus` — day off; night outside period 1 auto (lever flips itself, drive spins, light on); period-1 night manual. Manual: A within 33.57 GX of `{180,100}` facing 90°–180° with the lever off → player `ply_1_light_on1` at `{167.27,40,112.73}` facing 135°; past player frame 1 `mSC_LightHouse_Switch_On`. Lever clip at 0.5, SE `0x78` crossing frame 20; when home the drive starts (two kicks 0.065 / 0.85·0.065 at ticks 0 and 30, then +0.0035 a tick, cap 0.5) and the point light eases on (0.02). Off: drive coasts −0.001 to 0.1, eases up 0.07, swings back 100→1 at 0.17 and settles; 49 ticks later the lever drops; light fades 0.002 a tick. Point light `{120,80,160}` colour (235,190,185).
 
+## Quest flow
+
+- **Vacation** (`SONCHO_VACATION_JANUARY/FEBRUARY`, Jan 15–24 / Feb 12–21, 10:00–17:00): Tortimer at the wishing-well acre (`TortimerPresenter`, `TortimerHoliday`). Not scheduled while a quest is still running; a finished one is cleared (`EventCalendar` → `LighthouseBook.event_start`). The first talk starts the quest (0x33F4 Jan / 0x340B Feb); he is gone the next time the town loads (`talk_after_check`).
+- **Away** (period 1, `in_nights`): no bridge Tortimer, no golden-tool visits, the first-job Tortimer hidden once met.
+- **Return** (period 2, `event_check`): Tortimer at the house door (`PresentVisit`): all 7 nights lit → the present, or he comes again with full pockets; a night missed → no present. Both close the job (`event_clear`).
+
+## Godot specifics
+
+- The beam reads the summed ramps off the arm's frame (`lighthouse_beacon.gd` `beam_at`). The curve is lopsided: after 51 each frame takes its own ramp (frame 90 is left at 9 / 14 and eases out); before 51 it builds up from 0 at frame 12 to 211 / 226 at frame 50.
+- Tower door: walk-in only with the player's centre in the window and facing south into the tower within 45° (`Door._is_outdoor_lighthouse`).
+- Switch panel: `lighthouse_switch.gd` `at_panel` is the reach/facing check. The action carries an `Interaction.with_stand` so the clip slides the player onto `nice_pos` at 135° over 9 frames.
+
 ## Not built
 
-- **Vacation** (`SONCHO_VACATION_JANUARY/FEBRUARY`, Jan 15–24 / Feb 12–21, 10:00–17:00): Tortimer at the wishing-well acre (`TortimerPresenter`, `TortimerHoliday`). Not scheduled while a quest is still running; a finished one is cleared (`update_soncho_event` → `LighthouseBook.event_start`). The first talk starts the quest (0x33F4 Jan / 0x340B Feb, FREE0 = day +7, FREE1 = day +8); then 6–8 chat lines; he is gone the next time the town loads (`talk_after_check`).
-- **Away** (period 1, `in_nights`): no bridge Tortimer, no golden-tool visits, and the first-job Tortimer is hidden once met.
-- **Return** (period 2, `event_check`): Tortimer at the house door when the game is continued (`PresentVisit`): all 7 nights lit → the wrapped present with 0x33FD / 0x3414, or 0x33FF / 0x3416 with full pockets (he comes again); a night missed → 0x3400 / 0x3417, no present. Both close the job (`event_clear`).
-- Reward delivery (period 2) and the "all nights lit" bonus.
 - Drive motor level SE `0xC9` and stop SE `0x79` (not rendered by the audio pipeline; one SysLev channel).
-- The facing window (90°–180°) and the stand snap to `{167,40,113}` — the player faces the panel from where they stand.
 - Fixed lighthouse room kcolor (`l_mEnv_kcolor_lighthouse`): the room uses the shared interior light.
+- Multi-player bits (`players_quest_started` per player, `Delete_Player`): one player, so plain booleans.

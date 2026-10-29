@@ -44,6 +44,11 @@ var player_anim: StringName = &""
 ## command on its first frame, which `ready_rod` reaches at animation frame 10, and the rest
 ## of the swing plays out around a line that is already in the air.
 var effect_frame: float = -1.0
+## `cKF_SkeletonInfo_R_AnimationMove_ct_base`: the clip slides the player onto `stand_at`
+## (world XZ) turned to `stand_yaw` over `stand_sec` as it starts. 0 = turn to the host.
+var stand_at: Vector3 = Vector3.ZERO
+var stand_yaw: float = 0.0
+var stand_sec: float = 0.0
 
 
 static func of(
@@ -60,6 +65,13 @@ static func of(
 	action.player_anim = p_anim
 	action.effect_frame = p_effect_frame
 	return action
+
+
+func with_stand(at: Vector3, yaw: float, seconds: float) -> Interaction:
+	stand_at = at
+	stand_yaw = yaw
+	stand_sec = seconds
+	return self
 
 
 static func primary(actions: Array[Interaction]) -> Interaction:

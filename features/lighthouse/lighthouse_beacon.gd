@@ -11,8 +11,10 @@ extends Node
 ## a light source: it is a translucent cone tinted `(255, 255, b)` whose alpha peaks each
 ## time the arm passes frame 51 and fades in and out with the lamp.
 ##
-## The decomp ramps the beam a step a tick by how far the arm is from frame 51; summed, those
-## steps trace a fixed curve over the arm's frame, so here the beam is read off that curve.
+## The decomp ramps the beam a step a tick by how far the arm is from frame 51 — down after
+## the peak, up before it — and eases it to nothing 40 or more frames away. Summed, the ramps
+## trace a fixed curve over the arm's frame, so inside 40 frames the beam is read off that
+## curve; outside it eases as the decomp does.
 
 enum State { WAIT, LIGHTING, LIGHTOUT }
 
@@ -34,8 +36,9 @@ const CALC_MIN_SPEED := 0.5 * DecompTime.TICK_HZ
 const PEAK_BLUE := 220.0
 const PEAK_ALPHA := 240.0
 ## Beam ramps by distance from frame 51: [limit, blue, alpha] per tick at 0.5 frames a
-## tick, so twice that per frame of distance.
+## tick, so twice that per frame of distance. From `RAMP_END` frames away it eases instead.
 const RAMPS: Array = [[10, 4.5, 7.0], [30, 1.25, 2.25], [40, 4.0, 0.5]]
+const RAMP_END := 40
 const BEAM_SURFACE_SUFFIX := "_light_tex_txt"
 
 ## When false the lamp ignores the clock (tests / captures drive `lit` directly).
@@ -119,26 +122,38 @@ func _color_ctrl(delta: float) -> void:
 		beam_alpha = _ease(beam_alpha, 0.0, BEAM_HALF_LIFE, delta)
 		fade = _ease(fade, 0.0, FADE_HALF_LIFE, delta)
 		return
-	var beam: Vector2 = beam_at(frame)
-	beam_blue = beam.x
-	beam_alpha = beam.y
+	if absi(int(frame) - FRAME_REST) >= RAMP_END:
+		beam_blue = _ease(beam_blue, 0.0, BEAM_HALF_LIFE, delta)
+		beam_alpha = _ease(beam_alpha, 0.0, BEAM_HALF_LIFE, delta)
+	else:
+		var beam: Vector2 = beam_at(frame)
+		beam_blue = beam.x
+		beam_alpha = beam.y
 	fade = _ease(fade, 255.0, FADE_HALF_LIFE, delta)
 
 
-## The beam's blue and alpha with the arm on `at`: the peak on frame 51, falling off by the
-## ramps on either side to nothing 40 frames away.
+## The beam's blue and alpha with the arm on `at`, inside `RAMP_END` frames of 51. After the
+## peak each frame away takes its own ramp off (frame 52 the first, so frame 90 is left at
+## 9 / 14 to ease out); before it the beam has built up from nothing, one ramp a frame from
+## 39 away, to 211 / 226 on frame 50.
 static func beam_at(at: float) -> Vector2:
-	var dist: float = absf(float(int(at) - FRAME_REST))
-	var blue: float = PEAK_BLUE
-	var alpha: float = PEAK_ALPHA
-	var from: float = 0.0
-	for ramp: Array in RAMPS:
-		var span: float = clampf(dist - from, 0.0, float(ramp[0]) - from)
-		## Two ticks a frame.
-		blue -= 2.0 * float(ramp[1]) * span
-		alpha -= 2.0 * float(ramp[2]) * span
-		from = float(ramp[0])
-	return Vector2(maxf(blue, 0.0), maxf(alpha, 0.0))
+	var away: int = int(at) - FRAME_REST
+	if away == 0:
+		return Vector2(PEAK_BLUE, PEAK_ALPHA)
+	if away > 0:
+		return Vector2(PEAK_BLUE, PEAK_ALPHA) - _ramp_sum(1, mini(away, RAMP_END - 1))
+	return _ramp_sum(-away, RAMP_END - 1)
+
+
+## The ramp steps for distances `from`..`to` frames, two ticks a frame.
+static func _ramp_sum(from: int, to: int) -> Vector2:
+	var sum := Vector2.ZERO
+	for d: int in range(from, to + 1):
+		for ramp: Array in RAMPS:
+			if d < int(ramp[0]):
+				sum += 2.0 * Vector2(float(ramp[1]), float(ramp[2]))
+				break
+	return sum
 
 
 static func _ease(value: float, target: float, half_life: float, delta: float) -> float:
