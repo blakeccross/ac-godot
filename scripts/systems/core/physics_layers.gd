@@ -13,3 +13,6 @@ const CREATURES := 1 << 4
 const PICKUPS := 1 << 5
 const WATER := 1 << 6
 const TRIGGERS := 1 << 7
+## Villagers: off the player's mask, since they meet the player through `ActorPipe` (a push
+## both ways), not as a wall.
+const VILLAGERS := 1 << 8

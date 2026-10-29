@@ -30,22 +30,21 @@ func test_save_round_trip() -> void:
 	assert_bool(Game.museum.has_insect_type(0)).is_true()
 
 
-func test_fill_complete_skips_forgeries() -> void:
-	Game.museum.fill_complete()
-	## 15 art slots minus ART02/ART03 forgeries.
-	assert_that(Game.museum.count_art()).is_equal(13)
-	assert_that(Game.museum.count_fossils()).is_equal(25)
-	assert_that(Game.museum.count_fish()).is_equal(40)
-	assert_that(Game.museum.count_insects()).is_equal(40)
-	assert_that(Game.museum.count_all()).is_equal(25 + 13 + 40 + 40)
+func test_fill_complete_fills_every_painting() -> void:
+	## `mMmd_RequestMuseumDisplay` takes `FTR_SUM_ART01`–`ART15`: no painting slot stays empty.
+	var book := MuseumBook.new()
+	book.fill_complete()
+	assert_int(book.count_art()).is_equal(MuseumBook.ART_NUM)
+	assert_bool(book.is_complete()).is_true()
 
 
-func test_forgery_cannot_donate() -> void:
+func test_every_painting_can_be_donated() -> void:
+	## `mMmd_GetDisplayInfo`: ART02 is an ordinary painting; only Redd's `art_forgery_*` items refuse.
 	var art2 := FurnitureData.new()
 	art2.id = &"int_sum_art02"
 	art2.visual_id = &"int_sum_art02"
 	ItemCatalog.remember(art2)
-	assert_that(Game.museum.display_info_for_item(art2)).is_equal(MuseumBook.DisplayInfo.CANNOT_DONATE)
+	assert_that(Game.museum.display_info_for_item(art2)).is_equal(MuseumBook.DisplayInfo.CAN_DONATE)
 
 
 func test_donate_fish_from_inventory() -> void:
@@ -103,27 +102,26 @@ func test_map_item_categories() -> void:
 	assert_that(mapped.get("index")).is_equal(0)
 
 
-func test_fish_actor_stays_in_tank() -> void:
-	var grid := WorldGrid.new()
-	grid.configure(16, 16, 2.0, Vector3(-16, 0, -16))
-	var fish: FishData = FishCatalog.get_fish(&"carp")
+func test_museum_fish_stays_inside_its_glass() -> void:
+	## `Museum_Fish_BGCheck`: whatever the swim does, the check point never passes the tank's
+	## `54 + _28` half, and the height stays in the 60–110 GX band.
+	var school := MuseumFishSchool.new()
+	auto_free(school)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1
-	var actor: MuseumFishActor = MuseumFishActor.create(fish, 2, grid, rng)
-	assert_that(actor).is_not_null()
-	assert_that(actor.tank).is_equal(0)
-	## Swim Y is `_0C` minus tank water-line (40 GX) after floor snap.
-	assert_float(actor.position.y).is_greater(0.5)
-	assert_float(actor.position.y).is_less(4.0)
-	for _i in 120:
-		actor.advance(1.0 / 30.0)
-	var center: Vector3 = WorldGrid.room_point(grid, Vector3(MuseumDisplay.TANK_POS[0].x, 0.0, MuseumDisplay.TANK_POS[0].z))
-	var half: Vector3 = MuseumDisplay.tank_half(0)
-	assert_float(actor.position.x).is_greater_equal(center.x - half.x - 0.01)
-	assert_float(actor.position.x).is_less_equal(center.x + half.x + 0.01)
-	assert_float(actor.position.z).is_greater_equal(center.z - half.z - 0.01)
-	assert_float(actor.position.z).is_less_equal(center.z + half.z + 0.01)
-	assert_float(actor.position.y).is_greater(0.0)
+	for id: StringName in [&"carp", &"eel", &"arowana", &"salmon"]:
+		var index: int = MuseumDisplay.fish_index(id)
+		school.add(MuseumFishActor.create(FishCatalog.get_fish(id), index, rng))
+	for _i in 3000:
+		school.tick(1.0)
+		for a: MuseumFishActor in school.fish:
+			var c: Vector3 = MuseumFishActor.TANK_POS_GX[a.tank]
+			var half_x: float = (189.0 if a.tank == 4 else 54.0) + 0.01
+			assert_float(absf(a.objchk.x - c.x)).is_less_equal(half_x)
+			assert_float(a.pos.y).is_between(MuseumFishActor.Y_MIN, MuseumFishActor.Y_MAX)
+	## They swim, rather than sit still.
+	for a: MuseumFishActor in school.fish:
+		assert_bool(a.pos.distance_to(MuseumFishActor.TANK_POS_GX[a.tank]) > 0.0).is_true()
 
 
 func test_museum_fish_models_are_act_mus() -> void:
@@ -135,7 +133,7 @@ func test_museum_fish_models_are_act_mus() -> void:
 	var grid := WorldGrid.new()
 	grid.configure(16, 16, 2.0, Vector3(-16, 0, -16))
 	var fish: FishData = FishCatalog.get_fish(&"crucian_carp")
-	var actor: MuseumFishActor = MuseumFishActor.create(fish, 0, grid, RandomNumberGenerator.new())
+	var actor: MuseumFishActor = MuseumFishActor.create(fish, 0, RandomNumberGenerator.new())
 	var visual: MuseumFishVisual = MuseumFishVisual.create(actor)
 	assert_that(visual).is_not_null()
 	## Stand-up GLB: nose +Y / dorsal −X → swim nose +Z / dorsal +Y.
@@ -393,7 +391,9 @@ func test_entrance_door_gaps_keep_wing_openings() -> void:
 	assert_bool(north_centers.has(16.0)).is_true()
 
 
-func test_fossil_exhibits_have_collision() -> void:
+func test_fossil_exhibits_have_no_collision() -> void:
+	## `ac_museum_fossil` has no `ClObj` and the wing's BG is open floor: the player walks
+	## among (and through) the skeletons, as in the original.
 	Game.museum.fill_complete()
 	var room: Room = InteriorCatalog.room_template(&"museum_fossil")
 	var wing := IndoorSession.new()
@@ -404,7 +404,7 @@ func test_fossil_exhibits_have_collision() -> void:
 	MuseumPresenter.new().present_fossils(root, wing)
 	var fossil: Node3D = root.get_node_or_null("Fossil_00") as Node3D
 	assert_that(fossil).is_not_null()
-	assert_that(fossil.get_node_or_null("ExhibitCollision")).is_not_null()
+	assert_that(fossil.get_node_or_null("ExhibitCollision")).is_null()
 
 
 func test_painting_hangs_at_decomp_height() -> void:
@@ -436,17 +436,19 @@ func test_painting_hangs_at_decomp_height() -> void:
 func test_insect_fish_exit_doors_are_east_west() -> void:
 	## Corner sensors (z=560 GX = 28 m) must not be treated as south doors — that made the
 	## interact box swallow the enter spawn and bounce the player straight out.
-	assert_that(InteriorShellBuilder.museum_door_side(Vector3(28.0, 0.0, 28.0))).is_equal(&"east")
-	assert_that(InteriorShellBuilder.museum_door_side(Vector3(4.0, 0.0, 28.0))).is_equal(&"west")
-	assert_that(InteriorShellBuilder.museum_door_side(Vector3(14.0, 0.0, 26.0))).is_equal(&"south")
-	var insect_box: Vector3 = InteriorShellBuilder.museum_door_box(Vector3(28.0, 0.0, 28.0))
-	var fish_box: Vector3 = InteriorShellBuilder.museum_door_box(Vector3(4.0, 0.0, 28.0))
-	var paint_box: Vector3 = InteriorShellBuilder.museum_door_box(Vector3(14.0, 0.0, 26.0))
+	assert_that(InteriorShellBuilder.museum_door_side(Vector3(29.0, 0.0, 28.0))).is_equal(&"east")
+	assert_that(InteriorShellBuilder.museum_door_side(Vector3(3.0, 0.0, 28.0))).is_equal(&"west")
+	assert_that(InteriorShellBuilder.museum_door_side(Vector3(16.0, 0.0, 29.0))).is_equal(&"south")
+	var insect_box: Vector3 = InteriorShellBuilder.museum_door_box(Vector3(29.0, 0.0, 28.0))
+	var fish_box: Vector3 = InteriorShellBuilder.museum_door_box(Vector3(3.0, 0.0, 28.0))
+	var paint_box: Vector3 = InteriorShellBuilder.museum_door_box(Vector3(16.0, 0.0, 29.0))
 	## East/west: deep in X, wide in Z.
 	assert_float(insect_box.x).is_less(insect_box.z)
 	assert_float(fish_box.x).is_less(fish_box.z)
 	## South: wide in X, deep in Z.
 	assert_float(paint_box.x).is_greater(paint_box.z)
+	## The trigger is exactly the two 40 GX `DOOR` units, so it fires on the player's own unit.
+	assert_vector(paint_box * Vector3(1, 0, 1)).is_equal_approx(Vector3(80.0, 0.0, 40.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 
 
 func test_insect_fish_spawn_clears_exit_sensor() -> void:
@@ -516,23 +518,37 @@ func test_insect_fish_spawn_clears_exit_sensor() -> void:
 	assert_bool(FieldCatalog.mesh_paths(&"rom_museum1").size() > 0).is_true()
 
 
-func test_art_partitions_follow_the_painting_bg() -> void:
-	## `rom_museum3`: row 5 opens at x 5–8, row 9 at x 7–10; pillars at (1, 1) / (14, 1)
-	## and a raised strip x 3–12 along row 1.
-	var room: Room = InteriorCatalog.room_template(&"museum_painting")
-	var blocked: Dictionary = MuseumInteriorBuilder.art_blocked_units(room)
+func test_museum_rooms_collide_on_their_bg_units() -> void:
+	## Every museum room collides exactly as its `collision[]`: the painting partitions (row 5
+	## open at x 5–8, row 9 at x 7–10) and the insect cases (`rom_museum4`, height 6) block,
+	## while the fossil wing is open floor — the fossils themselves carry no collision.
+	var paint: Dictionary = InteriorUnitCollision.blocked_from_bg(
+		&"rom_museum3", FieldCatalog.LAND_COUNTS, FieldCatalog.HEIGHT_MAX, Rect2i(0, 0, 16, 16)
+	)
 	for x: int in range(1, 15):
-		assert_bool(blocked.has(Vector2i(x, 5))).is_equal(x < 5 or x > 8)
-		assert_bool(blocked.has(Vector2i(x, 9))).is_equal(x < 7 or x > 10)
-		assert_bool(blocked.has(Vector2i(x, 1))).is_equal(x != 2 and x != 13)
-		assert_bool(blocked.has(Vector2i(x, 6))).is_false()
-	assert_float(float(blocked[Vector2i(2, 5)])).is_equal_approx(3.0, 0.0001)  ## 60 GX
-	var wing := IndoorSession.new()
-	wing.bind(room)
-	var terrain := Node3D.new()
-	auto_free(terrain)
-	MuseumInteriorBuilder.add_museum_art_partitions(terrain, room, wing.grid)
-	assert_object(terrain.get_node_or_null("MuseumArtCol")).is_not_null()
+		assert_bool(paint.has(Vector2i(x, 5))).is_equal(x < 5 or x > 8)
+		assert_bool(paint.has(Vector2i(x, 9))).is_equal(x < 7 or x > 10)
+		assert_bool(paint.has(Vector2i(x, 6))).is_false()
+	assert_float(float(paint[Vector2i(2, 5)])).is_equal_approx(3.0, 0.0001)  ## 60 GX
+	var insect: Dictionary = InteriorUnitCollision.blocked_from_bg(
+		&"rom_museum4", FieldCatalog.LAND_COUNTS, FieldCatalog.HEIGHT_MAX, Rect2i(0, 0, 16, 16)
+	)
+	if InteriorUnitCollision.bg_counts(&"rom_museum4").is_empty():
+		return  ## pipeline not run
+	assert_bool(insect.has(Vector2i(5, 4))).is_true()
+	assert_bool(insect.has(Vector2i(2, 4))).is_false()
+	var fossil: Dictionary = InteriorUnitCollision.blocked_from_bg(
+		&"rom_museum2", FieldCatalog.LAND_COUNTS, FieldCatalog.HEIGHT_MAX, Rect2i(1, 1, 14, 12)
+	)
+	assert_bool(fossil.is_empty()).is_true()
+	for id: StringName in [&"museum_painting", &"museum_fossil", &"museum_insect"]:
+		var room: Room = InteriorCatalog.room_template(id)
+		var wing := IndoorSession.new()
+		wing.bind(room)
+		var terrain := Node3D.new()
+		auto_free(terrain)
+		assert_bool(InteriorShellBuilder.add_museum_unit_collision(terrain, room, wing.grid)).is_true()
+		assert_object(terrain.get_node_or_null("MuseumUnitCol")).is_not_null()
 
 
 func test_every_museum_room_has_exit_gap() -> void:
@@ -557,32 +573,19 @@ func test_every_museum_room_has_exit_gap() -> void:
 			assert_float(float(gaps[i]["half"])).is_equal_approx(
 				InteriorShellBuilder.MUSEUM_DOOR_HALF, 0.01
 			)
-		## Non-corner openings stay clear at the wall mid-band (entrance N/S/W/E).
+		## Every door's own units stay open (the warp fires on them); past them is wall, as in
+		## `collision[]`.
 		if room_id != &"museum_entrance":
 			continue
 		var terrain := Node3D.new()
 		auto_free(terrain)
 		InteriorShellBuilder.add_museum_shell_collision(terrain, room, wing.grid, gaps)
-		var origin: Vector3 = wing.grid.cell_corner(Vector2i.ZERO)
-		var full_x: float = float(wing.grid.columns) * wing.grid.cell_size
-		var full_z: float = float(wing.grid.rows) * wing.grid.cell_size
-		## Entrance keeps walls on the floor AABB (no wing rim inset).
-		var wall_nw: Vector3 = wing.grid.cell_corner(room.inner_origin)
-		var wall_se: Vector3 = wing.grid.cell_corner(room.inner_origin + room.inner_size)
-		for gap: Dictionary in gaps:
-			var side: StringName = gap["side"] as StringName
-			var center: float = float(gap["center"])
-			var probe := Vector3.ZERO
-			match side:
-				&"north":
-					probe = Vector3(center, 1.0, (origin.z + wall_nw.z) * 0.5)
-				&"south":
-					probe = Vector3(center, 1.0, (wall_se.z + origin.z + full_z) * 0.5)
-				&"west":
-					probe = Vector3((origin.x + wall_nw.x) * 0.5, 1.0, center)
-				&"east":
-					probe = Vector3((wall_se.x + origin.x + full_x) * 0.5, 1.0, center)
-			assert_bool(_point_in_any_box(terrain, probe)).is_false()
+		var sensors: Array[Vector3] = [MuseumDisplay.ENTRANCE_EXIT_SENSOR]
+		for link: Dictionary in MuseumDisplay.ENTRANCE_WING_DOORS:
+			sensors.append(link["sensor"] as Vector3)
+		for sensor: Vector3 in sensors:
+			var probe: Vector3 = WorldGrid.room_point(wing.grid, sensor) + Vector3(0.0, 1.0, 0.0)
+			assert_bool(_point_in_any_box(terrain, probe)).override_failure_message(str(sensor)).is_false()
 
 
 func test_fish_and_insect_door_thresholds_stay_clear() -> void:
@@ -596,7 +599,12 @@ func test_fish_and_insect_door_thresholds_stay_clear() -> void:
 		auto_free(terrain)
 		InteriorShellBuilder.add_museum_shell_collision(terrain, room, wing.grid, gaps)
 		var link: Dictionary = MuseumDisplay.WING_EXIT_DOORS[room_id] as Dictionary
-		var spawn: Vector3 = WorldGrid.room_point(wing.grid, link["spawn"] as Vector3)
+		## Where the entrance's door puts the player in this wing.
+		var arrive: Vector3 = Vector3.ZERO
+		for entry: Dictionary in MuseumDisplay.ENTRANCE_WING_DOORS:
+			if entry["room"] == room_id:
+				arrive = entry["spawn"] as Vector3
+		var spawn: Vector3 = WorldGrid.room_point(wing.grid, arrive)
 		var sensor: Vector3 = WorldGrid.room_point(wing.grid, link["sensor"] as Vector3)
 		assert_bool(_point_in_any_box(terrain, spawn + Vector3(0.0, 1.0, 0.0))).is_false()
 		assert_bool(_point_in_any_box(terrain, sensor + Vector3(0.0, 1.0, 0.0))).is_false()
@@ -618,16 +626,68 @@ func _point_in_any_box(root: Node3D, point: Vector3) -> bool:
 	for child: Node in root.get_children():
 		if not (child is StaticBody3D):
 			continue
-		var shape_node: CollisionShape3D = child.get_child(0) as CollisionShape3D
-		if shape_node == null or not (shape_node.shape is BoxShape3D):
-			continue
-		var box: BoxShape3D = shape_node.shape as BoxShape3D
-		var half: Vector3 = box.size * 0.5
-		var local: Vector3 = point - child.position
-		if (
-			absf(local.x) <= half.x + 0.01
-			and absf(local.y) <= half.y + 0.01
-			and absf(local.z) <= half.z + 0.01
-		):
-			return true
+		## One body per wall box, or one body holding every unit hull (`MuseumUnitCol`).
+		for shape_v: Node in child.get_children():
+			var shape_node: CollisionShape3D = shape_v as CollisionShape3D
+			if shape_node == null or not (shape_node.shape is BoxShape3D):
+				continue
+			var half: Vector3 = (shape_node.shape as BoxShape3D).size * 0.5
+			var local: Vector3 = point - (child as Node3D).position - shape_node.position
+			if (
+				absf(local.x) <= half.x + 0.01
+				and absf(local.y) <= half.y + 0.01
+				and absf(local.z) <= half.z + 0.01
+			):
+				return true
 	return false
+
+
+func _plaque() -> Node3D:
+	var plaque: Node3D = auto_free(load("res://features/museum/museum_plaque.tscn").instantiate()) as Node3D
+	add_child(plaque)
+	return plaque
+
+
+func test_fossil_talk_needs_the_cardinal_facing_and_reach() -> void:
+	## `mRmTp_CheckTalkAble`: within 42.5 GX, facing the exhibit's side to within ±22.5°.
+	var plaque := _plaque()
+	plaque.call("setup_cardinal", "Fossil 1", 0, MuseumDisplay.FOSSIL_TALK_REACH, false, true)
+	var gx := FieldCatalog.GX_TO_METERS
+	var south := plaque.global_position + Vector3(0.0, 0.0, 30.0 * gx)
+	assert_bool(plaque.call("can_talk", south, PI)).is_true()
+	assert_bool(plaque.call("can_talk", south, PI + deg_to_rad(20.0))).is_true()
+	## A diagonal facing never counts, nor the far side, nor out of reach.
+	assert_bool(plaque.call("can_talk", south, PI + deg_to_rad(30.0))).is_false()
+	assert_bool(plaque.call("can_talk", south, 0.0)).is_false()
+	assert_bool(plaque.call("can_talk", plaque.global_position + Vector3(0.0, 0.0, 43.0 * gx), PI)).is_false()
+
+
+func test_sign_talk_is_a_square_facing_north() -> void:
+	## `Museum_Insect_Check_Talk_Distance`: |dx|, |dz| < 20 GX, facing north within 67.5°.
+	var plaque := _plaque()
+	plaque.call("setup_sign", "Case 1", MuseumDisplay.SIGN_TALK_HALF)
+	var gx := FieldCatalog.GX_TO_METERS
+	var at := plaque.global_position + Vector3(15.0 * gx, 0.0, 15.0 * gx)
+	assert_bool(plaque.call("can_talk", at, PI)).is_true()
+	assert_bool(plaque.call("can_talk", at, PI - deg_to_rad(60.0))).is_true()
+	assert_bool(plaque.call("can_talk", at, PI - deg_to_rad(70.0))).is_false()
+	assert_bool(plaque.call("can_talk", plaque.global_position + Vector3(21.0 * gx, 0.0, 0.0), PI)).is_false()
+
+
+func test_exhibit_pages_follow_the_donors() -> void:
+	## `Museum_*_GetMsgNo`: a page with more after it asks to read on (12194 / 12195); the last is
+	## 12191 for a resident, 12192 for a former one; an empty case is 12193.
+	var script: GDScript = load("res://features/museum/museum_plaque.gd")
+	var talk: BankTalk = script.ExhibitTalk.new()
+	assert_int(talk.start_msg()).is_equal(12193)
+	var entries: Array[Dictionary] = [
+		{"name": "a bee", "donor": MuseumBook.Donator.PLAYER1},
+		{"name": "a moth", "donor": MuseumBook.Donator.DELETED_PLAYER},
+		{"name": "a fly", "donor": MuseumBook.Donator.PLAYER2},
+	]
+	talk.entries = entries
+	assert_int(talk.start_msg()).is_equal(12194)
+	assert_int(talk.picked(12194, 0)).is_equal(12195)
+	assert_int(talk.picked(12195, 0)).is_equal(12191)
+	## "Quit reading" follows the message's own branch out.
+	assert_int(talk.picked(12194, 1)).is_equal(-1)

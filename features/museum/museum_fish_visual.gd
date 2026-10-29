@@ -42,13 +42,18 @@ func _load(fish_index: int) -> bool:
 			if anim_res != null:
 				anim_res.loop_mode = Animation.LOOP_LINEAR
 			anim.play(clip)
+		_anim = anim
 	return true
 
 
-func _process(delta: float) -> void:
+var _anim: AnimationPlayer = null
+
+
+func _process(_delta: float) -> void:
 	if actor == null:
 		return
-	actor.advance(delta)
+	if _anim != null:
+		_anim.speed_scale = maxf(actor.anim_speed, 0.0)
 	_apply_actor_pose()
 
 
@@ -59,17 +64,23 @@ func _process(delta: float) -> void:
 const SWIM_FROM_STAND := Basis(Vector3(0, -1, 0), Vector3(0, 0, 1), Vector3(-1, 0, 0))
 
 
+## `mfish_onefish_dw`: turn, pitch and roll about a pivot (`0.25·ofs_y`, `1.5·ofs_z`) and come back
+## only `0.5·ofs_z`, so the body sits `ofs_z` along its heading; the roll is half the turn left,
+## held to ±20°.
 func _apply_actor_pose() -> void:
 	if actor == null:
 		return
-	var lift := Vector3(0.0, actor.model_lift, 0.0)
-	var origin: Vector3 = actor.position + lift
+	var gx: float = FieldCatalog.GX_TO_METERS
 	var yaw: float = actor.yaw
 	if actor.fish_index == 32:
 		yaw = wrapf(yaw + PI, -PI, PI)
-	var face := Basis.from_euler(Vector3(actor.pitch, yaw, 0.0))
-	var posed := Transform3D((face * SWIM_FROM_STAND).scaled(Vector3.ONE * _scale), origin)
+	var roll: float = clampf(-actor.roll / 2.0, deg_to_rad(-20.0), deg_to_rad(20.0))
+	var xf := Transform3D(Basis(Vector3.UP, yaw), actor.world_position())
+	xf = xf * Transform3D(Basis.IDENTITY, Vector3(0.0, 0.25 * actor.ofs_y, 1.5 * actor.ofs_z) * gx)
+	xf = xf * Transform3D(Basis(Vector3.RIGHT, actor.pitch) * Basis(Vector3.BACK, roll), Vector3.ZERO)
+	xf = xf * Transform3D(Basis.IDENTITY, Vector3(0.0, -0.25 * actor.ofs_y, -0.5 * actor.ofs_z) * gx)
+	xf = xf * Transform3D(SWIM_FROM_STAND.scaled(Vector3.ONE * _scale), Vector3.ZERO)
 	if is_inside_tree():
-		global_transform = posed
+		global_transform = xf
 	else:
-		transform = posed
+		transform = xf

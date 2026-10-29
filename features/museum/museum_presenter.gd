@@ -97,45 +97,55 @@ func present_fossils(root: Node3D, interior: IndoorSession) -> void:
 		node.rotation.y = WorldGrid.yaw_for_furniture(facing)
 		root.add_child(node)
 		GeneratedVisual.attach(node, visual)
-		_add_exhibit_collision(node)
+	_add_fossil_collision(root, interior)
 	_add_fossil_plaques(root, interior)
 
 
+## `mMmd_MuseumFossilProcess_MakeFgData` puts every slot into the room's FG as furniture — the
+## fossil once donated, its dummy pedestal before — so all 25 footprints are solid (`ac_my_room`
+## furniture), donated or not.
+func _add_fossil_collision(root: Node3D, interior: IndoorSession) -> void:
+	var terrain: Node3D = root.get_parent().get_node_or_null("Terrain") as Node3D if root.get_parent() != null else null
+	if terrain == null:
+		return
+	var blocked: Dictionary = {}
+	for i: int in MuseumBook.FOSSIL_NUM:
+		var facing: WorldGrid.Facing = MuseumDisplay.FOSSIL_FACINGS[i] as WorldGrid.Facing
+		for cell: Vector2i in interior.grid.footprint_cells(MuseumDisplay.FOSSIL_CELLS[i], MuseumDisplay.fossil_footprint(i), facing):
+			blocked[cell] = InteriorUnitCollision.WALL
+	InteriorUnitCollision.add_hulls(terrain, interior.grid, "MuseumFossilCol", blocked)
+
+
 func _add_fossil_plaques(root: Node3D, interior: IndoorSession) -> void:
-	## One plaque near each skeleton group / solo row.
+	## `Museum_Fossil_Actor_move`: one talk point per fossil (`aMF_fossil_data_table`).
 	var book: MuseumBook = Game.museum
-	var groups: Array = MuseumDisplay.FOSSIL_SETS.duplicate()
-	groups.append(MuseumDisplay.FOSSIL_SOLO)
-	var labels: Array[String] = [
-		"Triceratops",
-		"T. Rex",
-		"Apatosaurus",
-		"Stegosaurus",
-		"Pteranodon",
-		"Plesiosaur",
-		"Mammoth",
-		"Fossil Finds",
-	]
-	for gi: int in groups.size():
-		var parts: Array = groups[gi] as Array
-		var lines := PackedStringArray()
-		var cell_sum := Vector2i.ZERO
-		var n: int = 0
-		for part: Variant in parts:
-			var idx: int = int(part)
-			cell_sum += MuseumDisplay.FOSSIL_CELLS[idx]
-			n += 1
-			if MuseumBook.is_donated(book.fossil_info(idx)):
-				var name := String(MuseumDisplay.FOSSIL_VISUALS[idx]).replace("int_din_", "").replace("_", " ").capitalize()
-				lines.append(name)
-		if n <= 0:
-			continue
-		var avg := Vector2i(cell_sum.x / n, cell_sum.y / n + 1)
-		var plaque: Node3D = PLAQUE_SCENE.instantiate() as Node3D
-		plaque.position = interior.grid.cell_to_world(avg)
-		if plaque.has_method("setup"):
-			plaque.call("setup", labels[gi] if gi < labels.size() else "Fossils", lines)
+	for i: int in MuseumBook.FOSSIL_NUM:
+		var row: Array = MuseumDisplay.FOSSIL_TALK[i] as Array
+		var plaque := PLAQUE_SCENE.instantiate() as Node3D
+		plaque.position = WorldGrid.room_point(
+			interior.grid, Vector3((float(row[0]) + 0.5) * MuseumDisplay.UNIT, 0.0, (float(row[1]) + 0.5) * MuseumDisplay.UNIT)
+		)
 		root.add_child(plaque)
+		plaque.call("setup_cardinal", "Fossil %d" % (i + 1), int(row[2]), MuseumDisplay.FOSSIL_TALK_REACH, false, true)
+		plaque.set("entries", _entries([[_item_name(MuseumDisplay.FOSSIL_VISUALS[i]), book.fossil_info(i)]]))
+
+
+## `{"name", "donor"}` for each donated `[name, donator]` pair, in order.
+static func _entries(pairs: Array) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for pair: Variant in pairs:
+		var donor: int = int((pair as Array)[1])
+		if MuseumBook.is_donated(donor):
+			out.append({"name": str((pair as Array)[0]), "donor": donor})
+	return out
+
+
+## Fossils and paintings are furniture keyed by their model (`FTR_DINO_START + i·4`, `FTR_SUM_ART01`).
+static func _item_name(visual_id: StringName) -> String:
+	var item: ItemData = ItemCatalog.get_item(visual_id)
+	if item == null:
+		item = ItemCatalog.furniture_for_visual(visual_id)
+	return item.display_name if item != null else String(visual_id)
 
 
 func present_paintings(root: Node3D, interior: IndoorSession) -> void:
@@ -159,17 +169,14 @@ func present_paintings(root: Node3D, interior: IndoorSession) -> void:
 			GeneratedVisual.mark_missing(
 				node, visual, Color(0.9, 0.85, 0.7) if donated else Color(0.55, 0.38, 0.22), Vector3(1.2, 1.4, 0.08)
 			)
-		## Talk only when facing south within 33 GX (`aMP_CheckTalkAbleDist`).
+		## `aMP_CheckTalkAbleDist`: (x·40 + 60, z·40 + 40) GX, read from the south within 33 GX.
 		var plaque: Node3D = PLAQUE_SCENE.instantiate() as Node3D
 		plaque.position = WorldGrid.room_point(
-			interior.grid, Vector3(at.x, 0.0, at.z + MuseumDisplay.UNIT)
+			interior.grid, Vector3(float(cell.x) * MuseumDisplay.UNIT, 0.0, float(cell.y) * MuseumDisplay.UNIT) + MuseumDisplay.ART_TALK_OFFSET
 		)
-		var lines := PackedStringArray()
-		if donated:
-			lines.append(String(MuseumDisplay.ART_VISUALS[i]).replace("int_sum_", "").replace("_", " ").capitalize())
-		if plaque.has_method("setup"):
-			plaque.call("setup", "Painting %d" % (i + 1), lines)
 		root.add_child(plaque)
+		plaque.call("setup_cardinal", "Painting %d" % (i + 1), 0, MuseumDisplay.ART_TALK_REACH, true, false)
+		plaque.set("entries", _entries([[_item_name(MuseumDisplay.ART_VISUALS[i]), book.art_info(i)]]))
 
 
 func present_fish(root: Node3D, interior: IndoorSession) -> void:
@@ -177,36 +184,40 @@ func present_fish(root: Node3D, interior: IndoorSession) -> void:
 	var book: MuseumBook = Game.museum
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("museum_fish_%s" % Game.town.town_name)
+	## One tank-wide system moves every fish before they draw (`Museum_Fish_Actor_move`).
+	var school := MuseumFishSchool.new()
+	school.name = "FishSchool"
+	school.add_to_group("museum_set")
+	root.add_child(school)
 	for i: int in MuseumBook.FISH_NUM:
 		if not MuseumBook.is_donated(book.fish_info(i)):
 			continue
 		var fish: FishData = FishCatalog.get_fish(MuseumDisplay.fish_id_at(i))
 		if fish == null:
 			continue
-		var actor: MuseumFishActor = MuseumFishActor.create(fish, i, interior.grid, rng)
+		var actor: MuseumFishActor = MuseumFishActor.create(fish, i, rng)
 		if actor == null:
 			continue
+		school.add(actor)
 		var visual: MuseumFishVisual = MuseumFishVisual.create(actor)
 		if visual == null:
 			continue
 		visual.name = "Fish_%02d" % i
 		visual.add_to_group("museum_set")
 		root.add_child(visual)
+	## `Museum_Fish_Talk_process`: a sign per tank, paging its donated fish.
 	for gi: int in MuseumDisplay.FISH_PLAQUE_GROUPS.size():
-		var group: Array = MuseumDisplay.FISH_PLAQUE_GROUPS[gi] as Array
-		var lines := PackedStringArray()
-		for idx_v: Variant in group:
+		var pairs: Array = []
+		for idx_v: Variant in MuseumDisplay.FISH_PLAQUE_GROUPS[gi] as Array:
 			var idx: int = int(idx_v)
-			if not MuseumBook.is_donated(book.fish_info(idx)):
-				continue
 			var fish: FishData = FishCatalog.get_fish(MuseumDisplay.fish_id_at(idx))
-			if fish != null:
-				lines.append(fish.display_name)
+			pairs.append([fish.display_name if fish != null else "", book.fish_info(idx)])
 		var plaque: Node3D = PLAQUE_SCENE.instantiate() as Node3D
-		plaque.position = WorldGrid.room_point(interior.grid, MuseumDisplay.FISH_PLAQUE_POS[gi])
-		if plaque.has_method("setup"):
-			plaque.call("setup", "Tank %s" % char(65 + gi), lines)
+		var at: Vector3 = MuseumDisplay.FISH_PLAQUE_POS[gi]
+		plaque.position = WorldGrid.room_point(interior.grid, Vector3(at.x, 0.0, at.z))
 		root.add_child(plaque)
+		plaque.call("setup_sign", "Tank %s" % char(65 + gi), MuseumDisplay.SIGN_TALK_HALF)
+		plaque.set("entries", _entries(pairs))
 
 
 func _spawn_fish_tanks(root: Node3D, interior: IndoorSession) -> void:
@@ -225,7 +236,6 @@ func _spawn_fish_tanks(root: Node3D, interior: IndoorSession) -> void:
 		var pivot: Node3D = GeneratedVisual.attach(node, &"obj_suisou1")
 		if pivot != null:
 			VisualFit.align_actor_to_height(pivot, 0.0)
-		_add_tank_collision(node, MuseumDisplay.TANK_HALF)
 	var sea := Node3D.new()
 	sea.name = "Tank_4"
 	sea.add_to_group("museum_set")
@@ -234,8 +244,6 @@ func _spawn_fish_tanks(root: Node3D, interior: IndoorSession) -> void:
 	sea.position = Vector3(grid.origin.x, 0.0, grid.origin.z)
 	root.add_child(sea)
 	GeneratedVisual.attach(sea, &"obj_museum5")
-	var sea_center: Vector3 = WorldGrid.room_point(grid, MuseumDisplay.TANK_POS[4])
-	_add_tank_collision(sea, MuseumDisplay.SEA_TANK_HALF, sea_center - sea.position)
 	_add_tank_decor(root, grid)
 
 
@@ -299,49 +307,6 @@ func _play_sway(pivot: Node3D, start_frame: float, speed_scale: float) -> void:
 	anim.seek(start_frame / 30.0, true)
 
 
-func _add_tank_collision(host: Node3D, half: Vector3, local_center: Vector3 = Vector3.ZERO) -> void:
-	## Opaque glass boxes so the player cannot walk through tanks.
-	var body := StaticBody3D.new()
-	body.name = "TankCollision"
-	body.collision_layer = 1
-	body.collision_mask = 0
-	body.position = local_center + Vector3(0.0, 1.2, 0.0)
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(
-		maxf(half.x * 2.0, 1.0),
-		2.4,
-		maxf(half.z * 2.0, 1.0)
-	)
-	shape.shape = box
-	body.add_child(shape)
-	host.add_child(body)
-
-
-func _add_exhibit_collision(host: Node3D) -> void:
-	## Pedestal / skeleton hull from the attached mesh AABB.
-	if host == null or host.get_node_or_null("ExhibitCollision") != null:
-		return
-	var body := StaticBody3D.new()
-	body.name = "ExhibitCollision"
-	body.collision_layer = 1
-	body.collision_mask = 0
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	var aabb: AABB = VisualFit.local_aabb(host)
-	if aabb.size == Vector3.ZERO:
-		box.size = Vector3(1.6, 2.0, 1.6)
-		body.position = Vector3(0.0, 1.0, 0.0)
-	else:
-		box.size = Vector3(
-			maxf(aabb.size.x, 1.0), maxf(aabb.size.y, 1.0), maxf(aabb.size.z, 1.0)
-		)
-		body.position = aabb.position + aabb.size * 0.5
-	shape.shape = box
-	body.add_child(shape)
-	host.add_child(body)
-
-
 func present_insects(root: Node3D, interior: IndoorSession) -> void:
 	var book: MuseumBook = Game.museum
 	var rng := RandomNumberGenerator.new()
@@ -360,21 +325,19 @@ func present_insects(root: Node3D, interior: IndoorSession) -> void:
 		visual.add_to_group("museum_set")
 		root.add_child(visual)
 		visual.setup_display(actor)
+	## `Museum_Insect_Talk_process`: a sign per case, paging its donated insects.
 	for gi: int in MuseumDisplay.INSECT_PLAQUE_GROUPS.size():
-		var group: Array = MuseumDisplay.INSECT_PLAQUE_GROUPS[gi] as Array
-		var lines := PackedStringArray()
-		for idx_v: Variant in group:
+		var pairs: Array = []
+		for idx_v: Variant in MuseumDisplay.INSECT_PLAQUE_GROUPS[gi] as Array:
 			var idx: int = int(idx_v)
-			if not MuseumBook.is_donated(book.insect_info(idx)):
-				continue
 			var bug: BugData = BugCatalog.get_by_type(idx)
-			if bug != null:
-				lines.append(bug.display_name)
+			pairs.append([bug.display_name if bug != null else "", book.insect_info(idx)])
 		var plaque: Node3D = PLAQUE_SCENE.instantiate() as Node3D
-		plaque.position = WorldGrid.room_point(interior.grid, MuseumDisplay.INSECT_PLAQUE_POS[gi])
-		if plaque.has_method("setup"):
-			plaque.call("setup", "Case %d" % (gi + 1), lines)
+		var at: Vector3 = MuseumDisplay.INSECT_PLAQUE_POS[gi]
+		plaque.position = WorldGrid.room_point(interior.grid, Vector3(at.x, 0.0, at.z))
 		root.add_child(plaque)
+		plaque.call("setup_sign", "Case %d" % (gi + 1), MuseumDisplay.SIGN_TALK_HALF)
+		plaque.set("entries", _entries(pairs))
 
 
 func _attach_museum_art(node: Node3D, visual_id: StringName) -> bool:
@@ -382,5 +345,3 @@ func _attach_museum_art(node: Node3D, visual_id: StringName) -> bool:
 	## mesh XZ offsets (wall depth) and let `_fit_actor` rest the frame bottom on
 	## the hang line — do not AABB-recenter or undo the origin snap.
 	return GeneratedVisual.attach(node, visual_id) != null
-
-

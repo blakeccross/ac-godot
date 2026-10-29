@@ -15,6 +15,8 @@ from .mapfile import MapSymbol
 from .rel import RelData
 
 BG_DATA_SIZE = 0x434
+## `mFM_bg_data_c.bg_type` (`BG_TYPE_*`, the high `u16`): names a row whose model is drawn elsewhere.
+OFF_TYPE = 0x0
 OFF_OPAQUE = 0x4
 OFF_COLLISION = 0x1C
 UNIT_COUNT = 256
@@ -79,7 +81,23 @@ def extract_sounds(rel: RelData, symbols: list[MapSymbol], table: dict[str, list
     return out
 
 
-def extract_table(rel: RelData, symbols: list[MapSymbol]) -> dict[str, list[dict[str, int]]]:
+def bg_type_names(decomp: Path | None) -> dict[int, str]:
+    """`BG_TYPE_*` value → sidecar id (`BG_TYPE_ROM_MUSEUM4` → `rom_museum4`) from `m_bg_type.h`."""
+    if decomp is None:
+        return {}
+    header = decomp / "include" / "m_bg_type.h"
+    if not header.is_file():
+        return {}
+    from .fgdata import _enum_values
+
+    return {v: k[len("BG_TYPE_"):].lower() for k, v in _enum_values(header, "BG_TYPE_").items()}
+
+
+def extract_table(
+    rel: RelData, symbols: list[MapSymbol], type_names: dict[int, str] | None = None
+) -> dict[str, list[dict[str, int]]]:
+    """Collision per row, keyed by its `*_model` name. A row with no model (the insect wing,
+    `BG_TYPE_ROM_MUSEUM4`, is drawn by its own actor) is keyed by its `BG_TYPE_*` name."""
     by_addr = {s.address: s for s in symbols}
     bgd = next(s for s in symbols if s.name == "data_bgd")
     out: dict[str, list[dict[str, int]]] = {}
@@ -88,9 +106,15 @@ def extract_table(rel: RelData, symbols: list[MapSymbol]) -> dict[str, list[dict
         base = bgd.address + i * BG_DATA_SIZE
         opaque = rel.u32_at(base + OFF_OPAQUE)
         gfx = by_addr.get(opaque)
-        if gfx is None or not gfx.name.endswith("_model"):
+        if gfx is not None and gfx.name.endswith("_model"):
+            prefix = gfx.name[: -len("_model")]
+        elif opaque == 0 and type_names:
+            prefix = type_names.get(rel.u32_at(base + OFF_TYPE) >> 16, "")
+            ## Unnamed enum slots (`BG_TYPE_249`) name nothing a room can look up.
+            if not prefix or prefix.isdigit() or prefix in out:
+                continue
+        else:
             continue
-        prefix = gfx.name[: -len("_model")]
         blob = rel.slice_at(base + OFF_COLLISION, UNIT_COUNT * 4)
         units = [decode_unit(struct.unpack_from(">I", blob, u * 4)[0]) for u in range(UNIT_COUNT)]
         # Later `data_bgd` rows (`GRD_S_C1_3_1`, …) reuse the outdoor mesh with a
@@ -117,8 +141,10 @@ def write_sidecars(
     return n
 
 
-def extract_and_write(rel: RelData, symbols: list[MapSymbol], dest_roots: Path | list[Path]) -> dict[str, Any]:
-    table = extract_table(rel, symbols)
+def extract_and_write(
+    rel: RelData, symbols: list[MapSymbol], dest_roots: Path | list[Path], decomp: Path | None = None
+) -> dict[str, Any]:
+    table = extract_table(rel, symbols, bg_type_names(decomp))
     sounds = extract_sounds(rel, symbols, table)
     roots = dest_roots if isinstance(dest_roots, list) else [dest_roots]
     written = 0

@@ -71,6 +71,8 @@ const ANIM_KNOCK1 := "ply_1_knock1"
 const ANIM_INTO_S1 := "ply_1_into_s1"
 ## `mPlayer_ANIM_GO_OUT_O1` — non-demo outdoor emerge (`Player_actor_setup_main_Outdoor`).
 const ANIM_GO_OUT_O1 := "ply_1_go_out_o1"
+## `mPlayer_ANIM_GO_OUT_S1` — the emerge from the shop / museum / police / lighthouse doors.
+const ANIM_GO_OUT_S1 := "ply_1_go_out_s1"
 ## `mPlayer_INDEX_HOLD` / `PUSH` / `PULL` / `ROTATE_FURNITURE` clips (`FurnitureGrip`).
 const ANIM_HOLD_WAIT1 := "ply_1_hold_wait1"
 const ANIM_PUSH1 := "ply_1_push1"
@@ -226,6 +228,7 @@ static func visual_id() -> StringName:
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	add_to_group(ActorPipe.GROUP)
 	feel.set_head_lift(LOOK_HEIGHT)
 	_motor.ground_sampler = _motor_ground_y
 	_motor.flat_sampler = _motor_unit_flat
@@ -335,6 +338,30 @@ func stop_for_door() -> void:
 
 func is_busy() -> bool:
 	return _busy
+
+
+## `ActorPipe`: the stand pipe (`Player_actor_OcInfoData_forStand`).
+func pipe_radius() -> float:
+	return ActorPipe.RADIUS
+
+
+func pipe_height() -> float:
+	return ActorPipe.PLAYER_HEIGHT
+
+
+func pipe_active() -> bool:
+	return visible and not _cutscene_driven
+
+
+## `Player_actor_SetupWeight`: immovable through the scripted walks, a wade, a pitfall and the
+## door emerge (and the whole title demo, `Player_actor_ct`); heavy while talking or with a line
+## in the water; otherwise an ordinary 50.
+func pipe_weight() -> int:
+	if Game.title_demo_active or not _wade.is_empty() or in_pitfall or doors.door_entering:
+		return ActorPipe.WEIGHT_IMMOVABLE
+	if is_talk_facing() or fishing.line != null:
+		return ActorPipe.WEIGHT_HEAVY
+	return ActorPipe.WEIGHT_NORMAL
 
 
 ## `mPlayer_INDEX_WAIT`: the ground-item name window only opens while standing idle
@@ -496,6 +523,8 @@ func _physics_process(delta: float) -> void:
 	_mesh.rotation.x = _motor.lean
 	var before: Vector3 = global_position
 	move_and_slide()
+	## Villagers give way rather than block (`collision_vec`, added before the BG check).
+	global_position += ActorPipe.push(self)
 	if bg.size() == 2:
 		global_position = FieldCollision.revise_xz(
 			bg[0] as WorldData, bg[1] as WorldGrid, before, global_position

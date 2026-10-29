@@ -53,6 +53,8 @@ const PRESENTERS: Dictionary = {
 	&"soncho_sale_day": "res://features/events/tortimer_presenter.gd",
 	&"soncho_snow_day": "res://features/events/tortimer_presenter.gd",
 	&"soncho_toy_day": "res://features/events/tortimer_presenter.gd",
+	&"soncho_vacation_january": "res://features/events/tortimer_presenter.gd",
+	&"soncho_vacation_february": "res://features/events/tortimer_presenter.gd",
 	&"fireworks_show": "res://features/events/festival_presenter.gd",
 	&"cherry_blossom_festival": "res://features/events/festival_presenter.gd",
 	&"sports_fair_foot_race": "res://features/events/festival_presenter.gd",

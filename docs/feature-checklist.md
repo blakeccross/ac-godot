@@ -490,7 +490,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 ## 26. Town Hall & civic
 
 - [x] No Town Hall on the GameCube (it arrives in Wild World): Tortimer only appears at events, and Pelly / Phyllis work the post office (§ post office)
-- [~] Tortimer hands out event items & hosts most holidays (`ac_ev_soncho`, `ac_ev_speech_soncho`) — holiday speeches and the wishing-well visits with his calendar trophies (§31), and the second bridge (§ Bridges)
+- [x] Tortimer hands out event items & hosts most holidays (`ac_ev_soncho`, `ac_ev_soncho2`, `ac_ev_speech_soncho`, `ac_npc_soncho`) — holiday speeches and the wishing-well visits with his calendar trophies (§31), walk-wandering the acre like a villager (at the Sports Fair: watching the race, pacing round the shrine at the ball toss, clapping at the tug-of-war); the second bridge (§ Bridges); his January / February vacation and the lighthouse job (§ Lighthouse), with the souvenir or a scolding at the door when he's back; and during the first job by the well (0x3AFC / 0x3AFF+, wandering a 3 m circle). Not ported: the tug-of-war clap level SE (`lev_2f` isn't rendered)
 - [x] Town Hall services (recycling, donations, environment rating): not on the GameCube; the town tune is set at the melody board by the station (`m_mscore_ovl`)
 - [x] **Town tune** editor at the tune board: 16 frog steps (G low … E, random, rest, tie), play, erase-all prompt, "Is this OK?" (save / rewrite / keep the old tune), plays as it opens; saved with the town (`m_mscore_ovl`, `ac_mscore_control`, `m_melody`) — `TownTuneOverlay`, `TownTune`, art from `menu_ui.py` (`ui/mscore/`); `tune [open|reset]` console command. The e-Reader button only closes
 - [x] Town name is fixed after creation
@@ -597,7 +597,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [~] Weekly: K.K. (Sat night), turnips (Sun AM), Tortimer/mayor rounds — K.K. and Joan are placed by the event manager; Tortimer comes on holidays and, in a full town, about the second bridge
 - [~] Monthly: lottery (last day), Nook stock reshuffle — raffle + monthly prize reshuffle done. No bank interest on the GameCube (balance gifts instead); the HRA writes daily after changes, not monthly
 - [~] "Rumor" pre-event villager chatter for each holiday (`mEv_EVENT_RUMOR_*`) — villagers bring up coming visitors and live rumours with their dates (`aQMgr_decide_msg_special_ev` / `_calendar_ev`)
-- [x] Tortimer "soncho" variant appearances for each holiday (`mEv_EVENT_SONCHO_*`) — except the January / February vacations and the bridge
+- [x] Tortimer "soncho" variant appearances for each holiday (`mEv_EVENT_SONCHO_*`), the January / February vacations and the bridge
 - [x] ~~Player birthday party~~ — GCN: the present visit and cards instead (§2)
 - [~] Weather overrides for events — the event scheduler applies `mEv_EVENT_WEATHER_*` rows (`EventCalendar`)
 - [x] Minor holidays: the calendar is the disc's own GAFE01 event table (`data/events/schedule.json`), so only the US release's days run
@@ -646,7 +646,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [~] Wind (`m_kankyo_weather`: daily calm / normal / strong range by season, 10-minute drift, Koinobori day) — `Wind`; drives balloons only so far
 - [x] Airplane: not in a GameCube town. `ac_airplane` is a paper glider the player throws (hold Z, flick the stick), placed only in the debug fields `fd1` / `fd2`
 - [x] ~~Message-in-a-bottle~~ — not in GCN (`ac_mbg` is a debug model)
-- [x] The lighthouse light sweeps at night and its switch turns it on and off (`ac_toudai`, `ac_lighthouse_switch`) — `lighthouse_beacon.gd`, `lighthouse_switch.gd`. Tortimer's lighthouse quest: he hands over the job, the switch room lights it the quest nights (`LighthouseBook`, `lighthouse` console)
+- [x] The lighthouse light sweeps at night and its switch turns it on and off (`ac_toudai`, `ac_lighthouse_switch`) — `lighthouse_beacon.gd`, `lighthouse_switch.gd`. Tortimer's lighthouse quest: he hands over the job on his vacation, the switch room lights it the quest nights, and back home he brings the souvenir (`LighthouseBook`, `TortimerHoliday`, `PresentVisit`, `lighthouse` console)
 - [x] Windmill: not in a GameCube town. `ac_windmill` (`WINDMILL0`–`4`) exists, but no acre template on the disc places one
 
 ## 35. Multiplayer / multi-town

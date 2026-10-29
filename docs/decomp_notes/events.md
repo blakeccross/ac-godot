@@ -227,7 +227,7 @@ Implemented (manager layer, `ac_event_manager` equivalent):
 
 Gaps (behaviour that differs from the decomp or is missing):
 - Visitors appear at their spot for the whole event; the original's walk-in / walk-out at the acre edge ("show at wade") is not modelled. Jack and Jingle teleport to a new acre once the player is 20 m away.
-- Rows kept but disabled (`EventSchedule.UNSUPPORTED`): bridge, Blanca / go-home NPC, Wisp, mayor's vacations. Wisp needs the spirit (hitodama) field actors; Blanca needs the face editor.
+- Rows kept but disabled (`EventSchedule.UNSUPPORTED`): bridge, Blanca / go-home NPC, Wisp. Wisp needs the spirit (hitodama) field actors; Blanca needs the face editor.
 - Sports fair: residents stand at their stations with their lines, but the foot race, ball toss and tug-of-war games (`ac_tokyoso_*`, `ac_tamaire_*`, `ac_tunahiki_*`) are not played. Aerobics: no Copper, no Tortimer radio card (`mSC_Radio_*`). New Year's: no queue at the offering box (`ac_hatumode_control`). Groundhog: no pop-up demo.
 - Meteor shower has no shooting stars (`eEC_EFFECT_SHOOTING_SET`); the fireworks' ground flash is one omni light.
 - Handbills and event mail (birthday, Christmas, Valentine's), the bargain FG layout for Sale Day; Gulliver's foreign-item letter.

@@ -16,6 +16,18 @@ func test_picker_wraps_like_a_leap_year() -> void:
 	assert_that(BirthdayOverlay.step(4, 1, F.DAY, false)).is_equal(Vector2i(4, 30))
 
 
+func test_tortimer_back_from_vacation_comes_before_the_golden_tools() -> void:
+	var bd := Vector2i(10, 1)
+	var O := LighthouseBook.Outcome
+	## Away: no golden-tool visit.
+	assert_int(PresentVisit.decide(2, 1, 2027, bd, 0, true, false, true, true, false, false, false, true)).is_equal(K.NONE)
+	## Back: the lighthouse first, even with full pockets.
+	assert_int(PresentVisit.decide(2, 1, 2027, bd, 0, true, false, false, true, false, false, false, false, O.CONTRIBUTED)).is_equal(K.LIGHTHOUSE_CONTRIBUTED)
+	assert_int(PresentVisit.decide(2, 1, 2027, bd, 0, true, false, true, true, false, false, false, false, O.STARTED)).is_equal(K.LIGHTHOUSE_STARTED)
+	## Resetti still comes first.
+	assert_int(PresentVisit.decide(2, 1, 2027, bd, 0, true, true, true, true, false, false, false, false, O.STARTED)).is_equal(K.NONE)
+
+
 func test_star_signs() -> void:
 	assert_int(VillagerTalkManager.constellation(1, 19)).is_equal(0)
 	assert_int(VillagerTalkManager.constellation(1, 20)).is_equal(1)

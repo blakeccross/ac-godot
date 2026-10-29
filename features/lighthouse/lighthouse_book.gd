@@ -13,6 +13,8 @@ extends RefCounted
 enum Period { NONE, GIVEN, NIGHTS, REWARD }
 ## `aLS_GetNiceStatus` for the switch room.
 enum SwitchMode { OFF, AUTO_ON, MANUAL }
+## `mSC_LIGHTHOUSE_EVENT_*` for this player (the month is `start_month`).
+enum Outcome { NONE, CONTRIBUTED, STARTED }
 
 ## `lbRTC_WEEK`: the nights the player has to keep the lamp lit.
 const NIGHT_COUNT := 7
@@ -27,6 +29,11 @@ const DOOR_CLOSE_HOUR := 22
 ## `mSC_LightHouse_Switch_Check` looks at the night that started up to 6 hours ago, so a
 ## switch thrown at 21:00 keeps the lamp lit until 05:00 the next morning.
 const NIGHT_ROLLOVER_HOURS := 6
+## `days_switched_on & 0x7F`: all seven nights.
+const ALL_NIGHTS := (1 << NIGHT_COUNT) - 1
+## `FTR_TAK_TOUDAI` / `FTR_IKE_JNY_MAKADA01`.
+const PRESENT_JAN_FTR := 1052
+const PRESENT_FEB_FTR := 1001
 
 ## Day the quest was given (`renew_time`), `EventDates.ordinal`. 0 = no quest.
 var start_ordinal: int = 0
@@ -131,6 +138,45 @@ func switch_on(year: int, month: int, day: int) -> void:
 ## `mSC_LightHouse_travel_check`: the quest nights keep Tortimer away from the plaza.
 func in_nights(year: int, month: int, day: int) -> bool:
 	return period_on(EventDates.ordinal(year, month, day)) == Period.NIGHTS
+
+
+## `mSC_LightHouse_Event_Start` (`update_soncho_event`): may Tortimer go on vacation today?
+## Not while a quest is still running; one that has run its course is cleared.
+func event_start(ordinal: int) -> bool:
+	if start_ordinal <= 0:
+		return true
+	if period_on(ordinal) != Period.NONE:
+		return false
+	clear()
+	return true
+
+
+## `mSC_LightHouse_Talk_After_Check`: the job is already out (he only chats, and is gone
+## from the plaza the next time it loads).
+func talk_after_check(ordinal: int) -> bool:
+	return period_on(ordinal) != Period.NONE and quest_taken
+
+
+## `mSC_LightHouse_Event_Check`: what Tortimer comes to the house about once he is back
+## (period 2): every night lit and the player helped, or the player took the job and the
+## lamp went dark one night.
+func event_check(ordinal: int) -> Outcome:
+	if period_on(ordinal) != Period.REWARD or completed:
+		return Outcome.NONE
+	if nights_lit & ALL_NIGHTS == ALL_NIGHTS:
+		return Outcome.CONTRIBUTED if contributed else Outcome.NONE
+	return Outcome.STARTED if quest_taken else Outcome.NONE
+
+
+## `mSC_LightHouse_Event_Clear`: he has been about it.
+func event_clear() -> void:
+	completed = true
+
+
+## `mSC_LightHouse_Event_Present_Item`: January brings the lighthouse model
+## (`FTR_TAK_TOUDAI`), February the flag (`FTR_IKE_JNY_MAKADA01`).
+func present_item() -> StringName:
+	return FurnitureCatalog.item_id(PRESENT_JAN_FTR if start_month == 1 else PRESENT_FEB_FTR)
 
 
 ## The same checks against the live clock.

@@ -6,6 +6,8 @@ extends GdUnitTestSuite
 
 func before_test() -> void:
 	Game.reset_session()
+	## `aESC_actor_ct` starts the look-elsewhere lines at a random one; pin it.
+	SecondBridge.state()["msg_no"] = 0
 
 
 func after_test() -> void:

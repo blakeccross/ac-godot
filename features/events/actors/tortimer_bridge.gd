@@ -4,8 +4,9 @@ extends EventNpc
 ## `SP_NPC_EV_SONCHO`). He talks the bridge over (`TortimerBridgeTalk`); the acre he stands in
 ## is where it would go.
 
-## `spnpc_first_talk_flags`: the first talk this visit opens with the time-of-day line.
-var talked: bool = false
+## `Common_Get(spnpc_first_talk_flags)` bit `EV_SONCHO`: not saved, so the first talk since
+## the game was started opens with the time-of-day line, however often the town reloads.
+static var talked: bool = false
 
 
 func _init() -> void:

@@ -176,6 +176,7 @@ pointing/emulate_touch_from_mouse.debug=true
 3d_physics/layer_6="pickups"
 3d_physics/layer_7="water"
 3d_physics/layer_8="triggers"
+3d_physics/layer_9="villagers"
 
 [rendering]
 

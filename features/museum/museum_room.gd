@@ -52,5 +52,8 @@ func size_authored_doors() -> void:
 				_size_door(exit_door, link["sensor"] as Vector3)
 
 
+## The table is the one source for both the wall gap and the trigger, so the authored node
+## follows it (the museum grid origin is the acre NW corner, world 0).
 func _size_door(door: Node3D, sensor: Vector3) -> void:
+	door.position = Vector3(sensor.x, door.position.y, sensor.z)
 	HostCollision.resize_interact_box(door, InteriorShellBuilder.museum_door_box(sensor))

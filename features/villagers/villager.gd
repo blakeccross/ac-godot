@@ -161,6 +161,7 @@ var event_away: bool = false
 func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group("villagers")
+	add_to_group(ActorPipe.GROUP)
 	_layer_present = collision_layer
 	_ensure_bound()
 	Clock.time_changed.connect(_sync_from_clock)
@@ -373,11 +374,13 @@ func _physics_process(delta: float) -> void:
 	if state != null:
 		state.tick_feel(delta)
 	if indoor_resident:
+		_apply_pipe_push()
 		_tick_indoor(delta)
 		return
 	ai.sync(current_activity(), brain.hints())
 	var present: bool = ai.is_present()
 	_apply_presence(present)
+	_apply_pipe_push()
 	conversation.tick_face(delta)
 	_tick_head_look(delta)
 	if not present:
@@ -548,6 +551,43 @@ func set_event_away(away: bool) -> void:
 		_apply_presence(false)
 	else:
 		_sync_from_clock()
+
+
+## `ActorPipe`: `aNPC_CoInfoData` (radius 20 GX, 30 GX tall).
+func pipe_radius() -> float:
+	return ActorPipe.RADIUS
+
+
+func pipe_height() -> float:
+	return ActorPipe.NPC_HEIGHT
+
+
+## Only a villager that is out and on its feet (not hidden indoors, not in a pitfall).
+func pipe_active() -> bool:
+	return visible and collision_layer != 0 and _pit == Pit.NONE
+
+
+## `status_data.weight`: 50, raised to `MASSTYPE_HEAVY - 1` for a greeting
+## (`aNPC_setup_greeting`) and to `MASSTYPE_HEAVY` while walking in the door
+## (`aNPC_act_into_house_init_proc`).
+func pipe_weight() -> int:
+	if not indoor_resident and ActivityKind.is_door_demo(ai.kind()):
+		return ActorPipe.WEIGHT_HEAVY
+	if _act == Act.GREET:
+		return ActorPipe.WEIGHT_HEAVY - 1
+	return ActorPipe.WEIGHT_NORMAL
+
+
+## The frame's `collision_vec`, then its BG check (`Actor_position_move` → `aNPC_BGcheck`).
+func _apply_pipe_push() -> void:
+	var push: Vector3 = ActorPipe.push(self)
+	if push == Vector3.ZERO:
+		return
+	var from: Vector3 = global_position
+	global_position += push
+	var bg: Array = _bg()
+	if bg.size() == 2:
+		global_position = FieldCollision.revise_xz(bg[0] as WorldData, bg[1] as WorldGrid, from, global_position)
 
 
 func _apply_presence(present: bool) -> void:

@@ -17,11 +17,6 @@ static func add_museum_set(root: Node3D, interior: IndoorSession) -> void:
 		&"museum_entrance":
 			add_blathers(root, interior)
 			add_museum_clock(root, interior)
-		&"museum_painting":
-			var terrain: Node3D = null
-			if root != null and root.get_parent() != null:
-				terrain = root.get_parent().get_node_or_null("Terrain") as Node3D
-			add_museum_art_partitions(terrain, interior.room, interior.grid)
 		_:
 			pass
 
@@ -80,22 +75,3 @@ static func add_museum_clock(root: Node3D, interior: IndoorSession) -> void:
 	if pivot != null:
 		## Skeleton joint Y is mid-body; rest the mesh on the floor.
 		VisualFit.align_actor_to_height(pivot, 0.0)
-
-
-## Painting-wing inner walls from `rom_museum3`'s BG: the two partition rows (gaps at
-## x 5–8 and 7–10), the pillars at the north corners and the raised strip between them.
-## Partition units are 6 counts up (60 GX).
-static func add_museum_art_partitions(root: Node3D, room: Room, grid: WorldGrid) -> void:
-	if root == null or room == null or grid == null:
-		return
-	InteriorUnitCollision.add_hulls(root, grid, "MuseumArtCol", art_blocked_units(room))
-
-
-## Units of the painting wing the BG blocks: `Vector2i` unit → height in GX.
-static func art_blocked_units(room: Room) -> Dictionary:
-	return InteriorUnitCollision.blocked_from_bg(
-		&"rom_museum3",
-		FieldCatalog.LAND_COUNTS,
-		FieldCatalog.HEIGHT_MAX,
-		Rect2i(room.inner_origin, room.inner_size)
-	)

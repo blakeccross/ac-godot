@@ -261,6 +261,11 @@ func continue_game(slot: int = -1) -> void:
 		_change_scene(INTERIOR_SCENE)
 	else:
 		continue_from_house = not intro.active
+		## `aNPS2_make_door_data` (home): the player-select fades out black, then the town
+		## opens on `WIPE_TYPE_TRIFORCE`.
+		if continue_from_house:
+			SceneTransition.hold_black()
+			SceneTransition.queue_wipe_in(SceneTransition.Style.IRIS)
 		_change_scene(WORLD_SCENE)
 
 

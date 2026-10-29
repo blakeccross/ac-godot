@@ -21,6 +21,12 @@ extends Node3D
 @export var linked_spawn: Vector3 = Vector3.ZERO
 @export var linked_spawn_yaw: float = 0.0
 
+## `aMsm_check_player`: the outdoor museum door fires with the player's centre within √1100 GX
+## of its stand (`t < 1100`)...
+const MUSEUM_STAND_RADIUS := 33.166 * FieldCatalog.GX_TO_METERS
+## ...and facing the door to within 45° (`rotation.y` strictly between 0x6000 and 0xA000).
+const MUSEUM_STAND_FACING := PI / 4.0
+
 
 func _ready() -> void:
 	add_to_group("interactable")
@@ -35,7 +41,9 @@ func should_auto_enter() -> bool:
 		return false
 	if Game.is_indoors():
 		## Wing links + entrance Exit (`exits_interior`); not house door_cell warps.
-		return linked_room_id != &"" or exits_interior
+		## `Player_actor_check_nextgoto`: the warp is the item on the player's own unit, so
+		## the player's centre has to be on the door, not just reaching for it.
+		return (linked_room_id != &"" or exits_interior) and _player_centre_on_sensor()
 	var target: StringName = _enter_target()
 	if target == &"":
 		return false
@@ -43,7 +51,37 @@ func should_auto_enter() -> bool:
 	if room_id == &"":
 		return false
 	var room: Room = Game.interiors.room(room_id)
-	return room != null and InteriorCatalog.is_open_now(room)
+	if room == null or not InteriorCatalog.is_open_now(room):
+		return false
+	return not _is_outdoor_museum() or _player_at_museum_stand()
+
+
+func _player_centre_on_sensor() -> bool:
+	var player := Player.find(get_tree())
+	var shape_node := get_node_or_null("InteractVolume/CollisionShape3D") as CollisionShape3D
+	if player == null or shape_node == null or not (shape_node.shape is BoxShape3D):
+		return false
+	var half: Vector3 = (shape_node.shape as BoxShape3D).size * 0.5
+	var local: Vector3 = shape_node.global_transform.affine_inverse() * player.global_position
+	return absf(local.x) <= half.x and absf(local.z) <= half.z
+
+
+func _is_outdoor_museum() -> bool:
+	var host: Node = get_parent()
+	return host != null and "visual_id" in host and HostCollision.is_museum(host.get("visual_id") as StringName)
+
+
+func _player_at_museum_stand() -> bool:
+	var player := Player.find(get_tree())
+	if player == null:
+		return false
+	var to := Vector2(player.global_position.x - global_position.x, player.global_position.z - global_position.z)
+	if to.length() >= MUSEUM_STAND_RADIUS:
+		return false
+	## Into the door is the building's -Z (it faces south at yaw 0, like `-DEG2SHORT_ANGLE(180)`).
+	var into: Vector3 = -(get_parent() as Node3D).global_basis.z
+	var into_yaw: float = atan2(into.x, into.z)
+	return absf(angle_difference(player.facing_yaw(), into_yaw)) < MUSEUM_STAND_FACING
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
@@ -57,8 +95,9 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 	## still finds us; player walks in without an E prompt.
 	if should_auto_enter():
 		return [Interaction.of(Interaction.ENTER, "", 20)]
-	## Closed outdoor museum: no E prompt — heightfield keeps the player out.
-	if auto_enter and not Game.is_indoors():
+	## Walk-on doors never prompt (`aMsm_check_player`, the museum `DOOR` / `EXIT_DOOR` units):
+	## off the trigger, or closed, there is simply nothing to press.
+	if auto_enter:
 		return []
 	if Game.is_indoors() and linked_room_id != &"":
 		return [Interaction.of(Interaction.ENTER, "Enter %s" % label, 12)]
@@ -86,10 +125,19 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if Game.is_indoors() and linked_room_id != &"":
 		if action.id != Interaction.ENTER:
 			return false
-		## Museum wing links: wipe + spawn at door_data — no walk-in clip.
-		if not _is_museum_room(linked_room_id):
+		## Museum wing links (`Player_actor_set_nextgoto_info_type1`): the player brakes to a
+		## stand (`INVADE`) under a plain fade — `MUSEUM_*_door_data` wipe type 2, drawn in the
+		## black `setcolor(0)` — and the music runs on (`FADE_TYPE_OTHER_ROOM`).
+		var museum_link: bool = _is_museum_room(linked_room_id)
+		if museum_link:
+			var link_player := Player.find(get_tree())
+			if link_player != null and is_instance_valid(link_player):
+				link_player.stop_for_door()
+		else:
 			await _play_indoor_link_enter()
-		await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
+		await SceneTransition.play_wipe_out(
+			SceneTransition.Style.FADE if museum_link else SceneTransition.Style.IRIS
+		)
 		var entered: bool = false
 		if has_linked_spawn:
 			entered = Game.try_enter_interior(linked_room_id, linked_spawn, linked_spawn_yaw)

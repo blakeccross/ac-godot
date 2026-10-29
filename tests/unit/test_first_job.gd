@@ -130,7 +130,6 @@ func test_job_dialogue_authored() -> void:
 		&"nook_job_axe",
 		&"nook_job_notice",
 		&"nook_job_all_done",
-		&"tortimer_greeting",
 	]:
 		assert_that(DialogueCatalog.conversation(id)).is_not_null()
 

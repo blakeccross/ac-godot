@@ -81,12 +81,14 @@ func test_museum_complete_instances_room_scenes() -> void:
 		var center: Vector3 = clock_vis.position + (box.position + box.size * 0.5) * clock_vis.scale
 		assert_float(center.x).is_between(-1.5, 1.5)
 		assert_float(center.z).is_between(-1.5, 1.5)
-	## Each wing owns Terrain shell colliders after populate.
-	assert_int(_static_body_count(rooms.get_node("museum_painting/Terrain"))).is_greater(3)
-	assert_int(_static_body_count(rooms.get_node("museum_fossil/Terrain"))).is_greater(3)
+	## Each wing collides on its BG units after populate (floor + `MuseumUnitCol`); the fossils
+	## themselves carry none, as in the original.
+	for wing: String in ["museum_painting", "museum_fossil"]:
+		assert_int(_static_body_count(rooms.get_node(wing + "/Terrain"))).is_greater_equal(2)
+		assert_that(rooms.get_node_or_null(wing + "/Terrain/MuseumUnitCol")).is_not_null()
 	assert_that(
 		rooms.get_node_or_null("museum_fossil/Furniture/Fossil_00/ExhibitCollision")
-	).is_not_null()
+	).is_null()
 	## Phase 5 atmosphere: window beams + fish-wing tank greenery / bubbles.
 	assert_that(rooms.get_node_or_null("museum_entrance/Furniture/Sunshine_3")).is_not_null()
 	assert_that(rooms.get_node_or_null("museum_insect/Furniture/Sunshine_1")).is_not_null()

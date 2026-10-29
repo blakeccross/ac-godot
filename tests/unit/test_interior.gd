@@ -727,6 +727,32 @@ func test_museum_door_auto_enters_when_open() -> void:
 	Clock.hour = 12
 
 
+func test_outdoor_museum_needs_the_player_on_the_stand_facing_in() -> void:
+	## `aMsm_check_player`: centre within √1100 GX of the +100 GX stand and facing the door
+	## to within 45° (the museum faces south, so the player faces north, yaw π).
+	Game.block_auto_enter_doors = false
+	Game.current_room_id = &""
+	var museum: Node3D = auto_free(load("res://scenes/world/building.tscn").instantiate()) as Node3D
+	museum.set("visual_id", &"obj_s_museum")
+	museum.set("occupant_id", &"museum")
+	add_child(museum)
+	var door: Node3D = museum.get_node("Door") as Node3D
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
+	add_child(player)
+	player.global_position = door.global_position + Vector3(0.0, 0.0, 1.0)
+	player.set_facing(PI)
+	assert_bool(door.call("should_auto_enter")).is_true()
+	## Backing in, or side-on, does not count.
+	player.set_facing(0.0)
+	assert_bool(door.call("should_auto_enter")).is_false()
+	player.set_facing(PI * 0.5)
+	assert_bool(door.call("should_auto_enter")).is_false()
+	## 2 m (40 GX) out is past the 33 GX radius.
+	player.set_facing(PI)
+	player.global_position = door.global_position + Vector3(0.0, 0.0, 2.0)
+	assert_bool(door.call("should_auto_enter")).is_false()
+
+
 func test_police_box_is_a_walk_in() -> void:
 	## `aPBOX_check_player` has no A button: walking into the doorway enters.
 	Game.block_auto_enter_doors = false
@@ -743,11 +769,23 @@ func test_police_box_is_a_walk_in() -> void:
 	assert_bool(door.call("should_auto_enter")).is_false()
 
 
+## A door in the tree with a player standing `off` metres north of its centre.
+func _door_with_player(off: float) -> Node3D:
+	var door: Node3D = auto_free(load("res://scenes/world/door.tscn").instantiate()) as Node3D
+	add_child(door)
+	HostCollision.resize_interact_box(door, Vector3(4.0, 2.6, 2.0))
+	var player: Player = auto_free(load("res://features/player/player.tscn").instantiate()) as Player
+	add_child(player)
+	player.global_position = door.global_position + Vector3(0.0, 0.0, -off)
+	return door
+
+
 func test_museum_wing_door_auto_enters_indoors() -> void:
-	## Wing links walk in with INTO_S1 — no E prompt while indoors.
+	## `Player_actor_check_nextgoto`: fires once the player's own unit is the `DOOR` — not while
+	## the player is only reaching toward it — and never prompts.
 	Game.block_auto_enter_doors = false
 	Game.current_room_id = &"museum_entrance"
-	var door: Node = auto_free(load("res://scenes/world/door.tscn").instantiate())
+	var door: Node3D = _door_with_player(0.5)
 	door.set("auto_enter", true)
 	door.set("linked_room_id", &"museum_fish")
 	door.set("label", "Fish")
@@ -758,6 +796,9 @@ func test_museum_wing_door_auto_enters_indoors() -> void:
 	Game.block_auto_enter_doors = true
 	assert_bool(door.call("should_auto_enter")).is_false()
 	Game.block_auto_enter_doors = false
+	Player.find(get_tree()).global_position = door.global_position + Vector3(0.0, 0.0, -1.5)
+	assert_bool(door.call("should_auto_enter")).is_false()
+	assert_int(door.get_interactions(InteractionContext.new()).size()).is_equal(0)
 	Game.current_room_id = &""
 
 
@@ -765,7 +806,7 @@ func test_museum_exit_auto_enters_indoors() -> void:
 	## Entrance Exit sensor walk-out (`exits_interior` + `auto_enter`) — not door_cell.
 	Game.block_auto_enter_doors = false
 	Game.current_room_id = &"museum_entrance"
-	var door: Node = auto_free(load("res://scenes/world/door.tscn").instantiate())
+	var door: Node3D = _door_with_player(0.0)
 	door.set("auto_enter", true)
 	door.set("exits_interior", true)
 	door.set("label", "Leave")
@@ -872,20 +913,33 @@ func test_museum_entrance_doors_match_decomp() -> void:
 	var insect: Dictionary = MuseumDisplay.ENTRANCE_WING_DOORS[2]
 	var fish: Dictionary = MuseumDisplay.ENTRANCE_WING_DOORS[3]
 	assert_that(paint["room"]).is_equal(&"museum_painting")
-	assert_vector(paint["sensor"] as Vector3).is_equal_approx(Vector3(160.0, 0.0, 80.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
+	assert_vector(paint["sensor"] as Vector3).is_equal_approx(Vector3(160.0, 0.0, 60.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_vector(paint["spawn"] as Vector3).is_equal_approx(Vector3(280.0, 0.0, 480.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_that(paint["facing"]).is_equal(WorldGrid.Facing.NORTH)
 	assert_that(fossil["room"]).is_equal(&"museum_fossil")
-	assert_vector(fossil["sensor"] as Vector3).is_equal_approx(Vector3(320.0, 0.0, 80.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
+	assert_vector(fossil["sensor"] as Vector3).is_equal_approx(Vector3(320.0, 0.0, 60.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_vector(fossil["spawn"] as Vector3).is_equal_approx(Vector3(280.0, 0.0, 480.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_that(fossil["facing"]).is_equal(WorldGrid.Facing.NORTH)
 	assert_that(insect["room"]).is_equal(&"museum_insect")
-	assert_vector(insect["sensor"] as Vector3).is_equal_approx(Vector3(80.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
+	assert_vector(insect["sensor"] as Vector3).is_equal_approx(Vector3(60.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_vector(insect["spawn"] as Vector3).is_equal_approx(Vector3(520.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_that(insect["facing"]).is_equal(WorldGrid.Facing.WEST)
 	assert_that(fish["room"]).is_equal(&"museum_fish")
 	assert_vector(fish["spawn"] as Vector3).is_equal_approx(Vector3(120.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
 	assert_that(fish["facing"]).is_equal(WorldGrid.Facing.EAST)
+	assert_vector(fish["sensor"] as Vector3).is_equal_approx(Vector3(420.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001)
+	## Wing exits sit on each wing's `DOOR` FG units: painting / fossil ut (7..8, 14),
+	## insect ut (14, 13..14), fish ut (1, 13..14).
+	for wing: StringName in [&"museum_painting", &"museum_fossil"]:
+		assert_vector(MuseumDisplay.WING_EXIT_DOORS[wing]["sensor"] as Vector3).is_equal_approx(
+			Vector3(320.0, 0.0, 580.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001
+		)
+	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_insect"]["sensor"] as Vector3).is_equal_approx(
+		Vector3(580.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001
+	)
+	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_fish"]["sensor"] as Vector3).is_equal_approx(
+		Vector3(60.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001
+	)
 	## Return spawns sit one cell inside the matching entrance opening.
 	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_painting"]["spawn"] as Vector3).is_equal_approx(
 		Vector3(160.0, 0.0, 120.0) * FieldCatalog.GX_TO_METERS, Vector3.ONE * 0.0001

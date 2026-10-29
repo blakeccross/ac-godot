@@ -43,6 +43,26 @@ func make_talk() -> BankTalk:
 	return BankTalk.Fixed.new(talk_msg(Clock.now_sec(), Game.town.weather if Game != null else &"clear", rng()))
 
 
+## `aESS_setup_think_proc` talk requests: none in the minute before 8:00
+## (`aGHC_TERM_1_MIN`), nor from 8:00 until the speech has been given.
+func can_talk() -> bool:
+	if not super.can_talk():
+		return false
+	return talk_open(Clock.now_sec(), _speech_done())
+
+
+static func talk_open(sec: int, speech_done: bool) -> bool:
+	if sec >= EVENT_SEC:
+		return speech_done
+	return sec < EVENT_SEC - 60
+
+
+func _speech_done() -> bool:
+	if Game == null or Game.events == null:
+		return true
+	return str(Game.events.area(&"groundhog_day").get("speech", "")) == Game.events.day_key()
+
+
 func think(delta: float) -> void:
 	if Clock.now_sec() < EVENT_SEC or Game == null or Game.events == null:
 		return

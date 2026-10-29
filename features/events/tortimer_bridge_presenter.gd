@@ -8,6 +8,13 @@ func _init() -> void:
 	scene_path = "res://features/events/actors/tortimer_bridge.tscn"
 
 
+## `aESC_actor_ct`: once the bridge is ordered he has gone (from the next time town loads).
+func start() -> bool:
+	if bool(SecondBridge.state().get("pending", false)):
+		return false
+	return super.start()
+
+
 func pick_cell() -> Vector2i:
 	var world: World = World.find(mgr.get_tree())
 	var block: Vector2i = SecondBridge.tortimer_block(world.layout if world != null else null)

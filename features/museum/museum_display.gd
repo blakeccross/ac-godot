@@ -173,58 +173,59 @@ const TANK_HALF := Vector3(60.0, 0.0, 60.0) * FieldCatalog.GX_TO_METERS
 const SEA_TANK_HALF := Vector3(189.0, 0.0, 40.0) * FieldCatalog.GX_TO_METERS
 
 ## Entrance → wing doors (`MUSEUM_ENTRANCE_door_data`).
-## `spawn`/`facing` = appear in the wing. `sensor` = wall threshold in the entrance
-## (one cell behind the return spawn so walk-in does not re-fire). Room positions in metres.
+## `spawn`/`facing` = appear in the wing. `sensor` = centre of the two `DOOR` FG units in
+## `rom_museum1`'s FG template (`fg` 383): the warp fires once the player's own unit is one of
+## them (`Player_actor_check_nextgoto`). Room positions in metres.
 const ENTRANCE_WING_DOORS: Array[Dictionary] = [
 	{
 		"room": &"museum_painting",
-		"sensor": Vector3(160.0, 0.0, 80.0) * FieldCatalog.GX_TO_METERS,
+		"sensor": Vector3(160.0, 0.0, 60.0) * FieldCatalog.GX_TO_METERS,
 		"spawn": Vector3(280.0, 0.0, 480.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.NORTH,
 	},
 	{
 		"room": &"museum_fossil",
-		"sensor": Vector3(320.0, 0.0, 80.0) * FieldCatalog.GX_TO_METERS,
+		"sensor": Vector3(320.0, 0.0, 60.0) * FieldCatalog.GX_TO_METERS,
 		"spawn": Vector3(280.0, 0.0, 480.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.NORTH,
 	},
 	{
 		"room": &"museum_insect",
-		"sensor": Vector3(80.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS,
+		"sensor": Vector3(60.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS,
 		"spawn": Vector3(520.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.WEST,
 	},
 	{
 		"room": &"museum_fish",
-		"sensor": Vector3(400.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS,
+		"sensor": Vector3(420.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS,
 		"spawn": Vector3(120.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.EAST,
 	},
 ]
 
-## Wing → entrance. Sensors sit on the wall behind the wing enter spawn.
+## Wing → entrance. Sensors are the centre of each wing's two `DOOR` FG units (`fg` 384–387).
 const WING_EXIT_DOORS: Dictionary = {
 	&"museum_painting":
 	{
-		"sensor": Vector3(280.0, 0.0, 520.0) * FieldCatalog.GX_TO_METERS,
+		"sensor": Vector3(320.0, 0.0, 580.0) * FieldCatalog.GX_TO_METERS,
 		"spawn": Vector3(160.0, 0.0, 120.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.SOUTH,
 	},
 	&"museum_fossil":
 	{
-		"sensor": Vector3(280.0, 0.0, 520.0) * FieldCatalog.GX_TO_METERS,
+		"sensor": Vector3(320.0, 0.0, 580.0) * FieldCatalog.GX_TO_METERS,
 		"spawn": Vector3(320.0, 0.0, 120.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.SOUTH,
 	},
 	&"museum_insect":
 	{
-		"sensor": Vector3(560.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS,
+		"sensor": Vector3(580.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS,
 		"spawn": Vector3(120.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.EAST,
 	},
 	&"museum_fish":
 	{
-		"sensor": Vector3(80.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS,
+		"sensor": Vector3(60.0, 0.0, 560.0) * FieldCatalog.GX_TO_METERS,
 		"spawn": Vector3(360.0, 0.0, 280.0) * FieldCatalog.GX_TO_METERS,
 		"facing": WorldGrid.Facing.WEST,
 	},
@@ -233,7 +234,7 @@ const WING_EXIT_DOORS: Dictionary = {
 ## Outdoor → entrance (`aMsm_museum_enter_data`). Not scene `MUSEUM_ENTRANCE_player_data` (240,0,200).
 const ENTRANCE_SPAWN := Vector3(240.0, 0.0, 440.0) * FieldCatalog.GX_TO_METERS
 const ENTRANCE_SPAWN_FACING := WorldGrid.Facing.NORTH
-## Entrance → outdoors. South threshold on the same X as the outdoor enter stand.
+## Entrance → outdoors: the `EXIT_DOOR` FG units at ut (5,12)/(6,12), on the outdoor enter X.
 const ENTRANCE_EXIT_SENSOR := Vector3(240.0, 0.0, 500.0) * FieldCatalog.GX_TO_METERS
 ## Blathers stand (`museum_entrance_actable` ut 6,5 → cell center 260,220;
 ## `ac_npc_curator` then adds +20 GX on X). Faces south (spawn rot 0).
@@ -550,6 +551,22 @@ const INSECT_RELAX_HOUR: Array[float] = [
 	17, 4, 0, 8, 8, 8, 0, 0, 19, 0, 0, 0, 0, 0,
 ]
 
+## `aMF_fossil_data_table`: each fossil's talk unit and the side the player reads it from
+## (`MuseumPlaque.Direct`: 0 south, 1 east, 2 north, 3 west). Read within 42.5 GX of the unit
+## centre (`mRmTp_CheckTalkAble`).
+const FOSSIL_TALK: Array = [
+	[6, 3, 0], [2, 3, 0], [4, 3, 0], [9, 3, 0], [13, 3, 0], [11, 3, 0], [6, 11, 0], [2, 11, 0],
+	[4, 11, 0], [10, 6, 0], [13, 6, 0], [11, 6, 0], [6, 6, 3], [6, 5, 3], [6, 7, 3], [9, 11, 0],
+	[11, 11, 0], [13, 11, 0], [3, 8, 1], [3, 6, 1], [6, 8, 0], [7, 8, 0], [8, 8, 0], [9, 8, 0],
+	[10, 8, 0],
+]
+const FOSSIL_TALK_REACH := 42.5 * FieldCatalog.GX_TO_METERS
+## `aMP_CheckTalkAbleDist`: (x·40 + 60, z·40 + 40) GX from a painting's unit, within 33 GX.
+const ART_TALK_OFFSET := Vector3(60.0, 0.0, 40.0) * FieldCatalog.GX_TO_METERS
+const ART_TALK_REACH := 33.0 * FieldCatalog.GX_TO_METERS
+## Insect / fish signs: ±20 GX each way.
+const SIGN_TALK_HALF := 20.0 * FieldCatalog.GX_TO_METERS
+
 ## Fish plaque groups A–E (`Museum_Fish_Set_MsgFishInfo`).
 const FISH_PLAQUE_GROUPS: Array = [
 	[0, 1, 2, 3, 11, 14, 26, 23, 30, 34],
@@ -680,6 +697,8 @@ static func fish_init(index: int) -> Dictionary:
 		"speed_range": float(row[5]),
 		"drag": float(row[6]),
 		"turn_chance": float(row[7]),
+		"straight": float(row[7]),
+		"mass": float(row[8]),
 		"ofs_z": float(row[9]),
 		"body_pad": float(row[10]),
 		"active_min": int(row[11]),

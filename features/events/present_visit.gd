@@ -8,6 +8,12 @@ extends RefCounted
 ##   who likes the player most (`aNPS2_decide_birthday_npc`) brings a wrapped Famicom
 ##   (`FTR_FAMICOM_COMMON02`, "Donkey Kong"). Message 0x319F + looks × 6 + rand(3).
 ## - otherwise Mr. Resetti, if the last session wasn't saved;
+## - otherwise nobody while Tortimer is away on vacation (`mSC_LightHouse_travel_check`);
+## - otherwise, once he is back from it (`mSC_LightHouse_Event_Check`), Tortimer about the
+##   lighthouse job: every night lit, a souvenir from the trip (wrapped; the lighthouse model
+##   in January, the flag in February) with 0x33FD / 0x3414, or "come back when you've
+##   room" (0x33FF / 0x3416, and he comes again); a night missed, a scolding and no present
+##   (0x3400 / 0x3417). Either way the job is closed (`mSC_LightHouse_Event_Clear`);
 ## - otherwise, with a free pocket, Tortimer brings the Golden Rod once every fish is caught
 ##   or the Golden Net once every insect is. The first in town of each gets 0x31C3 / 0x31C5;
 ##   after that (`Save_Get(first_present)`, town-wide) it's 0x31C7 / 0x31C9, "someone else in
@@ -23,7 +29,7 @@ extends RefCounted
 ## present) mails 0xEA + looks × 3 + rand(3) with furniture, clothing (`RARE` list) or an
 ## umbrella (`mNpc_GetBirthdayPresent`).
 
-enum Kind { NONE, BIRTHDAY, GOLDEN_ROD, GOLDEN_NET }
+enum Kind { NONE, BIRTHDAY, GOLDEN_ROD, GOLDEN_NET, LIGHTHOUSE_CONTRIBUTED, LIGHTHOUSE_STARTED }
 
 ## `FTR_FAMICOM_COMMON02`.
 const BIRTHDAY_FTR := 876
@@ -37,6 +43,13 @@ const MSG_ROD := 0x31C3
 const MSG_NET := 0x31C5
 const MSG_ROD_AGAIN := 0x31C7
 const MSG_NET_AGAIN := 0x31C9
+## `aPRD_TYPE_SONCHO_VACATION0/1_*` (January / February): given, no room, a night missed.
+const MSG_LIGHTHOUSE_JAN := 0x33FD
+const MSG_LIGHTHOUSE_JAN_FULL := 0x33FF
+const MSG_LIGHTHOUSE_JAN_MISSED := 0x3400
+const MSG_LIGHTHOUSE_FEB := 0x3414
+const MSG_LIGHTHOUSE_FEB_FULL := 0x3416
+const MSG_LIGHTHOUSE_FEB_MISSED := 0x3417
 ## `aPST_PRESENT_TYPE_GOLDEN_ROD` / `_NET` bits of `first_present`.
 const FIRST_ROD := 1 << 0
 const FIRST_NET := 1 << 1
@@ -47,15 +60,24 @@ const STAND := 73.5 * FieldCatalog.GX_TO_METERS
 const CARD_KINDS: Array[int] = [0, 0, 1, 1, 2]
 
 
-## `aNPS2_make_door_data` (home exit) with `aPRD_setup_present`.
+## `aNPS2_make_door_data` (home exit) with `aPRD_setup_present`. `away` is
+## `mSC_LightHouse_travel_check`, `lighthouse` a `LighthouseBook.Outcome`.
 static func decide(
 	month: int, day: int, year: int, birthday: Vector2i, celebrated_year: int, has_friend: bool,
-	reset: bool, has_space: bool, all_fish: bool, rod_got: bool, all_insects: bool, net_got: bool
+	reset: bool, has_space: bool, all_fish: bool, rod_got: bool, all_insects: bool, net_got: bool,
+	away: bool = false, lighthouse: int = LighthouseBook.Outcome.NONE
 ) -> int:
 	if (birthday.x == month and birthday.y == day and celebrated_year != year
 			and has_space and has_friend):
 		return Kind.BIRTHDAY
-	if reset or not has_space:
+	if reset or away:
+		return Kind.NONE
+	match lighthouse:
+		LighthouseBook.Outcome.CONTRIBUTED:
+			return Kind.LIGHTHOUSE_CONTRIBUTED
+		LighthouseBook.Outcome.STARTED:
+			return Kind.LIGHTHOUSE_STARTED
+	if not has_space:
 		return Kind.NONE
 	if all_fish and not rod_got:
 		return Kind.GOLDEN_ROD
@@ -107,11 +129,14 @@ static func decide_now() -> int:
 		return Kind.NONE
 	var bd: Vector2i = VillagerTalkManager.birthday()
 	var friend: StringName = birthday_npc(Game.residents, Game.relationships)
+	var today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
 	var kind: int = decide(
 		Clock.month, Clock.day, Clock.year, bd, Game.resident.celebrated_birthday_year, friend != &"",
 		Game.reset_flag, Game.inventory.has_space(1),
 		CompleteTalk.collection_complete(CompleteTalk.FISH), has_trophy(TROPHY_ROD),
-		CompleteTalk.collection_complete(CompleteTalk.INSECT), has_trophy(TROPHY_NET)
+		CompleteTalk.collection_complete(CompleteTalk.INSECT), has_trophy(TROPHY_NET),
+		Game.lighthouse.in_nights(Clock.year, Clock.month, Clock.day),
+		LighthouseBook.Outcome.NONE if Game.foreigner else Game.lighthouse.event_check(today)
 	)
 	if kind == Kind.BIRTHDAY:
 		Game.resident.birthday_present_npc = friend
@@ -144,6 +169,8 @@ static func present_for(kind: int) -> StringName:
 			return GOLDEN_ROD
 		Kind.GOLDEN_NET:
 			return GOLDEN_NET
+		Kind.LIGHTHOUSE_CONTRIBUTED:
+			return Game.lighthouse.present_item() if Game != null else &""
 	return &""
 
 
@@ -243,15 +270,33 @@ class Talk extends BankTalk:
 				return MSG_ROD if PresentVisit.check_first_present(FIRST_ROD) else MSG_ROD_AGAIN
 			Kind.GOLDEN_NET:
 				return MSG_NET if PresentVisit.check_first_present(FIRST_NET) else MSG_NET_AGAIN
+			Kind.LIGHTHOUSE_CONTRIBUTED:
+				var jan: bool = Game == null or Game.lighthouse.start_month == 1
+				if inventory == null or not inventory.has_space(1):
+					present = &""
+					return MSG_LIGHTHOUSE_JAN_FULL if jan else MSG_LIGHTHOUSE_FEB_FULL
+				Game.lighthouse.event_clear()
+				return MSG_LIGHTHOUSE_JAN if jan else MSG_LIGHTHOUSE_FEB
+			Kind.LIGHTHOUSE_STARTED:
+				var started_jan: bool = Game == null or Game.lighthouse.start_month == 1
+				if Game != null:
+					Game.lighthouse.event_clear()
+				return MSG_LIGHTHOUSE_JAN_MISSED if started_jan else MSG_LIGHTHOUSE_FEB_MISSED
 		return -1
 
-	## `aPST_present_send_start_wait_talk_proc`: a birthday present comes wrapped.
+	## The souvenir's name for "It's {item0}" (`aPST_present_send_start_wait_talk_proc`).
+	func prepare() -> void:
+		if kind == Kind.LIGHTHOUSE_CONTRIBUTED and present != &"":
+			var data: ItemData = ItemCatalog.get_item(present)
+			context.set_item_str(0, PoliceTalk.with_article(data.display_name) if data != null else "")
+
+	## `aPST_present_send_start_wait_talk_proc`: all but the golden tools come wrapped.
 	func lock_continue() -> Dictionary:
 		if given or present == &"" or order_value("npc0", 1) != 2:
 			return {}
 		given = true
 		var data: ItemData = ItemCatalog.get_item(present)
+		var golden: bool = kind == Kind.GOLDEN_ROD or kind == Kind.GOLDEN_NET
 		if data != null and inventory != null:
-			inventory.add(data, 1,
-				InventoryItem.Condition.PRESENT if kind == Kind.BIRTHDAY else InventoryItem.Condition.NORMAL)
+			inventory.add(data, 1, InventoryItem.Condition.NORMAL if golden else InventoryItem.Condition.PRESENT)
 		return {"anim": {"give": present}}

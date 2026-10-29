@@ -1,24 +1,36 @@
-extends StaticBody3D
+extends EventNpc
 
-## Outdoor Tortimer at the wishing well (`SP_NPC_SONCHO` / `fd_npc_land` ut 10,10 on
-## `mRF_BLOCKKIND_SHRINE`). Present while the first job is active (`mFM_SetMoveActor`).
+## Tortimer at the wishing well during the first job (`ac_npc_soncho`, `SP_NPC_SONCHO`,
+## `fd_npc_land` unit 10, 10 on `mRF_BLOCKKIND_SHRINE`). Here only while the first job runs
+## (`mFM_SetMoveActor`), and, once met, not while he is away on vacation
+## (`mSC_LightHouse_travel_check`). He walk-wanders the rim of a 60 GX circle round where he
+## was put (`aNS_actor_move`, `aNS_wander_init`).
+##
+## The first talk asks who you respect the most (0x3AFC; 0x3B02 during his vacation) and he
+## introduces himself; after that, one of three lines (0x3AFF + RANDOM(3)). Talking to him
+## is meeting him (`aNS_talk_init`: `mSC_trophy_set(mSC_SPECIAL_EVENT_ARBEIT)`).
 
-const ANIM_WAIT := "npc_1_wait1"
-const GREETING_ID := &"tortimer_greeting"
+const MSG_FIRST := 0x3AFC
+const MSG_FIRST_AWAY := 0x3B02
+const MSG_AGAIN := 0x3AFF
+## `movement.range_radius = 60` GX round `home.position`.
+const RANGE := 60.0 * FieldCatalog.GX_TO_METERS
 
-var _model: Node3D
-var _body_anim: AnimationPlayer
-var _face: NpcFace = NpcFace.new()
-var _talking: bool = false
+var _home: Vector3
+
+
+func _init() -> void:
+	species = &"ttl"
+	display_name = "Tortimer"
 
 
 func _ready() -> void:
-	add_to_group("interactable")
-	_ensure_visual()
+	home_yaw = rotation.y
+	super._ready()
+	_home = global_position
 	_refresh_presence()
-	if Game != null and Game.first_job != null and Game.first_job.has_signal("changed"):
-		if not Game.first_job.changed.is_connected(_refresh_presence):
-			Game.first_job.changed.connect(_refresh_presence)
+	if Game != null and Game.first_job != null and not Game.first_job.changed.is_connected(_refresh_presence):
+		Game.first_job.changed.connect(_refresh_presence)
 
 
 func _exit_tree() -> void:
@@ -26,93 +38,68 @@ func _exit_tree() -> void:
 		Game.first_job.changed.disconnect(_refresh_presence)
 
 
-func _process(delta: float) -> void:
-	if not visible:
-		return
-	var uttering: bool = false
-	if _talking and get_tree() != null:
-		uttering = DialogueOverlay.uttering_in(get_tree())
-	_face.advance(delta, uttering)
-	if _talking:
-		_face_player()
-
-
-func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
-	if not visible:
-		return []
-	return [Interaction.of(Interaction.TALK, "Talk to Tortimer", 20)]
+## `aNS_set_norm_talk_info`.
+func make_talk() -> BankTalk:
+	var msg_no: int = MSG_FIRST
+	if _met():
+		msg_no = MSG_AGAIN + rng().randi_range(0, 2)
+	elif _away():
+		msg_no = MSG_FIRST_AWAY
+	return BankTalk.Fixed.new(msg_no)
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if not visible:
+	if not super.interact(action, ctx):
 		return false
-	if action == null or action.id != Interaction.TALK or Game == null:
-		return false
-	var listener: Node3D = ctx.actor as Node3D if ctx != null else null
 	if Game.first_job != null:
 		Game.first_job.mark_met_tortimer()
 		if Game.first_job.kind == FirstJob.Kind.INTRODUCTIONS and Game.first_job.chore_finished():
 			Game.set_interact_prompt("Talk to Tom Nook")
-	return _begin_talk(listener)
+	return true
+
+
+func think(delta: float) -> void:
+	if visible:
+		walk_wander(delta, _wander_dest)
+
+
+## He stays turned the way the talk left him.
+func talk_ended(script: BankTalk) -> void:
+	home_yaw = rotation.y
+	super.talk_ended(script)
+
+
+## `aNPC_think_wander_move_next` on his circle: a rim point he may stand on.
+func _wander_dest() -> Vector3:
+	var world: World = World.find(get_tree())
+	if world == null or world.layout == null:
+		return Vector3.INF
+	for _try: int in VillagerWalk.WANDER_TRIES:
+		var angle: float = rng().randf() * TAU
+		var dest: Vector3 = _home + Vector3(sin(angle), 0.0, cos(angle)) * RANGE
+		var cell: Vector2i = world.grid.world_to_cell(dest)
+		if VillagerWalk.is_standable(world.layout, cell):
+			dest.y = FieldCollision.ground_y(world.layout, cell)
+			return dest
+	return Vector3.INF
+
+
+func _met() -> bool:
+	return Game != null and Game.first_job != null and Game.first_job.tortimer_met
+
+
+func _away() -> bool:
+	return Game != null and Game.lighthouse.in_nights(Clock.year, Clock.month, Clock.day)
 
 
 func _refresh_presence() -> void:
-	## `mFM_SetMoveActor`: spawn only while `mEv_CheckFirstJob`.
-	var show: bool = Game != null and Game.first_job != null and Game.first_job.is_active()
+	## `mFM_SetMoveActor`: only during the first job, and not once met while he's away.
+	var show: bool = Game != null and Game.first_job != null and Game.first_job.is_active() \
+		and not (_met() and _away())
 	visible = show
 	collision_layer = 1 if show else 0
 	var volume: Node = get_node_or_null("InteractVolume")
 	if volume is CollisionObject3D:
 		(volume as CollisionObject3D).collision_layer = 8 if show else 0
-
-
-func _begin_talk(listener: Node3D) -> bool:
-	var data: DialogueData = DialogueCatalog.conversation(GREETING_ID)
-	var talk_ctx: DialogueContext = DialogueContext.from_game()
-	talk_ctx.speaker_name = "Tortimer"
-	var ui := DialogueOverlay.find(get_tree())
-	if ui != null and data != null:
-		if ui.is_open():
-			ui.close()
-		_talking = true
-		if listener != null:
-			TalkCamera.begin(listener, self, get_tree())
-		if not ui.closed.is_connected(_on_talk_closed):
-			ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
-		ui.play(data, talk_ctx)
-	else:
-		Game.post_notice("Tortimer: Ho ho! Welcome!")
-	return true
-
-
-func _on_talk_closed() -> void:
-	_talking = false
-	TalkCamera.end(get_tree())
-
-
-func _face_player() -> void:
-	var player := Player.find(get_tree())
-	if player is Node3D:
-		var to: Vector3 = (player as Node3D).global_position - global_position
-		to.y = 0.0
-		if to.length_squared() > 0.0001:
-			rotation.y = atan2(to.x, to.z)
-
-
-func _ensure_visual() -> void:
-	if _model != null:
-		return
-	_model = $Model
-	var vis: Node3D = GeneratedVisual.attach_villager(_model, &"ttl")
-	if vis == null:
-		vis = GeneratedVisual.attach_villager(_model, &"rcn")
-	if vis == null:
-		return
-	_body_anim = VisualAnimation.find_animation_player(vis)
-	_face.bind(vis, &"ttl")
-	## Imported `npc_1_wait1` is a one-shot. Without a loop he sways once, then freezes.
-	if _body_anim != null and _body_anim.has_animation(ANIM_WAIT):
-		var animation: Animation = _body_anim.get_animation(ANIM_WAIT)
-		if animation != null:
-			animation.loop_mode = Animation.LOOP_LINEAR
-		_body_anim.play(ANIM_WAIT)
+	if not show:
+		stop_moving()

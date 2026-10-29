@@ -141,22 +141,23 @@ static func end_enter(host: Node) -> void:
 		_DoorCamera.end(tree)
 
 
-static func play_emerge(host: Node) -> void:
+static func play_emerge(host: Node, from_start: bool = false) -> void:
 	## Outdoor start after indoor leave: structure leave clip + player GO_OUT.
 	## Stand is `rewrite_out_data` (outside plus-offsets), not the enter approach.
-	## Museum has no leave demo — player is already on `exit_stand` from spawn.
+	## `from_start`: a continued game (`aNPS2_make_door_data` home, exit_type 1 /
+	## extra_data 1). The house gets door type 2 (`aMHS_setup_animation` start frame 1)
+	## and the player GO_OUT_O1 from frame 1, so the door swings open and the player
+	## walks out in full instead of only the door closing.
 	var root: Node3D = _structure_root(host)
 	var visual_id: StringName = _visual_id(root) if root != null else &""
-	if HostCollision.is_museum(visual_id):
-		return
 	var player := _find_player(host)
 	var stand: Vector3 = exit_stand(root) if root != null else Vector3.ZERO
 	if root != null and player != null:
 		var out_yaw: float = leave_yaw(root, stand)
 		## Body stays on `rewrite_out_data` stand; GO_OUT joint_0 carries the mesh.
-		## `door_data.extra_data`: 2 (houses / post / Able) = door-close only,
-		## 3 (Nook / police / …) = full walk-out. Same split as the enter walk-in.
-		player.doors.begin_door_leave(stand, stand, out_yaw, uses_walk_in(visual_id))
+		player.doors.begin_door_leave(
+			stand, stand, out_yaw, leave_walks_from_start(visual_id, from_start), leave_player_clip(visual_id)
+		)
 	## `Camera2_request_main_door` (OUTDOOR, flags&1 == 0, morph 0): the door camera
 	## snaps onto the *player's* eye, not the enter approach stand, and the normal camera
 	## eases back out from there once it ends.
@@ -165,10 +166,16 @@ static func play_emerge(host: Node) -> void:
 			player.camera_look_position() if player != null else stand + Vector3(0.0, Player.LOOK_HEIGHT, 0.0)
 		)
 		_DoorCamera.begin(cam_center, host.get_tree() if host != null else null, false)
-	var played: bool = await _play(host, false)
+	var played: bool = await _play(host, false, from_start)
 	## Museum / police have no leave cKF — hold on player GO_OUT.
 	if not played and player != null and is_instance_valid(player):
 		await player.doors.await_door_enter()
+	## `Player_actor_request_proc_index_fromOutdoor`: OUTDOOR ends with the player's own clip,
+	## which outlasts the door's.
+	if played and player != null and is_instance_valid(player):
+		var player_anim: BodyAnimator = player.animation_player()
+		if player_anim != null and player_anim.is_playing():
+			await player_anim.animation_finished
 	if player != null and is_instance_valid(player):
 		player.doors.end_door_leave()
 	_DoorCamera.end(host.get_tree() if host != null else null)
@@ -317,7 +324,7 @@ static func leave_yaw(root: Node3D, from: Vector3) -> float:
 	return fposmod(enter_yaw(root, from) + PI, TAU)
 
 
-static func _play(host: Node, entering: bool) -> bool:
+static func _play(host: Node, entering: bool, from_start: bool = false) -> bool:
 	var root: Node3D = _structure_root(host)
 	if root == null:
 		return false
@@ -328,7 +335,7 @@ static func _play(host: Node, entering: bool) -> bool:
 	var clip: String = enter_clip(anim, visual_id) if entering else leave_clip(anim, visual_id)
 	if clip.is_empty():
 		return false
-	var start_frame: float = 1.0 if entering else leave_start_frame(visual_id)
+	var start_frame: float = 1.0 if entering else leave_start_frame(visual_id, from_start)
 	anim.play(clip)
 	if start_frame > 1.0:
 		## cKF frame 1 is t = 0.
@@ -340,8 +347,23 @@ static func _play(host: Node, entering: bool) -> bool:
 	return true
 
 
+## `Player_actor_setup_main_Outdoor` by `door_data.extra_data`. `mPlib_request_main_outdoor_type1`
+## hands its two flags on in the opposite order to the names, so: 1 (a continued game) and 3
+## (Nook / museum / police / lighthouse / tents, the `uses_walk_in` doors) play from frame 1,
+## 2 (houses / post office / Able) from frame 25; 3 alone uses GO_OUT_S1.
+static func leave_player_clip(visual_id: StringName) -> String:
+	return Player.ANIM_GO_OUT_S1 if uses_walk_in(visual_id) else Player.ANIM_GO_OUT_O1
+
+
+static func leave_walks_from_start(visual_id: StringName, from_start: bool = false) -> bool:
+	return from_start or uses_walk_in(visual_id)
+
+
 ## `start_idx[]` in `aPOFF_/aNW_/aMHS_setup_animation`: the leave (`_out`) clip skips the swing-open.
-static func leave_start_frame(visual_id: StringName) -> float:
+## `from_start`: a continued game's house door (type 2) plays the whole `_out` clip.
+static func leave_start_frame(visual_id: StringName, from_start: bool = false) -> float:
+	if from_start:
+		return 1.0
 	if (
 		HostCollision.is_post_office(visual_id)
 		or HostCollision.is_able_sisters(visual_id)

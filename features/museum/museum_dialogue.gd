@@ -214,10 +214,9 @@ static func _dupe_node(category: int) -> String:
 			return "dupe_fossil"
 
 
-static func _is_forgery(data: ItemData, category: int, index: int) -> bool:
-	if String(data.id).begins_with("art_forgery"):
-		return true
-	return category == MuseumDisplay.Category.ART and index in MuseumBook.FORGERY_ART_INDICES
+## Redd's `art_forgery_*` items only; every real painting can be donated.
+static func _is_forgery(data: ItemData, _category: int, _index: int) -> bool:
+	return String(data.id).begins_with("art_forgery")
 
 
 ## Nodes that never change between builds (rejections, fanfares, loop).

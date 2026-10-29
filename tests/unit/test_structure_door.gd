@@ -30,6 +30,9 @@ func test_post_leave_starts_at_frame_25_with_out_sound_pattern() -> void:
 	assert_float(StructureDoor.leave_start_frame(&"obj_s_yubinkyoku")).is_equal(25.0)
 	assert_float(StructureDoor.leave_start_frame(&"obj_s_myhome1")).is_equal(25.0)
 	assert_float(StructureDoor.leave_start_frame(&"obj_s_house1")).is_equal(1.0)
+	## A continued game (`aNPS2_make_door_data` home → `aMHS_setup_animation` type 2) opens the
+	## house door from the first frame.
+	assert_float(StructureDoor.leave_start_frame(&"obj_s_myhome1", true)).is_equal(1.0)
 	assert_array(StructureDoor.door_se_frames(&"obj_s_yubinkyoku", false)).is_equal(
 		StructureDoor.DOOR_SE_OUT_FRAMES
 	)
@@ -40,6 +43,19 @@ func test_post_leave_starts_at_frame_25_with_out_sound_pattern() -> void:
 	assert_array(StructureDoor.door_se_frames(&"obj_s_house1", true)).is_equal(
 		StructureDoor.DOOR_SE_OUT_FRAMES
 	)
+
+
+func test_leave_clip_follows_door_extra_data() -> void:
+	## extra_data 2: houses / post office walk out on GO_OUT_O1 from frame 25.
+	assert_str(StructureDoor.leave_player_clip(&"obj_s_myhome1")).is_equal(Player.ANIM_GO_OUT_O1)
+	assert_bool(StructureDoor.leave_walks_from_start(&"obj_s_myhome1")).is_false()
+	assert_str(StructureDoor.leave_player_clip(&"obj_s_yubinkyoku")).is_equal(Player.ANIM_GO_OUT_O1)
+	## extra_data 1: a continued game walks out of the house in full.
+	assert_bool(StructureDoor.leave_walks_from_start(&"obj_s_myhome1", true)).is_true()
+	## extra_data 3: Nook's and the police box use GO_OUT_S1 from frame 1.
+	for id: StringName in [&"obj_s_shop1", &"obj_s_kouban"]:
+		assert_str(StructureDoor.leave_player_clip(id)).is_equal(Player.ANIM_GO_OUT_S1)
+		assert_bool(StructureDoor.leave_walks_from_start(id)).is_true()
 
 
 func test_walk_in_uses_into_not_open1() -> void:

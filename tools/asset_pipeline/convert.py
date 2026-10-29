@@ -1863,7 +1863,11 @@ def _png_record(
 
 
 def _write_acre_collision(cfg: PipelineConfig, rel: RelData, symbols: list) -> dict[str, Any]:
-    col = extract_and_write(rel, symbols, [cfg.converted, cfg.godot_generated])
+    from .fgdata import _guess_decomp
+
+    col = extract_and_write(
+        rel, symbols, [cfg.converted, cfg.godot_generated], cfg.decomp_root or _guess_decomp(cfg)
+    )
     print(f"  acre collision {col['written']} sidecars")
     return col
 

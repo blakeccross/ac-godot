@@ -109,6 +109,15 @@ func racing(slot: int) -> bool:
 	return slot > 0 and team_of(slot) == team
 
 
+## The runner in `lane` this race (`tokyoso->pos_0A[lane]` is where it is), or null.
+func runner(lane: int) -> Node3D:
+	for n: Node in get_parent().get_children():
+		var s: int = int(n.get("slot")) if n.get("family") == &"tokyoso" else 0
+		if racing(s) and lane_of(s) == lane:
+			return n as Node3D
+	return null
+
+
 ## A runner reached the finish; once both are in, the goal.
 func cross(lane: int) -> void:
 	if finish[lane] != 0:

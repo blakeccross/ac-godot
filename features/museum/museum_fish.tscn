@@ -27,7 +27,7 @@ transform = Transform3D(3.125, 0, 0, 0, 3.125, 0, 0, 0, 3.125, 0, -2, 0)
 [node name="Doors" type="Node3D" parent="."]
 
 [node name="Exit" parent="Doors" instance=ExtResource("3")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 28)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 28)
 label = "Museum"
 auto_enter = true
 linked_room_id = &"museum_entrance"

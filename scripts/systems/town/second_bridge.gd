@@ -49,7 +49,8 @@ const MSG_PENDING := 0x2F44
 
 
 static func new_state() -> Dictionary:
-	return {"pending": false, "exists": false, "build": -1, "bx": -1, "bz": -1, "day": -1, "used": 0, "top": false, "msg_no": 0}
+	## `aESC_actor_ct`: the look-elsewhere lines start at a random one.
+	return {"pending": false, "exists": false, "build": -1, "bx": -1, "bz": -1, "day": -1, "used": 0, "top": false, "msg_no": randi() % 5}
 
 
 static func state() -> Dictionary:
@@ -85,11 +86,12 @@ static func spot_in(layout: WorldData, block: Vector2i) -> Vector3i:
 	return best
 
 
-## `init_weekly_event`: Saturdays, and Monday–Friday when Gulliver isn't due.
-static func tortimer_due(weekday: int, gulliver_today: bool, residents_full: bool, foreigner: bool) -> bool:
+## `init_weekly_event`: Saturdays, and Monday–Friday when Gulliver isn't due, unless he is
+## away on vacation (`mSC_LightHouse_travel_check`).
+static func tortimer_due(weekday: int, gulliver_today: bool, residents_full: bool, foreigner: bool, away: bool = false) -> bool:
 	if not (weekday == 6 or (weekday != 0 and not gulliver_today)):
 		return false
-	return residents_full and not foreigner and not bool(state().get("exists", false))
+	return residents_full and not foreigner and not away and not bool(state().get("exists", false))
 
 
 ## `bridge_day` / `bridge_flags.raw++` once per day he comes.

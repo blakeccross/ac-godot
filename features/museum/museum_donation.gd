@@ -77,10 +77,9 @@ static func _reject(out: Dictionary, reason: String, message: String) -> Diction
 	return out
 
 
-static func _is_forgery(data: ItemData, category: int, index: int) -> bool:
-	if String(data.id).begins_with("art_forgery"):
-		return true
-	return index in MuseumBook.FORGERY_ART_INDICES and category == MuseumDisplay.Category.ART
+## Redd's `art_forgery_*` items only; every real painting can be donated.
+static func _is_forgery(data: ItemData, _category: int, _index: int) -> bool:
+	return String(data.id).begins_with("art_forgery")
 
 
 static func _collection_complete(category: int) -> bool:

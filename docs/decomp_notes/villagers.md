@@ -142,3 +142,10 @@ What the decomp does that the port still doesn't, and why:
 | Memories of other players | `Anmmem_c[7]` | single player only |
 
 Related oddity: `rumor_harvest_festival` decodes as active into December in `EventCalendar`, so villagers can mention it then.
+
+## Collision with the player and each other
+
+- Two bodies, two jobs. The **BG check** (terrain, structures) uses an 18 GX radius for NPCs and the player alike (`collision.BGcheck_radius`, `aNPC_ct`), so the villager's physics cylinder is 0.9 m, same as the player's.
+- Actor against actor is the **OC pipe**, not a wall: `aNPC_CoInfoData` (radius 20 GX, 30 GX tall) against the player's stand pipe (20 GX, 60 GX). `CollisionCheck_setOC_HitInfo` pushes an overlapping pair apart by the overlap, split by `status_data.weight`. Two normal actors (50) give way by half each. A heavy one (254) only yields to an immovable one (255), and an immovable one never moves. The push lands before the BG check (`Actor_position_move` adds `collision_vec`).
+- Weights: a villager is 50, `MASSTYPE_HEAVY - 1` while greeting, and `MASSTYPE_HEAVY` while walking in its door. The player is 50, heavy while talking or fishing, and immovable through scripted walks, wading, pitfalls and the door emerge (`Player_actor_SetupWeight`).
+- Godot: `ActorPipe` resolves every pair once a physics frame. Villagers sit on their own physics layer (`PhysicsLayers.VILLAGERS`), off the player's mask, so the player meets them only through the push.

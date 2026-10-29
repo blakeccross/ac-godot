@@ -973,8 +973,8 @@ func _cmd_resetti(args: PackedStringArray) -> String:
 	return "Reset #%d." % Game.resident.reset_count
 
 
-## The lighthouse quest has no Tortimer to hand it out yet (`ac_ev_soncho2`); `start` gives
-## it today, `lit` throws tonight's switch.
+## Tortimer hands the lighthouse job out on his January / February vacation (`ac_ev_soncho2`);
+## `start` gives it today without him, `lit` throws tonight's switch.
 func _cmd_lighthouse(args: PackedStringArray) -> String:
 	if Game == null or Game.lighthouse == null:
 		return "No game."

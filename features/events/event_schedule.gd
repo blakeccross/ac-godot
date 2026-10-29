@@ -11,7 +11,6 @@ const PATH := "res://data/events/schedule.json"
 const UNSUPPORTED: Array[StringName] = [
 	## The bridge itself goes up from `SecondBridge` when the field loads or renews.
 	&"bridge_make",
-	&"soncho_vacation_january", &"soncho_vacation_february",
 ]
 
 ## Spoken labels; anything else is title-cased from the id.

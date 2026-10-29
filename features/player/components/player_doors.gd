@@ -186,7 +186,9 @@ func await_door_enter() -> void:
 
 ## `mPlayer_INDEX_OUTDOOR`: actor stays on the exit stand; GO_OUT `joint_0` walks the mesh
 ## from behind to bind (`Set_force_shadow_position_fromAnimePosition` only).
-func begin_door_leave(stand: Vector3, _target: Vector3, face_yaw: float, full_walk: bool = false) -> void:
+func begin_door_leave(
+	stand: Vector3, _target: Vector3, face_yaw: float, full_walk: bool = false, clip_name: String = Player.ANIM_GO_OUT_O1
+) -> void:
 	_player._busy = true
 	door_entering = true
 	_door_animation_move = false
@@ -202,7 +204,7 @@ func begin_door_leave(stand: Vector3, _target: Vector3, face_yaw: float, full_wa
 	_player._motor.reset(face_yaw)
 	_player._mesh.rotation.y = face_yaw
 	_player.velocity = Vector3.ZERO
-	var clip := _player._resolve_clip(Player.ANIM_GO_OUT_O1)
+	var clip := _player._resolve_clip(clip_name)
 	if _player._anim == null or clip.is_empty():
 		return
 	_player._anim.speed_scale = 1.0

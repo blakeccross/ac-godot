@@ -355,11 +355,31 @@ func _capitalize_slots(text: String) -> String:
 		if tag_end < 0 or tag_start >= out.length() or out[tag_start] != "{":
 			out = out.substr(0, at) + out.substr(tag_start)
 			continue
-		var value: String = substitute(out.substr(tag_start, tag_end - tag_start + 1))
+		var tag: String = out.substr(tag_start, tag_end - tag_start + 1)
+		## `{cap}{cutart}{item0}` (the museum's exhibit pages): cut the article from the string
+		## after `{cutart}`, then capitalise what is left.
+		var cut: bool = false
+		if tag == "{cutart}":
+			var next_start: int = tag_end + 1
+			var next_end: int = out.find("}", next_start)
+			if next_end > 0 and next_start < out.length() and out[next_start] == "{":
+				tag = out.substr(next_start, next_end - next_start + 1)
+				tag_end = next_end
+				cut = true
+		var value: String = substitute(tag)
+		if cut:
+			value = _without_article(value)
 		if value != "":
 			value = value[0].to_upper() + value.substr(1)
 		out = out.substr(0, at) + value + out.substr(tag_end + 1)
 	return out
+
+
+static func _without_article(value: String) -> String:
+	for article: String in ["a ", "an ", "the ", "some "]:
+		if value.to_lower().begins_with(article):
+			return value.substr(article.length())
+	return value
 
 
 ## `CUTARTICLE`: the string that follows drops its article ("a videotape" → "videotape").
@@ -378,11 +398,7 @@ func _cut_articles(text: String) -> String:
 			out = out.substr(0, at) + out.substr(tag_start)
 			continue
 		var tag: String = out.substr(tag_start, tag_end - tag_start + 1)
-		var value: String = substitute(tag)
-		for article: String in ["a ", "an ", "the ", "some "]:
-			if value.to_lower().begins_with(article):
-				value = value.substr(article.length())
-				break
+		var value: String = _without_article(substitute(tag))
 		out = out.substr(0, at) + value + out.substr(tag_end + 1)
 	return out
 

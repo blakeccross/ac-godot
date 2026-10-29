@@ -7,8 +7,9 @@ extends RefCounted
 ## `MuseumInteriorBuilder` / `InteriorBuilder` place furniture.
 
 const WALL_HEIGHT := 3.0
-## Door opening half-width (~1.5 UT). Matches walk-in sensors better than 1 UT.
-const MUSEUM_DOOR_HALF := 60.0 * FieldCatalog.GX_TO_METERS
+## Door opening half-width: every museum doorway is two 40 GX units wide in the room's
+## `collision[]` (`rom_museum*.col.json`) and FG `DOOR` units.
+const MUSEUM_DOOR_HALF := 40.0 * FieldCatalog.GX_TO_METERS
 
 
 static func paint_shell(root: Node3D, room: Room, grid: WorldGrid) -> void:
@@ -63,6 +64,8 @@ static func add_museum_shell_collision(root: Node3D, room: Room, grid: WorldGrid
 
 
 static func add_shell_collision(root: Node3D, room: Room, grid: WorldGrid, gaps: Array = []) -> void:
+	if add_museum_unit_collision(root, room, grid):
+		return
 	var inner := _inner_size(room, grid)
 	var center := _inner_center(room, grid)
 	root.add_child(_collider(Vector3(inner.x, 0.12, inner.z), center + Vector3(0.0, 0.04, 0.0)))
@@ -125,6 +128,32 @@ static func add_shell_collision(root: Node3D, room: Room, grid: WorldGrid, gaps:
 			wall_se.z,
 			_gaps_on_side(gaps, &"east")
 		)
+
+
+## A museum room collides exactly as its `mFM_bg_data_c.collision[]` does: a floor under the
+## whole 16×16 grid and a hull on every unit that is not floor height (walls, the entrance
+## clock, the painting partitions, the insect cases, the fish tanks). The exhibits themselves
+## carry no collision in the original (`ac_museum_*` have no `ClObj` and set no BG offsets), and
+## any rise over 3 GX is a wall to the player (`mCoBG_CheckHeightExactly`). False when the
+## room is not a museum room or its `.col.json` has not been generated.
+static func add_museum_unit_collision(root: Node3D, room: Room, grid: WorldGrid) -> bool:
+	if root == null or room == null or grid == null or room.kind != Room.Kind.MUSEUM or room.shell_ids.is_empty():
+		return false
+	var shell := StringName(room.shell_ids[0])
+	if InteriorUnitCollision.bg_counts(shell).size() != FieldCatalog.UNITS_PER_ACRE:
+		return false
+	var full := Vector3(float(grid.columns) * grid.cell_size, 0.12, float(grid.rows) * grid.cell_size)
+	var origin: Vector3 = grid.cell_corner(Vector2i.ZERO)
+	root.add_child(_collider(full, origin + Vector3(full.x * 0.5, 0.04, full.z * 0.5)))
+	InteriorUnitCollision.add_hulls(
+		root,
+		grid,
+		"MuseumUnitCol",
+		InteriorUnitCollision.blocked_from_bg(
+			shell, FieldCatalog.LAND_COUNTS, FieldCatalog.HEIGHT_MAX, Rect2i(0, 0, grid.columns, grid.rows)
+		)
+	)
+	return true
 
 
 static func _add_door_porches(root: Node3D, room: Room, grid: WorldGrid, gaps: Array) -> void:

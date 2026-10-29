@@ -28,6 +28,29 @@ func after_test() -> void:
 ## --- LighthouseBook -------------------------------------------------------------------
 
 
+func test_vacation_and_return_checks() -> void:
+	var book := LighthouseBook.new()
+	var start: int = EventDates.ordinal(2027, 1, 15)
+	assert_bool(book.event_start(start)).is_true()
+	book.start_quest(2027, 1, 15)
+	## `update_soncho_event`: no new vacation while the job runs.
+	assert_bool(book.event_start(start + 3)).is_false()
+	assert_bool(book.talk_after_check(start)).is_true()
+	## Back (period 2): a night missed is a scolding.
+	assert_int(book.event_check(start + 3)).is_equal(LighthouseBook.Outcome.NONE)
+	assert_int(book.event_check(start + 8)).is_equal(LighthouseBook.Outcome.STARTED)
+	## Every night lit by the player: the souvenir (January: the lighthouse model).
+	for night: int in LighthouseBook.NIGHT_COUNT:
+		book.switch_on(2027, 1, 16 + night)
+	assert_int(book.event_check(start + 8)).is_equal(LighthouseBook.Outcome.CONTRIBUTED)
+	assert_str(String(book.present_item())).is_equal("ftr_1052")
+	book.event_clear()
+	assert_int(book.event_check(start + 9)).is_equal(LighthouseBook.Outcome.NONE)
+	## Past the 17 days the old job is cleared for the next vacation.
+	assert_bool(book.event_start(start + 18)).is_true()
+	assert_int(book.start_ordinal).is_equal(0)
+
+
 func test_no_quest_lamp_runs_18_to_05_and_door_stays_shut() -> void:
 	var book := LighthouseBook.new()
 	assert_bool(book.lamp_on(2001, 7, 15, 17)).is_false()

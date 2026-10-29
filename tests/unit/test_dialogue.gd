@@ -560,3 +560,12 @@ func test_awaiting_input_signal_fires_on_each_edge() -> void:
 	assert_that(seen).is_equal([true] as Array[bool])
 	overlay.close(true)
 	assert_that(seen).is_equal([true, false] as Array[bool])
+
+
+func test_capitalize_reaches_through_cut_article() -> void:
+	## `{cap}{cutart}{item0}` (museum exhibit pages): cut the article, then capitalise.
+	var ctx := DialogueContext.new()
+	ctx.set_item_str(0, "a jewel beetle")
+	assert_str(ctx.substitute("{cap}{cutart}{item0}")).is_equal("Jewel beetle")
+	assert_str(ctx.substitute("{cutart}{item0}")).is_equal("jewel beetle")
+	assert_str(ctx.substitute("{cap}{item0}")).is_equal("A jewel beetle")

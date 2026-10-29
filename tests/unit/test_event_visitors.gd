@@ -301,6 +301,72 @@ func test_tortimer_holiday_gives_the_trophy_once() -> void:
 	assert_int(TortimerHoliday.new(TortimerHoliday.HARVEST_FESTIVAL, {}, inv).msg_for(0)).is_equal(TortimerHoliday.MSG_HARVEST_FESTIVAL)
 
 
+func test_tortimer_souvenirs_and_countdown_date() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	## Town Day: one of the fifteen station models (`mSP_GetRandomStationToyItemNo`).
+	var town := TortimerHoliday.new(TortimerHoliday.TOWN_DAY, {}, null, rng)
+	for _i: int in 20:
+		var n: int = FurnitureCatalog.index_of(town.trophy_item())
+		assert_int(n).is_between(TortimerHoliday.STATION_TOY_FIRST, TortimerHoliday.STATION_TOY_FIRST + 14)
+	## The countdown past midnight still marks New Year's Eve (`aES2_wait`).
+	var nye := TortimerHoliday.new(TortimerHoliday.NEW_YEARS_EVE_COUNTDOWN, {}, null, rng)
+	nye.today = Vector3i(2027, 1, 1)
+	assert_that(nye.event_date()).is_equal(Vector3i(2026, 12, 31))
+	nye.today = Vector3i(2026, 12, 31)
+	assert_that(nye.event_date()).is_equal(Vector3i(2026, 12, 31))
+	## The souvenir his actor picked is the one he gives.
+	var t := TortimerHoliday.new(TortimerHoliday.event_index(&"soncho_nature_day"), {}, Inventory.new(), rng)
+	t.item = &"ftr_1063"
+	t.context = DialogueContext.new()
+	t.prepare()
+	assert_str(String(t.item)).is_equal("ftr_1063")
+
+
+func test_tortimer_vacation_hands_out_the_lighthouse_job() -> void:
+	var book := LighthouseBook.new()
+	var rng := RandomNumberGenerator.new()
+	var t := TortimerHoliday.new(TortimerHoliday.event_index(&"soncho_vacation_january"), {}, null, rng)
+	assert_int(t.event).is_equal(TortimerHoliday.JAN_VACATION)
+	t.lighthouse = book
+	t.today = Vector3i(2027, 1, 15)
+	t.context = DialogueContext.new()
+	t.prepare()
+	assert_int(t.start_msg()).is_equal(TortimerHoliday.MSG_LIGHTHOUSE_JAN)
+	assert_bool(book.quest_taken).is_true()
+	assert_int(book.start_ordinal).is_equal(EventDates.ordinal(2027, 1, 15))
+	## The job is out: only the chat lines now, and he's gone the next time town loads.
+	var again := TortimerHoliday.new(TortimerHoliday.JAN_VACATION, {}, null, rng)
+	again.lighthouse = book
+	again.today = Vector3i(2027, 1, 15)
+	again.context = DialogueContext.new()
+	assert_int(again.start_msg()).is_between(TortimerHoliday.MSG_LIGHTHOUSE_JAN + 6, TortimerHoliday.MSG_LIGHTHOUSE_JAN + 8)
+	assert_bool(book.talk_after_check(EventDates.ordinal(2027, 1, 16))).is_true()
+	assert_int(TortimerHoliday.new(TortimerHoliday.FEB_VACATION, {}, null, rng).event).is_equal(102)
+
+
+func test_speech_tortimer_talk_window() -> void:
+	var speech: GDScript = load("res://features/events/actors/speech_tortimer.gd")
+	var eight: int = speech.EVENT_SEC
+	assert_bool(speech.talk_open(eight - 120, false)).is_true()
+	## `aGHC_TERM_1_MIN`: not in the last minute before 8:00.
+	assert_bool(speech.talk_open(eight - 30, false)).is_false()
+	## From 8:00 only once the speech is given.
+	assert_bool(speech.talk_open(eight + 10, false)).is_false()
+	assert_bool(speech.talk_open(eight + 10, true)).is_true()
+
+
+func test_first_job_tortimer_uses_the_disc_lines() -> void:
+	var node: Node = (load("res://features/events/tortimer.tscn") as PackedScene).instantiate()
+	Game.first_job.tortimer_met = false
+	var first: BankTalk = node.call("make_talk")
+	assert_int(first.start_msg()).is_equal(0x3AFC)
+	Game.first_job.tortimer_met = true
+	assert_int((node.call("make_talk") as BankTalk).start_msg()).is_between(0x3AFF, 0x3B01)
+	Game.first_job.tortimer_met = false
+	node.free()
+
+
 func test_festival_crowd_talk_follows_looks_and_slot() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7

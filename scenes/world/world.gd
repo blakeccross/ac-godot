@@ -22,6 +22,8 @@ var _lightning_flash: bool = false
 ## Where a continued game walks out of the house (`Vector3.INF` otherwise).
 var _door_stand: Vector3 = Vector3.INF
 var _door_yaw: float = 0.0
+## A continued game's walk out of the house plays in full (`home_data` extra_data 1).
+var _emerge_from_start: bool = false
 
 @onready var _sun: DirectionalLight3D = $Sun
 @onready var _moon: DirectionalLight3D = $Moon
@@ -285,7 +287,7 @@ func _spawn_player() -> void:
 		_train_arrival = true
 		pos = _platform(StationPorter.ARRIVE)
 		yaw = 0.0
-	## `mSDI_StartInitFrom` → `SCENE_FG`: a continued game starts walking out of your house.
+	## `aNPS2_make_door_data` (home): a continued game starts walking out of your house.
 	if Game.continue_from_house:
 		Game.continue_from_house = false
 		var house := find_child(String(PlayerHouse.owned_building_id()), true, false) as Node3D
@@ -293,6 +295,7 @@ func _spawn_player() -> void:
 			pos = StructureDoor.exit_stand(house)
 			yaw = StructureDoor.leave_yaw(house, pos)
 			Game.emerge_from_door = true
+			_emerge_from_start = true
 			_door_stand = pos
 			_door_yaw = yaw
 	player.apply_spawn(pos, yaw)
@@ -319,7 +322,8 @@ func _play_door_emerge(player: Player) -> void:
 		return
 	var host: Node3D = StructureDoor.find_near(self, player.global_position)
 	if host != null:
-		await StructureDoor.play_emerge(host)
+		await StructureDoor.play_emerge(host, _emerge_from_start)
+	_emerge_from_start = false
 	if not is_instance_valid(player):
 		return
 	player.visible = true

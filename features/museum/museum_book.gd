@@ -11,12 +11,9 @@ const FOSSIL_NUM := 25
 const ART_NUM := 15
 const FISH_NUM := 40
 const INSECT_NUM := 40
-## Donatable art excludes Redd forgeries ART02/ART03.
-const DONATABLE_ART_NUM := ART_NUM - 2
+## `mMmd_RequestMuseumDisplay` takes every painting `FTR_SUM_ART01`–`ART15`: all 15 slots fill.
+const DONATABLE_ART_NUM := ART_NUM
 const DONATABLE_TOTAL := FOSSIL_NUM + DONATABLE_ART_NUM + FISH_NUM + INSECT_NUM
-
-## `FTR_SUM_ART02` / `ART03` — Redd forgeries Blathers always rejects.
-const FORGERY_ART_INDICES: Array[int] = [1, 2]
 
 var _fossil: PackedByteArray = PackedByteArray()
 var _art: PackedByteArray = PackedByteArray()
@@ -120,9 +117,6 @@ func fill_complete(donator: int = int(Donator.PLAYER1)) -> void:
 	for i: int in FOSSIL_NUM:
 		set_fossil(i, donator)
 	for i: int in ART_NUM:
-		## Forgeries stay empty — they are never legitimately on display.
-		if i in FORGERY_ART_INDICES:
-			continue
 		set_art(i, donator)
 	for i: int in FISH_NUM:
 		set_fish(i, donator)
@@ -140,8 +134,6 @@ func display_info_for_item(item: ItemData) -> DisplayInfo:
 		return DisplayInfo.CANNOT_DONATE
 	var category: int = int(mapped.get("category", MuseumDisplay.Category.FOSSIL))
 	var index: int = int(mapped.get("index", -1))
-	if category == MuseumDisplay.Category.ART and index in FORGERY_ART_INDICES:
-		return DisplayInfo.CANNOT_DONATE
 	if is_donated(info(category, index)):
 		return DisplayInfo.ALREADY_DONATED
 	return DisplayInfo.CAN_DONATE

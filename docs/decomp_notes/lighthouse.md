@@ -32,7 +32,9 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 
 ## Not built
 
-- Tortimer's vacation event (`ac_ev_soncho2`, `SONCHO_VACATION_*` are `EventSchedule.UNSUPPORTED`), so the quest only starts from the debug console.
+- **Vacation** (`SONCHO_VACATION_JANUARY/FEBRUARY`, Jan 15–24 / Feb 12–21, 10:00–17:00): Tortimer at the wishing-well acre (`TortimerPresenter`, `TortimerHoliday`). Not scheduled while a quest is still running; a finished one is cleared (`update_soncho_event` → `LighthouseBook.event_start`). The first talk starts the quest (0x33F4 Jan / 0x340B Feb, FREE0 = day +7, FREE1 = day +8); then 6–8 chat lines; he is gone the next time the town loads (`talk_after_check`).
+- **Away** (period 1, `in_nights`): no bridge Tortimer, no golden-tool visits, and the first-job Tortimer is hidden once met.
+- **Return** (period 2, `event_check`): Tortimer at the house door when the game is continued (`PresentVisit`): all 7 nights lit → the wrapped present with 0x33FD / 0x3414, or 0x33FF / 0x3416 with full pockets (he comes again); a night missed → 0x3400 / 0x3417, no present. Both close the job (`event_clear`).
 - Reward delivery (period 2) and the "all nights lit" bonus.
 - Drive motor level SE `0xC9` and stop SE `0x79` (not rendered by the audio pipeline; one SysLev channel).
 - The facing window (90°–180°) and the stand snap to `{167,40,113}` — the player faces the panel from where they stand.

@@ -9,6 +9,13 @@ const TORTIMER_SCENE := "res://features/events/actors/tortimer_holiday.tscn"
 const PICKUP_SCENE := "res://scenes/world/item_pickup.tscn"
 ## Map actors that are Tortimer at his holiday spot (`SP_NPC_EV_SONCHO2`).
 const TORTIMER_ACTORS: Array[String] = ["SP_NPC_EV_SONCHO2"]
+## `aES2_wait` `field_table` (`mSC_get_soncho_field_event`): the Sports Fair game he keeps to,
+## as `tortimer_holiday.gd` `Station`s (1 foot race, 2 ball toss, 3 tug-of-war, 4 stand).
+## Elsewhere he wanders (0).
+const TORTIMER_STATIONS: Dictionary = {
+	&"sports_fair_foot_race": 1, &"sports_fair_ball_toss": 2, &"sports_fair_tug_of_war": 3,
+	&"sports_fair_aerobics": 4,
+}
 ## Out front of the aerobics: actor → species (`ac_taisou_npc0`: Copper leads facing the
 ## line, Tortimer exercises behind it facing the same way as everyone).
 const AEROBICS_LEADERS: Dictionary = {"SP_NPC_EV_TAISOU_0": &"plc", "SP_NPC_SONCHO_D078": &"ttl"}
@@ -193,6 +200,7 @@ func _face(cell: Vector2i, props: Array[Vector2i], center: Vector2) -> float:
 func _add_tortimer(cell: Vector2i, yaw: float) -> void:
 	var node: Node3D = (load(TORTIMER_SCENE) as PackedScene).instantiate() as Node3D
 	node.set("holiday", TortimerHoliday.event_index(soncho_event()))
+	node.set("station", TORTIMER_STATIONS.get(id, 0))
 	mgr.add_actor(id, node, cell, yaw, 0)
 
 

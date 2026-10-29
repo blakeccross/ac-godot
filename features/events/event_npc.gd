@@ -43,6 +43,7 @@ var _manpu_clip: String = ""
 var _turning_home: bool = false
 var _move_target: Vector3 = Vector3.INF
 var _move_speed: float = 0.0
+var _wander_wait: float = 0.0
 var _rng := RandomNumberGenerator.new()
 
 
@@ -134,6 +135,23 @@ func stop_moving() -> void:
 
 func arrived() -> void:
 	play_clip(idle_clip(), true)
+
+
+## `aNPC_think_wander_decide_next` for `aNPC_THINK_WALK_WANDER`: whenever the last act ends,
+## 4 in 10 wait one beat (`aNPC_ACT_WAIT`) and 6 in 10 walk to `pick_dest()`'s spot, or
+## wait when it has none (`Vector3.INF`).
+func walk_wander(delta: float, pick_dest: Callable) -> void:
+	if is_moving():
+		return
+	_wander_wait -= delta
+	if _wander_wait > 0.0:
+		return
+	if _rng.randi_range(0, 9) <= 5:
+		var dest: Vector3 = pick_dest.call()
+		if dest != Vector3.INF:
+			move_to(dest)
+			return
+	_wander_wait = VillagerWalk.WAIT_SECONDS
 
 
 func _step_move(delta: float) -> void:

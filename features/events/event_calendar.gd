@@ -304,10 +304,13 @@ func resolve_day(now: Dictionary, gated: bool = true) -> Dictionary:
 	var today: int = EventDates.md(int(now["month"]), int(now["day"]))
 	var out: Dictionary = {}
 	var soncho_claimed: bool = false
+	var soncho_day: bool = false
 	var equinox_day: int = 0
 	for row: Dictionary in EventSchedule.rows():
 		var id: StringName = StringName(String(row["id"]))
 		if gated and _row_gated_off(id):
+			continue
+		if id == &"soncho_bridge_make" and soncho_day:
 			continue
 		if id in [&"soncho_fishing_tourney_1", &"soncho_fishing_tourney_2"] and soncho_claimed:
 			continue
@@ -324,6 +327,10 @@ func resolve_day(now: Dictionary, gated: bool = true) -> Dictionary:
 			continue
 		if id in [&"soncho_fathers_day", &"soncho_officers_day"]:
 			soncho_claimed = true
+		## `update_soncho_event2`: Tortimer has a holiday (or his vacation) to see to today,
+		## so he isn't by the river about the bridge.
+		if _soncho_day_row(id):
+			soncho_day = true
 		var b_hour: int = _hour(row["begin"] as Dictionary)
 		var e_hour: int = _hour(row["end"] as Dictionary)
 		if row.get("multiday", false):
@@ -337,6 +344,12 @@ func resolve_day(now: Dictionary, gated: bool = true) -> Dictionary:
 				mask |= 1 << h
 		out[id] = int(out.get(id, 0)) | mask
 	return out
+
+
+func _soncho_day_row(id: StringName) -> bool:
+	if id == &"talk_new_years_countdown":
+		return true
+	return String(id).begins_with("soncho_") and id != &"soncho_bridge_make"
 
 
 func _row_gated_off(id: StringName) -> bool:
@@ -395,6 +408,11 @@ func _patch(id: StringName, begin: int, end: int, now: Dictionary, equinox_day: 
 			)
 		&"summer_camper":
 			return _camper_span(now)
+		&"soncho_vacation_january", &"soncho_vacation_february":
+			## `update_soncho_event`: no vacation while a lighthouse job is still running.
+			if Game != null and Game.lighthouse != null and not Game.lighthouse.event_start(
+					EventDates.ordinal(year, int(now["month"]), int(now["day"]))):
+				return Vector2i(-1, -1)
 	return Vector2i(begin, end)
 
 
@@ -494,7 +512,8 @@ func _init_weekly(now: Dictionary) -> void:
 		MaskCat.check_delete(EventDates.ordinal(int(now["year"]), int(now["month"]), int(now["day"])))
 	weekly_flag = &""
 	if Game != null and Game.residents != null and SecondBridge.tortimer_due(int(now["weekday"]), gulliver_today,
-			Game.residents.animal_num() >= TownResidents.ANIMAL_NUM_MAX, Game.foreigner):
+			Game.residents.animal_num() >= TownResidents.ANIMAL_NUM_MAX, Game.foreigner,
+			Game.lighthouse.in_nights(int(now["year"]), int(now["month"]), int(now["day"]))):
 		weekly_flag = &"soncho_bridge_make"
 		SecondBridge.note_day(EventDates.ordinal(int(now["year"]), int(now["month"]), int(now["day"])))
 	elif not gulliver_today and Game != null and MaskCat.check_birth():
