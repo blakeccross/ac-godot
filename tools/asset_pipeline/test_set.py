@@ -239,6 +239,15 @@ TEST_STATIC = [
         "confident_name": True,
     },
     {
+        ## `ef_haro01_00_modelT` — the Halloween puff's card (`ef_halloween_smoke`): the dust quad
+        ## (`ef_dust01_00_v`) drawn translucent rather than as cloud.
+        "asset_id": "ef_haro01_00",
+        "vtx": "ef_dust01_00_v",
+        "gfx": ["ef_haro01_00_modelT"],
+        "output": "effects/ef_haro01_00.glb",
+        "confident_name": True,
+    },
+    {
         ## `ef_kisha_kemuri01_modelT` — locomotive smoke puff (`ef_kisha_kemuri`). Its two I4
         ## tiles are exported as effect frames (`textures/rel/ef_kisha_kemuri01_{0,1}.png`).
         "asset_id": "ef_kisha_kemuri01",

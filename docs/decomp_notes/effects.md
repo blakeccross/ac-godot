@@ -26,7 +26,7 @@ effects (`ef_swing_net`, `ef_swing_axe`, `ef_swing_rod`, `ef_walk/dash/turn/wait
 | Effect | Port |
 | --- | --- |
 | `clacker`, `kamifubuki`, `tape` (the New Year's Eve party poppers; `aCD1_fire` plays its clip three times, a popper at keyframe 3 each) | `PartyPopper` (CPU sim in ticks, two `MultiMesh`es), fired by `FestivalVillager._fire_poppers` |
-| `halloween`, `halloween_smoke` (the puff round the player after a trick changes their clothes or swaps a pocket item) | `CostumePuff` + `FieldParticle` `HALLOWEEN_SMOKE` (the original's `ef_haro01_00` card is not baked; the dust card stands in), from `TrickOrTreatTalk._trick` |
+| `halloween`, `halloween_smoke` (the puff round the player after a trick changes their clothes or swaps a pocket item) | `CostumePuff` + `FieldParticle` `HALLOWEEN_SMOKE` (on the baked `ef_haro01_00` card, the dust quad drawn translucent), from `TrickOrTreatTalk._trick` |
 | `slip` (a dispatcher onto dust / snow kick / sand / spray) and `slip_footprint` (the skid's foot mark, `ef_footprint01_02`) | `NetSwing` `slip_fx` / `slip_print` events → `FootstepEffects.net_slip` / `slip_footprint`, `FieldEffects.Kind.SLIP_PRINT` |
 | `turi_mizu`, `turi_hane1` | already `FootstepEffects.bobber_splash` (arg 0–8) and `ef_turi_hane02`; the wishing-well coin now calls arg 0 when it hits the water (`ef_coin`) |
 | `flashc` / `flash` (the camera flashes when the gong rings in a ringside-seating room) | `GongFlash`, from `FurnitureUse.toggle` |
@@ -42,6 +42,5 @@ effects (`ef_swing_net`, `ef_swing_axe`, `ef_swing_rod`, `ef_walk/dash/turn/wait
 | `car_blight`, `car_light` (a washed car glitters; a quick wash also gleams) | `CarBlight`, run by `Gracie._tend_car`, which also tints the car dirty → white by presses / 100 (`aSCR_set_prim_col`) |
 | `flash`'s `regist_effect_light` | `GongFlash._light_room`: an omni light on every other flash |
 
-Everything reachable in the decomp's effects is now ported. Two approximations stay: the
-Halloween puff uses the dust card (`ef_haro01_00` is not baked), and the spirit's sphere and
-the car's gleam use a facing-angle falloff in place of the original's hilite-reflect texgen.
+Everything reachable in the decomp's effects is now ported. One approximation stays: the
+spirit's sphere and the car's gleam use a facing-angle falloff in place of the original's hilite-reflect texgen.

@@ -654,8 +654,7 @@ static func _hane(s: Style, arg0: int, arg1: int) -> void:
 
 
 ## `eHalloween_Smoke_*`: a violet puff that rises 0.25 GX a tick, gaining 0.075, over 18
-## ticks, its dust frames cross-fading to `eHalloween_prim_f` (the original draws it on
-## `ef_haro01_00`, which is not baked; the dust card stands in).
+## ticks, its dust frames cross-fading to `eHalloween_prim_f`, on the `ef_haro01_00` card.
 const HALLOWEEN_TILES: Array[Vector2i] = [
 	Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, 2), Vector2i(2, 2),
 	Vector2i(2, 3), Vector2i(3, 3), Vector2i(3, 3), Vector2i(3, 3),
@@ -669,6 +668,7 @@ static func _halloween_smoke(s: Style) -> void:
 	s.launch = _speed(Vector3(0.0, 0.25, 0.0))
 	s.accel = _accel(Vector3(0.0, 0.075, 0.0))
 	s.size_from_to = Vector2(0.01, 0.01)
+	s.model = "ef_haro01_00"
 	s.tint = HALLOWEEN_PRIM
 	_tiles(s, HALLOWEEN_TILES, HALLOWEEN_LOD)
 	s.mode = 1
