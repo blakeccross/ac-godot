@@ -66,6 +66,8 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if _leaving or _demo_over:
 		return
+	if TouchMenuPad.menu_open(get_tree()):
+		return
 	_demo_input.step(delta)
 	_logo.button_ok = TitleDemo.button_ok(_demo_input.time)
 	if TitleDemo.is_over(_demo_input.time):

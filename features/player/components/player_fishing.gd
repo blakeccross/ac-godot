@@ -114,6 +114,10 @@ func _play_show(beat: Fishing.ReelBeat) -> void:
 	## `main_notice->timer` counts independently of the animation, so the report opens on
 	## frame 42 whether or not the clip has finished — `GET_T2` is longer than that and plays
 	## on underneath the text.
+	## `Player_actor_AppearMark_Notice_rod`: a killifish is small enough to need the arrow.
+	var mark: CatchMark = null
+	if beat.fish != null and CatchMark.marks_fish(beat.fish.id):
+		mark = CatchMark.appear(_player, _player.left_hand_global)
 	var held: float = 0.0
 	while held < beat.hold:
 		await get_tree().process_frame
@@ -129,6 +133,8 @@ func _play_show(beat: Fishing.ReelBeat) -> void:
 			await get_tree().create_timer(length - held).timeout
 	else:
 		await _player.reports.report_catch(beat.catch_msg, beat.pockets_full, beat.fish, beat.completes_record)
+	if mark != null:
+		mark.finish()
 	await _play_putaway(skeleton)
 
 

@@ -121,7 +121,6 @@ func test_block_kinds_follow_the_block_info_table() -> void:
 	assert_int(S.block_kind_for_type(TownFieldGenerator.T_PORT)).is_equal(S.KIND_MARINE)
 	assert_int(S.block_kind_for_type(TownFieldGenerator.T_OCEAN_2)).is_equal(S.KIND_MARINE | S.KIND_OFFING)
 	assert_int(S.block_kind_for_type(TownFieldGenerator.T_ISLAND_LEFT)).is_equal(S.KIND_MARINE | S.KIND_ISLAND)
-	assert_int(S.block_kind_for_type(TownFieldGenerator.T_LIGHTHOUSE)).is_equal(0)
 	## The border river acre carries only `RIVER0`, not `RIVER`.
 	assert_int(S.block_kind_for_type(TownFieldGenerator.T_BORDER_CLIFF_RIVER)).is_equal(0)
 

@@ -92,6 +92,7 @@ func test_build_makes_a_save_payload() -> void:
 	var world: Dictionary = built["payload"]["world"]
 	assert_str(world["town_name"]).is_equal("Maple")
 	assert_str(str(world["town_fruit"])).is_equal("peach")
+	assert_int(world["station_type"]).is_equal(9)
 	assert_int(world["world_mode"]).is_equal(int(WorldData.Mode.GENERATED))
 	assert_int(world["weeds"][String(WeedUse.persist_id(WEED_UNIT))]).is_equal(1)
 	assert_str(world["field_items"][String(FieldItems.persist_id(APPLE_UNIT))]["id"]).is_equal("apple")
@@ -268,6 +269,7 @@ static func _save() -> PackedByteArray:
 	_text(s, GameCubeTown.LAND_NAME, "Maple")
 	_put16(s, GameCubeTown.LAND_ID, TOWN_ID)
 	_put16(s, GameCubeTown.FRUIT, CodeItems.FOOD0 + 3)
+	s[GameCubeTown.STATION_TYPE] = 9
 	s[GameCubeTown.TUNE] = 0x12
 	s[GameCubeTown.VILLAGER_MAX] = 6
 	var land_id: int = 0x3000 | 0x12

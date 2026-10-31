@@ -234,6 +234,8 @@ func start_new_game(
 	town.world_mode = WorldData.Mode.GENERATED
 	town.world_seed = seed_value
 	town.grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
+	town.town_fruit = WorldGenerator.decide_fruit(seed_value)
+	town.station_type = WorldGenerator.decide_station_type(seed_value)
 	if identity.is_empty() or not Clock.rtc_override:
 		Clock.rtc_override = false
 		Clock.sync_from_os()
@@ -398,6 +400,8 @@ func _begin_station_arrival(seed_value: int, identity: Dictionary, sync_clock: b
 	town.world_mode = WorldData.Mode.GENERATED
 	town.world_seed = seed_value
 	town.grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
+	town.town_fruit = WorldGenerator.decide_fruit(seed_value)
+	town.station_type = WorldGenerator.decide_station_type(seed_value)
 	apply_weather_roll(Weather.roll())
 	_grant_intro_start_items()
 	_set_phase(Phase.INTRO)
@@ -509,7 +513,9 @@ func _arrive_by_train() -> void:
 func resolve_world_data() -> WorldData:
 	var data: WorldData
 	if town.world_mode == WorldData.Mode.GENERATED:
-		data = WorldGenerator.generate(town.world_seed, title_demo_active, town.imported_field)
+		data = WorldGenerator.generate(
+			town.world_seed, title_demo_active, town.imported_field, town.town_fruit, town.station_type
+		)
 		if not title_demo_active:
 			_resolve_residents(data)
 	else:

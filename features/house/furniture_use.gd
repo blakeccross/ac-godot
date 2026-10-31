@@ -51,7 +51,7 @@ static func apply(action: Interaction, host: Node, ctx: InteractionContext) -> b
 		Interaction.READ:
 			return open_diary(host)
 		Interaction.TOGGLE:
-			return toggle(pid)
+			return toggle(pid, ctx)
 		Interaction.DISPLAY:
 			return put_display(pid, ctx)
 		Interaction.TAKE:
@@ -108,7 +108,7 @@ static func _from_front(ctx: InteractionContext) -> bool:
 	return ctx == null or ctx.contact_side < 0 or ctx.contact_side == FurnitureGrip.ContactSide.FRONT
 
 
-static func toggle(placement_id: StringName) -> bool:
+static func toggle(placement_id: StringName, ctx: InteractionContext = null) -> bool:
 	if Game.interior_session == null:
 		return false
 	var entry: FurniturePlacement = Game.interior_session.room.placement_by_id(placement_id)
@@ -127,11 +127,37 @@ static func toggle(placement_id: StringName) -> bool:
 		Audio.play_se(press)
 	if data != null and data.kind == FurnitureData.Kind.GYROID:
 		_hop(pid_node(placement_id))
+	if data != null:
+		var interior: Interior = Interior.find(Game.get_tree())
+		if interior != null and interior.get_node_or_null("GongFlash") == null:
+			GongFlash.ring(interior, data, Game.interior_session.room, interior.grid)
+		if interior != null and data.visual_id == &"int_iku_mario_taihou":
+			_fire_cannon(interior, entry, ctx)
 	if data != null and data.radio_aerobics:
 		FurnitureTalk.refresh_room_bgm()
 	if data == null or not FurnitureAmbience.PRESS.has(data.visual_id):
 		Game.post_notice("Turned %s." % ("on" if entry.on else "off"))
 	return true
+
+
+## `fIMT_mv`: pressed from behind it fires the way it faces, from the front the other way
+## (the sides do nothing).
+static func _fire_cannon(interior: Interior, entry: FurniturePlacement, ctx: InteractionContext) -> void:
+	var side: int = ctx.contact_side if ctx != null else FurnitureGrip.ContactSide.BACK
+	var yaw: float = WorldGrid.yaw_for_furniture(entry.facing)
+	if side == FurnitureGrip.ContactSide.FRONT:
+		yaw += PI
+	elif side != FurnitureGrip.ContactSide.BACK:
+		return
+	var node: Node3D = interior.furniture_node(entry.id) as Node3D
+	var room: Room = Game.interior_session.room
+	if node == null or room == null:
+		return
+	var grid: WorldGrid = interior.grid
+	var cell: float = grid.cell_size
+	var from: Vector3 = WorldGrid.room_point(grid, Vector3(float(room.inner_origin.x) * cell, 0.0, float(room.inner_origin.y) * cell))
+	var bounds := Rect2(Vector2(from.x, from.z), Vector2(float(room.inner_size.x) * cell, float(room.inner_size.y) * cell))
+	CannonShot.fire(interior, node.global_position, yaw, bounds)
 
 
 ## A gyroid bounces when tapped (`aMR_HaniwaSwitchOn`). Its voice samples are not in the pipeline.

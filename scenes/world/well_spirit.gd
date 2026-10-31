@@ -8,9 +8,9 @@ extends EventNpc
 
 const MSG_GOLD_AXE := 11345
 const GOLDEN_AXE := &"golden_axe"
-const FADE_SEC := 0.8
 
 var _spoke: bool = false
+var _light: SpiritLight = null
 
 
 class Speech extends BankTalk:
@@ -28,7 +28,7 @@ func can_talk() -> bool:
 
 
 func think(_delta: float) -> void:
-	if _spoke or not can_call_out():
+	if _spoke or not visible or not can_call_out():
 		return
 	_spoke = true
 	var axe: ItemData = ItemCatalog.get_item(GOLDEN_AXE)
@@ -49,10 +49,16 @@ func talk_ended(_script: BankTalk) -> void:
 		p.reports.get_golden_item(GOLDEN_AXE)
 
 
+## `aSHR_make_hem` again: the glow comes up and the spirit goes with it.
 func _vanish() -> void:
-	var tw: Tween = create_tween()
-	tw.tween_property(self, "scale", Vector3.ZERO, FADE_SEC).set_ease(Tween.EASE_IN)
-	tw.tween_callback(queue_free)
+	if _light != null and is_instance_valid(_light):
+		_light.finish()
+	var glow: SpiritGlow = SpiritGlow.play(get_parent(), global_position, false)
+	if glow == null:
+		queue_free()
+		return
+	glow.swapped.connect(hide)
+	glow.tree_exited.connect(queue_free)
 
 
 ## `aSHR_make_hem`: one unit in front of the well, facing the player.
@@ -66,6 +72,12 @@ static func appear(well: Node3D, player: Node3D) -> Node3D:
 		spirit.home_yaw = atan2(to.x, to.z)
 	well.get_parent().add_child(spirit)
 	spirit.global_position = well.global_position + front * 2.0
-	spirit.scale = Vector3.ONE * 0.01
-	spirit.create_tween().tween_property(spirit, "scale", Vector3.ONE, FADE_SEC)
+	## It stands unseen in the glow until tick 150 (`Common_Set(hem_visible, TRUE)`).
+	spirit.hide()
+	spirit._light = SpiritLight.start(well.get_parent(), spirit.global_position)
+	var glow: SpiritGlow = SpiritGlow.play(well.get_parent(), spirit.global_position, true)
+	if glow != null:
+		glow.swapped.connect(spirit.show)
+	else:
+		spirit.show()
 	return spirit

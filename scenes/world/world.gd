@@ -402,6 +402,7 @@ func _aim_directional(light: DirectionalLight3D, dir: Vector3) -> void:
 func _on_field_renewed(_days: int) -> void:
 	PlantGrowth.refresh_world(self)
 	PlantGrowth.cull_dead_flowers(self, grid)
+	PlantGrowth.cull_unfit_plants(self, grid, layout)
 	BuriedUse.renew(self, grid)
 	_sow_weeds()
 	_renew_money_rock()

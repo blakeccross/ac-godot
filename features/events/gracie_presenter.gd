@@ -20,4 +20,5 @@ func start() -> bool:
 	var gracie: Node3D = mgr.spawn(id, "res://features/events/actors/gracie.tscn", cell + Vector2i(1, 2), 0.0, 1)
 	if gracie != null and car != null:
 		gracie.set("car_position", car.global_position)
+		gracie.set("car_node", car)
 	return true

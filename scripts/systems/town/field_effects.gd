@@ -19,7 +19,7 @@ extends Node3D
 enum Kind {
 	DUST, TUMBLE_DUST, SAND, MIZUTAMA, YUKIDAMA, YUKIHANE, SIBUKI, PETAL, TURN_PRINT, BODY_PRINT,
 	KISHA_KEMURI, STEAM, HAMON, KASAMIZU, KASAMIZUTAMA, SOBA_YUGE,
-	DIG_CLOD, DIG_MUD, KIKUZU, AMI_MIZU, TURI_HANE, TURI_SUITEKI, BUBU, GOKI,
+	DIG_CLOD, DIG_MUD, KIKUZU, AMI_MIZU, TURI_HANE, TURI_SUITEKI, BUBU, GOKI, SLIP_PRINT, HALLOWEEN_SMOKE,
 }
 
 const GX := FieldCatalog.GX_TO_METERS
@@ -234,7 +234,7 @@ func _construct() -> bool:
 			origin += rot_y(KASAMIZU_FROM, angle) * GX
 			lifetime = _ticks(24)
 			drops_left = 12
-		Kind.TURN_PRINT:
+		Kind.TURN_PRINT, Kind.SLIP_PRINT:
 			return _ct_turn_print()
 		Kind.BODY_PRINT:
 			return _ct_body_print()
@@ -527,6 +527,8 @@ func _model_id() -> String:
 			return PETAL_MODELS[clampi(arg0 / 3, 0, 3)]
 		Kind.TURN_PRINT:
 			return "ef_turn_footprint"
+		Kind.SLIP_PRINT:
+			return "ef_footprint01_02"
 		Kind.HAMON:
 			return "ef_turi_hamon01_00"
 		Kind.BODY_PRINT:
@@ -627,6 +629,14 @@ func _redraw() -> void:
 			basis = ground_basis * Basis(Vector3.UP, angle)
 			prim = Color8(70, 50, 50) if sandy else Color8(0, 50, 100)
 			prim.a = calc_adjust(ticks, 118, 159, 150.0, 0.0) / 255.0
+		Kind.SLIP_PRINT:
+			## `eSlipFootPrint_dw`: the same print as a skid's, a little larger and fading
+			## from tick 118 to 158.
+			var slip_w: float = calc_adjust(ticks, 2, 8, 0.006, 0.008)
+			s = Vector3(slip_w, 0.008, slip_w)
+			basis = ground_basis * Basis(Vector3.UP, angle)
+			prim = Color8(70, 50, 50) if sandy else Color8(0, 50, 100)
+			prim.a = calc_adjust(ticks, 118, 158, 150.0, 0.0) / 255.0
 		Kind.BODY_PRINT:
 			## Widens 0.0005 a tick from 0.016 to 0.021.
 			var w: float = minf(0.016 + 0.0005 * ticks, 0.021)

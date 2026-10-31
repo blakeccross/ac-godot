@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://gsz4gj1899r93"]
+
+[ext_resource type="Script" uid="uid://dw0fb5nquabwf" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"cherry"
+display_name = "Cherry"
+description = "A pair of cherries."
+category = 2
+sell_price = 100
+max_stack = 9
+usable = true
+use_verb = "Eat"
+icon_color = Color(0.75, 0.1, 0.2, 1)

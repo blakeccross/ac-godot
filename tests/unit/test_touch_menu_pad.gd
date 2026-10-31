@@ -115,3 +115,23 @@ func test_no_buttons_on_a_desktop_even_by_touch() -> void:
 	pad._refresh()
 	assert_bool(pad.get_node("Root").visible).is_false()
 	assert_bool(InputDeviceTracker.shows_touch_buttons()).is_false()
+
+
+func test_map_has_no_extra_mobile_controls() -> void:
+	var map := auto_free(_Menu.new()) as _Menu
+	map.add_to_group(MapOverlay.GROUP)
+	add_child(map)
+	InputDeviceTracker._set_device(InputDeviceTracker.Device.TOUCH)
+	_pad()._refresh()
+	assert_bool(_pad().wanted()).is_false()
+	assert_bool((_pad().get_node("Root") as Control).visible).is_false()
+
+
+func test_title_taps_do_not_accept_while_an_overlay_is_open() -> void:
+	var title := auto_free(Node.new()) as Node
+	title.add_to_group(TouchMenuPad.TITLE_GROUP)
+	add_child(title)
+	var map := auto_free(_Menu.new()) as _Menu
+	map.add_to_group(MapOverlay.GROUP)
+	add_child(map)
+	assert_bool(_pad().taps_accept()).is_false()

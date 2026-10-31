@@ -128,7 +128,8 @@ func is_open() -> bool:
 func open(force: bool = false) -> void:
 	if _open:
 		return
-	if not force and Game != null and not Game.resident.has_map:
+	var title_preview := InputDeviceTracker.on_mobile and Game.title_demo_active
+	if not force and not title_preview and Game != null and not Game.resident.has_map:
 		Game.post_notice("You don't have a town map yet.")
 		return
 	color_set = 0 if force else 1
@@ -255,6 +256,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if not _open:
+		return
+	if event is InputEventScreenTouch and event.pressed:
+		var point: Vector2 = _screen.get_global_transform_with_canvas().affine_inverse() * event.position
+		var origin := to_screen(MAP_ORIGIN) - Vector2.ONE * BLOCK * 0.5
+		var bounds := Rect2(origin, Vector2(TownFieldGenerator.FG_X_NUM, TownFieldGenerator.FG_Z_NUM) * BLOCK)
+		if bounds.has_point(point):
+			var acre := Vector2i((point - origin) / BLOCK)
+			move_sel(acre - sel)
+			get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("pause_menu") or event.is_action_pressed("ui_cancel") \
 			or event.is_action_pressed("ui_accept"):

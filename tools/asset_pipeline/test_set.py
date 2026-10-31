@@ -223,6 +223,22 @@ TEST_STATIC = [
         "confident_name": True,
     },
     {
+        ## `ef_circle_light_model` — the glow on the ground under the well spirit (`ef_make_hem_light`).
+        "asset_id": "ef_circle_light",
+        "vtx": "ef_circle_light_v",
+        "gfx": ["ef_circle_light_model"],
+        "output": "effects/ef_circle_light.glb",
+        "confident_name": True,
+    },
+    {
+        ## `act_killer_model` — the cannon furniture's shot (`ef_killer`), drawn opaque.
+        "asset_id": "act_killer",
+        "vtx": "act_killer_v",
+        "gfx": ["act_killer_model"],
+        "output": "effects/act_killer.glb",
+        "confident_name": True,
+    },
+    {
         ## `ef_kisha_kemuri01_modelT` — locomotive smoke puff (`ef_kisha_kemuri`). Its two I4
         ## tiles are exported as effect frames (`textures/rel/ef_kisha_kemuri01_{0,1}.png`).
         "asset_id": "ef_kisha_kemuri01",
@@ -275,6 +291,42 @@ TEST_STATIC = [
         "vtx": "obj_s_tree5_v",
         "gfx": ["obj_s_tree5_leafT_gfx_model", "obj_s_tree5_trunkT_gfx_model"],
         "output": "environment/trees/obj_s_tree5.glb",
+        "confident_name": True,
+    },
+    ## The other four fruit trees draw the apple overlay's verts under their own fruit mode
+    ## (`tree4_or_list` / `_ph_` / `_pr_`; cherries are the `nuts` card). They share the apple
+    ## vtx, so per-vtx inference keeps only the apple row below, which wins `TEST_STATIC_BY_VTX`;
+    ## these are added back by output.
+    {
+        "asset_id": "obj_s_tree5_orange",
+        "vtx": "obj_s_tree5_apple_v",
+        "gfx": ["obj_s_tree5_apple_appleT_gfx_model"],
+        "mat": "orange_DL_mode",
+        "output": "environment/trees/obj_s_tree5_orange.glb",
+        "confident_name": True,
+    },
+    {
+        "asset_id": "obj_s_tree5_peach",
+        "vtx": "obj_s_tree5_apple_v",
+        "gfx": ["obj_s_tree5_apple_appleT_gfx_model"],
+        "mat": "peach_DL_mode",
+        "output": "environment/trees/obj_s_tree5_peach.glb",
+        "confident_name": True,
+    },
+    {
+        "asset_id": "obj_s_tree5_pear",
+        "vtx": "obj_s_tree5_apple_v",
+        "gfx": ["obj_s_tree5_apple_appleT_gfx_model"],
+        "mat": "pear_DL_mode",
+        "output": "environment/trees/obj_s_tree5_pear.glb",
+        "confident_name": True,
+    },
+    {
+        "asset_id": "obj_s_tree5_cherry",
+        "vtx": "obj_s_tree5_apple_v",
+        "gfx": ["obj_s_tree5_apple_appleT_gfx_model"],
+        "mat": "nuts_DL_mode",
+        "output": "environment/trees/obj_s_tree5_cherry.glb",
         "confident_name": True,
     },
     {

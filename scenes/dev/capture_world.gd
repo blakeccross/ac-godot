@@ -14,6 +14,8 @@ extends Node3D
 ##   room=<id>         Mount an interior (`needlework`, `police_box`, `shop0`, …) in
 ##                     `interior.tscn` with its own follow camera and lighting.
 ##   seed=12345        Generated-town seed.
+##   station=7         Station design 0–14 (model type / 5, palette type % 5); default the seed's roll.
+##   fruit=orange      Native fruit (default: the seed's own roll); apple, cherry, pear, peach, orange.
 ##   save=user://…     Load that save file's town instead (an imported GameCube town, …).
 ##   date=Y-M-D[,…]    One capture per date (default 2001-07-15). time=HH:MM (12:00).
 ##   target=…          visual:<id or glob> | node:<path under world> | acre:<name> |
@@ -35,6 +37,7 @@ extends Node3D
 ##                     after=10,40,90 grabs at each count in one run (`name_f10.png` …).
 ##   ui=1              Keep the HUD / dialogue layers visible (hidden by default).
 ##   mobile=1          Act as a phone: touch's on-screen buttons show (Android / iOS only).
+##   inventory=1       Open the pockets; inventory=slot:N also opens that slot's actions.
 ##   out=path          Directory or .png path (default res://.tmp_captures/, gitignored).
 ##   name=label        File stem (default from target + date).
 ## Prints one `CAPTURE <absolute path>` line per image, `CAPTURE_ERROR <msg>` on failure.
@@ -80,6 +83,8 @@ func _capture_date(date: String) -> void:
 		Game.town.world_mode = WorldData.Mode.GENERATED
 		Game.town.world_seed = seed_value
 		Game.town.grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
+		Game.town.town_fruit = StringName(str(_args.get("fruit", WorldGenerator.decide_fruit(seed_value))))
+		Game.town.station_type = int(_args.get("station", WorldGenerator.decide_station_type(seed_value)))
 	Clock.apply_snapshot({
 		"year": int(ymd[0]), "month": int(ymd[1]), "day": int(ymd[2]),
 		"hour": int(hm[0]), "minute": int(hm[1]) if hm.size() > 1 else 0, "second": 0,
@@ -152,6 +157,10 @@ func _capture_date(date: String) -> void:
 				up.position = at
 				up.pressed = false
 				Input.parse_input_event(up)
+	if _args.has("inventory") and not _open_inventory(str(_args["inventory"])):
+		root.queue_free()
+		await get_tree().process_frame
+		return
 	## `after` frames past the console (defaults to `wait`, which also bounds the target search).
 	## Several counts (`after=10,40,90`) take a shot at each from the one run, named `_fN`.
 	var shots: PackedStringArray = str(_args.get("after", _args.get("wait", "20"))).split(",", false)
@@ -173,6 +182,27 @@ func _capture_date(date: String) -> void:
 		cam.queue_free()
 	root.queue_free()
 	await get_tree().process_frame
+
+
+func _open_inventory(value: String) -> bool:
+	var overlay := InventoryOverlay.find(get_tree())
+	if overlay == null:
+		_error("scene has no inventory overlay")
+		return false
+	if value == "1":
+		overlay.open()
+		return true
+	var index_text := value.trim_prefix("slot:")
+	if not value.begins_with("slot:") or not index_text.is_valid_int():
+		_error("bad inventory '%s' (want 1 or slot:N)" % value)
+		return false
+	var index := int(index_text)
+	if index < 0 or index >= Inventory.POCKET_SLOTS:
+		_error("inventory slot must be between 0 and %d" % (Inventory.POCKET_SLOTS - 1))
+		return false
+	overlay.open()
+	overlay._on_item_pressed(index)
+	return true
 
 
 func _resolve_focus(root: Node, target: String) -> Variant:

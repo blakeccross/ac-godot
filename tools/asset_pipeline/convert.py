@@ -240,6 +240,7 @@ ITEM_CARD_GFX: dict[str, list[str]] = {
     "obj_item_pear": ["pear_DL_mode", "pear_DL_vtx"],
     "obj_item_peach": ["peach_DL_mode", "peach_DL_vtx"],
     "obj_item_orange": ["item_orange_modelT"],
+    "obj_item_nuts": ["nuts_DL_mode", "nuts_DL_vtx"],
     "obj_item_bag": ["bag_DL_mode", "bag_DL_vtx"],
     "obj_item_leaf": ["leaf_DL_mode", "leaf_DL_vtx"],
     "obj_item_present": ["present_DL_mode", "present_DL_vtx"],
@@ -542,6 +543,37 @@ def convert_villager_house_palettes(cfg: PipelineConfig) -> dict[str, Any]:
         record = _convert_ckf(cfg, rel, symbols, item, bank)
         results.append(record)
         print(f"  house-pal {i}/{len(jobs)} {item['asset_id']} {record['status']}")
+    bank.structure_palette_letter = None
+    return {"results": results, "converted": sum(1 for r in results if r["status"] == "converted")}
+
+
+def convert_station_palettes(cfg: PipelineConfig) -> dict[str, Any]:
+    """Bake `obj_{s,w}_station{1-3}_{b-e}.glb`, one per palette of each station model.
+
+    Decomp `aSTA_actor_ct`: the town's `station_type` (0–14) picks model `type / 5` and
+    `structure_pal = aSTR_PAL_STATION1_A + type`. The base `obj_s_station1.glb` is palette a.
+    """
+    results: list[dict[str, Any]] = []
+    rel, symbols = _rel_and_map(cfg)
+    bank = _texture_bank(cfg, rel, symbols)
+    names = {s.name for s in symbols}
+    jobs: list[tuple[str, str, str]] = []
+    for season in ("s", "w"):
+        for model in range(1, 4):
+            stem = f"obj_{season}_station{model}"
+            skel = f"cKF_bs_r_{stem}"
+            if skel not in names:
+                continue
+            for letter in "bcde":
+                jobs.append((stem, skel, letter))
+    for i, (stem, skel, letter) in enumerate(jobs, 1):
+        item = _skeleton_job(skel, names)
+        item["asset_id"] = f"{stem}_{letter}"
+        item["output"] = f"environment/{stem}_{letter}.glb"
+        bank.structure_palette_letter = letter
+        record = _convert_ckf(cfg, rel, symbols, item, bank)
+        results.append(record)
+        print(f"  station-pal {i}/{len(jobs)} {item['asset_id']} {record['status']}")
     bank.structure_palette_letter = None
     return {"results": results, "converted": sum(1 for r in results if r["status"] == "converted")}
 

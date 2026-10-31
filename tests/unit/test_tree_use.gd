@@ -40,6 +40,25 @@ func test_apple_tree_drops_three_once() -> void:
 	assert_bool(second.shook).is_true()
 
 
+func test_every_fruit_tree_drops_its_own_fruit() -> void:
+	for fruit: StringName in [&"orange", &"peach", &"pear", &"cherry"]:
+		var plant: PlantData = load("res://data/plants/%s_tree.tres" % fruit)
+		assert_str(String(plant.fruit.id)).is_equal(String(fruit))
+		var use := TreeUse.new()
+		use.configure(plant, StringName("TREE_%s_FRUIT" % String(fruit).to_upper()), false)
+		var outcome: TreeUse.Outcome = use.shake()
+		assert_int(outcome.dropped_fruit).is_equal(3)
+		assert_str(String(use.fruit_item.id)).is_equal(String(fruit))
+
+
+func test_palm_bears_coconuts() -> void:
+	var plant: PlantData = load("res://data/plants/palm_tree.tres")
+	var use := TreeUse.new()
+	use.configure(plant, &"TREE_PALM_FRUIT", false)
+	assert_int(use.shake().dropped_fruit).is_equal(2)
+	assert_str(String(use.fruit_item.id)).is_equal("coconut")
+
+
 func test_hardwood_has_no_fruit() -> void:
 	var plant: PlantData = load("res://data/plants/hardwood_tree.tres")
 	var use := TreeUse.new()

@@ -70,8 +70,11 @@ When a host offers more than one verb, a small row of chips appears over it with
 ### `TouchHud` (new scene, `scenes/ui/touch_hud.tscn`)
 - A tap marker on the ground: a ring that fades, scene-authored. It also shows the path's end.
 - Context chips over the target host.
-- A tab bar along the bottom: Map, Pockets and Menu (pause). It stays up over those three screens with the open one lit, so a tab switches straight to another; there is no B button (a tapped item gets B from the driver). The buttons send the existing actions as `InputEventAction`s through `Input.parse_input_event` (`action_press` only sets the polled state and sends no event), so overlays need no changes for opening.
-- It is visible only while the touch device is active. The `InputDeviceTracker` autoload switches on the last `InputEventScreenTouch` / `ScreenDrag` vs. key / joypad event.
+- A safe-area-inset tab bar along the bottom on Android and iOS: **Map** on the left, **Inventory** in the middle and **Settings** on the right. It stays up over those three screens with the open one lit; tapping the lit tab closes it, and another tab switches screens. There is no B button (a tapped item gets B from the driver). Map and Inventory send existing actions as `InputEventAction`s through `Input.parse_input_event`. Settings opens directly with gameplay paused, and resumes it on close without dismissing a pause owned by another menu. Desktop controls are unchanged.
+- During play it is visible while the touch device is active. It stays hidden on the title screen, including the demo and save-slot menu. The `InputDeviceTracker` autoload switches on the last `InputEventScreenTouch` / `ScreenDrag` vs. key / joypad event.
+- The field clock is hidden on Android and iOS, including when a keyboard or controller is used.
+- Mobile Inventory uses a cream bottom sheet that slides up from below and closes downward, leaving the world visible above and the bottom navigation available. Its scrollable **four-column** grid keeps all 15 pocket slots separate. Swipe over the cards to scroll; a swipe does not activate the item beneath it. Cards show the existing item icon, name and per-slot quantity; carrying capacity and stacking rules are unchanged. Tapping a card opens touch-sized buttons for its existing actions. The wallet stays accessible, and **Letters & more** opens the classic inventory for mail, collections and designs; **Back to items** returns to the mobile grid. The keyboard/controller cursor follows four columns on the mobile grid. Desktop keeps the classic five-column layout, right-edge slide and clock.
+- The touch menu pad is hidden on the native mobile inventory and on the map. Inventory cards, actions and Close are directly tappable; map acres can be tapped to select them, and the Map tab closes the map.
 
 ### Project settings
 - `input_devices/pointing/emulate_touch_from_mouse = true` in debug builds only (an editor override), so the mouse can test touch on desktop.
@@ -86,7 +89,8 @@ Each overlay needs a touch path. Most of them read raw keycodes today, so each o
 |---|---|---|
 | Dialogue | actions; choices are Buttons | tap anywhere to advance (`_press_page(false)`), a B corner to fast-forward; choices already clickable |
 | Pockets (`inventory_overlay`) | actions + Buttons + some `ScreenTouch` | tap a slot to select, tap again for the tag menu; drag between slots to move; long-press to mark |
-| Map, letter reader, pause | actions + Buttons | tap = accept, outside tap = back |
+| Map | actions + direct acre taps | tap an acre to select; Map tab closes |
+| Letter reader, pause | actions + Buttons | tap = accept, outside tap = back |
 | Keyboard panel (letters, names) | mouse + `handle_key` | already clickable; make keys finger-sized |
 | Bank, catalog, calendar, birthday, diary, notice board, letter address / paper / writer, name entry, clock | raw keycodes only | add regions mapped to their key handlers (arrows/digits as tappable cells, OK/Back buttons) |
 | Town tune board | raw keys | tap a note cell to cycle it, OK/Back/Play buttons |

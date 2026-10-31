@@ -113,6 +113,16 @@ static func bury(ctx: InteractionContext, cell: Vector2i, item_id: StringName) -
 	var hole: StringName = grid.occupant_at(cell)
 	if not Game.town.is_hole(hole):
 		return false
+	## A fruit in a hole is planted, not buried (`bIT_BURY_ACTION_PLANT`); where its tree can't
+	## grow (a coconut off the sand) it stays a buried deposit like any other item.
+	var fruit_tree: PlantData = PlantGrowth.plant_for_fruit(item_id)
+	if fruit_tree != null:
+		var planted_id: StringName = PlantGrowth.plant(ctx, fruit_tree, cell)
+		if planted_id != &"":
+			if hole == Game.town.shine_hole:
+				Game.town.shine_hole = &""
+			PlantGrowth.play_grow_in(PlantGrowth.host_at(ctx.world, planted_id))
+			return true
 	if hole == Game.town.shine_hole:
 		var planted: bool = _plant_in_shine_hole(ctx, cell, item_id)
 		if planted:
@@ -178,6 +188,7 @@ static func spring_pitfall(world: Node, grid: WorldGrid, cell: Vector2i) -> Node
 		func() -> void:
 			if is_instance_valid(hole):
 				Audio.play_se(&"13c", hole)
+				FootstepEffects.otosiana([world.get("layout"), grid], hole.global_position)
 	)
 	return hole
 
@@ -196,6 +207,7 @@ static func close_pit(world: Node, cell: Vector2i) -> void:
 			grid.remove(pid)
 		return
 	Audio.play_se(&"15b", hole)
+	FootstepEffects.otosiana([world.get("layout"), world.get("grid")], hole.global_position)
 	var opening: Variant = hole.get_meta(&"pit_tween") if hole.has_meta(&"pit_tween") else null
 	if opening is Tween and (opening as Tween).is_valid():
 		(opening as Tween).kill()

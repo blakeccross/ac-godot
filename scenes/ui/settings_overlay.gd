@@ -13,6 +13,7 @@ const GROUP := &"settings_ui"
 @onready var _back: Button = %BackButton
 
 var _open: bool = false
+var _resume_on_close: bool = false
 var _waiting: StringName = &""
 var _bind_buttons: Dictionary = {} ## StringName → Button
 var _screen_button: Button
@@ -39,9 +40,12 @@ func is_open() -> bool:
 	return _open
 
 
-func open() -> void:
+func open(pause_game: bool = false) -> void:
 	if _open:
 		return
+	_resume_on_close = pause_game and not get_tree().paused
+	if pause_game:
+		get_tree().paused = true
 	_open = true
 	_waiting = &""
 	_root.visible = true
@@ -58,6 +62,9 @@ func close() -> void:
 	_waiting = &""
 	_open = false
 	_root.visible = false
+	if _resume_on_close:
+		get_tree().paused = false
+		_resume_on_close = false
 
 
 func _build_rows() -> void:

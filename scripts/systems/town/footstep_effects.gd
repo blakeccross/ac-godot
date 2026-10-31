@@ -514,12 +514,65 @@ static func hanatiri(bg: Array, pos: Vector3, flower: int) -> void:
 		_fx(host, FieldEffects.Kind.PETAL, pos, 0.0, 9, 5)
 
 
+## `eOtosiana`: the mud a pitfall throws as its hole opens or closes — three clods at 0°, 135° and
+## 270° (turned half a circle for the first wave), again eight ticks later. `bg` is
+## `[layout, grid]`; `pos` where the pit is.
+static func otosiana(bg: Array, pos: Vector3) -> void:
+	var host := _bind(bg)
+	if host == null:
+		return
+	var attr: int = FieldCollision.unit_attr_at(_data, _grid, pos) if _data != null and _grid != null else 0
+	var wave := func(extra: float) -> void:
+		for base: float in [0.0, 135.0, 270.0]:
+			_fx(host, FieldEffects.Kind.DIG_MUD, pos, deg_to_rad(base + extra), attr, 7)
+	wave.call(180.0)
+	host.get_tree().create_timer(8.0 * DecompTime.TICK_SEC).timeout.connect(func() -> void: wave.call(0.0))
+
+
 ## `eTurnFootPrint` at the right foot when a skid settles.
 static func turn_footprint(bg: Array, pos: Vector3, yaw: float, attr: int) -> void:
 	var host := _bind(bg)
 	if host == null:
 		return
 	FieldEffects.spawn(host, FieldEffects.Kind.TURN_PRINT, pos, yaw, attr, 0, _ground_sampler(), _slope(pos))
+
+
+## `eSlip_init` — a puff behind a net skid (`arg1` is the skid's count); only the first
+## beats of it show, and only grass in winter, sand, surf, rain or plain ground react.
+static func net_slip(bg: Array, pos: Vector3, yaw: float, attr: int, arg1: int) -> void:
+	var host := _bind(bg)
+	if host == null or attr == ATTR_BUSH:
+		return
+	var winter: bool = Clock.season() == Clock.Season.WINTER
+	var lifted := pos + Vector3(0.0, 2.0 * GX, 0.0)
+	if winter and is_grass(attr):
+		if arg1 & 3 == 0 and arg1 < 14:
+			_fx(host, FieldEffects.Kind.YUKIHANE, _ahead(lifted, yaw, -10.0) + Vector3(0.0, 5.0 * GX, 0.0), yaw, attr, 0)
+		return
+	if arg1 & 3 != 0:
+		return
+	if attr == ATTR_SAND:
+		if arg1 < 10:
+			_fx(host, FieldEffects.Kind.SAND, _ahead(lifted, yaw, -13.0) + Vector3(0.0, 6.0 * GX, 0.0), yaw, 2, 0)
+	elif Weather.is_raining() or attr == ATTR_WAVE:
+		if arg1 < 10:
+			_fx(host, FieldEffects.Kind.SIBUKI, _ahead(lifted, yaw, -13.0) + Vector3(0.0, 6.0 * GX, 0.0), yaw, attr, 0)
+	elif arg1 < 10:
+		_fx(host, FieldEffects.Kind.DUST, lifted + Vector3(0.0, 7.0 * GX, 0.0), yaw, attr, 8)
+
+
+## `eSlipFootPrint` when the skid settles: 6 GX ahead of the right foot.
+static func slip_footprint(bg: Array, foot: Vector3, yaw: float, attr: int) -> void:
+	var host := _bind(bg)
+	if host == null:
+		return
+	var at := _ahead(foot, yaw, 6.0)
+	FieldEffects.spawn(host, FieldEffects.Kind.SLIP_PRINT, at, yaw, attr, 0, _ground_sampler(), _slope(at))
+
+
+## `eClacker_init`: a puff of dust (`eEC_EFFECT_DUST`, `arg1` 3) where a party popper goes off.
+static func party_puff(host: Node, at: Vector3) -> void:
+	_fx(host, FieldEffects.Kind.DUST, at, 0.0, 0, 3)
 
 
 ## `eTumbleBodyPrint` at tumble frame 17.

@@ -76,6 +76,8 @@ var parts: Array[Part] = []
 var loop_sound: StringName = &""
 ## One-shot SEs (`sAdo_OngenTrgStart`) raised since the host last drained them.
 var one_shot_sounds: Array[StringName] = []
+## World-space puffs (GX from the head, a yaw) the host turns into field dust (`eIkigire`).
+var world_puffs: Array[Dictionary] = []
 
 var _host: Node3D
 ## The feel joint (`aNPC_set_feel_eff`, joint 25) in the host's frame, metres.
@@ -405,6 +407,16 @@ func pulse(effect: StringName) -> void:
 			_spawn_doyon()
 		&"neboke_awa":
 			_spawn_zzz()
+		&"ikigire":
+			_spawn_ikigire()
+		&"kyousou_onpu":
+			_spawn_note_burst()
+		&"taberu":
+			_spawn_taberu()
+		&"uranai":
+			_spawn_uranai()
+		&"kigae":
+			_spawn_kigae()
 
 
 ## `eKONP` (arg 0): a musical note rising from the mouth, wobbling as it swells.
@@ -416,11 +428,21 @@ const NOTE_ENV: Array[Color] = [
 ]
 
 
-func _spawn_note() -> void:
+func _spawn_note(burst: bool = false) -> void:
 	var p := _part(StringName("ef_onpu01_%02d" % _rng.randi_range(0, 2)), _rot_y(Vector3(0.0, 6.0, 13.0), _npc_yaw), Vector3.ZERO, 72)
 	var v := _rot_z(Vector3(0.0, 0.435, 0.0), deg_to_rad(_rng.randf() * 30.0 - 15.0))
 	p.vel = _rot_x(v, deg_to_rad(_rng.randf() * 30.0 - 15.0))
 	p.acc = Vector3(0.0, 0.006, 0.0)
+	if burst:
+		## `eKONP` arg 0 = 2 (the cheer): no mouth offset, flung out at 4–5 GX a tick in a cone of
+		## ±30°, and every tick takes √0.8 off that speed.
+		var speed: float = (_rng.randf() * 2.0 + 8.0) * 0.5
+		var ax: float = deg_to_rad((_rng.randf() * 2.0 - 1.0) * 30.0)
+		var az: float = deg_to_rad((_rng.randf() * 2.0 - 1.0) * 30.0)
+		p.pos = Vector3.ZERO
+		p.vel = Vector3(speed * sin(az), speed * cos(az) * cos(ax), speed * cos(az) * sin(ax))
+		p.acc = Vector3.ZERO
+		p.data["decay"] = true
 	p.data["wobble"] = 0.0
 	var c: int = _rng.randi_range(0, 4)
 	p.data["prim"] = NOTE_PRIM[c]
@@ -430,6 +452,8 @@ func _spawn_note() -> void:
 		q.data["wobble"] = float(q.data["wobble"]) + 2047.0 * n
 		q.vel += q.acc * n
 		q.pos += q.vel * n
+		if q.data.has("decay"):
+			q.vel *= pow(sqrt(0.8), n)
 		var e: float = q.t
 		var a: float = float(q.data["wobble"]) * MathUtil.S16
 		var size: float = _adjust(e, 0, 18, 0.00156, 0.0078)
@@ -440,6 +464,94 @@ func _spawn_note() -> void:
 		col.a = _adjust(e, 60, 72, 255.0, 0.0) / 255.0
 		q.set_param(&"prim_color", col)
 	one_shot_sounds.append(&"43f")
+
+
+## `eKyousou_Onpu`: a note flung out of the cheer (`eKONP` arg 2).
+func _spawn_note_burst() -> void:
+	_spawn_note(true)
+
+
+## `eIkigire`: a puff of dust a few GX out from the mouth, at a random angle in front. The dust is
+## a field particle, so the host reads it off `world_puffs` (GX from the head, a yaw).
+func _spawn_ikigire() -> void:
+	var yaw: float = _npc_yaw + deg_to_rad((_rng.randf() * 2.0 - 1.0) * 90.0)
+	world_puffs.append({"at": Vector3(sin(yaw), 0.0, cos(yaw)) * 5.0, "yaw": yaw})
+
+
+## `eTaberu`: crumbs in front of the mouth, four frames cycling every four ticks for 44.
+func _spawn_taberu() -> void:
+	var at := _rot_y(Vector3(0.0, -10.0, 13.0), _npc_yaw)
+	var frames: Array[Part] = []
+	for i: int in 4:
+		var p := _part(StringName("ef_taberu01_%02d" % i), at, Vector3.ZERO, 44)
+		p.set_param(&"prim_color", _c(128, 128, 128, 255))
+		p.set_param(&"env_color", _c(75, 50, 0, 255))
+		_scale(p, 0.0045, 0.0045, 0.0045)
+		frames.append(p)
+	for i: int in 4:
+		var p: Part = frames[i]
+		p.step = func(q: Part, _n: float) -> void:
+			q.node.visible = ((int(q.t) >> 2) & 3) == i
+
+
+## `eUranai` (`ef_uranai01_00`): a pink ring of light over the head, fading in over ten ticks
+## and then out, blue creeping in as it swells.
+func _spawn_uranai() -> void:
+	var p := _part(&"ef_uranai01_00", Vector3.ZERO, Vector3.ZERO, 80)
+	p.set_param(&"tex0", _rel(&"ef_uranai01_0_int_i4"))
+	p.set_param(&"tex1", _rel(&"ef_uranai01_1_int_i4"))
+	## `Evw_Anime` SCROLL2: tile 0 {−1, 0}, tile 1 {1, 7}.
+	p.set_param(&"scroll0", _drift(Vector2(-1.0, 0.0), _rel(&"ef_uranai01_0_int_i4")))
+	p.set_param(&"scroll1", _drift(Vector2(1.0, -7.0), _rel(&"ef_uranai01_1_int_i4")))
+	_two_tiles(p, true, true, true, false, false, 2)
+	p.set_param(&"mul_tiles", true)
+	p.set_param(&"env_color", _c(255, 0, 255, 255))
+	p.step = func(q: Part, _n: float) -> void:
+		var timer: float = 80.0 - q.t
+		var sx: float = 0.01
+		var sy: float = 0.01
+		var blue: float = 100.0
+		var alpha: float = _adjust(timer, 70, 80, 255.0, 0.0)
+		if timer < 70.0:
+			sx = _adjust(timer, 0, 70, 0.014, 0.01)
+			sy = _adjust(timer, 0, 70, 0.012, 0.01)
+			blue = _adjust(timer, 0, 70, 255.0, 100.0)
+			alpha = _adjust(timer, 0, 70, 0.0, 255.0)
+		_scale(q, sx, sy, 0.01)
+		q.set_param(&"prim_color", _c(255, 0, int(blue), int(alpha)))
+	## `sAdo_OngenTrgStart(NA_SE_AXE_BALL_HIT)`.
+	one_shot_sounds.append(&"44a")
+
+
+## `eKigae`: sixty ticks of sparkles wheeling round the NPC, one every other tick, rising from
+## 10 GX over the head to 25 below it (`eKigae_Light`).
+func _spawn_kigae() -> void:
+	var driver := _part(&"kigae", Vector3.ZERO, Vector3.ZERO, 60)
+	driver.data["angle"] = _npc_yaw + deg_to_rad(90.0)
+	driver.step = func(q: Part, n: float) -> void:
+		for k: int in range(int(q.t), int(q.t + n)):
+			q.data["angle"] = float(q.data["angle"]) - deg_to_rad(9.0)
+			if k % 2 == 0:
+				var a: float = q.data["angle"]
+				var timer: float = 60.0 - float(k)
+				_spawn_kigae_light(Vector3(
+					sin(a) * 22.0 + (_rng.randf() * 2.0 - 1.0) * 5.0,
+					_adjust(timer, 0, 60, 10.0, -25.0) + (_rng.randf() * 2.0 - 1.0) * 5.0,
+					cos(a) * 22.0 + (_rng.randf() * 2.0 - 1.0) * 5.0))
+
+
+## `eKigae_Light`: a kira star that swells for ten ticks, shrinks for twenty, and sinks.
+func _spawn_kigae_light(at: Vector3) -> void:
+	var p := _part(&"ef_takurami01_kira", at, Vector3.ZERO, 30)
+	p.acc = Vector3(0.0, -0.025, 0.0)
+	p.set_param(&"prim_color", _c(255, 255, 255, 255))
+	p.set_param(&"env_color", _c(255, 255, 0, 255))
+	p.step = func(q: Part, n: float) -> void:
+		q.vel += q.acc * n
+		q.pos += q.vel * n
+		var timer: float = 30.0 - q.t
+		var s: float = _adjust(timer, 20, 30, 0.009, 0.0) if timer > 20.0 else _adjust(timer, 0, 20, 0.0, 0.009)
+		_scale(q, s, s, s)
 
 
 ## `eDoyon`: a little dark cloud drifting off the head and swirling as it slows.

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://sva103ebrsz4z"]
+
+[ext_resource type="Script" uid="uid://dw0fb5nquabwf" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"coconut"
+display_name = "Coconut"
+description = "A coconut from a beach palm."
+category = 2
+sell_price = 150
+max_stack = 9
+usable = true
+use_verb = "Eat"
+icon_color = Color(0.5, 0.35, 0.2, 1)

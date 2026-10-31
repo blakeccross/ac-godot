@@ -104,6 +104,9 @@ var spawn_at_feel_joint: bool = false
 var _pose: String = ""
 var _pose_counter: float = 0.0
 var _ambient: NpcFeelMoods = null
+## Keyframes the pose's clip has played, for its one-shot effect (`NpcManpu.CLIP_EFFECTS`).
+var _clip_frames: float = 0.0
+var _clip_fired: bool = false
 
 
 func _ready() -> void:
@@ -116,7 +119,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if _kind != &"" or _ambient != null or NpcManpu.MOOD_POSE_EFFECTS.has(_pose):
+	if _kind != &"" or _ambient != null or NpcManpu.MOOD_POSE_EFFECTS.has(_pose) or NpcManpu.CLIP_EFFECTS.has(_pose):
 		_billboard()
 	_tick_pose(delta)
 	if _kind == &"":
@@ -230,11 +233,14 @@ func set_pose(clip: String) -> void:
 		return
 	_pose = key
 	_pose_counter = 0.0
+	_clip_frames = 0.0
+	_clip_fired = false
 
 
 func _tick_pose(delta: float) -> void:
 	var data: Array = NpcManpu.MOOD_POSE_EFFECTS.get(_pose, [])
-	if data.is_empty() and _ambient == null:
+	var once: Array = NpcManpu.CLIP_EFFECTS.get(_pose, [])
+	if data.is_empty() and once.is_empty() and _ambient == null:
 		return
 	if _ambient == null:
 		_ambient = NpcFeelMoods.new(self, &"ambient", npc_yaw, view_diff_deg())
@@ -249,10 +255,44 @@ func _tick_pose(delta: float) -> void:
 				_ambient._npc_yaw = npc_yaw
 				_ambient.pulse(data[0])
 		_pose_counter = fposmod(_pose_counter + climb, top)
+	if not once.is_empty():
+		for _i: int in _clip_passes(once, delta):
+			_ambient._npc_yaw = npc_yaw
+			_ambient.pulse(once[0])
 	_ambient.advance(delta)
 	for id: StringName in _ambient.one_shot_sounds:
 		Audio.play_se(id, self)
 	_ambient.one_shot_sounds.clear()
+	_spawn_world_puffs()
+
+
+## How many times the clip passes its effect's set frame in the next `delta` seconds
+## (`cKF_FrameControl_passCheck_now`): once for a clip that stops, every loop for one that repeats.
+func _clip_passes(once: Array, delta: float) -> int:
+	var at: float = once[1]
+	var last: float = once[2]
+	var before: float = _clip_frames
+	_clip_frames += delta * DecompTime.FRAME_HZ
+	if bool(once[3]):
+		return maxi(floori((_clip_frames - at) / last) - floori((before - at) / last), 0)
+	if _clip_fired or _clip_frames < at:
+		return 0
+	_clip_fired = true
+	return 1
+
+
+## `eIkigire`'s dust: field particles at the mouth, drained from the emitter.
+func _spawn_world_puffs() -> void:
+	if _ambient == null or _ambient.world_puffs.is_empty():
+		return
+	var world: Node = World.find(get_tree())
+	var host: Node = world.get_node_or_null("Effects") if world != null else null
+	if host == null:
+		host = world
+	var head: Vector3 = global_transform * _feel_origin()
+	for puff: Dictionary in _ambient.world_puffs:
+		FieldEffects.spawn(host, FieldEffects.Kind.DUST, head + (puff["at"] as Vector3) * FieldCatalog.GX_TO_METERS, float(puff["yaw"]), 0, 0)
+	_ambient.world_puffs.clear()
 
 
 func _feel_origin() -> Vector3:

@@ -58,6 +58,10 @@ static func is_lighthouse(visual_id: StringName) -> bool:
 	return String(visual_id).contains("toudai")
 
 
+static func is_dump(visual_id: StringName) -> bool:
+	return String(visual_id).ends_with("_dump")
+
+
 static func is_shop(visual_id: StringName) -> bool:
 	## Outdoor Nook shells `obj_s_shop1`…`shop4` (and winter `obj_w_shop*`).
 	var s := String(visual_id)
@@ -86,6 +90,7 @@ static func uses_structure_offset(visual_id: StringName) -> bool:
 		or is_shop(visual_id)
 		or is_post_office(visual_id)
 		or is_lighthouse(visual_id)
+		or is_dump(visual_id)
 	)
 
 
@@ -196,7 +201,7 @@ static func apply_building(host: Node3D, visual_id: StringName, occupancy: Vecto
 	## Public structures with `set_bgOffset` use the heightfield; others keep a box.
 	## Station has neither: acre `collision[]` already forms the walls (`ac_station` has
 	## no `set_bgOffset`, no `mFI_FIELD_ROOM_STATION`). Drop the scene's hull + door.
-	if is_station(visual_id):
+	if is_station(visual_id) or is_dump(visual_id):
 		disable_body(host)
 		disable_door(host)
 		return

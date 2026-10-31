@@ -123,14 +123,20 @@ var swing_time: float = 0.0
 ## Everything this step asked the scene to do, in order: `&"furi"` (swing whoosh),
 ## `&"get"` (catch SE), `&"hit"` (`AMI_HIT` + rumble), `&"splash"` (net dipped in water),
 ## `&"stop_net"` (`Check_StopNet` fires for bugs and fish), `&"slip"` (skid SE + dust),
-## `&"swing_fx"` (leaves / petals 50 GX ahead, `Player_actor_SetEffect_Swing_net`).
+## `&"slip_fx"` (a skid puff, its counter in `slip_args`), `&"slip_print"` (the skid settled:
+## a foot mark), `&"swing_fx"` (leaves / petals 50 GX ahead, `Player_actor_SetEffect_Swing_net`).
 var events: Array[StringName] = []
+## The `eEC_EFFECT_SLIP` counter of each `&"slip_fx"` event this step, in order.
+var slip_args: Array[int] = []
 ## The actor the net hit when the swing was cut short (`Player_actor_CheckAndSet_UZAI_forNpc`).
 var hit_actor: Object = null
 ## The net has already splashed this swing (one burst, not one a step).
 var splashed: bool = false
 
 var _anim_stopped: bool = false
+## `main_data.slip_net._00`: half a count a tick, an effect on each even whole count.
+var _slip_count: float = 0.0
+var _slip_ticks: float = 0.0
 
 
 func is_active() -> bool:
@@ -145,6 +151,9 @@ func begin(from_dash: bool, start_speed: float, start_yaw: float) -> void:
 	hit_actor = null
 	swing_time = 0.0
 	events.clear()
+	slip_args.clear()
+	_slip_count = 0.0
+	_slip_ticks = 0.0
 	_set_state(State.SLIP if from_dash else State.READY)
 	if from_dash:
 		events.append(&"slip")
@@ -170,6 +179,7 @@ func advance(
 	wall_ratio: float = 1.0
 ) -> void:
 	events.clear()
+	slip_args.clear()
 	if delta <= 0.0:
 		return
 	match state:
@@ -243,6 +253,15 @@ func _tick_ready_walk(
 
 
 func _tick_slip(delta: float, a_held: bool) -> void:
+	## `Player_actor_SearchAnimation_Slip_net`: `_00 += 0.5` a tick (capped at 1000); on a tick
+	## whose whole count is even it makes an `eEC_EFFECT_SLIP`.
+	_slip_ticks += delta * DecompTime.TICK_HZ
+	while _slip_ticks >= 1.0:
+		_slip_ticks -= 1.0
+		_slip_count = minf(_slip_count + 0.5, 1000.0)
+		if int(_slip_count) & 1 == 0:
+			events.append(&"slip_fx")
+			slip_args.append(int(_slip_count))
 	speed = maxf(speed - SLIP_BRAKE * delta, 0.0)
 	frame_speed = FRAME_SPEED
 	if not a_held:
@@ -367,5 +386,8 @@ func _advance_stop(end_frame: float, ticks: float) -> bool:
 
 
 func _set_state(next: State) -> void:
+	## `Player_actor_settle_main_Slip_net`: leaving the skid leaves a foot mark.
+	if state == State.SLIP and next != State.SLIP:
+		events.append(&"slip_print")
 	state = next
 	state_changed = true

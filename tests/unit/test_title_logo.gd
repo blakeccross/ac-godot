@@ -18,6 +18,11 @@ const FADEOUT_TICKS := 26
 const S := DecompTime.TICK_SEC
 
 
+class _OpenMenu extends Node:
+	func is_open() -> bool:
+		return true
+
+
 func _logo() -> CanvasLayer:
 	var logo: CanvasLayer = auto_free((load("res://features/intro/title_logo.tscn") as PackedScene).instantiate())
 	add_child(logo)
@@ -137,6 +142,20 @@ func test_start_waits_for_the_owner_then_selects_once() -> void:
 	assert_int(selected[0]).is_equal(1)
 
 
+func test_accept_does_not_start_the_title_behind_an_open_menu() -> void:
+	var logo := _logo()
+	_to_pulse(logo)
+	logo.set("can_start", true)
+	var menu := auto_free(_OpenMenu.new()) as _OpenMenu
+	menu.add_to_group(SettingsOverlay.GROUP)
+	add_child(menu)
+	var accept := InputEventAction.new()
+	accept.action = &"ui_accept"
+	accept.pressed = true
+	logo.call("_unhandled_input", accept)
+	assert_str(String(_seq(logo).current_animation)).is_equal("pulse")
+
+
 func test_demo_running_out_idles_the_logo() -> void:
 	var logo := _logo()
 	_to_pulse(logo)
@@ -156,4 +175,3 @@ func test_demo_over_before_the_pulse_idles_as_it_starts() -> void:
 	_run(logo, (LOGO_TICKS + BACK_DONE_TICKS + HOLD_TICKS + 2) * S)
 	assert_bool(_seq(logo).is_playing()).is_false()
 	assert_bool((logo.get_node("%PressStart") as Control).visible).is_false()
-

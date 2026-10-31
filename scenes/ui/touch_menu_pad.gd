@@ -66,6 +66,11 @@ func _refresh() -> void:
 ## A menu is up, or the game has no player yet (the title, the intro).
 func wanted() -> bool:
 	var tree := get_tree()
+	if Menus.is_open(tree, MapOverlay.GROUP):
+		return false
+	var inventory := InventoryOverlay.find(tree)
+	if inventory != null and inventory.is_open() and inventory.uses_mobile_layout():
+		return false
 	if menu_open(tree):
 		return true
 	return Player.find(tree) == null
@@ -136,7 +141,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## A tap off the pad is OK: a talk page or letter waiting, or the title / intro.
 func taps_accept() -> bool:
 	var tree := get_tree()
-	if not tree.get_nodes_in_group(TITLE_GROUP).is_empty():
+	if not tree.get_nodes_in_group(TITLE_GROUP).is_empty() and not menu_open(tree):
 		return true
 	for node: Node in tree.get_nodes_in_group(&"dialogue_ui"):
 		if node is DialogueOverlay and (node as DialogueOverlay).is_open():

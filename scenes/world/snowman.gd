@@ -145,9 +145,14 @@ func topple() -> void:
 	var world := World.find(get_tree())
 	var cell: Vector2i = world.grid.world_to_cell(global_position) if world != null and world.grid != null else Vector2i.ZERO
 	SnowmanUse.knocked_down(slot, cell, world)
-	var t := create_tween()
-	t.set_parallel(true)
-	for child: Node in get_children():
-		if child is Node3D and not child is CollisionShape3D and not child is Area3D:
-			t.tween_property(child, "scale", (child as Node3D).scale * 0.01, 0.25)
-	t.chain().tween_callback(queue_free)
+	## `aPSMAN_MakeBreakEffect`: body and head each burst from their base (`ef_yukidaruma`), with
+	## the thud (0x143), and the snowman is gone at once.
+	var host: Node = world.get_node_or_null("Effects") if world != null else null
+	if host == null:
+		host = get_parent()
+	var rb: float = SnowmanRules.radius(body)
+	var rh: float = SnowmanRules.radius(head)
+	SnowmanBreak.spawn(host, global_position, int(body * 100.0))
+	SnowmanBreak.spawn(host, global_position + Vector3(0.0, rb + (rb + rh) * 0.6 - rh, 0.0), int(head * 100.0))
+	Audio.play_se(&"143", self)
+	queue_free()

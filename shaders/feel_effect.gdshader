@@ -18,6 +18,8 @@ uniform sampler2D tex1 : filter_linear, repeat_enable;
 uniform bool two_tiles = false;
 // `ef_pun01_00`: colour from T0 alone, only the alpha cross-fades the frames.
 uniform bool color_t0 = false;
+// `ef_uranai01_00`: the tiles multiply (`TEXEL0 * TEXEL1`) rather than cross-fade.
+uniform bool mul_tiles = false;
 uniform vec4 prim_color : source_color = vec4(1.0);
 uniform vec4 env_color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float lod_frac = 0.0;
@@ -58,6 +60,9 @@ void fragment() {
 			t1.a = t1.r;
 		}
 		c = color_t0 ? t0.r : mix(t0.r, t1.r, lod_frac);
+		if (mul_tiles) {
+			c = t0.r * t1.r;
+		}
 		if (alpha_mode == 1) {
 			a = mix(t0.a, t1.a, lod_frac);
 		} else if (alpha_mode == 2) {

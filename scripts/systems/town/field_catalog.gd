@@ -380,9 +380,14 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"SHINE_SPOT", &"ef_anahikari01_01":
 			## Golden dig rays (`eEC_EFFECT_ANAHIKARI` on `SHINE_SPOT`).
 			return _existing(["effects/ef_anahikari01_01.glb", "effects/ef_anahikari01_02.glb"])
-		&"obj_s_tree5_apple", &"TREE_APPLE_FRUIT":
+		&"obj_s_tree5_apple", &"TREE_APPLE_FRUIT", &"obj_s_tree5_orange", &"TREE_ORANGE_FRUIT", \
+		&"obj_s_tree5_peach", &"TREE_PEACH_FRUIT", &"obj_s_tree5_pear", &"TREE_PEAR_FRUIT", \
+		&"obj_s_tree5_cherry", &"TREE_CHERRY_FRUIT":
+			## The fruiting tree is the hardwood plus one overlay of fruit on the same verts
+			## (`tree4_*_list`: the fruit's `*_DL_mode`, then `obj_s_tree5_apple_appleT`).
+			var fruit: String = String(id).trim_prefix("obj_s_tree5_").trim_prefix("TREE_").trim_suffix("_FRUIT").to_lower()
 			var paths := _seasonal_tree_existing("obj_%s_tree5")
-			paths.append_array(_existing(["environment/trees/obj_s_tree5_apple.glb"]))
+			paths.append_array(_existing(["environment/trees/obj_s_tree5_%s.glb" % fruit]))
 			return paths
 		&"obj_s_cedar1", &"CEDAR_S0":
 			return _cedar_size_paths(1)
@@ -496,6 +501,10 @@ static func is_seasonal_env_visual(visual_id: StringName) -> bool:
 		&"TREE_S1",
 		&"TREE_S2",
 		&"TREE_APPLE_FRUIT",
+		&"TREE_ORANGE_FRUIT",
+		&"TREE_PEACH_FRUIT",
+		&"TREE_PEAR_FRUIT",
+		&"TREE_CHERRY_FRUIT",
 		&"TREE_STUMP004",
 		&"CEDAR_S0",
 		&"CEDAR_S1",
@@ -566,7 +575,8 @@ static func blob_shadow_paths(visual_id: StringName) -> PackedStringArray:
 
 static func _blob_shadow_stem(id: String) -> String:
 	match id:
-		"TREE", "TREE_S0", "TREE_S1", "TREE_S2", "TREE_APPLE_FRUIT":
+		"TREE", "TREE_S0", "TREE_S1", "TREE_S2", "TREE_APPLE_FRUIT", "TREE_ORANGE_FRUIT", \
+		"TREE_PEACH_FRUIT", "TREE_PEAR_FRUIT", "TREE_CHERRY_FRUIT":
 			return "obj_s_tree5"
 		"TREE_STUMP004":
 			return "obj_s_stump5"
@@ -700,6 +710,10 @@ const PLANT_CLASS: Array[int] = [
 	7, 7, 7, 7, 0, 0, 0, 7, 7, 7, 7, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0, 0, 0, 7, 0,
 ]
 const PLANT_FULL := 4
+## `mCoBG_KILL_PLANT`: no plant lives on the unit.
+const KILL_PLANT := 7
+## `mCoBG_ATTRIBUTE_63`: its plant limit is the next unit south's (`mCoBG_Attribute2CheckPlant`).
+const ATTR_LIMIT_FROM_SOUTH := 63
 
 
 static func plant_class(attr: int) -> int:
@@ -883,6 +897,11 @@ static func acre_for_block_type(
 
 
 static func _acre_candidates(block_type: int) -> PackedStringArray:
+	## The disc's own `data_combi` rows first: only those grounds belong to the type (a dump acre
+	## is `grd_s_t_1`–`3`; `t_4`–`t_9` are other rooms' grounds with no template carrying a dump).
+	var listed: PackedStringArray = FieldObjectCatalog.bg_names_for_type(TownMap.decomp_block_type(block_type))
+	if not listed.is_empty():
+		return listed
 	## Prefix families from `data_combi.c` / available `assets/generated/environment/acres/`.
 	match block_type:
 		TownFieldGenerator.T_FLAT:
@@ -897,12 +916,6 @@ static func _acre_candidates(block_type: int) -> PackedStringArray:
 		TownFieldGenerator.T_SHRINE:
 			## `data_combi.c`: `GRD_S_F_PK_*` (park) → `mFM_BLOCK_TYPE_SHRINE` (wishing well).
 			return _names("grd_s_f_pk_", 1, 3)
-		TownFieldGenerator.T_LIGHTHOUSE:
-			## No decomp ground combi: `BLOCK_COMBI_ROM_TOUDAI` is `mFM_BLOCK_TYPE_NONE` in
-			## `data_combi.c` — the lighthouse isn't part of the block-type system at all in
-			## the original (see `T_LIGHTHOUSE`'s comment). Plain flat ground, same pool as
-			## `T_FLAT`.
-			return _names("grd_s_f_", 1, 10)
 		TownFieldGenerator.T_RIVER_S:
 			return _names("grd_s_r1_", 1, 4)
 		TownFieldGenerator.T_RIVER_E:
@@ -1108,6 +1121,10 @@ static func item_visual(item_id: StringName) -> StringName:
 			return &"obj_item_peach"
 		&"orange":
 			return &"obj_item_orange"
+		&"cherry":
+			return &"obj_item_nuts"
+		&"coconut":
+			return &"obj_item_coco"
 		&"mushroom":
 			return &"obj_item_matutake"
 		## `item1_5_tableNo` for `ITM_SHELL0`–`7`: `SHELLA` / `SHELLB` / `SHELLC`.

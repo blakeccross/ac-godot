@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="PlantData" format=3 uid="uid://f7gvdh1zhc5vq"]
+
+[ext_resource type="Script" uid="uid://dxcrl6i2puoka" path="res://scripts/data/plant_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/items/pear.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"pear_tree"
+display_name = "Pear Tree"
+fruit = ExtResource("2")
+stage_days = PackedInt32Array(1, 3, 5, 7)
+terrains = null
+visual_seed = &"TREE_S0"
+visual_growing = &"TREE_S1"
+visual_mature = &"TREE"
+visual_harvestable = &"TREE_PEAR_FRUIT"

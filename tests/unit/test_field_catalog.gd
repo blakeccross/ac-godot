@@ -49,6 +49,13 @@ func test_fg_item_trees_and_sign_reserves() -> void:
 	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_TREE_APPLE_FRUIT)["visual"]).is_equal(
 		&"TREE_APPLE_FRUIT"
 	)
+	## Each fruit's eight ids (sapling … fruiting) after the apple's: orange, peach, pear, cherry.
+	for row: Array in [[0x080D, &"orange"], [0x0814, &"orange"], [0x0815, &"peach"], [0x081C, &"peach"],
+			[0x081D, &"pear"], [0x0824, &"pear"], [0x0825, &"cherry"], [0x082C, &"cherry"]]:
+		var place: Dictionary = FieldObjectCatalog.placement_for_item(int(row[0]))
+		assert_that(place["tree"]).is_equal(row[1])
+		assert_that(place["visual"]).is_equal(StringName("TREE_%s_FRUIT" % String(row[1]).to_upper()))
+	assert_that(FieldObjectCatalog.placement_for_item(0x082D)["visual"]).is_equal(&"TREE")
 	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_CEDAR_TREE)["visual"]).is_equal(&"CEDAR_TREE")
 	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_TREE_PALM_FRUIT)["visual"]).is_equal(
 		&"TREE_PALM_FRUIT"

@@ -10,8 +10,12 @@ signal device_changed(device: Device)
 
 var device: Device = Device.KEYS
 ## Android or iOS: on-screen buttons show only there (a desktop has keys and a mouse).
-## Tests set it to check the buttons.
-var on_mobile: bool = OS.has_feature("android") or OS.has_feature("ios")
+## Tests set it to check the buttons. Debug builds also take `-- --mobile` to preview the
+## phone UI on a desktop.
+var on_mobile: bool = (
+	OS.has_feature("android") or OS.has_feature("ios")
+	or (OS.is_debug_build() and OS.get_cmdline_user_args().has("--mobile"))
+)
 
 
 func _ready() -> void:

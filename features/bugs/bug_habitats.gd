@@ -602,4 +602,4 @@ static func _is_river_or_marine(type: int) -> bool:
 		or type == TownFieldGenerator.T_BORDER_CLIFF_OCEAN_RIGHT
 	):
 		return true
-	return type >= TownFieldGenerator.T_OCEAN and type != TownFieldGenerator.T_LIGHTHOUSE
+	return type >= TownFieldGenerator.T_OCEAN

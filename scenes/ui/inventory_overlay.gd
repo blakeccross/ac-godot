@@ -47,6 +47,9 @@ const PAGE_SWING_AMPLITUDE := 22.0
 const PAGE_SWING_DURATION := 40.0 / DecompTime.TICK_HZ
 
 @onready var _root: Control = %Root
+@onready var _mobile: MobileInventory = $Root/MobileInventory
+@onready var _classic: Control = $Root/Center
+@onready var _back_to_items: Button = $Root/BackToItems
 @onready var _shell_stack: Control = %ShellStack
 @onready var _shell_shadow: TextureRect = %ShellShadow
 @onready var _window_shell: TextureRect = %WindowShell
@@ -72,6 +75,7 @@ const PAGE_SWING_DURATION := 40.0 / DecompTime.TICK_HZ
 @onready var _tab_design: Panel = %TabDesign
 
 var _open: bool = false
+var _mobile_classic: bool = false
 var _focus_mail: bool = false
 ## `mTG_TABLE_PLAYER`: the cursor can move onto the player doll from the top row of the
 ## item grid, same continuous navigable space as items/mail/wallet/background.
@@ -172,6 +176,13 @@ func _ready() -> void:
 	_slide = MenuSlide.attach(self)
 	_load_ui_font()
 	_wire_slot_buttons()
+	_mobile.slot_pressed.connect(_on_item_pressed)
+	_mobile.action_pressed.connect(_run_tag)
+	_mobile.actions_cancelled.connect(_cancel_mobile_actions)
+	_mobile.more_pressed.connect(_open_mobile_classic)
+	_mobile.wallet_pressed.connect(_open_wallet_popup)
+	_mobile.close_pressed.connect(close)
+	_back_to_items.pressed.connect(_return_to_mobile_items)
 	_wire_side_tabs()
 	_apply_chrome()
 	_build_encyclopedia_grid()
@@ -601,6 +612,11 @@ func _selected_slot_button() -> Button:
 func _update_hand_cursor(animate: bool = true) -> void:
 	if _hand_root == null:
 		return
+	if uses_mobile_layout():
+		_hand_root.visible = false
+		if _hand_viewport != null:
+			_hand_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		return
 	var on_pockets: bool = _side_tab == SideTab.POCKETS
 	var btn: Control = (_portrait_frame if _focus_player else _selected_slot_button()) if on_pockets else null
 	if btn == null or not _open:
@@ -902,6 +918,7 @@ func _build_tag_popup() -> void:
 
 
 func _hide_tag_popup() -> void:
+	_mobile.hide_actions()
 	if _tag_popup != null:
 		_tag_popup.visible = false
 
@@ -909,6 +926,12 @@ func _hide_tag_popup() -> void:
 ## Verb list beside the selected slot. `mTG_set_tag_win` / screenshot: blue cloud to
 ## the right of the item, magenta ▶ on the selected row, purple/muted verb text.
 func _show_tag_popup() -> void:
+	if uses_mobile_layout():
+		if _tag_popup != null:
+			_tag_popup.visible = false
+		var title: String = "Bells" if _wallet_tag_mode else ""
+		_mobile.show_actions(title, _tag_choices, _tag_index)
+		return
 	if _tag_popup == null or _tag_choices.is_empty():
 		_hide_tag_popup()
 		return
@@ -1143,6 +1166,50 @@ func is_open() -> bool:
 	return _open
 
 
+func uses_mobile_layout() -> bool:
+	return (
+		InputDeviceTracker.on_mobile and not _mobile_classic
+		and not _focus_mail and _side_tab == SideTab.POCKETS and _gyroid_house == null
+	)
+
+
+func _refresh_mobile_layout() -> void:
+	var mobile := uses_mobile_layout()
+	_mobile.visible = mobile
+	_classic.visible = not mobile
+	($Root/Dim as Control).visible = not mobile
+	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE if mobile else Control.MOUSE_FILTER_STOP
+	_back_to_items.visible = InputDeviceTracker.on_mobile and not mobile and _gyroid_house == null
+	if mobile:
+		_mobile.refresh(Game.inventory)
+	if _portrait_viewport != null:
+		_portrait_viewport.render_target_update_mode = (
+			SubViewport.UPDATE_ALWAYS if _open and not mobile else SubViewport.UPDATE_DISABLED
+		)
+
+
+func _cancel_mobile_actions() -> void:
+	_tag_mode = false
+	_wallet_tag_mode = false
+	_background_tag_mode = false
+	_refresh()
+
+
+func _open_mobile_classic() -> void:
+	_cancel_mobile_actions()
+	_mobile_classic = true
+	_refresh()
+
+
+func _return_to_mobile_items() -> void:
+	_mobile_classic = false
+	_focus_mail = false
+	_focus_player = false
+	_cancel_mobile_actions()
+	_select_side_tab(SideTab.POCKETS)
+	_refresh()
+
+
 ## Open straight to the Letters page (mailbox / "you've got mail").
 func open_letters() -> void:
 	open()
@@ -1157,6 +1224,7 @@ func open() -> void:
 	if _open:
 		return
 	_open = true
+	_mobile_classic = false
 	_tag_mode = false
 	_focus_mail = false
 	_focus_player = false
@@ -1167,7 +1235,8 @@ func open() -> void:
 	## `mBGMPsComp_pause(PAUSE_1)` (`m_inventory_ovl`).
 	Audio.set_music_pause(Audio.PAUSE_POCKETS)
 	_root.visible = true
-	_slide.slide_in(MenuSlide.Dir.IN_RIGHT)
+	_slide.cover_viewport = uses_mobile_layout()
+	_slide.slide_in(MenuSlide.Dir.IN_BOTTOM if uses_mobile_layout() else MenuSlide.Dir.IN_RIGHT)
 	if _portrait_viewport != null:
 		_portrait_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	if _hand_viewport != null:
@@ -1204,6 +1273,7 @@ func open_gyroid(house: House, owner: bool) -> void:
 func close() -> void:
 	if not _open:
 		return
+	var mobile := uses_mobile_layout()
 	Audio.play_se(&"menu_exit")
 	Audio.set_music_pause(1.0)
 	_gyroid_house = null
@@ -1231,8 +1301,9 @@ func close() -> void:
 	if _portrait_viewport != null:
 		_portrait_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	Game.inventory.clear_hand()
-	## `mTG_close_window`: `mSM_MOVE_OUT_RIGHT`; the viewports stop once it is gone.
-	_slide.slide_out(MenuSlide.Dir.OUT_RIGHT, _on_slid_out)
+	## Classic pockets use `mSM_MOVE_OUT_RIGHT`; the mobile sheet leaves downward.
+	_slide.cover_viewport = mobile
+	_slide.slide_out(MenuSlide.Dir.OUT_BOTTOM if mobile else MenuSlide.Dir.OUT_RIGHT, _on_slid_out)
 	_refresh()
 
 
@@ -1330,6 +1401,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _tag_mode:
 		_handle_tag_input(event)
 		return
+	if uses_mobile_layout() and _handle_mobile_navigation(event):
+		get_viewport().set_input_as_handled()
+		return
 	if _side_tab != SideTab.POCKETS:
 		## Encyclopedia pages are read-only — only page flips and close.
 		if event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
@@ -1424,6 +1498,27 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _handle_mobile_navigation(event: InputEvent) -> bool:
+	var step := Vector2i.ZERO
+	if event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
+		step.x = -1
+	elif event.is_action_pressed("ui_right") or event.is_action_pressed("move_right"):
+		step.x = 1
+	elif event.is_action_pressed("ui_up") or event.is_action_pressed("move_forward"):
+		step.y = -1
+	elif event.is_action_pressed("ui_down") or event.is_action_pressed("move_back"):
+		step.y = 1
+	else:
+		return false
+	var index := Game.inventory.selected_index
+	var column := clampi(index % MobileInventory.COLUMNS + step.x, 0, MobileInventory.COLUMNS - 1)
+	var row := maxi(index / MobileInventory.COLUMNS + step.y, 0)
+	var target := mini(row * MobileInventory.COLUMNS + column, Inventory.POCKET_SLOTS - 1)
+	Game.inventory.select(target)
+	_mobile.reveal_slot(target)
+	return true
+
+
 func _handle_tag_input(event: InputEvent) -> void:
 	if _tag_choices.is_empty():
 		_tag_mode = false
@@ -1447,6 +1542,8 @@ func _on_item_pressed(index: int) -> void:
 		return
 	_focus_mail = false
 	_focus_player = false
+	_wallet_tag_mode = false
+	_background_tag_mode = false
 	Game.inventory.select(index)
 	_activate_cursor()
 
@@ -2111,6 +2208,9 @@ func _put_down_indoors(player: Player, item: ItemData, wrapped: bool) -> bool:
 	var host: Interior = Interior.find(get_tree())
 	if host != null:
 		host.spawn_placement(entry)
+		if item is FurnitureData:
+			var node := host.furniture_node(entry.id) as Node3D
+			LeafFlight.fly(host, player, node.global_position if node != null else player.global_position, item)
 	return true
 
 
@@ -2148,6 +2248,7 @@ func _field_context() -> InteractionContext:
 
 func _refresh() -> void:
 	var inv: Inventory = Game.inventory
+	_refresh_mobile_layout()
 	## GC `mIV_SetLineStrings` draws land/player names in lowercase on the sen bars.
 	if _player_name != null:
 		_player_name.text = Game.resident.player_name.to_lower()

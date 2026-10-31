@@ -101,6 +101,16 @@ static func _item_icon_stem(data: ItemData) -> String:
 			return "item_akikan"
 		"apple":
 			return "item_apple"
+		"orange":
+			return "item_orange"
+		"peach":
+			return "item_peach"
+		"pear":
+			return "item_pear"
+		"cherry":
+			return "item_nuts"
+		"coconut":
+			return "item_coco"
 		"apple_sapling":
 			return "item_naegi"
 		"flower":
@@ -236,6 +246,16 @@ static func _legacy_stem(name: String) -> String:
 			return "obj_item_umbrella_tex"
 		"item_apple":
 			return "obj_item_apple_tex"
+		"item_orange":
+			return "obj_item_orange_tex"
+		"item_peach":
+			return "obj_item_peach_tex"
+		"item_pear":
+			return "obj_item_pear_tex"
+		"item_nuts":
+			return "obj_item_nuts_tex"
+		"item_coco":
+			return "obj_item_coco_tex"
 		"item_naegi":
 			return "inv_mwin_naegi_tex"
 		"item_seed":

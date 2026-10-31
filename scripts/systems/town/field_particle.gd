@@ -26,6 +26,7 @@ const KINDS: Array[FieldEffects.Kind] = [
 	FieldEffects.Kind.KISHA_KEMURI, FieldEffects.Kind.SAND, FieldEffects.Kind.SIBUKI, FieldEffects.Kind.YUKIHANE,
 	FieldEffects.Kind.MIZUTAMA, FieldEffects.Kind.YUKIDAMA, FieldEffects.Kind.KASAMIZUTAMA,
 	FieldEffects.Kind.DIG_MUD, FieldEffects.Kind.TURI_HANE, FieldEffects.Kind.TURI_SUITEKI,
+	FieldEffects.Kind.HALLOWEEN_SMOKE,
 ]
 ## `eDig_Mud_*_tex_tbl`: earth, sand and the mole cricket's (`arg1 | 0x8000`) frames.
 const MUD_FRAMES: Array[String] = ["ef_anahori02_01_tex", "ef_anahori02_02_tex", "ef_anahori02_03_tex", "ef_anahori02_04_tex"]
@@ -136,6 +137,8 @@ static func style_for(
 			_hane(s, a0, a1)
 		FieldEffects.Kind.TURI_SUITEKI:
 			_suiteki(s, a0, a1)
+		FieldEffects.Kind.HALLOWEEN_SMOKE:
+			_halloween_smoke(s)
 	_even(s)
 	return s
 
@@ -648,6 +651,27 @@ static func _hane(s: Style, arg0: int, arg1: int) -> void:
 	s.size_from_to = Vector2(size, size)
 	s.mode = 0
 	s.tint = Color.WHITE
+
+
+## `eHalloween_Smoke_*`: a violet puff that rises 0.25 GX a tick, gaining 0.075, over 18
+## ticks, its dust frames cross-fading to `eHalloween_prim_f` (the original draws it on
+## `ef_haro01_00`, which is not baked; the dust card stands in).
+const HALLOWEEN_TILES: Array[Vector2i] = [
+	Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, 2), Vector2i(2, 2),
+	Vector2i(2, 3), Vector2i(3, 3), Vector2i(3, 3), Vector2i(3, 3),
+]
+const HALLOWEEN_LOD: Array[int] = [0, 128, 255, 128, 0, 128, 255, 128, 0]
+const HALLOWEEN_PRIM := Color8(200, 0, 255, 120)
+
+
+static func _halloween_smoke(s: Style) -> void:
+	s.lifetime = _ticks(18)
+	s.launch = _speed(Vector3(0.0, 0.25, 0.0))
+	s.accel = _accel(Vector3(0.0, 0.075, 0.0))
+	s.size_from_to = Vector2(0.01, 0.01)
+	s.tint = HALLOWEEN_PRIM
+	_tiles(s, HALLOWEEN_TILES, HALLOWEEN_LOD)
+	s.mode = 1
 
 
 ## `eTS_ct` / `_dw`: one of `arg1` drops thrown up round a circle (this is drop `arg0`),

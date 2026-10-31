@@ -1,9 +1,10 @@
 class_name TouchHud
 extends CanvasLayer
 
-## A tab bar along the bottom while playing by touch: Map, Pockets and Menu (pause). Shown
-## only on Android or iOS while touch is the last device used. A tab sends the same action
-## its key does, as an event, so its screen opens exactly as from the keyboard. The bar stays
+## A tab bar along the bottom while playing by touch: Map, Inventory and Settings. Shown
+## only during gameplay on Android or iOS while touch is the last device used.
+## Map and Inventory send their
+## keyboard actions; Settings opens directly and pauses gameplay. The bar stays
 ## up over its own three screens with that tab lit: the lit tab closes it, another tab
 ## switches (close, then open next frame). Under any other screen (talk, a shop) it hides.
 ## There is no B: a tapped item is picked up with B by the touch driver.
@@ -16,19 +17,19 @@ extends CanvasLayer
 const CHIP_LIFT := 2.2
 
 const GROUP := &"touch_hud"
-## Each tab: its action and the overlay group that is open while its screen is.
+## Each tab: its id and the overlay group that is open while its screen is.
 const TABS: Dictionary = {
 	&"map": &"map_ui",
 	&"inventory": &"inventory_ui",
-	&"pause_menu": &"pause_ui",
+	&"settings": &"settings_ui",
 }
 
 @onready var _root: Control = $Root
 @onready var _tab_bar: Control = $Root/TabBar
 @onready var _tabs: Dictionary = {
 	&"map": $Root/TabBar/Tabs/Map,
-	&"inventory": $Root/TabBar/Tabs/Pockets,
-	&"pause_menu": $Root/TabBar/Tabs/Menu,
+	&"inventory": $Root/TabBar/Tabs/Inventory,
+	&"settings": $Root/TabBar/Tabs/Settings,
 }
 @onready var _chips: Control = $Root/Chips
 @onready var _chip_a: Button = $Root/Chips/ChipA
@@ -44,7 +45,7 @@ static func find(tree: SceneTree) -> TouchHud:
 
 func _ready() -> void:
 	add_to_group(GROUP)
-	## The pause screen pauses the tree; its tab still has to close it.
+	## Settings pauses the tree; its tab still has to close it.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	TouchSafeArea.fit(_root)
 	for action: StringName in _tabs:
@@ -63,7 +64,12 @@ func _process(_delta: float) -> void:
 
 func _refresh() -> void:
 	var player := Player.find(get_tree())
-	_root.visible = InputDeviceTracker.shows_touch_buttons() and player != null
+	_root.visible = (
+		InputDeviceTracker.on_mobile
+		and InputDeviceTracker.is_touch()
+		and not Game.title_demo_active
+		and player != null
+	)
 	var open: StringName = open_tab()
 	_tab_bar.visible = not _menu_up() or open != &""
 	for action: StringName in _tabs:
@@ -72,7 +78,7 @@ func _refresh() -> void:
 		_place_chips()
 
 
-## The tab whose screen is open (its action), or empty.
+## The tab whose screen is open (its id), or empty.
 func open_tab() -> StringName:
 	var tree := get_tree()
 	for action: StringName in TABS:
@@ -85,9 +91,23 @@ func open_tab() -> StringName:
 func press_tab(action: StringName) -> void:
 	var open: StringName = open_tab()
 	if open != &"" and open != action:
-		await send_action(open)
+		await _toggle_tab(open)
 		await get_tree().process_frame
-	send_action(action)
+	_toggle_tab(action)
+
+
+func _toggle_tab(tab: StringName) -> void:
+	if tab != &"settings":
+		await send_action(tab)
+		return
+	var settings := SettingsOverlay.find(get_tree())
+	if settings == null:
+		push_error("TouchHud requires a SettingsOverlay to open Settings.")
+		return
+	if settings.is_open():
+		settings.close()
+	else:
+		settings.open(true)
 
 
 ## Offer the host behind `volume` as two chips; `pick(pickup)` runs on the chosen one.

@@ -90,6 +90,8 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if TouchMenuPad.menu_open(get_tree()):
+		return
 	## START or A (`aAL_chk_start_key`).
 	if event.is_action_pressed("ui_accept") or event.is_action_pressed("interact"):
 		press_start()

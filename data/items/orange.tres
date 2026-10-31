@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://jichpv8i6d5fr"]
+
+[ext_resource type="Script" uid="uid://dw0fb5nquabwf" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"orange"
+display_name = "Orange"
+description = "A juicy orange."
+category = 2
+sell_price = 100
+max_stack = 9
+usable = true
+use_verb = "Eat"
+icon_color = Color(0.95, 0.55, 0.12, 1)

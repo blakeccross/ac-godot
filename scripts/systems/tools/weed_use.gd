@@ -50,10 +50,8 @@ static func can_grow(grid: WorldGrid, layout: WorldData, cell: Vector2i) -> bool
 		return false
 	if FieldCollision.is_raised_plus(layout, cell):
 		return false
-	if layout != null:
-		var attr: int = FieldCollision.unit_attr_at_cell(layout, cell)
-		if attr >= 0:
-			return FieldCatalog.plant_class(attr) == FieldCatalog.PLANT_FULL
+	if layout != null and FieldCollision.unit_attr_at_cell(layout, cell) >= 0:
+		return PlantGrowth.unit_limit(layout, cell) == FieldCatalog.PLANT_FULL
 	return grid.terrain_at(cell) == WorldGrid.Terrain.GRASS
 
 

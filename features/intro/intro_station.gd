@@ -146,7 +146,8 @@ func _prepare_visuals() -> void:
 	_fit_actor(_loco, &"obj_train1_1")
 	_fit_actor(get_node_or_null("%TrainMid") as Node3D, &"obj_train1_2")
 	_fit_actor(_caboose, &"obj_train1_3")
-	_fit_actor(%Station, &"obj_s_station1")
+	var station: StringName = _apply_station_design()
+	_fit_actor(%Station, station)
 	_fit_actor(_engineer, &"mnk_1")
 	_fit_actor(_porter, &"mnk_1")
 	_fit_actor(_nook, &"rcn_1")
@@ -202,6 +203,27 @@ func _fit_acre(host: Node3D) -> void:
 	var vis: Node3D = host.get_node_or_null("GeneratedVisual") as Node3D
 	if vis != null:
 		VisualFit.fit_acre(vis)
+
+
+## The scene carries the base station (model 1, palette a); the town's own design
+## (`Save_Get(station_type)`) replaces it when it differs and its mesh was converted.
+func _apply_station_design() -> StringName:
+	var base := &"obj_s_station1"
+	var wanted: StringName = TownState.station_visual_for(Game.town.station_type)
+	var vis: Node3D = (%Station as Node3D).get_node_or_null("GeneratedVisual") as Node3D
+	var path: String = "res://assets/generated/environment/%s.glb" % wanted
+	if wanted == base or vis == null or not ResourceLoader.exists(path):
+		return base
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return base
+	var old: Node = vis.get_node_or_null(String(base))
+	if old != null:
+		old.free()
+	var mesh: Node = packed.instantiate()
+	mesh.name = String(wanted)
+	vis.add_child(mesh)
+	return wanted
 
 
 func _fit_actor(host: Node3D, visual_id: StringName) -> void:

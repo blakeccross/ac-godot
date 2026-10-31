@@ -248,6 +248,38 @@ func test_fg_templates_place_authored_trees() -> void:
 			assert_bool(_tree_at(data, Vector2i(79, bz * 16 + uz))).is_false()
 
 
+## `decide_fruit` → `mAGrw_ChangeTree2FruitTree`: a town's own fruit is rolled from its seed and
+## is the only fruit its trees bear.
+func test_every_fruit_is_some_towns_native_fruit() -> void:
+	var seen: Dictionary = {}
+	for seed_value: int in range(1, 200):
+		var fruit: StringName = WorldGenerator.decide_fruit(seed_value)
+		assert_that(WorldGenerator.decide_fruit(seed_value)).is_equal(fruit)
+		seen[fruit] = true
+	assert_int(seen.size()).is_equal(5)
+	for fruit: StringName in [&"apple", &"cherry", &"pear", &"peach", &"orange"]:
+		assert_bool(seen.has(fruit)).is_true()
+
+
+func test_a_town_grows_only_its_native_fruit_tree() -> void:
+	if not FieldObjectCatalog.has_catalog():
+		return
+	for fruit: StringName in [&"orange", &"peach", &"pear", &"cherry"]:
+		var data: WorldData = WorldGenerator.generate(12345, false, {}, fruit)
+		var visual: StringName = WorldGenerator.fruit_visual(fruit)
+		var bearing := 0
+		for o: ObjectPlacement in data.objects:
+			if o == null or o.kind != &"tree" or not String(o.visual_id).ends_with("_FRUIT"):
+				continue
+			if o.visual_id == &"TREE_PALM_FRUIT":
+				continue
+			assert_that(o.visual_id).is_equal(visual)
+			assert_str(String((o.payload as PlantData).id)).is_equal("%s_tree" % fruit)
+			bearing += 1
+		## Two acres a row, six rows (some acres hold no hardwood to convert).
+		assert_int(bearing).is_greater(6)
+
+
 func test_is_waterfall_block_excludes_river_cliff_only() -> void:
 	## Contiguous 22–38 includes river-cliff acres that must not get a fall actor.
 	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_WF_H)).is_true()
@@ -436,11 +468,98 @@ func test_generated_towns_always_place_required_uniques() -> void:
 		assert_bool(_acre_has(blocks, TownFieldGenerator.T_POLICE)).is_true()
 		assert_bool(_acre_has(blocks, TownFieldGenerator.T_SHRINE)).is_true()
 		assert_bool(_acre_has(blocks, TownFieldGenerator.T_NEEDLEWORK)).is_true()
-		assert_bool(_acre_has(blocks, TownFieldGenerator.T_LIGHTHOUSE)).is_true()
 		var data: WorldData = WorldGenerator.generate(1000 + seed)
 		assert_that(_building_at(data, &"museum")).is_not_equal(Vector2i(-1, -1))
 		assert_that(_building_at(data, &"able_sisters")).is_not_equal(Vector2i(-1, -1))
-		assert_that(_building_at(data, &"lighthouse")).is_not_equal(Vector2i(-1, -1))
+		## The lighthouse isn't a block type: it stands in the beach-river acres' FG templates.
+		if FieldObjectCatalog.has_catalog():
+			assert_that(_building_at(data, &"lighthouse")).is_not_equal(Vector2i(-1, -1))
+
+
+## `l_mRF_step3_blockss`: ten layouts, each a full 7×10 map.
+func test_step3_layouts_are_the_decomps_ten() -> void:
+	assert_int(TownFieldLayouts.STEP3_LAYOUTS.size()).is_equal(10)
+	for layout: Array in TownFieldLayouts.STEP3_LAYOUTS:
+		assert_int(layout.size()).is_equal(TownFieldGenerator.BLOCK_TOTAL)
+
+
+## A beach-river acre carries the lighthouse (`rom_toudai` is in every `grd_s_m_r1_*` FG template),
+## so a town has exactly one, and no flat acre is spent on it.
+func test_the_lighthouse_stands_on_the_beach_where_the_river_meets_the_sea() -> void:
+	if not FieldObjectCatalog.has_catalog():
+		return
+	for seed: int in range(20):
+		var data: WorldData = WorldGenerator.generate(2000 + seed)
+		var found: Array[BuildingPlacement] = []
+		for b: BuildingPlacement in data.buildings:
+			if b != null and b.id == &"lighthouse":
+				found.append(b)
+		assert_int(found.size()).is_equal(1)
+		## The beach row is the last FG acre row (units 80–95).
+		assert_int(found[0].cell.y).is_greater_equal(80)
+
+
+## `Save_Set(station_type, RANDOM(15))` → `aSTA_actor_ct`: model `type / 5`, palette `type % 5`.
+func test_the_station_design_is_rolled_and_drawn() -> void:
+	var seen: Dictionary = {}
+	for seed_value: int in range(1, 400):
+		seen[WorldGenerator.decide_station_type(seed_value)] = true
+	assert_int(seen.size()).is_equal(15)
+	assert_that(TownState.station_visual_for(0)).is_equal(&"obj_s_station1")
+	assert_that(TownState.station_visual_for(4)).is_equal(&"obj_s_station1_e")
+	assert_that(TownState.station_visual_for(7)).is_equal(&"obj_s_station2_c")
+	assert_that(TownState.station_visual_for(14, "w")).is_equal(&"obj_w_station3_e")
+	var data: WorldData = WorldGenerator.generate(12345, false, {}, &"apple", 7)
+	var station: BuildingPlacement = null
+	for b: BuildingPlacement in data.buildings:
+		if b != null and b.id == &"station":
+			station = b
+	assert_object(station).is_not_null()
+	assert_that(station.visual_id).is_equal(&"obj_s_station2_c")
+
+
+## `mAGrw_ChangeCedar2Tree`: no cedar stands on the lowest terrace of the second or third row.
+func test_no_cedar_on_the_lowest_ground_of_the_middle_rows() -> void:
+	if not FieldObjectCatalog.has_catalog():
+		return
+	var cedars := 0
+	for seed: int in range(12):
+		var data: WorldData = WorldGenerator.generate(4000 + seed)
+		for o: ObjectPlacement in data.objects:
+			if o == null or o.kind != &"tree" or o.visual_id != &"CEDAR_TREE":
+				continue
+			cedars += 1
+			var bz: int = o.cell.y / 16 + 1
+			if bz == 2 or bz == 3:
+				assert_float(FieldCollision.ground_y(data, o.cell)).is_greater_equal(5.0)
+	assert_int(cedars).is_greater(0)
+
+
+## `DUMP` (`ac_dump`) is in the train-track acres' FG templates; its yard walls are heightfield
+## offsets (`aDUM_set_bgOffset`) with a gap in the south wall.
+func test_the_dump_is_generated_with_its_walls() -> void:
+	if not FieldObjectCatalog.has_catalog():
+		return
+	for seed: int in range(10):
+		var data: WorldData = WorldGenerator.generate(3000 + seed)
+		FieldCollision.reset(data)
+		StructureOffset.apply(data)
+		var dumps: Array[BuildingPlacement] = []
+		for b: BuildingPlacement in data.buildings:
+			if b != null and b.kind == &"dump":
+				dumps.append(b)
+		assert_int(dumps.size()).is_greater(0)
+		for dump: BuildingPlacement in dumps:
+			assert_that(dump.footprint).is_equal(Vector2i(6, 6))
+			var acre := Vector2i(dump.cell.x / 16 + 1, dump.cell.y / 16 + 1)
+			assert_int(int(data.acre_types[acre.y * TownFieldGenerator.BLOCK_X + acre.x])).is_equal(TownFieldGenerator.T_TRACKS_DUMP)
+			var home: Vector2i = StructureOffset.dump_home_cell(dump)
+			for corner: Vector2i in [home, home - Vector2i(5, 0), home - Vector2i(0, 5), home - Vector2i(5, 5)]:
+				assert_bool(FieldCollision.is_raised_plus(data, corner)).is_true()
+			## The gap in the south wall, and the yard inside.
+			assert_bool(FieldCollision.is_raised_plus(data, home - Vector2i(2, 0))).is_false()
+			assert_bool(FieldCollision.is_raised_plus(data, home - Vector2i(3, 0))).is_false()
+			assert_bool(FieldCollision.is_raised_plus(data, home - Vector2i(2, 3))).is_false()
 
 
 func test_tortimer_stands_at_shrine_ut_10_10() -> void:
@@ -796,3 +915,18 @@ func _uses_acre_collision(data: WorldData) -> bool:
 		if FieldCatalog.has_acre_collision(StringName(visual)):
 			return true
 	return false
+
+
+## `mRF_SelectBlock` draws each acre from the grounds `data_combi` lists for its type: the dump
+## acre from `grd_s_t_1`–`3`, the two island acres from `grd_s_il_*` / `grd_s_ir_*`.
+func test_acres_come_from_their_types_combi_rows() -> void:
+	if not FieldObjectCatalog.has_catalog():
+		return
+	for seed: int in range(20):
+		var data: WorldData = WorldGenerator.generate(5000 + seed)
+		for i: int in TownFieldGenerator.BLOCK_TOTAL:
+			var type: int = int(data.acre_types[i])
+			var listed: PackedStringArray = FieldObjectCatalog.bg_names_for_type(TownMap.decomp_block_type(type))
+			if listed.is_empty() or type == TownFieldGenerator.T_SEA_EXCEPTIONAL:
+				continue
+			assert_bool(listed.has(String(data.acre_visuals[i]))).is_true()

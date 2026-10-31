@@ -51,6 +51,7 @@ func test_the_town_round_trips_through_its_save_keys() -> void:
 	var a := TownState.new()
 	a.town_name = "Elm"
 	a.town_fruit = &"cherry"
+	a.station_type = 11
 	a.weeds["weed_3_4"] = 2
 	a.mushrooms["mushroom_1_1"] = 1
 	a.field_rank = 4
@@ -65,6 +66,7 @@ func test_the_town_round_trips_through_its_save_keys() -> void:
 	b.read_save(JSON.parse_string(JSON.stringify(out)))
 	assert_str(b.town_name).is_equal("Elm")
 	assert_that(b.town_fruit).is_equal(&"cherry")
+	assert_int(b.station_type).is_equal(11)
 	assert_int(int(b.weeds.get("weed_3_4", -1))).is_equal(2)
 	assert_bool(b.mushrooms.has("mushroom_1_1")).is_true()
 	assert_int(b.field_rank).is_equal(4)

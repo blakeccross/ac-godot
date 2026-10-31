@@ -16,6 +16,11 @@ enum Think { TALK_WAIT, GAME_START, WASHING, GAME_END }
 
 var think_state: Think = Think.TALK_WAIT
 var car_position: Vector3 = Vector3.ZERO
+## The car's node, tinted by how clean it is (`aSCR_set_prim_col`) and glittering once washed.
+var car_node: Node3D = null
+## `aSCR_actor_move`: frames until the washed car glitters again.
+var _shine_wait: float = 0.0
+var _tinted_presses: int = -1
 var _complete: bool = false
 var _result: int = 2
 var _frames_left: float = 0.0
@@ -96,6 +101,7 @@ func _start_wash() -> void:
 
 
 func think(delta: float) -> void:
+	_tend_car(delta)
 	if think_state != Think.WASHING:
 		return
 	## `aEDSN_game_end_wait`, per 60 Hz frame.
@@ -117,6 +123,40 @@ func think(delta: float) -> void:
 		_finish_wash(2)
 	elif _presses >= PRESSES:
 		_finish_wash(0 if _frames_left > FAST_FRAMES_LEFT else 1)
+
+
+## `aSCR_set_prim_col` (dirty brown → white by presses / 100) and `aSCR_actor_move` (from
+## 100 presses on, `eEC_EFFECT_CAR_BLIGHT` every 48, 64 or 80 frames).
+func _tend_car(delta: float) -> void:
+	if car_node == null or not is_instance_valid(car_node):
+		return
+	if _tinted_presses != _presses:
+		_tinted_presses = _presses
+		var p: float = clampf(float(_presses) / 100.0, 0.0, 1.0)
+		var tint := Color((1.0 - p) * 150.0 / 255.0 + p, (1.0 - p) * 120.0 / 255.0 + p, (1.0 - p) * 100.0 / 255.0 + p)
+		_tint_meshes(car_node, tint)
+	if _presses < PRESSES:
+		return
+	_shine_wait -= delta * DecompTime.TICK_HZ
+	if _shine_wait <= 0.0:
+		CarBlight.start(get_parent(), car_node.global_position, _result == 0)
+		_shine_wait = float(rng().randi_range(0, 2) * 16 + 48)
+
+
+static func _tint_meshes(node: Node, tint: Color) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		if mi.mesh != null:
+			for i: int in mi.mesh.get_surface_count():
+				var mat := mi.get_surface_override_material(i)
+				if mat == null:
+					var base := mi.mesh.surface_get_material(i)
+					mat = base.duplicate() if base != null else null
+					mi.set_surface_override_material(i, mat)
+				if mat is BaseMaterial3D:
+					(mat as BaseMaterial3D).albedo_color = tint
+	for child: Node in node.get_children():
+		_tint_meshes(child, tint)
 
 
 func _play_wash_clip() -> void:

@@ -28,6 +28,7 @@ from asset_pipeline.convert import (  # noqa: E402
     convert_test_static_needles,
     convert_villager_house_palettes,
     convert_player_house_palettes,
+    convert_station_palettes,
     convert_villager_texture_sets,
     convert_water_acres,
 )
@@ -310,6 +311,7 @@ def convert_kind(cfg, kind: str) -> bool:
             report["results"].extend(pal_report.get("results", []))
             roof_report = convert_player_house_palettes(cfg)
             report["results"].extend(roof_report.get("results", []))
+            report["results"].extend(convert_station_palettes(cfg).get("results", []))
             static_report = convert_static_prefixes(
                 cfg, ["obj_s_museum", "obj_w_museum", "obj_s_kouban", "obj_w_kouban", "obj_s_shrine", "obj_w_shrine"]
             )
@@ -340,6 +342,13 @@ def convert_kind(cfg, kind: str) -> bool:
                     "obj_hole",
                     "obj_zassou",
                 ],
+            )
+            ## The orange / peach / pear / cherry overlays share the apple's verts, so they are
+            ## explicit `TEST_STATIC` rows rather than inferred jobs.
+            report["results"].extend(
+                convert_test_static_needles(
+                    cfg, ["tree5_orange", "tree5_peach", "tree5_pear", "tree5_cherry"]
+                ).get("results", [])
             )
             label = "plant assets"
         elif kind == "villager-textures":

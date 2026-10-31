@@ -93,6 +93,7 @@ func _net_probe() -> NetSwing.Probe:
 
 
 func _net_events() -> void:
+	var slip_index: int = 0
 	for event: StringName in net_swing.events:
 		match event:
 			&"furi":
@@ -116,6 +117,14 @@ func _net_events() -> void:
 				var bg: Array = _player._bg()
 				Audio.play_se(Player.SE_SLIP, _player)
 				FootstepEffects.turn(bg, _player.global_position, net_swing.yaw, _player._unit_attr(bg), 1)
+			&"slip_fx":
+				var fx_bg: Array = _player._bg()
+				var slip_arg: int = net_swing.slip_args[slip_index] if slip_index < net_swing.slip_args.size() else 0
+				slip_index += 1
+				FootstepEffects.net_slip(fx_bg, _player.global_position, net_swing.yaw, _player._unit_attr(fx_bg), slip_arg)
+			&"slip_print":
+				var print_bg: Array = _player._bg()
+				FootstepEffects.slip_footprint(print_bg, _player.global_position, net_swing.yaw, _player._unit_attr(print_bg))
 			&"stop_net":
 				## `mPlib_Check_StopNet`: insects near the net panic, fish bolt.
 				var ctx: InteractionContext = _player._make_context()
@@ -269,6 +278,11 @@ func _net_pull(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay)
 ## `main_Notice_net`'s message states: the collection-complete follow-up with `YATTA2`, or the
 ## pockets-full swap question, then wait for the report to close.
 func _net_notice(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay) -> void:
+	## `Player_actor_AppearMark_Notice_net`: an ant or a mosquito is too small to see, so an arrow
+	## points at the hand until the notice is over.
+	var mark: CatchMark = null
+	if catch_.bug != null and CatchMark.marks_insect(catch_.bug.type_index):
+		mark = CatchMark.appear(_player, _player.left_hand_global)
 	await _player.reports.wait_closed(ui)
 	if catch_.completes_record:
 		HeldTool.play(skeleton, Netting.TOOL_YATTA, false)
@@ -282,6 +296,8 @@ func _net_notice(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverla
 		if await _player.reports.ask_swap(Netting.POCKETS_FULL_MSG) and await _player.reports.exchange_into_pockets(catch_.bug.id):
 			catch_.banked = true
 	_player.reports.report_camera(false)
+	if mark != null:
+		mark.finish()
 
 
 ## `main_Putaway_net`: `PUTAWAY_M1` with `GASAGOSO`; the insect shrinks each tick until

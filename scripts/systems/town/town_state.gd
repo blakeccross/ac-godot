@@ -7,6 +7,9 @@ extends Resource
 ## `Game.town`. Saved under the same keys as before, so the JSON save format is unchanged.
 
 const DEFAULT_TOWN_NAME := "Town"
+## `RANDOM(15)` at New Game: three station models, five palettes each (`aSTR_PAL_STATION1_A + type`).
+const STATION_TYPES := 15
+const STATION_PALETTES := 5
 
 var removed_interactables: Array[String] = []
 var stump_interactables: Array[String] = []
@@ -65,6 +68,17 @@ var imported_field: Dictionary = {}
 var grass_pattern: int = WorldData.GrassPattern.TRIANGLE
 ## `Save_Get(fruit)`: the town's native fruit. Other fruit sells to Nook at the foreign price.
 var town_fruit: StringName = &"apple"
+## `Save_Get(station_type)`: the train station's design, 0–14 — model `type / 5`, palette `type % 5`.
+var station_type: int = 0
+
+
+## The station's mesh id for `station_type` and the season letter (`aSTA_actor_ct`): model
+## `type / 5`, palette letter `type % 5` (`a` is the base GLB, with no suffix).
+static func station_visual_for(type: int, season: String = "s") -> StringName:
+	var t: int = clampi(type, 0, STATION_TYPES - 1)
+	var letter: String = "abcde"[t % STATION_PALETTES]
+	var stem := "obj_%s_station%d" % [season, 1 + t / STATION_PALETTES]
+	return StringName(stem if letter == "a" else "%s_%s" % [stem, letter])
 var town_name: String = DEFAULT_TOWN_NAME
 ## This town's identity, so a passport knows its home (`mLd_CheckThisLand`). Random per town.
 var town_id: int = 0
@@ -134,6 +148,7 @@ func write_save(out: Dictionary) -> void:
 		out["imported_field"] = imported_field.duplicate(true)
 	out["grass_pattern"] = grass_pattern
 	out["town_fruit"] = String(town_fruit)
+	out["station_type"] = station_type
 	out["town_name"] = town_name
 	out["num_statues"] = num_statues
 	out["cheated_flag"] = cheated_flag
@@ -249,6 +264,7 @@ func read_save(data: Dictionary) -> void:
 	else:
 		grass_pattern = WorldData.GrassPattern.TRIANGLE
 	town_fruit = StringName(str(data.get("town_fruit", "apple")))
+	station_type = clampi(int(data.get("station_type", 0)), 0, STATION_TYPES - 1)
 	treasure_buried_day = int(data.get("treasure_buried_day", 0))
 	town_id = int(data.get("town_id", 0))
 	mask_cat = (data.get("mask_cat", {}) as Dictionary).duplicate(true) if typeof(data.get("mask_cat")) == TYPE_DICTIONARY else {}
@@ -396,3 +412,4 @@ func reset() -> void:
 	imported_field = {}
 	grass_pattern = WorldData.GrassPattern.TRIANGLE
 	town_fruit = &"apple"
+	station_type = 0

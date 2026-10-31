@@ -13,6 +13,12 @@ const ITEM_TREE_SAPLING := 0x0800
 const ITEM_TREE := 0x0804
 const ITEM_TREE_APPLE_SAPLING := 0x0805
 const ITEM_TREE_APPLE_FRUIT := 0x080C
+## Each fruit tree is eight ids (sapling, three growth stages, three bare, fruiting) in the
+## `ITM_FOOD` order after apple: orange, peach, pear, cherry.
+const ITEM_TREE_FRUIT_FIRST := 0x0805
+const ITEM_TREE_FRUIT_LAST := 0x082C
+const FRUIT_TREE_SPAN := 8
+const FRUIT_TREE_NAMES: Array[StringName] = [&"apple", &"orange", &"peach", &"pear", &"cherry"]
 const ITEM_TREE_30000BELLS := 0x083B
 const ITEM_TREE_100BELLS_SAPLING := 0x084F
 const ITEM_TREE_100BELLS := 0x0853
@@ -58,6 +64,8 @@ const ITEM_POLICE_STATION := 0x580C
 const ITEM_SIGN00 := 0x5810
 const ITEM_SIGN20 := 0x5824
 const ITEM_WISHING_WELL := 0x5825
+## `DUMP` (`ac_dump`), on the train-track acre templates (`grd_s_t_*`).
+const ITEM_DUMP := 0x583B
 ## `LOTUS`, `STRUCTURE_START` + 65. `DOUZOU` (0x5843, station statue) is placed by
 ## `WorldGenerator` as a `Statue` host that shows only once a house reaches the statue.
 const ITEM_LOTUS := 0x5841
@@ -124,6 +132,21 @@ static func pick_fg_id(bg_name: StringName, block_type: int, variant: int) -> in
 	if not with_props.is_empty():
 		pool = with_props
 	return pool[posmod(variant, pool.size())]
+
+
+## The grounds `data_combi.c` lists for an `mFM_BLOCK_TYPE_*` (decomp numbering), in table order
+## without repeats. Empty without the disc catalog, or for a type the table does not carry.
+static func bg_names_for_type(decomp_type: int) -> PackedStringArray:
+	_ensure()
+	var out := PackedStringArray()
+	for row: Variant in _combis:
+		var d: Dictionary = row
+		if int(d.get("type", -1)) != decomp_type:
+			continue
+		var bg: String = String(d.get("bg", ""))
+		if not bg.is_empty() and not out.has(bg):
+			out.append(bg)
+	return out
 
 
 static func items(fg_id: int) -> PackedInt32Array:
@@ -219,6 +242,19 @@ static func placement_for_item(item_id: int) -> Dictionary:
 				"foot": Vector2i(2, 2),
 				"nw_off": Vector2i(0, -1),
 			}
+		ITEM_DUMP:
+			return {
+				"kind": &"structure",
+				## One per train-track acre that carries it: kind `dump` picks `dump.tscn`.
+				"building": &"dump",
+				"visual": &"obj_s_dump",
+				"label": "Dump",
+				## `aDUM_set_bgOffset` walls the 6×6 units NW of (and including) the FG unit; the
+				## mesh stands at that unit's centre less one unit in X (`aDUM_actor_ct`).
+				"foot": Vector2i(6, 6),
+				"nw_off": Vector2i(-5, -5),
+				"actor_shift": Vector2(1.5, 2.5),
+			}
 		ITEM_LIGHTHOUSE:
 			return {
 				"kind": &"structure",
@@ -307,11 +343,12 @@ static func _tree_place(item_id: int) -> Dictionary:
 		return {"kind": &"tree", "visual": &"CEDAR_TREE", "tree": &"cedar"}
 	if item_id >= ITEM_TREE_PALM_SAPLING and item_id <= ITEM_TREE_PALM_FRUIT:
 		return {"kind": &"tree", "visual": &"TREE_PALM_FRUIT", "tree": &"palm"}
-	if item_id >= ITEM_TREE_APPLE_SAPLING and item_id <= ITEM_TREE_APPLE_FRUIT:
-		return {"kind": &"tree", "visual": &"TREE_APPLE_FRUIT", "tree": &"apple"}
+	if item_id >= ITEM_TREE_FRUIT_FIRST and item_id <= ITEM_TREE_FRUIT_LAST:
+		var fruit: StringName = FRUIT_TREE_NAMES[(item_id - ITEM_TREE_FRUIT_FIRST) / FRUIT_TREE_SPAN]
+		return {"kind": &"tree", "visual": StringName("TREE_%s_FRUIT" % String(fruit).to_upper()), "tree": fruit}
 	if (
 		(item_id >= ITEM_TREE_SAPLING and item_id <= ITEM_TREE)
-		or (item_id > ITEM_TREE_APPLE_FRUIT and item_id <= ITEM_TREE_30000BELLS)
+		or (item_id > ITEM_TREE_FRUIT_LAST and item_id <= ITEM_TREE_30000BELLS)
 		or (item_id >= ITEM_TREE_100BELLS_SAPLING and item_id <= ITEM_TREE_100BELLS)
 		or (item_id >= ITEM_GOLD_TREE_SAPLING and item_id <= ITEM_GOLD_TREE)
 	):

@@ -46,6 +46,13 @@ const _NET := preload("res://data/items/net.tres")
 const _ROD := preload("res://data/items/fishing_rod.tres")
 const _CAN := preload("res://data/items/watering_can.tres")
 const _APPLE_TREE := preload("res://data/plants/apple_tree.tres")
+const _FRUIT_TREES := {
+	&"apple": preload("res://data/plants/apple_tree.tres"),
+	&"cherry": preload("res://data/plants/cherry_tree.tres"),
+	&"pear": preload("res://data/plants/pear_tree.tres"),
+	&"peach": preload("res://data/plants/peach_tree.tres"),
+	&"orange": preload("res://data/plants/orange_tree.tres"),
+}
 const _HARDWOOD := preload("res://data/plants/hardwood_tree.tres")
 const _CEDAR := preload("res://data/plants/cedar_tree.tres")
 const _PALM := preload("res://data/plants/palm_tree.tres")
@@ -60,6 +67,31 @@ static func decide_grass_pattern(seed_value: int) -> int:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = (seed_value as int) ^ 0x6D4D1C35
 	return rng.randi() % WorldData.GRASS_PATTERN_COUNT
+
+
+## `Save_Set(station_type, RANDOM(15))`: the station's design, seeded like the fruit.
+static func decide_station_type(seed_value: int) -> int:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = (seed_value as int) ^ 0x1B873593
+	return rng.randi() % TownState.STATION_TYPES
+
+
+## `decide_fruit`: the town's native fruit, one of the five (`mAGrw_FRUIT_NUM`) in the
+## `ITM_FOOD_START` order. Seeded like the grass motif so a seed names one town.
+static func decide_fruit(seed_value: int) -> StringName:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = (seed_value as int) ^ 0x4F7C2B19
+	return CodeItems.FOODS[rng.randi() % _FRUIT_TREES.size()]
+
+
+## `l_tree_max_table`: the fully grown fruit tree a native fruit grows.
+static func fruit_tree(fruit: StringName) -> PlantData:
+	return (_FRUIT_TREES.get(fruit, _APPLE_TREE)) as PlantData
+
+
+## `TREE_<FRUIT>_FRUIT`, the visual id of that tree bearing fruit.
+static func fruit_visual(fruit: StringName) -> StringName:
+	return StringName("TREE_%s_FRUIT" % String(fruit if _FRUIT_TREES.has(fruit) else &"apple").to_upper())
 
 
 static func authored_test_town() -> WorldData:
@@ -110,7 +142,13 @@ static func authored_test_town() -> WorldData:
 ## extraction carries it; the seed then only drives the leftover random picks.
 ## `imported`: a town brought from a GameCube save (`TownState.imported_field`). Its acre map
 ## and every unit's item are the save's own, so nothing about the field is rolled.
-static func generate(seed_value: int = DEFAULT_SEED, title_demo: bool = false, imported: Dictionary = {}) -> WorldData:
+static func generate(
+	seed_value: int = DEFAULT_SEED,
+	title_demo: bool = false,
+	imported: Dictionary = {},
+	fruit: StringName = &"apple",
+	station_type: int = 0
+) -> WorldData:
 	var grids: Dictionary = {} if title_demo else _imported_grids(imported)
 	var fixed: Dictionary = TitleDemo.acres() if title_demo else _imported_acres(imported)
 	if fixed.is_empty():
@@ -147,14 +185,22 @@ static func generate(seed_value: int = DEFAULT_SEED, title_demo: bool = false, i
 	## Waterfall FG units come from disc templates (`0x580D`–`0x580F`); geometric
 	## fallback only fills waterfall acres that still lack one.
 	if grids.is_empty():
-		_place_fg_props(data, blocks, seed_value, title_demo, not fixed.is_empty())
+		_place_fg_props(data, blocks, seed_value, title_demo, not fixed.is_empty(), fruit)
 	else:
 		_place_imported_props(data, blocks, grids)
 	_place_waterfall(data, blocks)
 	## After the FG templates, which may move the police station onto its disc unit.
 	_place_copper(data)
+	_set_station_design(data, station_type)
 	data.bake()
 	return data
+
+
+## `aSTA_actor_ct`: the station stands as the town's model and palette.
+static func _set_station_design(data: WorldData, station_type: int) -> void:
+	for b: BuildingPlacement in data.buildings:
+		if b != null and b.id == &"station":
+			b.visual_id = TownState.station_visual_for(station_type)
 
 
 static func map_text(data: WorldData) -> String:
@@ -439,8 +485,6 @@ static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray)
 					_place_structure_item(data, origin, unique_ut, FieldObjectCatalog.ITEM_POLICE_STATION)
 				TownFieldGenerator.T_SHRINE:
 					_place_structure_item(data, origin, unique_ut, FieldObjectCatalog.ITEM_WISHING_WELL)
-				TownFieldGenerator.T_LIGHTHOUSE:
-					_place_structure_item(data, origin, unique_ut, FieldObjectCatalog.ITEM_LIGHTHOUSE)
 				TownFieldGenerator.T_NEEDLEWORK:
 					_place_structure_item(
 						data, origin, _needlework_unit(data, bx, bz), FieldObjectCatalog.ITEM_NEEDLEWORK_SHOP
@@ -639,7 +683,8 @@ static func _place_fg_props(
 	blocks: PackedByteArray,
 	seed_value: int,
 	title_demo: bool = false,
-	fixed_bg: bool = false
+	fixed_bg: bool = false,
+	fruit: StringName = &"apple"
 ) -> void:
 	## Prefer disc FG templates (`mFM_InitFgCombiSaveData`); scatter only as fallback.
 	var rng := RandomNumberGenerator.new()
@@ -654,8 +699,9 @@ static func _place_fg_props(
 	_pull_border_trees(data)
 	_clear_house_path(data)
 	if FieldObjectCatalog.has_catalog():
-		_change_tree_to_fruit(data, rng)
+		_change_tree_to_fruit(data, rng, fruit)
 		_change_tree_to_cedar(data, rng)
+		_revert_low_cedars(data)
 		## Mainland FG templates have ~0 flowers (island acres only in fgdata). Keep a
 		## small starter bed near the player house instead of scattering a dozen beds.
 		if _kind_count(data, &"flower") == 0:
@@ -901,6 +947,8 @@ static func _apply_fg_structure(data: WorldData, cell: Vector2i, place: Dictiona
 				id = &"wishing_well"
 			"Lighthouse":
 				id = &"lighthouse"
+			"Dump":
+				id = StringName("dump_%d_%d" % [cell.x, cell.y])
 			"Shop":
 				id = &"acre_shop"
 			"House":
@@ -1369,8 +1417,7 @@ static func _place_fg_props_scatter(
 				tree_n += 4
 				continue
 			if type == TownFieldGenerator.T_FLAT or type == TownFieldGenerator.T_MUSEUM \
-					or type == TownFieldGenerator.T_POLICE or type == TownFieldGenerator.T_SHRINE \
-					or type == TownFieldGenerator.T_LIGHTHOUSE:
+					or type == TownFieldGenerator.T_POLICE or type == TownFieldGenerator.T_SHRINE:
 				var n: int = 8 if bz <= 3 else 6
 				_scatter_trees(data, rng, origin, n, bz, tree_n)
 				tree_n += n
@@ -1383,15 +1430,18 @@ static func _place_fg_props_scatter(
 					rock_n += 1
 
 
-static func _change_tree_to_fruit(data: WorldData, rng: RandomNumberGenerator) -> void:
-	## `mAGrw_ChangeTree2FruitTree`: per FG Z-row, convert 1 TREE on each of 2 random X acres.
+static func _change_tree_to_fruit(data: WorldData, rng: RandomNumberGenerator, fruit: StringName) -> void:
+	## `mAGrw_ChangeTree2FruitTree`: per FG Z-row, convert 1 TREE on each of 2 random X acres to
+	## the town's fruit tree (`l_tree_max_table[Save_Get(fruit)]`).
+	var visual: StringName = fruit_visual(fruit)
+	var plant: PlantData = fruit_tree(fruit)
 	for bz: int in range(1, 7):
 		var bx0: int = rng.randi_range(1, 5)
 		var bx1: int = rng.randi_range(1, 4)
 		if bx1 >= bx0:
 			bx1 += 1
-		_convert_one_hardwood_in_acre(data, bx0, bz, &"TREE_APPLE_FRUIT", _APPLE_TREE)
-		_convert_one_hardwood_in_acre(data, bx1, bz, &"TREE_APPLE_FRUIT", _APPLE_TREE)
+		_convert_one_hardwood_in_acre(data, bx0, bz, visual, plant)
+		_convert_one_hardwood_in_acre(data, bx1, bz, visual, plant)
 
 
 static func _change_tree_to_cedar(data: WorldData, rng: RandomNumberGenerator) -> void:
@@ -1401,6 +1451,25 @@ static func _change_tree_to_cedar(data: WorldData, rng: RandomNumberGenerator) -
 		var bz: int = i + 1
 		for bx: int in range(1, 6):
 			_convert_n_hardwood_in_acre(data, bx, bz, caps[i], &"CEDAR_TREE", _CEDAR, rng)
+
+
+## `mAGrw_ChangeCedar2Tree` (run on every field load): cedars in the second and third acre rows
+## that stand on the lowest terrace (`mCoBG_LAYER0`, under 100 GX) are hardwoods again.
+static func _revert_low_cedars(data: WorldData) -> void:
+	var layer0_top: float = 100.0 * FieldCatalog.GX_TO_METERS
+	for bz: int in range(2, 4):
+		for bx: int in range(1, 1 + FG_X):
+			var origin: Vector2i = _fg_origin(bx, bz)
+			for o: ObjectPlacement in data.objects:
+				if o == null or o.kind != &"tree" or o.visual_id != &"CEDAR_TREE":
+					continue
+				if o.cell.x < origin.x or o.cell.x >= origin.x + UT:
+					continue
+				if o.cell.y < origin.y or o.cell.y >= origin.y + UT:
+					continue
+				if FieldCollision.ground_y(data, o.cell) < layer0_top:
+					o.visual_id = &"TREE"
+					o.payload = _HARDWOOD
 
 
 static func _convert_one_hardwood_in_acre(
@@ -1480,8 +1549,8 @@ static func _tree_payload(kind: String) -> Resource:
 	match kind:
 		"cedar":
 			return _CEDAR
-		"apple":
-			return _APPLE_TREE
+		"apple", "cherry", "pear", "peach", "orange":
+			return fruit_tree(StringName(kind))
 		"palm":
 			return _PALM
 		_:

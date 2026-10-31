@@ -52,6 +52,7 @@ var _blink_on: bool = true
 
 
 func _ready() -> void:
+	visible = not InputDeviceTracker.on_mobile
 	modulate.a = 0.0
 	_build()
 	Clock.time_changed.connect(_refresh)
@@ -59,6 +60,9 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	visible = not InputDeviceTracker.on_mobile
+	if not visible:
+		return
 	_update_blink(delta)
 	_update_fade(delta)
 

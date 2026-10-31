@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://b7vcazlg4aljt"]
+
+[ext_resource type="Script" uid="uid://dw0fb5nquabwf" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"pear"
+display_name = "Pear"
+description = "A crisp pear."
+category = 2
+sell_price = 100
+max_stack = 9
+usable = true
+use_verb = "Eat"
+icon_color = Color(0.7, 0.8, 0.3, 1)

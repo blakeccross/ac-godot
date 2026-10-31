@@ -1,12 +1,14 @@
 [gd_resource type="Resource" script_class="PlantData" format=3 uid="uid://cnrpqnlc3vwjf"]
 
 [ext_resource type="Script" uid="uid://dxcrl6i2puoka" path="res://scripts/data/plant_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/items/coconut.tres" id="2"]
 
 [resource]
 script = ExtResource("1")
 id = &"palm_tree"
 display_name = "Palm"
 family = 2
+fruit = ExtResource("2")
 stage_days = PackedInt32Array(1, 3, 5, 7)
 terrains = PackedInt32Array(4)
 visual_seed = &"PALM_S0"

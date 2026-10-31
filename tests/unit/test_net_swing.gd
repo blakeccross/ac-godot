@@ -220,6 +220,20 @@ func test_dash_skids_then_readies() -> void:
 	assert_int(net.state).is_equal(NetSwing.State.READY)
 
 
+func test_a_skid_counts_up_half_a_step_a_tick_and_marks_the_ground_when_it_settles() -> void:
+	var net := NetSwing.new()
+	net.begin(true, PlayerLocomotion.RUN_SPEED, 0.0)
+	var args: Array[int] = []
+	var printed: bool = false
+	while net.state == NetSwing.State.SLIP:
+		net.advance(T, true, 0.0, 0.0, false)
+		args.append_array(net.slip_args)
+		printed = printed or &"slip_print" in net.events
+	## `_00` 0.5, 1, 1.5, 2, 2.5 …: the even whole counts, one tick each.
+	assert_array(args.slice(0, 7)).is_equal([0, 2, 2, 4, 4, 6, 6])
+	assert_bool(printed).is_true()
+
+
 func test_release_during_skid_swings() -> void:
 	var net := NetSwing.new()
 	net.begin(true, PlayerLocomotion.RUN_SPEED, 0.0)

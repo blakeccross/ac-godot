@@ -238,6 +238,8 @@ static func begin(index: int) -> void:
 	town.world_mode = WorldData.Mode.GENERATED
 	town.world_seed = WorldGenerator.DEFAULT_SEED
 	town.grass_pattern = rng.randi_range(0, WorldData.GRASS_PATTERN_COUNT - 1)
+	town.town_fruit = &"apple"
+	town.station_type = 0
 	Game.set_weather(moment["weather"] as StringName)
 	_equip_tool(tool_item_id(index))
 	var layout := WorldData.new()

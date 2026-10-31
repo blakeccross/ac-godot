@@ -16,6 +16,7 @@
 [ext_resource type="Texture2D" uid="uid://j4oyfpcwqvs" path="res://assets/generated/ui/inventory/slot_item.png" id="SlotItemTex"]
 [ext_resource type="Texture2D" uid="uid://dep3cpxm7aogs" path="res://assets/generated/ui/inventory/slot_letter.png" id="SlotLetterTex"]
 [ext_resource type="Texture2D" uid="uid://cpahxbqr0rkm8" path="res://assets/generated/ui/inventory/tab_lens_mask_r.png" id="TabLensTexR"]
+[ext_resource type="PackedScene" path="res://scenes/ui/mobile_inventory.tscn" id="MobileInventory"]
 
 [sub_resource type="StyleBoxTexture" id="SlotItem"]
 content_margin_left = 8.0
@@ -182,6 +183,18 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="MobileInventory" parent="Root" instance=ExtResource("MobileInventory")]
+visible = false
+
+[node name="BackToItems" type="Button" parent="Root"]
+visible = false
+layout_mode = 1
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 200.0
+offset_bottom = 72.0
+text = "Back to items"
 
 [node name="ShellStack" type="Control" parent="Root/Center" unique_id=134402155]
 unique_name_in_owner = true

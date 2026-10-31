@@ -18,6 +18,16 @@ func after_test() -> void:
 	Clock.paused = false
 
 
+## `mSP_ItemNo2ItemPrice`: only the town's own fruit sells for its listed price.
+func test_a_towns_native_fruit_sells_for_its_listed_price() -> void:
+	Game.town.town_fruit = &"orange"
+	for fruit: StringName in [&"apple", &"cherry", &"pear", &"peach", &"orange"]:
+		assert_that(ItemCatalog.get_item(fruit)).is_not_null()
+	assert_int(ShopBook.sell_price(ItemCatalog.get_item(&"orange"))).is_equal(100)
+	assert_int(ShopBook.sell_price(ItemCatalog.get_item(&"apple"))).is_equal(500)
+	assert_int(ShopBook.sell_price(ItemCatalog.get_item(&"coconut"))).is_equal(150)
+
+
 func test_prices_follow_listed_and_quarter() -> void:
 	var shovel: ItemData = ItemCatalog.get_item(&"shovel")
 	assert_int(ShopBook.buy_price(shovel)).is_equal(500)

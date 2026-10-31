@@ -134,3 +134,17 @@ func test_a_snowman_push_fades_about_as_add_calc0_did() -> void:
 	## A tick of `add_calc0(100, 1 − √0.7, 10)` takes off 10 (the cap); 20 eases by 16%.
 	assert_float(100.0 - Snowman.ease_off(100.0, 1.0 / 60.0)).is_equal_approx(10.0, 0.0001)
 	assert_float(Snowman.ease_off(20.0, 1.0 / 60.0)).is_equal_approx(20.0 * sqrt(0.7), 0.001)
+
+
+## `eYukidaruma`: three models six ticks each, a ghost as each new one starts, then only snow.
+func test_a_snowball_bursts_through_three_models() -> void:
+	assert_that(SnowmanBreak.models_at(0)).is_equal(Vector2i(0, -1))
+	assert_that(SnowmanBreak.models_at(5)).is_equal(Vector2i(0, -1))
+	assert_that(SnowmanBreak.models_at(6)).is_equal(Vector2i(1, 0))
+	assert_that(SnowmanBreak.models_at(8)).is_equal(Vector2i(1, -1))
+	assert_that(SnowmanBreak.models_at(12)).is_equal(Vector2i(2, 1))
+	assert_that(SnowmanBreak.models_at(18)).is_equal(Vector2i(-1, 2))
+	assert_float(SnowmanBreak.scale_for(0)).is_equal_approx(0.01, 0.0001)
+	assert_float(SnowmanBreak.scale_for(100)).is_equal_approx(0.03, 0.0001)
+	assert_int(SnowmanBreak.clump_count(66)).is_equal(3)
+	assert_int(SnowmanBreak.clump_count(67)).is_equal(8)

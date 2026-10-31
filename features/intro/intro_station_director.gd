@@ -237,6 +237,11 @@ func _ensure_nook_feel(host: Node3D) -> void:
 	host.add_child(_nook_feel)
 	## Head is roughly 1.6 m on the scaled rcn mesh.
 	_nook_feel.set_head_lift(1.55)
+	## Glyphs start at the head-top joint (`aNPC_set_feel_eff`), the lift is only the fallback.
+	var skeletons: Array[Node] = host.find_children("*", "Skeleton3D", true, false)
+	if not skeletons.is_empty():
+		_nook_feel.bind_feel_joint(skeletons[0] as Skeleton3D)
+		_nook_feel.spawn_at_feel_joint = true
 
 
 func _play_bgm_chain(ids: Array) -> void:

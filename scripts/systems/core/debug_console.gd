@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "cam", "repay", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "lighthouse", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "cam", "repay", "manpu", "digup", "ball", "xmas", "popper", "costume", "glow", "shine", "reflect", "drop", "bridge", "lighthouse", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -308,7 +308,7 @@ func execute(raw: String) -> String:
 				return "Usage: manpu <clip|code>"
 			var mp_best: Node3D = null
 			for v: Node in mp_tree.get_nodes_in_group("villagers"):
-				if not (v is Node3D and v.has_method("cue_manpu") and (v as Node3D).is_visible_in_tree()):
+				if not (v is Node3D and v.get("conversation") != null and (v as Node3D).is_visible_in_tree()):
 					continue
 				var mp_d: float = (v as Node3D).global_position.distance_to(mp_cam.global_position)
 				if mp_best == null or mp_d < mp_best.global_position.distance_to(mp_cam.global_position):
@@ -319,7 +319,7 @@ func execute(raw: String) -> String:
 			var mp_ai: Variant = mp_best.get("ai")
 			if mp_ai != null and not mp_ai.is_talking():
 				mp_ai.begin_talk()
-			mp_best.call("cue_manpu", str(args[0]))
+			(mp_best.get("conversation") as VillagerConversation).cue_manpu(str(args[0]))
 			return "%s: %s" % [mp_best.name, NpcManpu.clip_for(str(args[0]))]
 		"axebreak":
 			## Hold a seventh-stage axe one hit from breaking, and break it now (`BROKEN_AXE`).
@@ -798,6 +798,35 @@ func execute(raw: String) -> String:
 			if not args.is_empty() and String(args[0]).to_lower() == "auto":
 				pit_player.struggle_assist = 0.1
 			return "Pitfall buried at %s." % pit_cell
+		"popper":
+			## A New Year's party popper going off beside the player (`eEC_EFFECT_CLACKER`).
+			var pp_player: Node3D = Player.find(Engine.get_main_loop() as SceneTree)
+			if pp_player == null:
+				return "No player."
+			PartyPopper.fire(pp_player.get_parent(), pp_player.global_position + Vector3(0.0, 0.6, 1.0))
+			return "Pop."
+		"shine":
+			## A washed car glittering where the player stands (`eEC_EFFECT_CAR_BLIGHT`).
+			var sh_player: Node3D = Player.find(Engine.get_main_loop() as SceneTree)
+			if sh_player == null:
+				return "No player."
+			CarBlight.start(sh_player.get_parent(), sh_player.global_position + Vector3(0.0, 0.0, 1.0), true)
+			return "Glitter."
+		"costume":
+			## The puff after a trick changes the player's clothes (`eEC_EFFECT_HALLOWEEN`).
+			return "Puff." if CostumePuff.at_player() != null else "No player."
+		"glow":
+			## `glow [vanish]`: the well spirit's glow in front of the player (`eEC_EFFECT_MAKE_HEM`).
+			var gl_player: Node3D = Player.find(Engine.get_main_loop() as SceneTree)
+			if gl_player == null:
+				return "No player."
+			var gl_vanish: bool = not args.is_empty() and String(args[0]) == "vanish"
+			var gl_feet: Vector3 = gl_player.global_position + Vector3(0.0, 0.0, 2.0)
+			SpiritGlow.play(gl_player.get_parent(), gl_feet, not gl_vanish)
+			var gl_light: SpiritLight = SpiritLight.start(gl_player.get_parent(), gl_feet)
+			if gl_vanish:
+				gl_light.finish()
+			return "Glow."
 		"clear":
 			return "__clear__"
 		_:

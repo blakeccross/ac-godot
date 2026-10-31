@@ -93,6 +93,19 @@ const MOOD_POSE_EFFECTS := {
 }
 
 
+## Clips with a one-shot effect of their own (`aNPC_Animation_c.feel_effect_type` and
+## `feel_effect_set_frame`, `aNPC_set_other_effect`): clip → `[effect, set frame, last frame,
+## repeats]`. The effect fires each time the clip passes its set frame (30 keyframes a second);
+## a repeating clip passes it every loop.
+const CLIP_EFFECTS := {
+	"npc_1_tired1": [&"ikigire", 11.0, 21.0, true],
+	"npc_1_banzai1": [&"kyousou_onpu", 15.0, 28.0, true],
+	"npc_1_get_change1": [&"kigae", 16.0, 113.0, false],
+	"npc_1_get_eat1": [&"taberu", 9.0, 59.0, false],
+	"npc_1_kieeeei1": [&"uranai", 11.0, 14.0, false],
+}
+
+
 static func mood_clip(table: Array[String], mood: int) -> String:
 	return table[clampi(mood, 0, table.size() - 1)]
 

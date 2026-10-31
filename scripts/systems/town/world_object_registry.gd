@@ -43,6 +43,7 @@ static func ensure() -> void:
 	register(&"house", "res://features/house/house.tscn", WorldGrid.PlaceKind.BUILDING, GROUP_BUILDINGS)
 	register(&"shop", "res://features/shops/nook/shop.tscn", WorldGrid.PlaceKind.BUILDING, GROUP_BUILDINGS)
 	register(&"building", "res://scenes/world/building.tscn", WorldGrid.PlaceKind.BUILDING, GROUP_BUILDINGS)
+	register(&"dump", "res://scenes/world/buildings/dump.tscn", WorldGrid.PlaceKind.BUILDING, GROUP_BUILDINGS)
 	## Dedicated outdoor shells (preferred over generic `building` when id matches).
 	_building_scenes[&"able_sisters"] = "res://features/shops/able_sisters/able_sisters.tscn"
 	_building_scenes[&"police"] = "res://features/shops/police_box/police_station.tscn"

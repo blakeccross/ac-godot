@@ -162,10 +162,25 @@ func test_bury_into_a_hole_only() -> void:
 		assert_bool(child.is_queued_for_deletion() or child.get("persist_id") != pid).is_true()
 	var other := Vector2i(7, 5)
 	HoleUse.dig(ctx, other, false)
-	assert_bool(BuriedUse.bury(ctx, other, &"apple")).is_true()
+	assert_bool(BuriedUse.bury(ctx, other, &"mushroom")).is_true()
 	var deposit: StringName = world.grid.occupant_at(other)
 	assert_str(String(BuriedUse.kind_of(deposit))).is_equal(String(BuriedUse.KIND_ITEM))
-	assert_str(str(BuriedUse.record(deposit).get(BuriedUse.KEY_ITEM))).is_equal("apple")
+	assert_str(str(BuriedUse.record(deposit).get(BuriedUse.KEY_ITEM))).is_equal("mushroom")
+
+
+## `bIT_common_bury_after` (`fr2tr_f`): a fruit in a hole grows its own tree, not a deposit.
+func test_a_buried_fruit_plants_its_tree() -> void:
+	var world := _hole_world()
+	var ctx := InteractionContext.new()
+	ctx.world = world
+	for fruit: StringName in [&"apple", &"orange", &"peach", &"pear", &"cherry"]:
+		var cell := Vector2i(3 + [&"apple", &"orange", &"peach", &"pear", &"cherry"].find(fruit), 9)
+		assert_bool(HoleUse.dig(ctx, cell, false)).is_true()
+		assert_bool(BuriedUse.bury(ctx, cell, fruit)).is_true()
+		assert_bool(Game.town.is_hole(HoleUse.persist_id(cell))).is_false()
+		var rec: Dictionary = PlantGrowth.record(PlantGrowth.persist_id(cell))
+		assert_str(str(rec.get(PlantGrowth.KEY_PLANT, ""))).is_equal("%s_tree" % fruit)
+		assert_bool(BuriedUse.record(world.grid.occupant_at(cell)).is_empty()).is_true()
 
 
 ## `bIT_actor_pit_fall` / `pit_exit`: the trap opens into a hole, then closes to bare ground.

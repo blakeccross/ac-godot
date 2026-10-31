@@ -34,8 +34,15 @@ static func place_held(player: Player) -> bool:
 	var host: Interior = Interior.find(Game.get_tree())
 	if host != null:
 		host.spawn_placement(entry)
+		LeafFlight.fly(host, player, _piece_position(host, entry), data)
 	Game.post_notice("Placed %s." % data.display_name)
 	return true
+
+
+## Where the piece stands, for the leaf that flies to it.
+static func _piece_position(host: Interior, entry: FurniturePlacement) -> Vector3:
+	var node := host.furniture_node(entry.id) as Node3D
+	return node.global_position if node != null else host.global_position
 
 
 ## Take a placed piece, and whatever sits on or in it, back into the pockets.

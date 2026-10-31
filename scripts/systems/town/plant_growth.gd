@@ -21,6 +21,9 @@ const XMAS_UNIT := 16
 const KEY_GOLD := "gold"
 ## `golden_tree_pal` stand-in: the leaves and trunk tinted gold.
 const GOLD_TINT := Color(1.0, 0.82, 0.32)
+## What the unit let it grow to when planted (`mCoBG_CheckPlant`, 0–4): a tree stays small
+## there (`bg_item_fg_sub_tree_grow`). Absent on trees the field came with.
+const KEY_LIMIT := "unit_limit"
 const KEY_CELL_X := "cell_x"
 const KEY_CELL_Z := "cell_z"
 ## Bloom color visual for grown flowers (`FLOWER_PANSIES0` white / `1` purple / `2` yellow).
@@ -53,6 +56,16 @@ static var _plants_loaded := false
 static func plant_data(plant_id: StringName) -> PlantData:
 	_ensure_plants()
 	return _plants.get(plant_id) as PlantData
+
+
+## `bIT_common_bury_after` (`fr2tr_f`): the tree a buried fruit grows into, or null for anything else.
+static func plant_for_fruit(item_id: StringName) -> PlantData:
+	_ensure_plants()
+	for value: Variant in _plants.values():
+		var plant := value as PlantData
+		if plant.kind == PlantData.Kind.TREE and plant.fruit != null and plant.fruit.id == item_id:
+			return plant
+	return null
 
 
 static func persist_id(cell: Vector2i) -> StringName:
@@ -107,7 +120,24 @@ static func growth_days(rec: Dictionary, plant: PlantData, now_renew: int = -1) 
 static func pipeline(rec: Dictionary, plant: PlantData, now_renew: int = -1) -> Pipeline:
 	if rec.is_empty() or plant == null:
 		return Pipeline.HARVESTABLE
-	return pipeline_for_days(growth_days(rec, plant, now_renew), plant)
+	var pipe: Pipeline = pipeline_for_days(growth_days(rec, plant, now_renew), plant)
+	if plant.kind == PlantData.Kind.TREE and rec.has(KEY_LIMIT):
+		pipe = mini(pipe, _limit_stage(int(rec[KEY_LIMIT]))) as Pipeline
+	return pipe
+
+
+## `grow_check` in `bg_item_fg_sub_tree_grow`: a sapling steps up a stage only while the unit's
+## limit allows that stage (`mCoBG_PLANT1` first size … `PLANT4` fully grown).
+static func _limit_stage(limit: int) -> Pipeline:
+	match limit:
+		0, 1:
+			return Pipeline.SEED
+		2:
+			return Pipeline.GROWING
+		3:
+			return Pipeline.MATURE
+		_:
+			return Pipeline.HARVESTABLE
 
 
 static func pipeline_for_days(days: int, plant: PlantData) -> Pipeline:
@@ -231,6 +261,8 @@ static func plant(ctx: InteractionContext, plant: PlantData, cell: Vector2i) -> 
 		KEY_CELL_X: cell.x,
 		KEY_CELL_Z: cell.y,
 	}
+	if plant.kind == PlantData.Kind.TREE and plant.family != PlantData.Family.PALM:
+		rec[KEY_LIMIT] = unit_limit(_layout(ctx), cell)
 	_store(pid, rec)
 	if not grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT):
 		clear(pid)
@@ -265,11 +297,39 @@ static func money_tree_takes(roll: float, money_power: int, money_luck: bool) ->
 	return money_luck or roll * 100.0 <= 50.0 + float(money_power) * 0.5
 
 
+## `mCoBG_CheckPlant`: how far a plant may grow on the unit, 0–4; −1 where none can live
+## (`mCoBG_KILL_PLANT`: water, banks, stone). A field with no collision table puts no limit.
+static func unit_limit(layout: WorldData, cell: Vector2i) -> int:
+	var attr: int = FieldCollision.unit_attr_at_cell(layout, cell)
+	if attr < 0:
+		return FieldCatalog.PLANT_FULL
+	## `mCoBG_ATTRIBUTE_63` takes the limit of the unit south of it.
+	var guard := 0
+	while attr == FieldCatalog.ATTR_LIMIT_FROM_SOUTH and guard < 16:
+		cell += Vector2i(0, 1)
+		attr = FieldCollision.unit_attr_at_cell(layout, cell)
+		guard += 1
+		if attr < 0:
+			return FieldCatalog.PLANT_FULL
+	var limit: int = FieldCatalog.plant_class(attr)
+	return -1 if limit == FieldCatalog.KILL_PLANT else limit
+
+
+static func _layout(ctx: InteractionContext) -> WorldData:
+	if ctx == null or ctx.world == null:
+		return null
+	return ctx.world.get("layout") as WorldData
+
+
 static func can_plant(ctx: InteractionContext, plant: PlantData, cell: Vector2i) -> bool:
 	var grid: WorldGrid = _grid(ctx)
 	if grid == null or plant == null or not grid.is_in_bounds(cell):
 		return false
 	if not _terrain_ok(grid.terrain_at(cell), plant):
+		return false
+	## `mTG_put_place_check`: nothing is planted where no plant lives. (Palms keep to their own
+	## sand rule: `mAGrw_CheckPalmTree` is not ported.)
+	if plant.family != PlantData.Family.PALM and unit_limit(_layout(ctx), cell) < 0:
 		return false
 	if not grid.is_occupied(cell):
 		return true
@@ -605,6 +665,31 @@ static func cull_dead_flowers(world: Node, grid: WorldGrid) -> void:
 		var rec: Dictionary = record(pid)
 		var plant: PlantData = plant_data(StringName(str(rec.get(KEY_PLANT, ""))))
 		if should_die(rec, plant):
+			doomed.append(pid)
+	for pid: StringName in doomed:
+		_kill_flower(world, grid, pid)
+
+
+## `mAGrw_GrowPlant`: at each renewal a flower or tree on a unit where no plant lives is cleared,
+## and a tree on poor ground (limit 0) dies. A tree planted today has until the next morning.
+static func cull_unfit_plants(world: Node, grid: WorldGrid, layout: WorldData) -> void:
+	if world == null or grid == null or layout == null:
+		return
+	var doomed: Array[StringName] = []
+	var now: int = Clock.renew_index()
+	for key: Variant in Game.town.plant_states.keys():
+		var pid := StringName(str(key))
+		var rec: Dictionary = record(pid)
+		var plant: PlantData = plant_data(StringName(str(rec.get(KEY_PLANT, ""))))
+		if plant == null or plant.family == PlantData.Family.PALM:
+			continue
+		var cell := Vector2i(int(rec.get(KEY_CELL_X, -1)), int(rec.get(KEY_CELL_Z, -1)))
+		if cell.x < 0 or not grid.is_in_bounds(cell):
+			continue
+		if plant.kind == PlantData.Kind.TREE and int(rec.get(KEY_PLANTED, now)) >= now:
+			continue
+		var limit: int = unit_limit(layout, cell)
+		if limit < 0 or (limit == 0 and plant.kind == PlantData.Kind.TREE):
 			doomed.append(pid)
 	for pid: StringName in doomed:
 		_kill_flower(world, grid, pid)

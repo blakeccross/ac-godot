@@ -70,6 +70,7 @@ const VILLAGER_SIZE := 0x988
 const SHOP := 0x20340
 const STALK := 0x20480
 const FRUIT := 0x20688
+const STATION_TYPE := 0x20F18
 const HOUSE_ARRANGEMENT := 0x2068A
 const STATUES := 0x2068B
 const POST := 0x20694
@@ -189,6 +190,7 @@ static func decode(file: PackedByteArray) -> Dictionary:
 		"town_id": GameCubeCard.u16(file, base + LAND_ID),
 		"saved_at": _time(file, base + CHECK_TIME),
 		"fruit": GameCubeCard.u16(file, base + FRUIT),
+		"station_type": file[base + STATION_TYPE],
 		"tune": _tune(file, base + TUNE),
 		"grass_pattern": file[base + GRASS_PATTERN],
 		"statues": file[base + STATUES],

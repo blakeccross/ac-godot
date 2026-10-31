@@ -38,9 +38,21 @@ tools/capture.sh scene=res://features/intro/intro_train.tscn wait=300
 tools/capture.sh --import target=acre:acre_5_6   # refresh imports after regenerating assets
 tools/capture.sh room=police_box target=pos:-6,0,-5 cam=0,22,18   # an interior, entered like the game does
 tools/capture.sh target=villager: console=leave console_delay=10 after=1,4,8 name=go_out   # one run, a shot at each count
+tools/capture.sh mobile=1 touch=20,20 ui=1 inventory=1 'console=give,apple,10;give,axe' after=90 name=mobile_inventory
+tools/capture.sh mobile=1 touch=20,20 ui=1 inventory=slot:0 console=give,axe after=90 name=mobile_item_actions
 ```
 
 `tools/capture.sh` renders a generated town (or any `scene=`) and writes PNGs to `.tmp_captures/` (gitignored), printing one `CAPTURE <path>` line each. Targets: `visual:<id|glob>`, `node:<path>`, `acre:<name>`, `pos:x,y,z`, `scene`; camera via `cam=`/`look=`/`fov=`. Full arg list in `scenes/dev/capture_world.gd`. `after=` counts rendered frames, and under `xvfb-run` each one spans several physics steps, so use it for ordering shots, not for timing. With no display (cloud sessions) `capture.sh` renders through `xvfb-run` and the OpenGL compatibility renderer, so colours and lighting differ slightly from Forward+; run gdUnit there as `xvfb-run -a tools/test.sh …`. Both scripts find Godot via `GODOT_BIN`, `godot_bin` in `tools/config.local.json`, or the default macOS app path.
+
+## Preview the phone UI on a desktop
+
+Debug builds accept a `--mobile` user argument, which shows the Android / iOS touch UI (bottom tab bar, mobile inventory, no clock):
+
+```sh
+$GODOT_BIN --path . --resolution 1560x720 -- --mobile
+```
+
+In the editor, use **Debug → Customize Run Instances…**, enable it, and set **Main Run Args** to `--resolution 1560x720 -- --mobile`. The mouse emulates touch in debug builds; touch UI appears after the first click, and a key or pad press switches back to keyboard controls.
 
 ## Run from the CLI
 

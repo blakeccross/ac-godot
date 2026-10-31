@@ -84,6 +84,9 @@ func advance(delta: float) -> bool:
 			_sunk = true
 			age -= splash
 			Audio.play_se(SE_SPLASH, self)
+			## `eEC_EFFECT_TURI_MIZU` 0 at the water line: a ring and a spout.
+			var at: Vector3 = coin_position()
+			FootstepEffects.bobber_splash(Vector3(at.x, _water_y, at.z), 0)
 		elif age >= FLY_TIME:
 			return false
 		else:

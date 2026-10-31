@@ -349,6 +349,10 @@ func _ensure_visual() -> void:
 		if cloth_index >= 0:
 			VisualCloth.apply_cloth(vis, cloth_index)
 		_face.bind(vis, species, texture_set)
+		var skeletons: Array[Node] = vis.find_children("*", "Skeleton3D", true, false)
+		if not skeletons.is_empty() and _feel != null:
+			_feel.bind_feel_joint(skeletons[0] as Skeleton3D)
+			_feel.spawn_at_feel_joint = true
 
 
 func model() -> Node3D:
@@ -369,6 +373,8 @@ func play_clip(suffix: String, loop: bool) -> float:
 	_body_anim.speed_scale = 1.0
 	_body_anim.play(clip, 0.12)
 	_clip_timer = clip_seconds(clip)
+	if _feel != null:
+		_feel.set_pose(suffix)
 	return _clip_timer
 
 

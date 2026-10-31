@@ -22,6 +22,8 @@ const OUT_SEC := 13.0 / DecompTime.TICK_HZ
 signal moved(position: Vector2)
 
 var position := Vector2.ZERO
+## Responsive sheets must start beyond the whole viewport, including portrait screens.
+var cover_viewport: bool = false
 
 var _dir: int = -1
 var _from := Vector2.ZERO
@@ -135,7 +137,7 @@ func _apply() -> void:
 	var k: float = 1.0
 	if is_inside_tree():
 		var vs: Vector2 = get_viewport().get_visible_rect().size
-		k = minf(vs.x / 320.0, vs.y / 240.0)
+		k = maxf(vs.x / 320.0, vs.y / 240.0) if cover_viewport else minf(vs.x / 320.0, vs.y / 240.0)
 	if _layer != null:
 		_layer.offset = Vector2(position.x, -position.y) * k
 	moved.emit(position)

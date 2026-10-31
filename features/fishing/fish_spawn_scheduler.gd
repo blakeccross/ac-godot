@@ -146,9 +146,6 @@ static func env_rate() -> float:
 
 ## `mFI_BkNum2BlockKind` for a `TownFieldGenerator` block type.
 static func block_kind_for_type(godot_type: int) -> int:
-	## The lighthouse is not a decomp block type (`BLOCK_COMBI_ROM_TOUDAI` is NONE).
-	if godot_type == TownFieldGenerator.T_LIGHTHOUSE:
-		return 0
 	var t: int = TownMap.decomp_block_type(godot_type)
 	if t < 0 or t >= BLOCK_INFO.size():
 		return 0

@@ -30,6 +30,17 @@ const POLICE_BODY := 10
 ## Lighthouse (`aTOU_set_bgOffset`): the 2×2 units NW of the FG unit, all corners at 16 —
 ## a solid tower with no porch.
 const LIGHTHOUSE_BODY := 16
+## Dump (`aDUM_set_bgOffset_sub`): every flagged unit's five points rise by 4. `flag_tbl[z][x]`
+## walks west (x) and north (z) from the FG unit: a 6×6 yard open in the south wall at x 2–3.
+const DUMP_BODY := 4
+const _DUMP_WALLS: Array[Array] = [
+	[1, 1, 0, 0, 1, 1],
+	[1, 0, 0, 0, 0, 1],
+	[1, 0, 0, 0, 0, 1],
+	[1, 0, 0, 0, 0, 1],
+	[1, 0, 0, 0, 0, 1],
+	[1, 1, 1, 1, 1, 1],
+]
 const _LIGHTHOUSE_UNITS: Array[Vector2i] = [
 	Vector2i(-1, -1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 0)
 ]
@@ -57,6 +68,8 @@ static func apply(data: WorldData) -> void:
 			_apply_police(data, b)
 		elif HostCollision.is_lighthouse(b.visual_id) or b.id == &"lighthouse":
 			_apply_lighthouse(data, b)
+		elif HostCollision.is_dump(b.visual_id) or b.kind == &"dump":
+			_apply_dump(data, b)
 		elif b.id == &"wishing_well" or String(b.visual_id).contains("shrine"):
 			_apply_shrine(data, b)
 		elif b.kind == &"house":
@@ -67,6 +80,23 @@ static func apply(data: WorldData) -> void:
 ## FG unit (`actor.home`): the SE cell of the 2×2 footprint (`nw_off` −1,−1).
 static func lighthouse_home_cell(placement: BuildingPlacement) -> Vector2i:
 	return placement.cell + Vector2i(1, 1)
+
+
+## FG unit (`actor.home`): the SE unit of the 6×6 (`nw_off` −5,−5).
+static func dump_home_cell(placement: BuildingPlacement) -> Vector2i:
+	return placement.cell + Vector2i(5, 5)
+
+
+static func _apply_dump(data: WorldData, placement: BuildingPlacement) -> void:
+	var home: Vector2i = dump_home_cell(placement)
+	var body := {
+		"c": DUMP_BODY, "nw": DUMP_BODY, "sw": DUMP_BODY, "se": DUMP_BODY, "ne": DUMP_BODY, "s": 0,
+	}
+	for z: int in 6:
+		for x: int in 6:
+			var cell: Vector2i = home - Vector2i(x, z)
+			if int((_DUMP_WALLS[z] as Array)[x]) != 0 and data.is_in_bounds(cell):
+				FieldCollision.set_plus(data, cell, body.duplicate())
 
 
 static func _apply_lighthouse(data: WorldData, placement: BuildingPlacement) -> void:

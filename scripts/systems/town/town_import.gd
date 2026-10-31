@@ -57,6 +57,7 @@ static func build(town: Dictionary) -> Dictionary:
 		"town_id": int(town.get("town_id", 0)),
 		"town_tune": Array(town.get("tune", TownTune.default_notes()) as PackedByteArray),
 		"town_fruit": String(_fruit(int(town.get("fruit", 0)))),
+		"station_type": clampi(int(town.get("station_type", 0)), 0, TownState.STATION_TYPES - 1),
 		"grass_pattern": WorldData.clamp_grass_pattern(int(town.get("grass_pattern", 0))),
 		"num_statues": clampi(int(town.get("statues", 0)), 0, 3),
 		"imported_field": {"acres": town.get("acres", []), "field": _field_arrays(town.get("field", []))},

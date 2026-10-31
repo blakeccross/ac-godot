@@ -199,6 +199,8 @@ func _ready() -> void:
 			_feel.set_head_lift(FEEL_HEAD_LIFT)
 		var skeletons: Array[Node] = vis.find_children("*", "Skeleton3D", true, false)
 		_feel.bind_feel_joint(skeletons[0] as Skeleton3D if not skeletons.is_empty() else null)
+		## One-shot glyphs start at the head-top joint, so every species' head gets its own.
+		_feel.spawn_at_feel_joint = not skeletons.is_empty()
 		conversation.sync_face_mood(true)
 		_apply_design_wear()
 		if Game != null and Game.designs != null and not Game.designs.changed.is_connected(_apply_design_wear):

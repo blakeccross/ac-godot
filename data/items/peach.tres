@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://98ds2adpmtduk"]
+
+[ext_resource type="Script" uid="uid://dw0fb5nquabwf" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"peach"
+display_name = "Peach"
+description = "A soft, sweet peach."
+category = 2
+sell_price = 100
+max_stack = 9
+usable = true
+use_verb = "Eat"
+icon_color = Color(0.98, 0.65, 0.6, 1)

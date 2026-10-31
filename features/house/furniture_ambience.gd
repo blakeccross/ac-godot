@@ -56,6 +56,8 @@ const STEAM := {
 ## Pieces that sound once when A switches them (`switch_changed_flag` →
 ## `sAdo_OngenTrgStart`): visual id → SE.
 const PRESS := {
+	## `fIMT_mv`: the cannon makes its own shot sound (`CannonShot`).
+	&"int_iku_mario_taihou": &"",
 	&"int_ike_jny_rosia01": &"7a",
 	&"int_ike_jny_hariko01": &"7b",
 	## `fIPP_mv`: the piggy bank rattles only with bells in the wallet.

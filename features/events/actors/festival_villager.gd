@@ -628,6 +628,30 @@ func _wander() -> void:
 	_pause = rng().randf_range(2.0, 5.0)
 
 
+## `aCD1_fire`: the clip plays through three times (`loop_flag` 2), a popper going off at
+## its keyframe 3 each time (`eEC_EFFECT_CLACKER` from the right hand).
+const POPPER_FIRES := 3
+const POPPER_KEYFRAME_SEC := 3.0 * DecompTime.FRAME_SEC
+const POPPER_HAND_HEIGHT := 0.6
+const POPPER_HAND_REACH := 0.3
+
+
+func _fire_poppers(clip_seconds: float) -> void:
+	if get_tree() == null:
+		return
+	for i: int in POPPER_FIRES:
+		get_tree().create_timer(float(i) * clip_seconds + POPPER_KEYFRAME_SEC).timeout.connect(_pop.bind(i))
+
+
+func _pop(fire_round: int) -> void:
+	if not is_inside_tree():
+		return
+	if fire_round > 0:
+		play_clip("npc_1_cracker_fire1", false)
+	var forward := Vector3(sin(rotation.y), 0.0, cos(rotation.y))
+	PartyPopper.fire(get_parent(), global_position + Vector3(0.0, POPPER_HAND_HEIGHT, 0.0) + forward * POPPER_HAND_REACH)
+
+
 ## `eEC_EFFECT_HANABI_SWITCH` at midnight (`aCD0_set_term`): one volley over the pond.
 func _new_year_fireworks() -> void:
 	var mgr: EventManager = EventManager.find(get_tree())
@@ -657,6 +681,8 @@ func _tick_term() -> bool:
 		return false
 	if term == FestivalCrowd.Countdown.NEW_YEAR:
 		_pause = play_clip("npc_1_cracker_fire1", false)
+		_fire_poppers(_pause)
+		_pause *= float(POPPER_FIRES)
 		if slot == 0:
 			_new_year_fireworks()
 		return true

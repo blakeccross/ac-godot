@@ -229,3 +229,98 @@ func test_effects_spawn_the_same_at_a_low_frame_rate() -> void:
 		assert_int(made_coarse).override_failure_message("%s %d vs %d" % [kind, made_coarse, made_fine]).is_between(made_fine - slack, made_fine + slack)
 		fine.clear()
 		coarse.clear()
+
+
+## `aNPC_Animation_c.feel_effect_type`: clips with one effect of their own.
+func test_one_shot_clip_effects_name_their_clips() -> void:
+	for clip: String in ["npc_1_tired1", "npc_1_banzai1", "npc_1_get_change1", "npc_1_get_eat1", "npc_1_kieeeei1"]:
+		assert_bool(NpcManpu.CLIP_EFFECTS.has(clip)).append_failure_message(clip).is_true()
+	assert_that(NpcManpu.CLIP_EFFECTS["npc_1_tired1"][0]).is_equal(&"ikigire")
+	assert_that(NpcManpu.CLIP_EFFECTS["npc_1_banzai1"][0]).is_equal(&"kyousou_onpu")
+
+
+func test_a_repeating_clip_fires_its_effect_every_loop() -> void:
+	var g: NpcFeelGlyphs = auto_free(NpcFeelGlyphs.new())
+	_host.add_child(g)
+	var once: Array = NpcManpu.CLIP_EFFECTS["npc_1_tired1"]
+	## 21 keyframes a loop at 30 a second, the breath out at frame 11.
+	var fired := 0
+	for _i: int in 200:
+		fired += g._clip_passes(once, 1.0 / 60.0)
+	## 200 ticks = 100 keyframes: passes 11, 32, 53, 74, 95.
+	assert_int(fired).is_equal(5)
+
+
+func test_a_stopping_clip_fires_its_effect_once() -> void:
+	var g: NpcFeelGlyphs = auto_free(NpcFeelGlyphs.new())
+	_host.add_child(g)
+	var once: Array = NpcManpu.CLIP_EFFECTS["npc_1_kieeeei1"]
+	var fired := 0
+	for _i: int in 120:
+		fired += g._clip_passes(once, 1.0 / 60.0)
+	assert_int(fired).is_equal(1)
+
+
+func test_a_clip_effect_runs_through_the_pose_counter() -> void:
+	var g: NpcFeelGlyphs = auto_free(NpcFeelGlyphs.new())
+	_host.add_child(g)
+	g.set_pose("npc_1_kieeeei1")
+	g._tick_pose(1.0 / 30.0 * 12.0)
+	assert_object(g._ambient).is_not_null()
+	assert_int(g._ambient.parts.size()).is_equal(1)
+	assert_array(g._ambient.one_shot_sounds).is_empty()
+
+
+func test_the_cheer_flings_notes_that_slow_to_a_stop() -> void:
+	var m := _moods(&"ambient")
+	m.pulse(&"kyousou_onpu")
+	assert_int(m.parts.size()).is_equal(1)
+	var note: NpcFeelMoods.Part = m.parts[0]
+	assert_float(note.vel.length()).is_between(4.0, 5.0)
+	_run(m, 60)
+	assert_float(note.vel.length()).is_less(0.05)
+
+
+func test_a_tired_breath_blows_dust_in_front() -> void:
+	var m := _moods(&"ambient")
+	m.pulse(&"ikigire")
+	assert_int(m.world_puffs.size()).is_equal(1)
+	assert_float((m.world_puffs[0]["at"] as Vector3).length()).is_equal_approx(5.0, 0.001)
+
+
+func test_eating_cycles_four_crumb_frames_for_44_ticks() -> void:
+	var m := _moods(&"ambient")
+	m.pulse(&"taberu")
+	assert_int(m.parts.size()).is_equal(4)
+	_run(m, 5)
+	var shown := 0
+	for p: NpcFeelMoods.Part in m.parts:
+		if p.node != null and p.node.visible:
+			shown += 1
+	assert_int(shown).is_equal(1)
+	_run(m, 45)
+	assert_int(m.parts.size()).is_equal(0)
+
+
+func test_the_fortune_ring_lives_80_ticks() -> void:
+	var m := _moods(&"ambient")
+	m.pulse(&"uranai")
+	assert_int(m.parts.size()).is_equal(1)
+	assert_array(m.one_shot_sounds).contains([&"44a"])
+	_run(m, 70)
+	assert_int(m.parts.size()).is_equal(1)
+	_run(m, 12)
+	assert_int(m.parts.size()).is_equal(0)
+
+
+func test_changing_clothes_wheels_sparkles_for_a_second() -> void:
+	var m := _moods(&"ambient")
+	m.pulse(&"kigae")
+	var most := 0
+	for _i: int in 60:
+		m.advance(1.0 / 60.0)
+		most = maxi(most, m.parts.size())
+	## One light every other tick, each living thirty (about fifteen at once, and the driver).
+	assert_int(most).is_between(14, 18)
+	_run(m, 70)
+	assert_int(m.parts.size()).is_equal(0)
