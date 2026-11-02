@@ -26,24 +26,23 @@ static func ensure_loaded() -> void:
 
 
 static func _load_dir(dir_path: String) -> void:
-	var dir := DirAccess.open(dir_path)
-	if dir == null:
-		return
-	dir.list_dir_begin()
-	var name: String = dir.get_next()
-	while name != "":
+	## `DirAccess` on an exported game lists remapped names (`.remap` / `.import`),
+	## so the starting money bag never loads on a phone and Nook's down payment
+	## has nothing to open. `ResourceLoader` lists the names the editor sees.
+	for name: String in ResourceLoader.list_directory(dir_path):
 		## Families of items live in their own folders (`data/items/umbrellas/`).
-		if dir.current_is_dir() and not name.begins_with("."):
-			_load_dir("%s/%s" % [dir_path, name])
-		elif not dir.current_is_dir() and name.ends_with(".tres"):
-			var path := "%s/%s" % [dir_path, name]
-			var res: Resource = load(path)
-			if res is ItemData:
-				var data := res as ItemData
-				if data.id != &"":
-					_by_id[data.id] = data
-		name = dir.get_next()
-	dir.list_dir_end()
+		if name.ends_with("/"):
+			var child := name.trim_suffix("/")
+			if not child.begins_with("."):
+				_load_dir("%s/%s" % [dir_path, child])
+			continue
+		if not name.ends_with(".tres"):
+			continue
+		var res: Resource = load("%s/%s" % [dir_path, name])
+		if res is ItemData:
+			var data := res as ItemData
+			if data.id != &"":
+				_by_id[data.id] = data
 
 
 static func get_item(item_id: StringName) -> ItemData:

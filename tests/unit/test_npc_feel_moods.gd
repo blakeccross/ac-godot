@@ -225,6 +225,7 @@ func test_effects_spawn_the_same_at_a_low_frame_rate() -> void:
 		var made_coarse: int = seen_coarse.size()
 		## The loop re-arms on the step that reaches its end, so a coarse step can gain or
 		## lose a child there: one in ten.
+		@warning_ignore("integer_division")
 		var slack: int = maxi(made_fine / 10, 1)
 		assert_int(made_coarse).override_failure_message("%s %d vs %d" % [kind, made_coarse, made_fine]).is_between(made_fine - slack, made_fine + slack)
 		fine.clear()

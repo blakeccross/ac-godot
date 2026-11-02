@@ -4,8 +4,20 @@ extends Camera3D
 ## 3/4 follow camera. `Init_Camera2`: 20° FOV, distance 620, equal Y/Z (~45°).
 ## 620 original units × (2 m / 40) = 31 m.
 ## Talk uses `CAMERA2_PROCESS_TALK` framing (closer, flatter pitch).
+## Narrower than 16:9 opens the vertical angle a little (`fov_for_aspect`).
 
 const GROUP := &"follow_camera"
+
+## `Init_Camera2`. Vertical angle while the window is 16:9 or wider.
+const BASE_FOV := 20.0
+## Authored frame. Narrower viewports open the lens partway toward this width.
+const DESIGN_ASPECT := 16.0 / 9.0
+## Share of the gap from `BASE_FOV` to a full 16:9-width lens. 1.0 is about 58° on a 9:16 phone.
+const NARROW_OPEN := 0.2
+## Tallest lens a portrait window may use. About 40% more ground than 20°.
+const NARROW_FOV_MAX := 28.0
+## Floor kept on screen past a south doorway, so a tap has ground to land on.
+const SOUTH_FLOOR_MARGIN := 2.0
 
 const FOLLOW_DISTANCE := 620.0 * PlayerLocomotion.UNIT_METERS
 const ISO := 0.70710678
@@ -125,9 +137,13 @@ func _ready() -> void:
 	add_to_group(GROUP)
 	## After CharacterBody3D `move_and_slide` so look-at matches this tick.
 	process_physics_priority = 100
-	fov = 20.0
+	keep_aspect = KEEP_HEIGHT
 	if target_path != NodePath():
 		_target = get_node_or_null(target_path) as Node3D
+	_apply_aspect_fov()
+	var vp := get_viewport()
+	if vp != null and not vp.size_changed.is_connected(_apply_aspect_fov):
+		vp.size_changed.connect(_apply_aspect_fov)
 	_follow(true)
 
 
@@ -152,6 +168,7 @@ func resume(snap: bool = true) -> void:
 	## `snap` matches `Camera2` morph_counter 0; false eases from the current eye
 	## (station DEMO → NORMAL after Porter).
 	_suspended = false
+	_apply_aspect_fov()
 	if snap:
 		_follow(true)
 		return
@@ -336,12 +353,43 @@ func is_talking() -> bool:
 	return _talk_active
 
 
-## 45° 3/4 offset that fits a square of `span` meters on the floor at this FOV.
+## 45° 3/4 offset that fits a square of `span` meters on the floor at `BASE_FOV`.
+## A narrow window opens the lens around this distance instead of dollying in.
 func offset_for_ground_span(span: float) -> Vector3:
-	var half_fov: float = deg_to_rad(fov * 0.5)
+	var half_fov: float = deg_to_rad(BASE_FOV * 0.5)
 	var dist: float = maxf(span, 1.0) * ISO / (2.0 * tan(half_fov))
 	var axis: float = dist * FRAME_PADDING * ISO
 	return Vector3(0.0, axis, axis)
+
+
+## How far south of the look point the floor stays in frame, per metre of arm, and the
+## extra from `ROOM_LOOK_HEIGHT`. Indoor arm is 45°; the lens is `BASE_FOV`.
+static func _south_floor_line() -> Vector2:
+	var elevation := PI * 0.25
+	var forward := Vector3(0.0, -sin(elevation), -cos(elevation))
+	var up := (Vector3.UP - forward * forward.dot(Vector3.UP)).normalized()
+	var half := deg_to_rad(BASE_FOV * 0.5)
+	var dir := (forward * cos(half) - up * sin(half)).normalized()
+	var k := dir.z / -dir.y
+	return Vector2(cos(elevation) + sin(elevation) * k, ROOM_LOOK_HEIGHT * k)
+
+
+## Metres of floor south of the look point (toward the camera) inside the vertical lens.
+static func south_floor_past_look(distance: float) -> float:
+	var line := _south_floor_line()
+	return distance * line.x + line.y
+
+
+## 45° offset long enough that, with the look clamped inside `box`, the floor stays in
+## frame `margin` metres past `south_z`. Rooms that already show that far keep 620 GX.
+static func offset_to_show_south(box: AABB, south_z: float, margin: float = SOUTH_FLOOR_MARGIN) -> Vector3:
+	## An eye past the south edge clamps to the southernmost look the box allows.
+	var look := room_center(Vector3(box.get_center().x, 0.0, box.end.z + 50.0), box, 1, 1)
+	var need := south_z + margin - look.z
+	var line := _south_floor_line()
+	if line.x <= 0.0 or FOLLOW_DISTANCE * line.x + line.y >= need:
+		return DEFAULT_OFFSET
+	return _arm((need - line.y) / line.x, PI * 0.25, 0.0)
 
 
 ## Indoor houses never sit closer than Camera2 620 (31 m). Small rooms would
@@ -351,6 +399,37 @@ func offset_to_frame_span(span: float) -> Vector3:
 	if framed.y < DEFAULT_OFFSET.y:
 		return DEFAULT_OFFSET
 	return framed
+
+
+## Vertical lens for the current window. 16:9 and wider stay at `BASE_FOV` (extra width
+## shows more town). Narrower opens the lens a little, up to `NARROW_FOV_MAX`.
+## Skipped while a demo owns the camera.
+func _apply_aspect_fov() -> void:
+	if _suspended:
+		return
+	keep_aspect = KEEP_HEIGHT
+	fov = fov_for_aspect(_viewport_aspect())
+
+
+func _viewport_aspect() -> float:
+	var vp := get_viewport()
+	if vp == null:
+		return DESIGN_ASPECT
+	var size := vp.get_visible_rect().size
+	if size.y <= 0.0:
+		return DESIGN_ASPECT
+	return size.x / size.y
+
+
+## `aspect` is width / height. At or above 16:9 the vertical angle stays `BASE_FOV`.
+## Below that, open `NARROW_OPEN` of the way toward the lens that would keep the 16:9
+## width, and stop at `NARROW_FOV_MAX`.
+static func fov_for_aspect(aspect: float) -> float:
+	if aspect <= 0.0 or aspect + 0.0005 >= DESIGN_ASPECT:
+		return BASE_FOV
+	var half_horizontal: float = tan(deg_to_rad(BASE_FOV * 0.5)) * DESIGN_ASPECT
+	var full: float = rad_to_deg(2.0 * atan(half_horizontal / aspect))
+	return minf(lerpf(BASE_FOV, full, NARROW_OPEN), NARROW_FOV_MAX)
 
 
 func _physics_process(delta: float) -> void:

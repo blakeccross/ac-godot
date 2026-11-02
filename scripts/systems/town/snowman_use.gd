@@ -98,6 +98,7 @@ static func try_combine(a: Node3D, b: Node3D) -> bool:
 	var unit := Vector2i(posmod(body_cell.x, 16), posmod(body_cell.y, 16))
 	if unit.x == 0 or unit.x == 15 or unit.y == 0 or unit.y == 15:
 		return false
+	@warning_ignore("integer_division")
 	if player != null and world.grid.world_to_cell(player.global_position) / 16 != body_cell / 16:
 		return false
 	var nh: float = float(head.call("normalized"))
@@ -121,6 +122,7 @@ static func try_combine(a: Node3D, b: Node3D) -> bool:
 	if res == SnowmanRules.Result.PERFECT:
 		send_present(rng)
 	Game.town.snowman_built_minute = Clock.absolute_minute()
+	@warning_ignore("integer_division")
 	Game.quests.note_snowman(body_cell / 16, Game.residents, true)
 	ball_gone(SnowmanRules.PART_BODY)
 	ball_gone(SnowmanRules.PART_HEAD)
@@ -205,6 +207,7 @@ static func knocked_down(slot: int, cell: Vector2i, world: Node) -> void:
 	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
 	if grid != null and slot >= 0:
 		grid.remove(persist_id(slot))
+	@warning_ignore("integer_division")
 	Game.quests.note_snowman(cell / 16, Game.residents, false)
 
 

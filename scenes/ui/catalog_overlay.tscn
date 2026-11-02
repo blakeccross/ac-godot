@@ -129,7 +129,7 @@ own_world_3d = true
 world_3d = SubResource("PreviewWorld")
 transparent_bg = true
 size = Vector2i(256, 256)
-render_target_update_mode = 4
+render_target_update_mode = 0
 
 [node name="World" type="Node3D" parent="Root/PreviewViewport"]
 

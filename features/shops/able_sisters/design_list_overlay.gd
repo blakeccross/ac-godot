@@ -59,6 +59,7 @@ func _ready() -> void:
 	layer = 26
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_slots.draw.connect(_draw_slots)
@@ -88,13 +89,8 @@ func _design_tex(name: String) -> Texture2D:
 
 
 func _fit_screen() -> void:
-	var sz := _root.size
-	if sz.x <= 0.0 or sz.y <= 0.0:
-		return
-	var k := minf(sz.x / 320.0, sz.y / 240.0)
-	_screen.scale = Vector2(k, k)
-	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
-	_hand.size = Vector2(40, 40) * k
+	MenuFrame.fit(self, _root, _screen)
+	_hand.size = Vector2(40, 40) * _screen.scale.x
 	_point_hand(false)
 
 
@@ -105,6 +101,15 @@ func _process(_delta: float) -> void:
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	return MenuFrame.rect_of(_screen)
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
 
 
 ## `beside_inventory`: opened from the pockets' pencil tab (`mNW_OPEN_INV`) — the book
@@ -251,6 +256,7 @@ func _on_book_input(event: InputEvent) -> void:
 ## from y 65 (window units, y up). Returned in Book-local pixels.
 static func slot_rect(i: int) -> Rect2:
 	var x0: float = -34.0 if i % COLS == 0 else 4.0
+	@warning_ignore("integer_division")
 	var top: float = 65.0 - 34.0 * float(i / COLS)
 	return Rect2(x0 + 75.0, 90.0 - top, 30.0, 30.0)
 
@@ -296,5 +302,6 @@ func _draw_slots() -> void:
 			var g := int(Time.get_ticks_msec() / 1000.0 * 60.0) % 40
 			if g > 20:
 				g = 40 - g
+			@warning_ignore("integer_division")
 			var c := Color8(g * 3, 210 + g * 2, g * 3).lerp(Color8(0, 95 + g * 9 / 2, 0), 0.5)
 			_slots.draw_rect(r.grow(1.5), c, false, 2.0)

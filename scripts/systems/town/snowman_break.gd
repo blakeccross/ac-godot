@@ -37,6 +37,7 @@ static func spawn(host: Node, pos: Vector3, p_percent: int) -> SnowmanBreak:
 ## `frame / 3` with `frame = tick / 2`; past the third nothing is left but the clumps.
 static func models_at(tick: int) -> Vector2i:
 	var frame: int = tick >> 1
+	@warning_ignore("integer_division")
 	var model: int = frame / 3
 	var shown: int = model if model < MODELS.size() else -1
 	var ghost: int = model - 1 if (frame == 3 or frame == 6 or frame == 9) else -1

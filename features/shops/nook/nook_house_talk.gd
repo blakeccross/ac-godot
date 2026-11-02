@@ -84,6 +84,7 @@ static func apply_event(event: Dictionary, house: House) -> String:
 ## Test-only: no in-game callers; kept for tests.
 static func palettes_on_page(page: int) -> Array[int]:
 	var out: Array[int] = []
+	@warning_ignore("integer_division")
 	var first: int = clampi(page, 0, House.OUTLOOK_PAL_COUNT / PALETTES_PER_PAGE - 1) * PALETTES_PER_PAGE
 	for i: int in PALETTES_PER_PAGE:
 		out.append(first + i)

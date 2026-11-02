@@ -392,7 +392,7 @@ func test_a_puff_turns_off_the_bank_and_keeps_slowing() -> void:
 	var school := FishSchool.new()
 	school.configure(_grid, 0.0)
 	school.auto_spawn = false
-	var shadow: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), _pond, _at(Vector2i(8, 11)))
+	school.spawn(FishCatalog.get_fish(&"crucian_carp"), _pond, _at(Vector2i(8, 11)))
 	var sense := FishShadow.Sense.new()
 	sense.player_position = _at(Vector2i(10, 11))
 	sense.player_dashing = true

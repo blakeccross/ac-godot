@@ -134,10 +134,10 @@ func adopt_from_houses(houses: Array[Dictionary]) -> void:
 		var id: StringName = h.get("id", &"") as StringName
 		if id == &"":
 			continue
-		var sign: Vector2i = h.get("home", NO_HOME) as Vector2i
-		slots[i] = {"id": id, "home": sign, "moved_in": false}
-		if sign != NO_HOME:
-			used_plots[sign] = true
+		var sign_plot: Vector2i = h.get("home", NO_HOME) as Vector2i
+		slots[i] = {"id": id, "home": sign_plot, "moved_in": false}
+		if sign_plot != NO_HOME:
+			used_plots[sign_plot] = true
 		_set_appeared(id)
 		i += 1
 	now_npc_max = LOOKS_NUM

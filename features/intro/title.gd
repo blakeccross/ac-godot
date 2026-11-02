@@ -5,7 +5,7 @@ extends Node
 ## The screen is a live town: `TitleDemo.begin` fixes the date, weather and a random
 ## resident, the world scene builds the generated town, and a recording (`TitleDemoInput`)
 ## plays the player's stick and A button for 60 s (`title_demo_move`). The logo overlay
-## (`TitleLogo`) animates in over it; START or A then fades to black and shows four save
+## (`TitleLogo`) animates in over it; START, A, or a click then fades to black and shows four save
 ## slots (town name + residents) plus Import. When the recording runs out the screen fades,
 ## holds black, and reloads into the next of the five demos.
 ## The Nintendo logo stage of `m_trademark` is deliberately not reproduced.

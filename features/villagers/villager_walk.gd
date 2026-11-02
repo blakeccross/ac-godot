@@ -72,6 +72,7 @@ static func walker_cap(field_count: int) -> int:
 	## `mNpcW_GET_WALK_NUM` is `n / 3`. Keep at least one so a lone test villager still roams.
 	if field_count <= 0:
 		return 0
+	@warning_ignore("integer_division")
 	return clampi(maxi(1, field_count / 3), 1, MAX_WALKERS)
 
 
@@ -125,7 +126,9 @@ static func pick_kind(
 
 
 static func block_from_cell(cell: Vector2i) -> Vector2i:
+	@warning_ignore("integer_division")
 	var bx: int = int(cell.x / WorldGenerator.UT) + 1
+	@warning_ignore("integer_division")
 	var bz: int = int(cell.y / WorldGenerator.UT) + 1
 	return Vector2i(bx, bz)
 
@@ -206,6 +209,7 @@ static func block_center(data: WorldData, block: Vector2i) -> Vector3:
 		return Vector3.ZERO
 	if has_town_acres(data) and is_fg_block(block):
 		return data.cell_to_world(_origin_cell(data, block) + Vector2i(8, 8))
+	@warning_ignore("integer_division")
 	return data.cell_to_world(Vector2i(data.columns / 2, data.rows / 2))
 
 
@@ -508,7 +512,6 @@ static func first_avoid_hop(
 	from: Vector3,
 	facing: float,
 	block: Vector2i,
-	grid: WorldGrid = null,
 	rng: RandomNumberGenerator = null
 ) -> Dictionary:
 	## Front+wall (`collision_flag` 3) with `avoid_direction == 0`:
@@ -516,9 +519,9 @@ static func first_avoid_hop(
 	var order: Array[float] = [1.0, -1.0]
 	if _rand_f(rng) < 0.5:
 		order = [-1.0, 1.0]
-	for sign: float in order:
+	for turn: float in order:
 		var stand: Vector3 = _avoid_stand(
-			from, facing, deg_to_rad(FIRST_AVOID_DEG) * sign, TURN_METERS
+			from, facing, deg_to_rad(FIRST_AVOID_DEG) * turn, TURN_METERS
 		)
 		if not _avoid_range_ok(data, block, stand):
 			continue

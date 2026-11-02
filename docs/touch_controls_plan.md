@@ -8,7 +8,7 @@ The file-by-file build of phases 2–6 is in [touch_controls_implementation.md](
 
 - **One seam into the player.** Touch never calls hosts directly. It drives the player through a `PlayerInput` source, the same way `TitleDemoInput` already does: a `move` vector plus A and B presses and holds. The player cannot tell a finger from a stick. Interaction choice stays in `InteractionQuery` / `ToolUse.resolve`, so touch picks exactly what A or B would pick when standing there.
 - **Movement keeps its physics.** Tap-to-walk produces a stick vector each tick (steering toward the next waypoint), never a teleport or a tween. Speed, turning, slopes, tripping and footprints all stay exactly as they are.
-- **No on-screen joystick or d-pad.** Movement is tapping where to go, or holding a finger on the ground for the player to follow. Nothing stick-shaped is ever drawn. The finger never acts as a stick relative to a fixed point; it always names a place in the world.
+- **Drag is a joystick.** Sliding a finger draws a ring with a smaller knob inside it, anchored where the finger went down. The player walks in the direction of that drag (and runs at the rim) until the finger lifts and the joystick disappears. A tap still names a place in the world. There is no d-pad.
 - **Scene-first UI.** On-screen buttons and markers live in a `TouchHud` scene, shown only when touch is the last device used.
 - **Every phase leaves the game playable.** Each phase can ship on its own.
 
@@ -20,7 +20,8 @@ The file-by-file build of phases 2–6 is in [touch_controls_implementation.md](
 | Tap | an interactable (villager, tree, sign, door, item, furniture…) | walk up to it, face it, then do its A verb (or its B verb if B is all it offers) |
 | Tap | the player | A in place (dig, swing, cast, talk to whoever is in front) |
 | Double-tap | the ground | run there |
-| Hold and slide | the ground | the player walks toward the spot under the finger and keeps following it until release (runs when the finger is far ahead). No stick is drawn. |
+| Drag | anywhere but a button | a joystick appears at the finger; the player moves in the drag direction and runs when the knob reaches the rim. Lifting hides it. |
+| Hold still | the ground | the player walks toward the spot under the finger until release (runs when the finger is far ahead). |
 | Tap | water (rod equipped) | walk to the bank and cast toward the tap |
 | Tap | anywhere while fishing | reel (A) |
 | Hold | anywhere (net equipped) | ready the net and creep toward the finger; release swings (hold-A semantics) |
@@ -70,10 +71,10 @@ When a host offers more than one verb, a small row of chips appears over it with
 ### `TouchHud` (new scene, `scenes/ui/touch_hud.tscn`)
 - A tap marker on the ground: a ring that fades, scene-authored. It also shows the path's end.
 - Context chips over the target host.
-- A safe-area-inset tab bar along the bottom on Android and iOS: **Map** on the left, **Inventory** in the middle and **Settings** on the right. It stays up over those three screens with the open one lit; tapping the lit tab closes it, and another tab switches screens. There is no B button (a tapped item gets B from the driver). Map and Inventory send existing actions as `InputEventAction`s through `Input.parse_input_event`. Settings opens directly with gameplay paused, and resumes it on close without dismissing a pause owned by another menu. Desktop controls are unchanged.
+- Three round white icon buttons stacked down the top right, inside the safe area (they slide off the right edge while the player walks and return once they stand still) on Android and iOS: **Map** on top, **Inventory** in the middle and **Settings** below. They stay up over those three screens with the open one lit; tapping the lit tab closes it, and another tab switches screens. There is no B button (a tapped item gets B from the driver). Map and Inventory send existing actions as `InputEventAction`s through `Input.parse_input_event`. Settings opens directly with gameplay paused, and resumes it on close without dismissing a pause owned by another menu. Desktop controls are unchanged.
 - During play it is visible while the touch device is active. It stays hidden on the title screen, including the demo and save-slot menu. The `InputDeviceTracker` autoload switches on the last `InputEventScreenTouch` / `ScreenDrag` vs. key / joypad event.
 - The field clock is hidden on Android and iOS, including when a keyboard or controller is used.
-- Mobile Inventory uses a cream bottom sheet that slides up from below and closes downward, leaving the world visible above and the bottom navigation available. Its scrollable **four-column** grid keeps all 15 pocket slots separate. Swipe over the cards to scroll; a swipe does not activate the item beneath it. Cards show the existing item icon, name and per-slot quantity; carrying capacity and stacking rules are unchanged. Tapping a card opens touch-sized buttons for its existing actions. The wallet stays accessible, and **Letters & more** opens the classic inventory for mail, collections and designs; **Back to items** returns to the mobile grid. The keyboard/controller cursor follows four columns on the mobile grid. Desktop keeps the classic five-column layout, right-edge slide and clock.
+- Mobile Inventory uses a cream bottom sheet that slides up from below and closes downward, leaving the world visible above and the bottom navigation available. It is used only while the phone is in portrait; landscape keeps the classic windows. Its scrollable **four-column** grid keeps all 15 pocket slots separate. Swipe over the cards to scroll; a swipe does not activate the item beneath it. Cards show the existing item icon, name and per-slot quantity; carrying capacity and stacking rules are unchanged. Tapping a card opens touch-sized buttons for its existing actions. The wallet stays accessible. **Items, Letters, Fish, Insects and Designs** are pages on that sheet (letters keep the same Read / Write / Take / Discard actions; the encyclopedias are the caught-once grids). Other menus in portrait sit in the same kind of sheet with a Close button that does what Escape does. On a desktop window, or a phone in landscape, a click outside the window does that too. The keyboard/controller cursor follows four columns on the mobile item grid. Desktop keeps the classic five-column layout, right-edge slide and clock.
 - The touch menu pad is hidden on the native mobile inventory and on the map. Inventory cards, actions and Close are directly tappable; map acres can be tapped to select them, and the Map tab closes the map.
 
 ### Project settings
@@ -122,6 +123,6 @@ Each overlay needs a touch path. Most of them read raw keycodes today, so each o
 
 - **One tap, several verbs.** The chips solve it, but they add a tap. *Pocket Camp* avoids the problem because each object has one verb. Proposal: chips only when a host has more than one *primary-priority* verb, otherwise act.
 - **Tools that aim.** Shovel and axe act on the facing cell. Tap-to-act on ground with a tool equipped should walk next to the tapped cell and face it, then A. This needs a "tool target" goal type in `TouchPath`.
-- **Dash on touch.** There is no dash button. Holding the finger far ahead runs, and a double-tap runs to the spot. With the net equipped, a hold is the net hold rather than a follow.
+- **Dash on touch.** There is no dash button. Pushing the joystick to the rim runs, holding a still finger far ahead runs, and a double-tap runs to the spot. With the net equipped, a hold is the net hold rather than a joystick.
 - **Furniture push/pull** needs a drag from the piece rather than from the player. That could be phase 4b.
 - **Villagers move.** Re-path to a moving host every 0.5 s, and give up after 5 s (the original's talk range is generous).

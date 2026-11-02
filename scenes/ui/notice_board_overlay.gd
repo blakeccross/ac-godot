@@ -64,6 +64,7 @@ static func find(tree: SceneTree) -> NoticeBoardOverlay:
 func _ready() -> void:
 	layer = 21
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	add_to_group("shop_ui")
 	_root.visible = false
 	_font = LetterBoard.load_font()
@@ -79,16 +80,20 @@ func _ready() -> void:
 
 
 func _fit_screen() -> void:
-	var sz := _root.size
-	if sz.x <= 0.0 or sz.y <= 0.0:
-		return
-	var k := minf(sz.x / 320.0, sz.y / 240.0)
-	_screen.scale = Vector2(k, k)
-	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
+	MenuFrame.fit(self, _root, _screen)
 
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	return MenuFrame.rect_of(_screen)
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
 
 
 func board() -> NoticeBoard:
@@ -193,9 +198,11 @@ func _animate_move(delta: float) -> void:
 	Audio.play_se(&"5f")
 	if forward:
 		page_x += PAGE_W
+		@warning_ignore("integer_division")
 		now_page += (page_count - now_page - 1) / _move_time
 	else:
 		page_x -= PAGE_W
+		@warning_ignore("integer_division")
 		now_page -= now_page / _move_time
 
 
@@ -233,6 +240,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## `mNT_Play_page_read`'s page move.
 func turn(move: int) -> void:
 	_move_time = mini(absi(move), MAX_STEPS)
+	@warning_ignore("integer_division")
 	now_page += move / _move_time
 	page_x = PAGE_W if move > 0 else -PAGE_W
 	mode = Mode.MOVE

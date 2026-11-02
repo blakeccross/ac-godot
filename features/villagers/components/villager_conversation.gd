@@ -93,7 +93,7 @@ func hold_talk(delta: float) -> void:
 	_villager.move_and_slide()
 	if on_bg:
 		_villager._snap_to_bg()
-	_villager._update_animation(delta, Vector3.ZERO)
+	_villager._update_animation(Vector3.ZERO)
 	_villager.ai.step(delta)
 
 

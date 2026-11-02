@@ -628,7 +628,9 @@ func _fill_shop_acre_frees(ctx: DialogueContext) -> void:
 ## `aNRG_set_shop_address`: `FREE_STR1` = row letter (`choume_str[shop_bz]`, "QABCDEF"),
 ## `FREE_STR2` = column digit — decomp block numbers, 1-based (FG cell / 16 + 1).
 static func shop_address_frees(cell: Vector2i) -> PackedStringArray:
+	@warning_ignore("integer_division")
 	var bx: int = clampi(cell.x / WorldGenerator.UT + 1, 1, WorldGenerator.FG_X)
+	@warning_ignore("integer_division")
 	var bz: int = clampi(cell.y / WorldGenerator.UT + 1, 1, WorldGenerator.FG_Z)
 	return PackedStringArray(["", "QABCDEF"[bz], str(bx)])
 
@@ -684,11 +686,12 @@ func _begin_demand_payment() -> void:
 		_end_demo_talk()
 		_stage.notify_dialogue_closed()
 		return
+	_ensure_payment_bag()
 	if Game.inventory == null or Game.inventory.count_of(PAYMENT_ITEM) == 0:
-		## Nothing to hand over (dev skip / already spent) — go straight to the job.
+		## Nothing to hand over (pockets full). Leave the parked window behind or the
+		## player stays locked after Nook walks off.
 		_payment_done = true
-		_end_demo_talk()
-		_stage.notify_dialogue_closed()
+		_drop_parked_talk()
 		return
 	if not _payment_hold:
 		_end_demo_talk()
@@ -696,10 +699,33 @@ func _begin_demand_payment() -> void:
 		Game.intro.payment_resolved.connect(_on_payment_resolved)
 	Game.intro.payment_pending = true
 	var inv_ui: InventoryOverlay = InventoryOverlay.find(get_tree())
-	if inv_ui == null:
+	if inv_ui == null or not inv_ui.present_handover(PAYMENT_ITEM):
 		Game.intro.payment_made()
 		return
-	inv_ui.open()
+
+
+## The station arrival starts with one QUEST 1,000-bell bag. Put it back if it is missing
+## so the pockets can still open (an exported build that never loaded the item, or a bag
+## that was already spent).
+func _ensure_payment_bag() -> void:
+	if Game.inventory == null or Game.inventory.count_of(PAYMENT_ITEM) > 0:
+		return
+	var bag: ItemData = ItemCatalog.get_item(PAYMENT_ITEM)
+	if bag != null:
+		Game.inventory.add(bag, 1, InventoryItem.Condition.QUEST)
+
+
+## The payment order hid the window. Close it before the stage moves on, so an invisible
+## talk cannot keep counting as an open menu after Nook has gone.
+func _drop_parked_talk() -> void:
+	_payment_hold = false
+	_end_demo_talk()
+	if _dialogue != null and is_instance_valid(_dialogue) and _dialogue.is_suspended():
+		_dialogue.set_suspended(false)
+		_dialogue.close(true)
+		return
+	if _stage != null:
+		_stage.notify_dialogue_closed()
 
 
 func _on_payment_resolved(paid: bool) -> void:
@@ -764,9 +790,16 @@ func _on_finished() -> void:
 func _finish_after_nook_retire() -> void:
 	if Game.intro.house_look_requested.is_connected(_on_intro_house_look):
 		Game.intro.house_look_requested.disconnect(_on_intro_house_look)
-	if _dialogue != null and _dialogue.has_signal("event_fired"):
+	if _dialogue != null and is_instance_valid(_dialogue):
+		if _dialogue.closed.is_connected(_on_dialogue_closed):
+			_dialogue.closed.disconnect(_on_dialogue_closed)
 		if _dialogue.event_fired.is_connected(_on_dialogue_event):
 			_dialogue.event_fired.disconnect(_on_dialogue_event)
+		## A parked down-payment talk is invisible and still `is_open()`, which blocks
+		## touch movement after Nook has left.
+		if _dialogue.is_open():
+			_dialogue.set_suspended(false)
+			_dialogue.close(true)
 	if _player != null and is_instance_valid(_player):
 		_player.unable_wade = false
 		_player.intro_block_bg_check = false

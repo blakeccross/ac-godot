@@ -210,6 +210,7 @@ static func _type_e(s: PackedByteArray, length: int) -> int:
 		if _at(s, i) == SPACE:
 			spaces += 1
 	var rest: int = length - spaces
+	@warning_ignore("integer_division")
 	if rest > 0 and (spaces * 100) / rest >= 20:
 		return 20
 	return -20

@@ -109,6 +109,7 @@ func _roll_for_half_a_second(hz: int) -> Array[float]:
 	add_child(ball)
 	ball.global_position = Vector3.ZERO
 	ball.vel = Vector2(0.0, 4.0 * Snowball.FRAME)
+	@warning_ignore("integer_division")
 	for _i: int in hz / 2:
 		ball.advance(1.0 / float(hz))
 	var out: Array[float] = [ball.speed(), ball.global_position.z, ball.move_dist]

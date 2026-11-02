@@ -103,6 +103,7 @@ static func balls_allowed(built_minute: int, now_minute: int) -> bool:
 	if built_minute < 0 or now_minute < built_minute:
 		return true
 	var built_day: int = floori(float(built_minute) / 1440.0)
+	@warning_ignore("integer_division")
 	var built_hour: int = (built_minute % 1440) / 60
 	var end_day: int = built_day + (1 if built_hour >= 6 else 0)
 	var end_minute: int = end_day * 1440 + BORN_END_HOUR * 60 + 59

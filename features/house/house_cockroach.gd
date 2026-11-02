@@ -158,6 +158,7 @@ func _tick_wait() -> void:
 func _decide_wait_or_move() -> void:
 	var pause: float = 5.0 + _rng.randf() * 5.0
 	var next: Act = Act.MOVE
+	@warning_ignore("integer_division")
 	var frame: int = int(Time.get_ticks_msec() / 33) % 100
 	if frame > 20 or _rng.randf() < 0.5:
 		next = Act.WAIT

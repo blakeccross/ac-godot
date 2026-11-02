@@ -382,6 +382,7 @@ static func _entry(blocks: int, first_block: int) -> PackedByteArray:
 
 
 static func _gci(file: PackedByteArray) -> PackedByteArray:
+	@warning_ignore("integer_division")
 	var out: PackedByteArray = _entry(file.size() / GameCubeCard.BLOCK_SIZE, GameCubeCard.FIRST_DATA_BLOCK)
 	out.append_array(file)
 	return out
@@ -391,6 +392,7 @@ static func _gci(file: PackedByteArray) -> PackedByteArray:
 ## the current one (higher counter) in block 2.
 static func _card(file: PackedByteArray) -> PackedByteArray:
 	var bs: int = GameCubeCard.BLOCK_SIZE
+	@warning_ignore("integer_division")
 	var n: int = file.size() / bs
 	var card := PackedByteArray()
 	card.resize((GameCubeCard.FIRST_DATA_BLOCK + n + 2) * bs)

@@ -57,6 +57,23 @@ func test_a_tap_on_a_tree_walks_to_the_unit_beside_it() -> void:
 	assert_int(maxi(absi(end.x - 6), absi(end.y - 6))).is_equal(1)
 
 
+func test_small_house_exit_is_on_the_route() -> void:
+	## The porch sits past the rug. A tap on the door has to land on the exit strip,
+	## not snap back onto the carpet.
+	var grid := WorldGrid.new()
+	grid.configure(16, 16, 2.0, Vector3(-16.0, 0.0, -16.0))
+	var room := Room.new()
+	room.inner_origin = Vector2i(1, 1)
+	room.inner_size = Vector2i(4, 4)
+	room.door_cell = Vector2i(2, 7)
+	var path: PackedVector3Array = TouchPath.find(
+		null, grid, _at(grid, Vector2i(2, 5)), _at(grid, Vector2i(2, 7)), room
+	)
+	assert_int(path.size()).is_greater_equal(2)
+	assert_bool(room.is_exit_cell(grid.world_to_cell(path[path.size() - 1]))).is_true()
+	assert_bool(TouchPath.is_open(null, grid, Vector2i(1, 6), room)).is_false()
+
+
 func test_unreachable_gives_no_route() -> void:
 	var grid: WorldGrid = _grid()
 	for z: int in 12:

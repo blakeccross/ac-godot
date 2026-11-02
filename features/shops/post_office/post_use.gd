@@ -253,6 +253,7 @@ static func fill_bank_frees(ctx: DialogueContext) -> void:
 	ctx.frees = PackedStringArray(["", "", "", ""])
 	ctx.frees[0] = ""
 	## `aPG_set_loan_balance`: {free1} is the millions and a comma, {free2} the rest.
+	@warning_ignore("integer_division")
 	var millions: int = loan / 1000000
 	ctx.frees[1] = "%d," % millions if millions > 0 else ""
 	ctx.frees[2] = BankOverlay.with_commas(loan % 1000000, 6 if millions > 0 else 0)

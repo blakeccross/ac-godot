@@ -66,6 +66,7 @@ func test_the_train_stops_just_past_the_station_trigger() -> void:
 	var now: int = control.start_timer
 	var hz := int(DecompTime.TICK_HZ)
 	for tick: int in hz * 120:
+		@warning_ignore("integer_division")
 		if control.advance(DecompTime.TICK_SEC, now + tick / hz, 1) == TrainControl.STATE_STOPPED:
 			break
 	assert_int(control.action).is_equal(TrainControl.Action.SIGNAL_STOPPED)
@@ -110,6 +111,7 @@ func test_title_demo_one_parks_and_never_leaves() -> void:
 	var control := TrainControl.new()
 	control.init(13 * 3600, 6)
 	for tick: int in 30 * 60 * 30:
+		@warning_ignore("integer_division")
 		assert_int(control.advance(DecompTime.TICK_SEC, 13 * 3600 + tick / int(DecompTime.TICK_HZ), 6, false, true)).is_equal(TrainControl.STATE_NONE)
 	assert_int(control.action).is_equal(TrainControl.Action.WAIT_STOPPED)
 	assert_float(control.x).is_equal(TrainControl.PARKED_X)

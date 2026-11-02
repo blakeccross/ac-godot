@@ -35,12 +35,22 @@ func _ready() -> void:
 	layer = 27
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	visible = false
 	set_process_unhandled_input(false)
 
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	return MenuFrame.rect_of(_screen)
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
 
 
 func open(mail: MailData) -> void:
@@ -96,13 +106,7 @@ func _slide(opening: bool) -> void:
 
 
 func _fit_screen() -> void:
-	var root := _screen.get_parent() as Control
-	var sz := root.size
-	if sz.x <= 0.0 or sz.y <= 0.0:
-		sz = root.get_viewport_rect().size
-	var k := minf(sz.x / 320.0, sz.y / 240.0)
-	_screen.scale = Vector2(k, k)
-	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
+	MenuFrame.fit(self, _screen.get_parent() as Control, _screen)
 
 
 func _unhandled_input(event: InputEvent) -> void:

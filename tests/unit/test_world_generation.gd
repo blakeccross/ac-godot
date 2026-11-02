@@ -138,7 +138,9 @@ func test_generated_town_has_ac_structure() -> void:
 	var museum: Vector2i = _building_at(data, &"museum")
 	var mus_b: BuildingPlacement = _building(data, &"museum")
 	assert_that(mus_b.actor_shift).is_equal(Vector2(-0.5, -0.5))
+	@warning_ignore("integer_division")
 	var mus_bx: int = museum.x / 16 + 1
+	@warning_ignore("integer_division")
 	var mus_bz: int = museum.y / 16 + 1
 	assert_int(int(data.acre_types[mus_bz * 7 + mus_bx])).is_equal(TownFieldGenerator.T_MUSEUM)
 	## Able Sisters on beach row F (bz=6). FG item is (9, 4) on ta_1/ta_2 and
@@ -148,6 +150,7 @@ func test_generated_town_has_ac_structure() -> void:
 	assert_int(able.y).is_less(96)
 	assert_int(able.x % 16).is_equal(8)
 	assert_bool(able.y % 16 == 4 or able.y % 16 == 5).is_true()
+	@warning_ignore("integer_division")
 	assert_int(int(data.acre_types[6 * 7 + (able.x / 16 + 1)])).is_equal(
 		TownFieldGenerator.T_NEEDLEWORK
 	)
@@ -304,8 +307,8 @@ func test_is_waterfall_block_excludes_river_cliff_only() -> void:
 func test_generated_town_places_waterfall_when_mesh_exists() -> void:
 	if FieldCatalog.mesh_paths(&"obj_fallS").is_empty():
 		return
-	for seed: int in [12345, 1786784979, 42, 99999]:
-		var data: WorldData = WorldGenerator.generate(seed)
+	for town_seed: int in [12345, 1786784979, 42, 99999]:
+		var data: WorldData = WorldGenerator.generate(town_seed)
 		var wf_acres := 0
 		for bz: int in range(1, 7):
 			for bx: int in range(1, 6):
@@ -321,7 +324,9 @@ func test_generated_town_places_waterfall_when_mesh_exists() -> void:
 				o.visual_id == &"obj_fallS" or o.visual_id == &"obj_fallSE"
 			).is_true()
 			assert_bool(o.occupy_grid).is_false()
+			@warning_ignore("integer_division")
 			var bx: int = int(o.cell.x / 16) + 1
+			@warning_ignore("integer_division")
 			var bz: int = int(o.cell.y / 16) + 1
 			var type: int = int(data.acre_types[bz * TownFieldGenerator.BLOCK_X + bx])
 			assert_bool(TownFieldGenerator.is_waterfall_block(type)).is_true()
@@ -352,8 +357,8 @@ func test_each_cliff_band_gets_slopes() -> void:
 	## `mRF_SetSlopeBlock` places a slope on each river side of every cliff band
 	## (each west `LEFT_TRANSITION`). One pair for the whole town trapped the
 	## player above a 2-step drop to the beach.
-	for seed: int in [12345, 1786784979, 42, 99999]:
-		var data: WorldData = WorldGenerator.generate(seed)
+	for town_seed: int in [12345, 1786784979, 42, 99999]:
+		var data: WorldData = WorldGenerator.generate(town_seed)
 		var bands := 0
 		var slopes := 0
 		for bz: int in range(TownFieldGenerator.BLOCK_Z - 2):
@@ -406,8 +411,8 @@ func test_generated_towns_include_stone_bridge_combis() -> void:
 	## some `_b_3`) are stone. Empty visuals used to paint every deck as wood PATH.
 	var saw_stone := false
 	var saw_wood := false
-	for seed: int in 24:
-		var data: WorldData = WorldGenerator.generate(2000 + seed)
+	for town_seed: int in 24:
+		var data: WorldData = WorldGenerator.generate(2000 + town_seed)
 		for i: int in data.acre_types.size():
 			if not TownFieldGenerator.is_river_bridge(int(data.acre_types[i])):
 				continue
@@ -424,14 +429,15 @@ func test_generated_towns_include_stone_bridge_combis() -> void:
 func test_stone_bridge_deck_is_stone_terrain() -> void:
 	## Geometric decks and catalog attrs 32–35 both use `Terrain.STONE`, not brown PATH.
 	var found := false
-	for seed: int in 40:
-		var data: WorldData = WorldGenerator.generate(3000 + seed)
+	for town_seed: int in 40:
+		var data: WorldData = WorldGenerator.generate(3000 + town_seed)
 		for i: int in data.acre_types.size():
 			if not TownFieldGenerator.is_river_bridge(int(data.acre_types[i])):
 				continue
 			var vis := StringName(data.acre_visuals[i])
 			if not FieldCatalog.is_stone_bridge_visual(vis):
 				continue
+			@warning_ignore("integer_division")
 			var bz: int = i / TownFieldGenerator.BLOCK_X
 			var bx: int = i % TownFieldGenerator.BLOCK_X
 			if bx < 1 or bx > 5 or bz < 1 or bz > 6:
@@ -460,15 +466,15 @@ func test_town_field_generator_is_deterministic() -> void:
 func test_generated_towns_always_place_required_uniques() -> void:
 	## `mRF_MakePerfectBit` retries until museum / police / shrine / Able / pool /
 	## slopes / bridges all land. Without the loop, some seeds ship with no museum.
-	for seed: int in range(50):
-		var field: Dictionary = TownFieldGenerator.new().generate(1000 + seed)
+	for town_seed: int in range(50):
+		var field: Dictionary = TownFieldGenerator.new().generate(1000 + town_seed)
 		assert_bool(bool(field.get("perfect", false))).is_true()
 		var blocks: PackedByteArray = field["blocks"] as PackedByteArray
 		assert_bool(_acre_has(blocks, TownFieldGenerator.T_MUSEUM)).is_true()
 		assert_bool(_acre_has(blocks, TownFieldGenerator.T_POLICE)).is_true()
 		assert_bool(_acre_has(blocks, TownFieldGenerator.T_SHRINE)).is_true()
 		assert_bool(_acre_has(blocks, TownFieldGenerator.T_NEEDLEWORK)).is_true()
-		var data: WorldData = WorldGenerator.generate(1000 + seed)
+		var data: WorldData = WorldGenerator.generate(1000 + town_seed)
 		assert_that(_building_at(data, &"museum")).is_not_equal(Vector2i(-1, -1))
 		assert_that(_building_at(data, &"able_sisters")).is_not_equal(Vector2i(-1, -1))
 		## The lighthouse isn't a block type: it stands in the beach-river acres' FG templates.
@@ -488,8 +494,8 @@ func test_step3_layouts_are_the_decomps_ten() -> void:
 func test_the_lighthouse_stands_on_the_beach_where_the_river_meets_the_sea() -> void:
 	if not FieldObjectCatalog.has_catalog():
 		return
-	for seed: int in range(20):
-		var data: WorldData = WorldGenerator.generate(2000 + seed)
+	for town_seed: int in range(20):
+		var data: WorldData = WorldGenerator.generate(2000 + town_seed)
 		var found: Array[BuildingPlacement] = []
 		for b: BuildingPlacement in data.buildings:
 			if b != null and b.id == &"lighthouse":
@@ -523,12 +529,13 @@ func test_no_cedar_on_the_lowest_ground_of_the_middle_rows() -> void:
 	if not FieldObjectCatalog.has_catalog():
 		return
 	var cedars := 0
-	for seed: int in range(12):
-		var data: WorldData = WorldGenerator.generate(4000 + seed)
+	for town_seed: int in range(12):
+		var data: WorldData = WorldGenerator.generate(4000 + town_seed)
 		for o: ObjectPlacement in data.objects:
 			if o == null or o.kind != &"tree" or o.visual_id != &"CEDAR_TREE":
 				continue
 			cedars += 1
+			@warning_ignore("integer_division")
 			var bz: int = o.cell.y / 16 + 1
 			if bz == 2 or bz == 3:
 				assert_float(FieldCollision.ground_y(data, o.cell)).is_greater_equal(5.0)
@@ -540,8 +547,8 @@ func test_no_cedar_on_the_lowest_ground_of_the_middle_rows() -> void:
 func test_the_dump_is_generated_with_its_walls() -> void:
 	if not FieldObjectCatalog.has_catalog():
 		return
-	for seed: int in range(10):
-		var data: WorldData = WorldGenerator.generate(3000 + seed)
+	for town_seed: int in range(10):
+		var data: WorldData = WorldGenerator.generate(3000 + town_seed)
 		FieldCollision.reset(data)
 		StructureOffset.apply(data)
 		var dumps: Array[BuildingPlacement] = []
@@ -551,6 +558,7 @@ func test_the_dump_is_generated_with_its_walls() -> void:
 		assert_int(dumps.size()).is_greater(0)
 		for dump: BuildingPlacement in dumps:
 			assert_that(dump.footprint).is_equal(Vector2i(6, 6))
+			@warning_ignore("integer_division")
 			var acre := Vector2i(dump.cell.x / 16 + 1, dump.cell.y / 16 + 1)
 			assert_int(int(data.acre_types[acre.y * TownFieldGenerator.BLOCK_X + acre.x])).is_equal(TownFieldGenerator.T_TRACKS_DUMP)
 			var home: Vector2i = StructureOffset.dump_home_cell(dump)
@@ -567,7 +575,9 @@ func test_tortimer_stands_at_shrine_ut_10_10() -> void:
 	var data: WorldData = WorldGenerator.generate(42)
 	var cell: Vector2i = _object_at(data, &"tortimer")
 	assert_that(cell).is_not_equal(Vector2i(-1, -1))
+	@warning_ignore("integer_division")
 	var bx: int = cell.x / WorldGenerator.UT + 1
+	@warning_ignore("integer_division")
 	var bz: int = cell.y / WorldGenerator.UT + 1
 	var bi: int = bz * TownFieldGenerator.BLOCK_X + bx
 	assert_int(int(data.acre_types[bi])).is_equal(TownFieldGenerator.T_SHRINE)
@@ -922,8 +932,8 @@ func _uses_acre_collision(data: WorldData) -> bool:
 func test_acres_come_from_their_types_combi_rows() -> void:
 	if not FieldObjectCatalog.has_catalog():
 		return
-	for seed: int in range(20):
-		var data: WorldData = WorldGenerator.generate(5000 + seed)
+	for town_seed: int in range(20):
+		var data: WorldData = WorldGenerator.generate(5000 + town_seed)
 		for i: int in TownFieldGenerator.BLOCK_TOTAL:
 			var type: int = int(data.acre_types[i])
 			var listed: PackedStringArray = FieldObjectCatalog.bg_names_for_type(TownMap.decomp_block_type(type))

@@ -44,6 +44,7 @@ static func crop(hour: int, minute: int, new_day: bool) -> int:
 	if not new_day:
 		return 0
 	if hour == ACTIVE_HOUR:
+		@warning_ignore("integer_division")
 		return NUM - minute / QUARTER
 	if hour == ACTIVE_HOUR + 1 and minute < QUARTER:
 		return NUM - 4
@@ -54,6 +55,7 @@ static func crop(hour: int, minute: int, new_day: bool) -> int:
 static func quarters_between(a_minute: int, b_minute: int) -> int:
 	if a_minute == b_minute:
 		return 0
+	@warning_ignore("integer_division")
 	return absi(a_minute / QUARTER - b_minute / QUARTER)
 
 

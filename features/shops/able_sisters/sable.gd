@@ -87,7 +87,7 @@ func _begin_talk(ctx: InteractionContext) -> bool:
 		## A visitor (`mPr_FOREIGNER`) is always a stranger: day 0, no tick, no look.
 		var days: int = 0 if Game.foreigner else Game.designs.sable_days
 		_story_row = NeedleworkTalk.pick_story_row(days, first and not Game.foreigner, _rng)
-		_story_ids = NeedleworkTalk.story_line_ids(_story_row, _rng)
+		_story_ids = NeedleworkTalk.story_line_ids(_story_row)
 		if not Game.foreigner:
 			Game.designs.tick_sable_day(_today())
 		_turns_to_player = not Game.foreigner and Game.designs.sable_days >= NeedleworkTalk.SABLE_TURN_DAYS

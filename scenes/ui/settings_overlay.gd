@@ -28,16 +28,44 @@ func _ready() -> void:
 	layer = 31
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	_root.visible = false
 	_reset.pressed.connect(_on_reset)
 	_back.pressed.connect(close)
 	_build_rows()
 	InputBindings.ensure_loaded()
 	_refresh_labels()
+	_root.resized.connect(_fit_window)
+	if not InputDeviceTracker.layout_changed.is_connected(_fit_window):
+		InputDeviceTracker.layout_changed.connect(_fit_window)
+	_fit_window()
 
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	return MenuFrame.rect_of(_root.get_node("Center/Panel") as Control)
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
+
+
+func _fit_window() -> void:
+	var panel := _root.get_node("Center/Panel") as Control
+	var portrait := InputDeviceTracker.uses_mobile_ui()
+	var width := _root.size.x - 48.0 if portrait and _root.size.x > 64.0 else 520.0
+	panel.custom_minimum_size = Vector2(width, 0)
+	var tall := 56.0 if portrait else 0.0
+	for button: Button in _bind_buttons.values():
+		button.custom_minimum_size.y = tall
+	_reset.custom_minimum_size = Vector2(140, tall)
+	_back.custom_minimum_size = Vector2(140, tall)
+	var scroll := _root.get_node("Center/Panel/Margin/VBox/Scroll") as Control
+	scroll.custom_minimum_size.y = 520.0 if portrait else 360.0
 
 
 func open(pause_game: bool = false) -> void:
@@ -53,6 +81,7 @@ func open(pause_game: bool = false) -> void:
 	DisplayConfig.ensure_loaded()
 	_refresh_labels()
 	_hint.text = "Click a binding, then press a key or button. Esc cancels."
+	_fit_window()
 	_back.grab_focus()
 
 

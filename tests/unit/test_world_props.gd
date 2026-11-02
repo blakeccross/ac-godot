@@ -70,8 +70,8 @@ func test_generated_towns_place_fixed_props() -> void:
 	if not FieldObjectCatalog.has_catalog():
 		return
 	var seen: Dictionary = {}
-	for seed: int in range(40):
-		var data: WorldData = WorldGenerator.generate(5000 + seed)
+	for town_seed: int in range(40):
+		var data: WorldData = WorldGenerator.generate(5000 + town_seed)
 		for o: ObjectPlacement in data.objects:
 			if o.kind in PROP_KINDS:
 				seen[o.visual_id] = int(seen.get(o.visual_id, 0)) + 1
@@ -86,8 +86,8 @@ func test_generated_towns_place_fixed_props() -> void:
 func test_wide_props_occupy_two_cells() -> void:
 	if not FieldObjectCatalog.has_catalog():
 		return
-	for seed: int in range(12):
-		var data: WorldData = WorldGenerator.generate(6000 + seed)
+	for town_seed: int in range(12):
+		var data: WorldData = WorldGenerator.generate(6000 + town_seed)
 		for o: ObjectPlacement in data.objects:
 			if o.visual_id in [&"obj_s_fenceL", &"obj_s_notice", &"obj_s_sightmap", &"obj_s_melody"]:
 				assert_that(o.footprint).is_equal(Vector2i(2, 1))

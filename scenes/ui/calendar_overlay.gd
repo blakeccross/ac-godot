@@ -81,6 +81,7 @@ static func find(tree: SceneTree) -> CalendarOverlay:
 func _ready() -> void:
 	layer = 21
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	_root.visible = false
 	_font = LetterBoard.load_font()
 	_canvas.draw.connect(_draw_canvas)
@@ -92,12 +93,7 @@ func _ready() -> void:
 
 
 func _fit_screen() -> void:
-	var sz := _root.size
-	if sz.x <= 0.0 or sz.y <= 0.0:
-		return
-	var k := minf(sz.x / 320.0, sz.y / 240.0)
-	_screen.scale = Vector2(k, k)
-	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
+	MenuFrame.fit(self, _root, _screen)
 
 
 func _t(name: String) -> Texture2D:
@@ -109,6 +105,15 @@ func _t(name: String) -> Texture2D:
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	return MenuFrame.rect_of(_screen)
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
 
 
 ## `mCD_calendar_ovl_init`: in from the top on this month, today noted as played.
@@ -387,6 +392,7 @@ func _draw_page(off: int, x: float) -> void:
 	for i: int in CalendarBook.CELLS:
 		if i == picked:
 			continue
+		@warning_ignore("integer_division")
 		var c := at + Vector2((i % CalendarBook.WEEK) * CELL.x, (i / CalendarBook.WEEK) * CELL.y)
 		var t: int = int(types[i])
 		_blit("cal_box_t%d" % t, c)
@@ -397,6 +403,7 @@ func _draw_page(off: int, x: float) -> void:
 	if picked < 0:
 		return
 	var t2: int = int(types[picked])
+	@warning_ignore("integer_division")
 	var pc := at + Vector2((picked % CalendarBook.WEEK) * CELL.x, (picked / CalendarBook.WEEK) * CELL.y)
 	_blit("cal_box2_t%d" % t2, pc)
 	var lifted := pc - Vector2(0.0, PICKED_LIFT)

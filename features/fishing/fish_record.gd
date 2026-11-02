@@ -73,6 +73,7 @@ static func npc_best(minute: int, size: int, rng: RandomNumberGenerator) -> int:
 	var best: int = 0
 	var t: int = minute
 	while t < LAST_ROLL:
+		@warning_ignore("integer_division")
 		best = maxi(best, npc_size(t / 60, rng))
 		t += ROLL_STEP
 	return best if best > size else 0
@@ -131,6 +132,7 @@ static func prize_mail(rec: Dictionary, prize: StringName, player: String) -> Ma
 		return null
 	var date: Vector3i = EventDates.from_ordinal(int(rec["ordinal"]))
 	var data: ItemData = ItemCatalog.get_item(prize)
+	@warning_ignore("integer_division")
 	var text: Dictionary = MailBank.letter(MAIL_FIRST + (((date.z - 1) / 7) & 3), player,
 		{0: data.display_name if data != null else ""})
 	var mail := MailData.new()
@@ -174,7 +176,7 @@ static func send_mail(
 
 
 ## `mNtc_set_auto_nwrite_fishing_string` + handbill 0x242.
-static func notice_text(year: int, month: int, day: int, winner: Dictionary) -> String:
+static func notice_text(month: int, day: int, winner: Dictionary) -> String:
 	var text: String = MailBank.text("mail", NOTICE)
 	var slots: Dictionary = {
 		0: DialogueCatalog.rom_string(NoticeBoard.STRING_MONTH_START + month - 1),

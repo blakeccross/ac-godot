@@ -233,12 +233,12 @@ The rule: no overlay grows its own touch logic. Each one gets tap regions that c
 
 ## Phase 6: polish
 
-**On-screen buttons are mobile only.** The tab bar (Map · Pockets · Menu, which replaced the corner B / Pockets / Map / Pause buttons), chips and menu pad show only on Android or iOS (`InputDeviceTracker.shows_touch_buttons()`). The gestures work on every platform.
+**On-screen buttons are mobile only.** The tab buttons (Map · Inventory · Settings: three round white icon buttons stacked down the top right inside the safe area, slid off the right edge while the player walks or the stick is out) and verb chips show on Android or iOS (`InputDeviceTracker.shows_touch_buttons()`). There is no arrow, OK, or Back pad. A tap still advances a waiting page. The gestures work on every platform.
 
 **Done.** Haptics in `GameConfig.rumble` (`Input.vibrate_handheld` while touch is the last device), `TouchSafeArea` pads the HUD and the menu pad on phones, an Android preset plus side-load notes in `docs/testing.md` § Touch, and phone-size captures. Hit sizes were checked at 1266×585: the buttons moved up off the clock, and `SELF_RADIUS_PX`, the pick ring and the chips scale with the viewport height. The capture isn't an automated regression yet, and the haptics and safe area are untested on a device.
 
 - **Haptics:** in `GameConfig.rumble(entry)`, when the last device is touch and `rumble_on`, also call `Input.vibrate_handheld(int(shape.y * 1000), shape.x)`. Same moments, one call site.
-- **Safe areas:** `TouchHud` and the overlays' tap regions read `DisplayServer.get_display_safe_area()` and pad their anchors so nothing sits under a notch or the home bar.
+- **Safe areas:** `TouchHud`'s stick, chips and tab buttons and the overlays' tap regions read `DisplayServer.get_display_safe_area()` and pad their anchors so nothing sits under a notch or the home bar.
 - **Hit tuning:** from captures at 1170×2532 and 2400×1080, adjust `SELF_RADIUS_PX`, the pick ring and the chip sizes.
 - **Export:** an Android preset in `export_presets.cfg` (landscape, `emulate_mouse_from_touch` on, Vulkan Mobile renderer override checked for parity), plus notes in `docs/testing.md` on side-loading. iOS only if there's a Mac to build on.
 - **Capture test:** `tools/capture.sh` at phone size with a scripted touch sequence: tap a tree, then tap the fruit. Kept as a visual regression for the HUD and marker.
@@ -258,6 +258,6 @@ The rule: no overlay grows its own touch logic. Each one gets tap regions that c
 
 ## Open decisions for later
 
-- **Camera:** it stays fixed, as now. If a phone's portrait aspect shows too little ground, the fix belongs in `FollowCamera` (distance by aspect), not in touch code.
+- **Camera:** it stays fixed, as now. A window narrower than 16:9 opens the vertical lens a little, capped at 28° (`FollowCamera.fov_for_aspect`). Touch code does not zoom.
 - **Tap-on-player vs. tap-in-front:** both mean A. If testing shows people tap the tree in front rather than themselves, phase 4 covers that. Phase 2's self-tap stays as the fallback for verbs with no host, such as digging, the net and shaking a bare spot.
 - **Furniture push / pull** (drag from the furniture piece) is left out of phase 4. Indoors, hold on a piece to grip it (A held); sliding the finger toward or away from it then pushes or pulls it, through the same `_grip_stick` the stick uses. There's still no stick on screen. Add it if it's wanted after phase 5.

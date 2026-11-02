@@ -665,6 +665,7 @@ func _river_cross_cliff_bz(blocks: PackedByteArray) -> int:
 	for i: int in (BLOCK_Z - 2) * BLOCK_X:
 		var t: int = int(blocks[i])
 		if crosses.has(t):
+			@warning_ignore("integer_division")
 			return i / BLOCK_X
 	return 4
 

@@ -110,9 +110,11 @@ func _look_runner(delta: float) -> void:
 func _basket_round(delta: float) -> void:
 	if _shrine == Vector3.INF or is_moving():
 		return
+	@warning_ignore("integer_division")
 	var pair: int = (_round_step / 4) % 2
 	match _round_step % 4:
 		0, 2:
+			@warning_ignore("integer_division")
 			var target: Vector3 = _round_point(BASKET_ROUND[pair * 2 + (_round_step % 4) / 2])
 			var to: Vector3 = target - global_position
 			if to.length_squared() < 0.0001 or turn_to(atan2(to.x, to.z), delta):

@@ -75,7 +75,11 @@ const PAGE_SWING_DURATION := 40.0 / DecompTime.TICK_HZ
 @onready var _tab_design: Panel = %TabDesign
 
 var _open: bool = false
-var _mobile_classic: bool = false
+## The tap that opens the down-payment pockets can also hit Close on the next frame.
+## Ignore that one press; a later Close still declines the payment.
+var _ignore_close_once: bool = false
+## Layer while the down-payment sheet must sit above the talk window (layer 25).
+var _restore_layer: int = -1
 var _focus_mail: bool = false
 ## `mTG_TABLE_PLAYER`: the cursor can move onto the player doll from the top row of the
 ## item grid, same continuous navigable space as items/mail/wallet/background.
@@ -173,16 +177,20 @@ static func find(tree: SceneTree) -> InventoryOverlay:
 func _ready() -> void:
 	layer = 20
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	_slide = MenuSlide.attach(self)
 	_load_ui_font()
 	_wire_slot_buttons()
 	_mobile.slot_pressed.connect(_on_item_pressed)
+	_mobile.mail_pressed.connect(_on_mail_pressed)
+	_mobile.page_pressed.connect(_on_mobile_page)
+	_mobile.designs_pressed.connect(_open_design_book)
 	_mobile.action_pressed.connect(_run_tag)
 	_mobile.actions_cancelled.connect(_cancel_mobile_actions)
-	_mobile.more_pressed.connect(_open_mobile_classic)
 	_mobile.wallet_pressed.connect(_open_wallet_popup)
 	_mobile.close_pressed.connect(close)
-	_back_to_items.pressed.connect(_return_to_mobile_items)
+	if not InputDeviceTracker.layout_changed.is_connected(_on_layout_changed):
+		InputDeviceTracker.layout_changed.connect(_on_layout_changed)
 	_wire_side_tabs()
 	_apply_chrome()
 	_build_encyclopedia_grid()
@@ -298,20 +306,22 @@ func _on_side_tab_gui(event: InputEvent, tab: Panel) -> void:
 	get_viewport().set_input_as_handled()
 	var page: int = _tab_home.get(tab, {}).get("page", SideTab.POCKETS)
 	if page < 0:
-		Audio.play_se(&"cursol")
-		var list_ui: DesignListOverlay = DesignListOverlay.find(get_tree())
-		if list_ui != null:
-			## `mSM_OVL_NEEDLEWORK` / `mNW_OPEN_INV`: the book opens over the right half of
-			## the pockets, which stay up with the letters hidden (`mIV_set_mail_dl`
-			## skips them while the needlework menu is next).
-			list_ui.open("manage", Callable(), true)
-			if list_ui.is_open():
-				_set_design_book_open(true)
-				list_ui.closed.connect(_set_design_book_open.bind(false), CONNECT_ONE_SHOT)
-		else:
-			Game.post_notice("The design book isn't available here.")
+		_open_design_book()
 	else:
 		_select_side_tab(page)
+
+
+## `mSM_OVL_NEEDLEWORK` / `mNW_OPEN_INV`: the book opens over the pockets.
+func _open_design_book() -> void:
+	Audio.play_se(&"cursol")
+	var list_ui: DesignListOverlay = DesignListOverlay.find(get_tree())
+	if list_ui == null:
+		Game.post_notice("The design book isn't available here.")
+		return
+	list_ui.open("manage", Callable(), true)
+	if list_ui.is_open():
+		_set_design_book_open(true)
+		list_ui.closed.connect(_set_design_book_open.bind(false), CONNECT_ONE_SHOT)
 
 
 func _set_design_book_open(on: bool) -> void:
@@ -722,17 +732,17 @@ func _build_encyclopedia_grid() -> void:
 func _populate_encyclopedia(kind: StringName) -> void:
 	if _collect_root == null:
 		return
-	var log: SpeciesLog = Game.species_log
+	var book: SpeciesLog = Game.species_log
 	_collect_title.text = "Fish" if kind == &"fish" else "Insects"
 	_collect_banner.texture = InventoryChrome.load_tex(
 		"fish_title_banner" if kind == &"fish" else "bug_title_banner"
 	)
-	var have: int = log.page_count(kind) if log != null else 0
+	var have: int = book.page_count(kind) if book != null else 0
 	_collect_count.text = "%d / %d" % [have, EncyclopediaCatalog.COLLECT_NUM]
 	for slot: int in _collect_slots.size():
 		var pic: TextureRect = _collect_slots[slot]
 		var id: StringName = EncyclopediaCatalog.id_for(kind, slot)
-		var caught: bool = log != null and log.has(id)
+		var caught: bool = book != null and book.has(id)
 		pic.texture = InventoryChrome.load_tex(EncyclopediaCatalog.icon_for(kind, slot))
 		## Caught: full colour `inv_mwin_NN` card. Uncaught: a dark silhouette.
 		pic.modulate = Color.WHITE if caught else Color(0.05, 0.06, 0.09, 0.32)
@@ -1166,11 +1176,37 @@ func is_open() -> bool:
 	return _open
 
 
+func menu_rect() -> Rect2:
+	var rect: Rect2 = MenuFrame.rect_of(_shell_stack)
+	if _tag_popup != null and _tag_popup.visible:
+		rect = rect.merge(MenuFrame.rect_of(_tag_popup))
+	return rect
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
+
+
 func uses_mobile_layout() -> bool:
-	return (
-		InputDeviceTracker.on_mobile and not _mobile_classic
-		and not _focus_mail and _side_tab == SideTab.POCKETS and _gyroid_house == null
-	)
+	return InputDeviceTracker.uses_mobile_ui() and _gyroid_house == null
+
+
+func _mobile_page() -> String:
+	if _focus_mail:
+		return "letters"
+	match _side_tab:
+		SideTab.FISH:
+			return "fish"
+		SideTab.BUG:
+			return "insects"
+		_:
+			return "items"
+
+
+func _on_layout_changed() -> void:
+	if _open:
+		_refresh()
 
 
 func _refresh_mobile_layout() -> void:
@@ -1179,34 +1215,52 @@ func _refresh_mobile_layout() -> void:
 	_classic.visible = not mobile
 	($Root/Dim as Control).visible = not mobile
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE if mobile else Control.MOUSE_FILTER_STOP
-	_back_to_items.visible = InputDeviceTracker.on_mobile and not mobile and _gyroid_house == null
+	_back_to_items.visible = false
 	if mobile:
-		_mobile.refresh(Game.inventory)
+		var page := _mobile_page()
+		_mobile.show_page(page)
+		match page:
+			"letters":
+				_mobile.refresh_letters(Game.inventory)
+			"fish":
+				_mobile.refresh_collection(&"fish")
+			"insects":
+				_mobile.refresh_collection(&"insect")
+			_:
+				_mobile.refresh(Game.inventory)
 	if _portrait_viewport != null:
 		_portrait_viewport.render_target_update_mode = (
 			SubViewport.UPDATE_ALWAYS if _open and not mobile else SubViewport.UPDATE_DISABLED
 		)
 
 
+func _on_mobile_page(page: String) -> void:
+	_cancel_mobile_actions()
+	_focus_player = false
+	_focus_gyroid = false
+	match page:
+		"letters":
+			if _side_tab != SideTab.POCKETS:
+				_select_side_tab(SideTab.POCKETS)
+			_focus_mail = true
+			_focus_player = false
+		"fish":
+			_focus_mail = false
+			_select_side_tab(SideTab.FISH)
+		"insects":
+			_focus_mail = false
+			_select_side_tab(SideTab.BUG)
+		_:
+			_focus_mail = false
+			if _side_tab != SideTab.POCKETS:
+				_select_side_tab(SideTab.POCKETS)
+	_refresh()
+
+
 func _cancel_mobile_actions() -> void:
 	_tag_mode = false
 	_wallet_tag_mode = false
 	_background_tag_mode = false
-	_refresh()
-
-
-func _open_mobile_classic() -> void:
-	_cancel_mobile_actions()
-	_mobile_classic = true
-	_refresh()
-
-
-func _return_to_mobile_items() -> void:
-	_mobile_classic = false
-	_focus_mail = false
-	_focus_player = false
-	_cancel_mobile_actions()
-	_select_side_tab(SideTab.POCKETS)
 	_refresh()
 
 
@@ -1220,11 +1274,43 @@ func open_letters() -> void:
 		_refresh()
 
 
+## Intro down payment: open on the money bag with Hand over already showing.
+func present_handover(item_id: StringName) -> bool:
+	open()
+	if not _open:
+		return false
+	_ignore_close_once = true
+	call_deferred("_release_close_guard")
+	if _restore_layer < 0:
+		_restore_layer = layer
+	layer = 30
+	var idx := -1
+	for i: int in Inventory.POCKET_SLOTS:
+		var slot: InventorySlot = Game.inventory.slot_at(i)
+		if slot != null and not slot.is_empty() and slot.item.item_id == item_id:
+			idx = i
+			break
+	if idx >= 0:
+		Game.inventory.select(idx)
+		_tag_choices = Game.inventory.tags_for_slot(idx)
+		if not _tag_choices.is_empty():
+			_tag_mode = true
+			_tag_index = 0
+			_focus_mail = false
+			_focus_player = false
+			_mobile.reveal_slot(idx)
+	_refresh()
+	return true
+
+
+func _release_close_guard() -> void:
+	_ignore_close_once = false
+
+
 func open() -> void:
 	if _open:
 		return
 	_open = true
-	_mobile_classic = false
 	_tag_mode = false
 	_focus_mail = false
 	_focus_player = false
@@ -1271,8 +1357,14 @@ func open_gyroid(house: House, owner: bool) -> void:
 
 
 func close() -> void:
+	if _ignore_close_once:
+		_ignore_close_once = false
+		return
 	if not _open:
 		return
+	if _restore_layer >= 0:
+		layer = _restore_layer
+		_restore_layer = -1
 	var mobile := uses_mobile_layout()
 	Audio.play_se(&"menu_exit")
 	Audio.set_music_pause(1.0)
@@ -1433,6 +1525,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
 		if _focus_mail:
 			var col: int = Game.inventory.selected_mail_index % Inventory.MAIL_COLUMNS
+			@warning_ignore("integer_division")
 			var row: int = Game.inventory.selected_mail_index / Inventory.MAIL_COLUMNS
 			## The item (5x3) and mail (2x5) grids sit side by side, bottom-aligned — mail
 			## row `r` lines up with item row `r - MAIL_ROW_OFFSET`. Off the mail grid's
@@ -1452,6 +1545,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			Game.inventory.move_mail_cursor(1, 0)
 		else:
 			var col: int = Game.inventory.selected_index % Inventory.COLUMNS
+			@warning_ignore("integer_division")
 			var row: int = Game.inventory.selected_index / Inventory.COLUMNS
 			if col == Inventory.COLUMNS - 1 and _gyroid_house != null:
 				## `mTG_move_cursol_between_table_haniwa`: off the pockets' right edge.
@@ -1499,6 +1593,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _handle_mobile_navigation(event: InputEvent) -> bool:
+	if event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
+		if _mobile.page() == "fish" or _mobile.page() == "insects":
+			return true
+		_activate_cursor()
+		return true
 	var step := Vector2i.ZERO
 	if event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
 		step.x = -1
@@ -1510,9 +1609,24 @@ func _handle_mobile_navigation(event: InputEvent) -> bool:
 		step.y = 1
 	else:
 		return false
-	var index := Game.inventory.selected_index
-	var column := clampi(index % MobileInventory.COLUMNS + step.x, 0, MobileInventory.COLUMNS - 1)
-	var row := maxi(index / MobileInventory.COLUMNS + step.y, 0)
+	var page := _mobile.page()
+	if page == "letters":
+		var index := clampi(Game.inventory.selected_mail_index + step.x + step.y, 0, Inventory.MAIL_SLOTS - 1)
+		Game.inventory.select_mail(index)
+		_mobile.reveal_letter(index)
+		return true
+	if page == "fish" or page == "insects":
+		var index := _mobile.collection_index()
+		var column := clampi(index % MobileInventory.COLUMNS + step.x, 0, MobileInventory.COLUMNS - 1)
+		@warning_ignore("integer_division")
+		var row := maxi(index / MobileInventory.COLUMNS + step.y, 0)
+		var target := mini(row * MobileInventory.COLUMNS + column, EncyclopediaCatalog.COLLECT_NUM - 1)
+		_mobile.select_collection(target)
+		return true
+	var slot := Game.inventory.selected_index
+	var column := clampi(slot % MobileInventory.COLUMNS + step.x, 0, MobileInventory.COLUMNS - 1)
+	@warning_ignore("integer_division")
+	var row := maxi(slot / MobileInventory.COLUMNS + step.y, 0)
 	var target := mini(row * MobileInventory.COLUMNS + column, Inventory.POCKET_SLOTS - 1)
 	Game.inventory.select(target)
 	_mobile.reveal_slot(target)
@@ -1871,7 +1985,10 @@ func _run_tag(tag: String) -> void:
 				close()
 				return
 			## Intro down payment — Nook's director plays the hand-over and books it.
+			## The opening tap's Close is ignored for one press; handing the bag over
+			## must still put the pockets away.
 			Game.intro.payment_made()
+			_ignore_close_once = false
 			close()
 		"Put in":
 			## A drawer or music player is waiting — hand the pick back to it.
@@ -2423,6 +2540,7 @@ func _on_gyroid_pressed(slot: int) -> void:
 
 func _gyroid_navigate(event: InputEvent) -> void:
 	var col: int = _gyroid_sel % GYROID_COLS
+	@warning_ignore("integer_division")
 	var row: int = _gyroid_sel / GYROID_COLS
 	if event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
 		if col == 0:

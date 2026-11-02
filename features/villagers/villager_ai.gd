@@ -17,10 +17,13 @@ var _queue: Array[VillagerAction] = []
 var _held: VillagerAction
 
 
+## True when `sync` would do nothing, so a caller can skip building the hints.
+func is_synced(schedule_type_now: StringName) -> bool:
+	return is_talking() or (schedule_type_now == schedule_type and current != null)
+
+
 func sync(schedule_type_now: StringName, hints: Dictionary) -> void:
-	if is_talking():
-		return
-	if schedule_type_now == schedule_type and current != null:
+	if is_synced(schedule_type_now):
 		return
 	previous_type = schedule_type
 	schedule_type = schedule_type_now

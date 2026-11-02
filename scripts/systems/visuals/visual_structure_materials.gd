@@ -39,10 +39,10 @@ static func apply_fish_tank_surface(
 	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	std.render_priority = 1
 	var extras: Dictionary = VisualSurface.gltf_extras(src if src != null else std)
-	var wrap := _wrap_tiles(extras)
+	var tile_wrap := _wrap_tiles(extras)
 	## `modelT`: highlight, then the water-surface tint, then the scrolling caustic.
 	if "evw" in label:
-		return _tank_glass(std, wrap, visual_id == &"obj_museum5")
+		return _tank_glass(std, tile_wrap, visual_id == &"obj_museum5")
 	if "mizu" in label:
 		return _tank_water(std)
 	if "water1" in label or "water2" in label or "rgb_i4" in label or _is_tank_caustic(extras):
@@ -57,7 +57,7 @@ static func _wrap_tiles(extras: Dictionary) -> Vector2:
 	return Vector2.ONE
 
 
-static func _tank_glass(std: StandardMaterial3D, wrap: Vector2, sea: bool) -> ShaderMaterial:
+static func _tank_glass(std: StandardMaterial3D, tile_wrap: Vector2, sea: bool) -> ShaderMaterial:
 	## Small tanks are a faint blue; the sea tank is stronger. Tint (0, 30, 120).
 	var mat := ShaderMaterial.new()
 	mat.shader = _TANK_GLASS
@@ -65,7 +65,7 @@ static func _tank_glass(std: StandardMaterial3D, wrap: Vector2, sea: bool) -> Sh
 	mat.set_shader_parameter("tint", Color8(0, 30, 120))
 	mat.set_shader_parameter("base_alpha", (60.0 if sea else 30.0) / 255.0)
 	mat.set_shader_parameter("texture_alpha", (20.0 if sea else 10.0) / 256.0)
-	mat.set_shader_parameter("wrap_tiles", wrap)
+	mat.set_shader_parameter("wrap_tiles", tile_wrap)
 	mat.render_priority = 1
 	mat.set_meta("tank_layer", &"evw")
 	return mat

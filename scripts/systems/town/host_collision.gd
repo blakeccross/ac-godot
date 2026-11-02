@@ -260,7 +260,7 @@ static func resize_interact_box(host: Node3D, size: Vector3) -> void:
 		_resize_door_box(nested as Node3D, size)
 
 
-static func apply_shop(host: Node3D, occupancy: Vector2i, cell_size: float) -> void:
+static func apply_shop(host: Node3D) -> void:
 	## Nook shop walk walls are `StructureOffset` (`aSHOP_set_bgOffset`).
 	disable_body(host)
 	place_door_sensor(host, _door_at(SHOP_DOOR), Vector3(1.6, 2.0, 1.6))

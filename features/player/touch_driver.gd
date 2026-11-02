@@ -2,9 +2,13 @@ class_name TouchDriver
 extends Node
 
 ## Touch drives the player through one `PlayerInput` (`scripted_input`), exactly as a stick
-## and A / B would: the player can't tell a finger from a pad. There is no on-screen stick.
-## - Hold a finger on the ground: the player walks toward the spot under it, running when it
-##   is far ahead, and stops on it. Nothing is planned; walls stop it as a held stick would.
+## and A / B would: the player can't tell a finger from a pad.
+## - Drag: a joystick (a ring and a smaller knob) appears where the finger went down. The
+##   player walks in the direction of the drag, running when the knob is at the rim, and
+##   stops when the finger lifts and the joystick disappears.
+## - Hold a finger still on the ground: the player walks toward the spot under it, running
+##   when it is far ahead, and stops on it. Nothing is planned; walls stop it as a held
+##   stick would.
 ## - Tap the player: A (dig, swing, shake, talk to whoever is in front).
 ## - Tap the ground: walk there along a route round cliffs, water and things in the way
 ##   (`TouchPath`), steering a stick at each leg; a double tap runs. A ring marks the spot.
@@ -19,9 +23,17 @@ extends Node
 
 ## A press this close to the player's screen point is on the player (720 p pixels).
 const SELF_RADIUS_PX := 64.0
-## Held this long, or moved this far, a press on the ground becomes a follow.
+## Held this long without sliding, a press on the ground becomes a follow.
 const HOLD_SEC := 0.2
+## Moved this far (720 p pixels), a press is a drag: the joystick, not a tap.
 const TAP_SLOP_PX := 16.0
+## Joystick size in screen points, the same scale as the tab bar. The knob stays inside
+## the ring; inside the dead zone the knob can sit off center without walking. At
+## `STICK_RUN` of the travel the player runs.
+const STICK_RADIUS_PT := 64.0
+const STICK_KNOB_PT := 26.0
+const STICK_DEAD_PT := 10.0
+const STICK_RUN := 0.85
 ## A tap on the player is shorter than this.
 const TAP_SEC := 0.25
 ## Following: run beyond this far, stop within this close.
@@ -64,6 +76,7 @@ var source := PlayerInput.new()
 var _down: bool = false
 var _on_self: bool = false
 var _following: bool = false
+var _sticking: bool = false
 var _start := Vector2.ZERO
 var _now := Vector2.ZERO
 var _held: float = 0.0
@@ -123,7 +136,9 @@ func install() -> bool:
 func release() -> void:
 	_down = false
 	_following = false
+	_sticking = false
 	_netting = false
+	_hide_stick()
 	stop_walk()
 	source.clear()
 	if _player != null and _player.scripted_input == source:
@@ -133,6 +148,11 @@ func release() -> void:
 ## Test-only: no in-game callers; kept for tests.
 func is_following() -> bool:
 	return _following
+
+
+## Test-only: no in-game callers; kept for tests.
+func is_sticking() -> bool:
+	return _sticking
 
 
 ## Test-only: no in-game callers; kept for tests.
@@ -165,6 +185,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if drag.index != 0 or not _down:
 			return
 		_now = drag.position
+		_update_live_touch()
 		get_viewport().set_input_as_handled()
 
 
@@ -184,7 +205,9 @@ func press(at: Vector2) -> void:
 	_now = at
 	_held = 0.0
 	_following = false
+	_sticking = false
 	_on_self = _near_player(at)
+	_hide_stick()
 	stop_walk()
 
 
@@ -196,6 +219,9 @@ func lift(at: Vector2) -> void:
 	if _netting:
 		_netting = false
 		source.set_a(false)
+	if _sticking:
+		_end_stick()
+		return
 	if _following:
 		_following = false
 		source.move = Vector2.ZERO
@@ -350,15 +376,89 @@ func _physics_process(delta: float) -> void:
 			_steer(delta)
 		return
 	_held += delta
-	if not _on_self and not _following:
-		if _held >= HOLD_SEC or _now.distance_to(_start) >= TAP_SLOP_PX * _px():
-			_following = true
-			## With the net, holding is holding A: it rises, then creeps after the finger.
-			if ToolUse.has(_player.interaction_context(), ToolData.Kind.NET):
-				_netting = true
-				source.set_a(true)
+	_update_live_touch()
+
+
+## One moment of a finger that's still down: a drag is the joystick, a still hold follows
+## the ground, and the net's hold stays a creep toward the finger.
+func _update_live_touch() -> void:
+	if _player == null:
+		return
+	var dragged: bool = _now.distance_to(_start) >= TAP_SLOP_PX * _px()
+	if _wants_net(dragged):
+		_following = true
+		if not _netting:
+			_netting = true
+			source.set_a(true)
+		_follow()
+		return
+	if dragged or _sticking:
+		_begin_stick()
+		_apply_stick()
+		return
+	if not _on_self and not _following and _held >= HOLD_SEC:
+		_following = true
 	if _following:
 		_follow()
+
+
+func _wants_net(dragged: bool) -> bool:
+	if _on_self or _player == null:
+		return false
+	if not ToolUse.has(_player.interaction_context(), ToolData.Kind.NET):
+		return false
+	return _netting or _held >= HOLD_SEC or dragged
+
+
+func _begin_stick() -> void:
+	if _sticking:
+		return
+	_sticking = true
+	_following = false
+	_end_route()
+
+
+## Outer radius, knob radius, and dead zone, in viewport pixels.
+func _stick_measures() -> Vector3:
+	var vp := get_viewport()
+	var content := vp.get_visible_rect().size if vp != null else Vector2.ZERO
+	var px := TouchHud.px_per_point(
+		Vector2(DisplayServer.window_get_size()), DisplayServer.screen_get_scale(), content
+	)
+	return Vector3(STICK_RADIUS_PT, STICK_KNOB_PT, STICK_DEAD_PT) * px
+
+
+## Screen drag → stick. +x is right, +y is down the screen, which is toward the camera.
+func _apply_stick() -> void:
+	var measures := _stick_measures()
+	var radius: float = measures.x
+	var knob: float = measures.y
+	var dead: float = measures.z
+	var travel: float = maxf(radius - knob, dead + 1.0)
+	var offset := _now - _start
+	var length: float = offset.length()
+	var magnitude := 0.0
+	if length > dead and travel > dead:
+		magnitude = clampf((length - dead) / (travel - dead), 0.0, 1.0)
+	var direction := offset / length if length > 0.0001 else Vector2.ZERO
+	source.move = direction * magnitude
+	source.dash_held = magnitude >= STICK_RUN
+	var hud := TouchHud.find(get_tree())
+	if hud != null:
+		hud.show_stick(_start, _now, radius, knob)
+
+
+func _end_stick() -> void:
+	_sticking = false
+	source.move = Vector2.ZERO
+	source.dash_held = false
+	_hide_stick()
+
+
+func _hide_stick() -> void:
+	var hud := TouchHud.find(get_tree())
+	if hud != null:
+		hud.hide_stick()
 
 
 ## Steer straight for the ground under the finger.

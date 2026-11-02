@@ -1,64 +1,58 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/touch_hud.gd" id="1"]
-[ext_resource type="Texture2D" path="res://assets/custom/ui/touch/tab_map.svg" id="2"]
-[ext_resource type="Texture2D" path="res://assets/custom/ui/touch/tab_inventory.svg" id="3"]
-[ext_resource type="Texture2D" path="res://assets/custom/ui/touch/tab_settings.svg" id="4"]
+[ext_resource type="Texture2D" path="res://assets/custom/ui/touch/bar_map.svg" id="2"]
+[ext_resource type="Texture2D" path="res://assets/custom/ui/touch/bar_inventory.svg" id="3"]
+[ext_resource type="Texture2D" path="res://assets/custom/ui/touch/bar_settings.svg" id="4"]
 
-[sub_resource type="StyleBoxFlat" id="Bar"]
-content_margin_left = 10.0
-content_margin_top = 6.0
-content_margin_right = 10.0
-content_margin_bottom = 6.0
-bg_color = Color(0.435, 0.722, 0.6, 1)
-border_width_bottom = 4
-border_color = Color(0.29, 0.553, 0.447, 1)
-corner_radius_top_left = 30
-corner_radius_top_right = 30
-corner_radius_bottom_right = 30
-corner_radius_bottom_left = 30
-shadow_color = Color(0, 0, 0, 0.22)
-shadow_size = 8
-shadow_offset = Vector2(0, 3)
-
-[sub_resource type="StyleBoxEmpty" id="TabIdle"]
-content_margin_top = 6.0
-content_margin_bottom = 6.0
+[sub_resource type="StyleBoxFlat" id="TabIdle"]
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+shadow_color = Color(0, 0, 0, 0.25)
+shadow_size = 4
+shadow_offset = Vector2(0, 2)
 
 [sub_resource type="StyleBoxFlat" id="TabLit"]
-content_margin_top = 6.0
-content_margin_bottom = 6.0
 bg_color = Color(0.29, 0.553, 0.447, 1)
 corner_radius_top_left = 22
 corner_radius_top_right = 22
 corner_radius_bottom_right = 22
 corner_radius_bottom_left = 22
+shadow_color = Color(0, 0, 0, 0.25)
+shadow_size = 4
+shadow_offset = Vector2(0, 2)
 
-[sub_resource type="StyleBoxFlat" id="TabTouch"]
-content_margin_top = 6.0
-content_margin_bottom = 6.0
-bg_color = Color(0.29, 0.553, 0.447, 0.45)
-corner_radius_top_left = 22
-corner_radius_top_right = 22
-corner_radius_bottom_right = 22
-corner_radius_bottom_left = 22
+[sub_resource type="StyleBoxFlat" id="StickBase"]
+bg_color = Color(1, 1, 1, 0.32)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(1, 1, 1, 0.75)
+corner_radius_top_left = 64
+corner_radius_top_right = 64
+corner_radius_bottom_right = 64
+corner_radius_bottom_left = 64
+
+[sub_resource type="StyleBoxFlat" id="StickKnob"]
+bg_color = Color(1, 1, 1, 0.94)
+corner_radius_top_left = 26
+corner_radius_top_right = 26
+corner_radius_bottom_right = 26
+corner_radius_bottom_left = 26
+shadow_color = Color(0, 0, 0, 0.28)
+shadow_size = 6
 
 [sub_resource type="Theme" id="TabTheme"]
-Button/colors/font_color = Color(1, 1, 1, 1)
-Button/colors/font_focus_color = Color(1, 1, 1, 1)
-Button/colors/font_hover_color = Color(1, 1, 1, 1)
-Button/colors/font_hover_pressed_color = Color(1, 1, 1, 1)
-Button/colors/font_pressed_color = Color(1, 1, 1, 1)
-Button/colors/font_outline_color = Color(0.22, 0.42, 0.34, 1)
-Button/colors/icon_normal_color = Color(1, 1, 1, 1)
+Button/colors/icon_normal_color = Color(0.29, 0.553, 0.447, 1)
+Button/colors/icon_hover_color = Color(0.29, 0.553, 0.447, 1)
+Button/colors/icon_focus_color = Color(0.29, 0.553, 0.447, 1)
 Button/colors/icon_pressed_color = Color(1, 1, 1, 1)
-Button/colors/icon_hover_color = Color(1, 1, 1, 1)
 Button/colors/icon_hover_pressed_color = Color(1, 1, 1, 1)
-Button/colors/icon_focus_color = Color(1, 1, 1, 1)
-Button/constants/h_separation = 2
-Button/constants/icon_max_width = 40
-Button/constants/outline_size = 4
-Button/font_sizes/font_size = 17
+Button/constants/icon_max_width = 24
 Button/styles/disabled = SubResource("TabIdle")
 Button/styles/focus = SubResource("TabIdle")
 Button/styles/hover = SubResource("TabIdle")
@@ -79,62 +73,28 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="TabBar" type="PanelContainer" parent="Root"]
-layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -228.0
-offset_top = -98.0
-offset_right = 228.0
-offset_bottom = -10.0
-grow_horizontal = 2
-grow_vertical = 0
-theme = SubResource("TabTheme")
-theme_override_styles/panel = SubResource("Bar")
+[node name="Stick" type="Control" parent="Root"]
+visible = false
+layout_mode = 0
+offset_right = 128.0
+offset_bottom = 128.0
+mouse_filter = 2
 
-[node name="Tabs" type="HBoxContainer" parent="Root/TabBar"]
-layout_mode = 2
-theme_override_constants/separation = 6
-alignment = 1
+[node name="Base" type="Panel" parent="Root/Stick"]
+layout_mode = 0
+offset_right = 128.0
+offset_bottom = 128.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StickBase")
 
-[node name="Map" type="Button" parent="Root/TabBar/Tabs"]
-custom_minimum_size = Vector2(140, 76)
-layout_mode = 2
-size_flags_horizontal = 3
-focus_mode = 0
-toggle_mode = true
-text = "Map"
-icon = ExtResource("2")
-icon_alignment = 1
-vertical_icon_alignment = 0
-expand_icon = true
-
-[node name="Inventory" type="Button" parent="Root/TabBar/Tabs"]
-custom_minimum_size = Vector2(140, 76)
-layout_mode = 2
-size_flags_horizontal = 3
-focus_mode = 0
-toggle_mode = true
-text = "Inventory"
-icon = ExtResource("3")
-icon_alignment = 1
-vertical_icon_alignment = 0
-expand_icon = true
-
-[node name="Settings" type="Button" parent="Root/TabBar/Tabs"]
-custom_minimum_size = Vector2(140, 76)
-layout_mode = 2
-size_flags_horizontal = 3
-focus_mode = 0
-toggle_mode = true
-text = "Settings"
-icon = ExtResource("4")
-icon_alignment = 1
-vertical_icon_alignment = 0
-expand_icon = true
+[node name="Knob" type="Panel" parent="Root/Stick"]
+layout_mode = 0
+offset_left = 38.0
+offset_top = 38.0
+offset_right = 90.0
+offset_bottom = 90.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StickKnob")
 
 [node name="Chips" type="HBoxContainer" parent="Root"]
 visible = false
@@ -154,3 +114,59 @@ custom_minimum_size = Vector2(120, 72)
 layout_mode = 2
 focus_mode = 0
 text = "B"
+
+[node name="TabBar" type="Control" parent="Root"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -56.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = 164.0
+grow_horizontal = 0
+mouse_filter = 2
+theme = SubResource("TabTheme")
+
+[node name="Tabs" type="VBoxContainer" parent="Root/TabBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Map" type="Button" parent="Root/TabBar/Tabs"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+tooltip_text = "Map"
+icon = ExtResource("2")
+icon_alignment = 1
+vertical_icon_alignment = 1
+expand_icon = true
+
+[node name="Inventory" type="Button" parent="Root/TabBar/Tabs"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+tooltip_text = "Inventory"
+icon = ExtResource("3")
+icon_alignment = 1
+vertical_icon_alignment = 1
+expand_icon = true
+
+[node name="Settings" type="Button" parent="Root/TabBar/Tabs"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+tooltip_text = "Settings"
+icon = ExtResource("4")
+icon_alignment = 1
+vertical_icon_alignment = 1
+expand_icon = true

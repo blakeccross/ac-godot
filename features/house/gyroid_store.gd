@@ -201,6 +201,7 @@ static func collect_proceeds(house: House, inv: Inventory) -> Dictionary:
 		inv.set_wallet(money)
 		house.gyroid_bells = 0
 		return {"ok": true, "bags": 0}
+	@warning_ignore("integer_division")
 	var bags: int = (money - Inventory.WALLET_MAX) / PROCEEDS_BAG + 1
 	if inv.empty_slot_count() < bags:
 		return {"ok": false, "bags": bags}

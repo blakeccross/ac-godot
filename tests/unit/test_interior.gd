@@ -114,8 +114,8 @@ func test_npc_room_uses_fg_furniture() -> void:
 	var tighter: Vector3 = cam.call("offset_for_ground_span", 12.0)
 	assert_float(framed.y).is_greater(tighter.y)
 	var small: Vector3 = cam.call("offset_to_frame_span", 8.0)
-	var floor: Vector3 = cam.call("offset_to_frame_span", 1.0)
-	assert_float(small.y).is_equal_approx(floor.y, 0.01)
+	var span: Vector3 = cam.call("offset_to_frame_span", 1.0)
+	assert_float(small.y).is_equal_approx(span.y, 0.01)
 	assert_float(small.y).is_greater(cam.call("offset_for_ground_span", 8.0).y)
 	assert_float(framed.y).is_greater(small.y)
 	## Homes follow the player inside the room now (`follow_in_room`), not a pinned point.

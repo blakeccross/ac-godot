@@ -622,6 +622,8 @@ _STRUCTURE_PALETTE_ALIASES = {
     "kouban": "police_box",
     ## Katrina's fortune tent (`ac_buggy`, `aSTR_PAL_BUGGY`).
     "uranai": "buggy",
+    ## Kapp'n's dinghy (`ac_boat`, `aSTR_PAL_BOAT`): `obj_e_boat` wears `obj_s_boat_pal`.
+    "boat": "boat",
 }
 
 ## Museum wall canvases (`obj_art*_art_tex`) use different CI4 than house FTR
@@ -797,7 +799,7 @@ def structure_palette_names(prefix: str, letter: str | None = None) -> list[str]
         else:
             add("obj_train1_a1_pal", "obj_train1_a1_winter_pal")
         return names
-    m = re.match(r"^obj_([swf])_(.+)$", prefix)
+    m = re.match(r"^obj_([swfe])_(.+)$", prefix)
     if not m:
         return names
     season, rest = m.group(1), m.group(2)

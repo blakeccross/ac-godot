@@ -144,7 +144,7 @@ func _race(delta: float) -> void:
 	var entered: bool = phase != _race_phase
 	_race_phase = phase
 	if slot == 0:
-		_race_starter(phase, entered, delta)
+		_race_starter(phase, entered)
 		return
 	if not _foot_race.racing(slot):
 		if entered and phase == FootRace.Phase.RACE:
@@ -224,7 +224,7 @@ func _race_point(offset: Vector2) -> Vector3:
 
 
 ## `aTKN0`: load and raise the pistol while they take the line, fire, then watch the leader.
-func _race_starter(phase: int, entered: bool, delta: float) -> void:
+func _race_starter(phase: int, entered: bool) -> void:
 	match phase:
 		FootRace.Phase.READY:
 			if entered:
@@ -348,7 +348,7 @@ func _cheer(delta: float) -> void:
 
 ## One frame of the tug: the shared rope moves, the pullers move with it and pick their next
 ## heave when a clip ends; the referee keeps the rope where it is pulled to.
-func _tug(delta: float) -> void:
+func _tug() -> void:
 	if slot == 0:
 		if _rope != null:
 			_rope.global_position = _rope_home + Vector3(_tug_rope.rope, 0.0, 0.0)
@@ -571,7 +571,7 @@ func think(delta: float) -> void:
 		_shrine(delta)
 		return
 	if family == &"tunahiki" and not talking:
-		_tug(delta)
+		_tug()
 		return
 	if family == &"tamaire" and not talking:
 		_toss(delta)

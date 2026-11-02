@@ -196,6 +196,68 @@ static func generate(
 	return data
 
 
+## Animal Island (`mRF_BLOCKKIND_ISLAND`): the town's two island acres as a world of their own.
+## `mISL_BLOCK_Z` is the row below the beach (H); its two blocks swap in for the town's on
+## arrival (`mISL_ChangeBG`). Here they are a 32×16 field, the left acre at units 0–15 and the right at
+## 16–31, with the town's ocean acres drawn round them. Their FG comes from the same templates the
+## town's combination table picks (`mFM_SetIslandFg`): trees, flowers, the flag, both cottages and
+## the boat landing.
+const ISLAND_BZ := 8
+const ISLAND_BX_LEFT := 4
+const ISLAND_COLUMNS := 2 * UT
+const ISLAND_BOAT_UNIT := Vector2i(UT + 11, 5)
+static func generate_island(town: WorldData) -> WorldData:
+	var data := WorldData.new()
+	data.id = &"island"
+	data.display_name = "Island"
+	data.mode = WorldData.Mode.GENERATED
+	data.seed_value = town.seed_value
+	data.grass_pattern = town.grass_pattern
+	data.columns = ISLAND_COLUMNS
+	data.rows = UT
+	data.cell_size = 2.0
+	data.acre_visual = &""
+	var total: int = TownFieldGenerator.BLOCK_TOTAL
+	var blocks := PackedByteArray()
+	blocks.resize(total)
+	var heights := PackedByteArray()
+	heights.resize(total)
+	var visuals := PackedStringArray()
+	visuals.resize(total)
+	var xcols: int = TownFieldGenerator.BLOCK_X
+	## The sea round the two acres: the town's deep-ocean row, one block out each way.
+	var sea_i: int = (TownFieldGenerator.BLOCK_Z - 1) * xcols + 3
+	for bz: int in range(0, 3):
+		for bx: int in range(0, 4):
+			var i: int = bz * xcols + bx
+			blocks[i] = town.acre_types[sea_i]
+			visuals[i] = town.acre_visuals[sea_i]
+	for k: int in 2:
+		var from: int = ISLAND_BZ * xcols + ISLAND_BX_LEFT + k
+		var to: int = 1 * xcols + 1 + k
+		blocks[to] = town.acre_types[from]
+		heights[to] = town.acre_heights[from]
+		visuals[to] = town.acre_visuals[from]
+	data.acre_types = blocks
+	data.acre_heights = heights
+	data.acre_visuals = visuals
+	data.bake()
+	for k: int in 2:
+		var bx: int = 1 + k
+		_paint_acre(data, _fg_origin(bx, 1), _block(blocks, bx, 1), _height(heights, bx, 1), StringName(visuals[1 * xcols + bx]))
+	var grids: Dictionary = {}
+	for k: int in 2:
+		var bx: int = 1 + k
+		var fg: int = FieldObjectCatalog.pick_fg_id(StringName(visuals[1 * xcols + bx]), _block(blocks, bx, 1), 0)
+		grids[Vector2i(bx, 1)] = FieldObjectCatalog.items(fg)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = town.seed_value
+	_place_from_fg_templates(data, blocks, rng, {}, false, grids)
+	data.spawn_points = [_spawn(&"player", ISLAND_BOAT_UNIT + Vector2i(-2, 1), 0.0)]
+	data.bake()
+	return data
+
+
 ## `aSTA_actor_ct`: the station stands as the town's model and palette.
 static func _set_station_design(data: WorldData, station_type: int) -> void:
 	for b: BuildingPlacement in data.buildings:
@@ -229,7 +291,9 @@ static func map_text(data: WorldData) -> String:
 	for b: BuildingPlacement in data.buildings:
 		if b == null:
 			continue
+		@warning_ignore("integer_division")
 		var bx: int = b.cell.x / UT + 1
+		@warning_ignore("integer_division")
 		var bz: int = b.cell.y / UT + 1
 		if bz >= 1 and bz <= 6 and bx >= 1 and bx <= 5:
 			extras.append("  %s-%d  %s" % [char(64 + bz), bx, b.id])
@@ -747,6 +811,7 @@ static func _imported_acres(imported: Dictionary) -> Dictionary:
 		var combi: Dictionary = FieldObjectCatalog.combi(word >> 2)
 		if combi.is_empty():
 			return {}
+		@warning_ignore("integer_division")
 		types[i] = TitleDemo.block_type_from_decomp(int(combi.get("type", TownFieldGenerator.T_NONE)), i / TownFieldGenerator.BLOCK_X)
 		heights[i] = word & 3
 		visuals[i] = String(combi.get("bg", ""))
@@ -766,6 +831,7 @@ static func _imported_grids(imported: Dictionary) -> Dictionary:
 		var items := PackedInt32Array(acre)
 		if items.size() != FieldObjectCatalog.ITEMS_PER_ACRE:
 			return {}
+		@warning_ignore("integer_division")
 		out[Vector2i(i % FG_X + 1, i / FG_X + 1)] = items
 	return out
 
@@ -1041,13 +1107,13 @@ static func _place_title_demo_villagers(data: WorldData, reserves: Array[Vector2
 			best_dist = dist
 		var house: BuildingPlacement = null
 		if best >= 0:
-			var sign: Vector2i = free[best]
+			var sign_plot: Vector2i = free[best]
 			free.remove_at(best)
-			_remove_objects_in_house_plot(data, sign)
+			_remove_objects_in_house_plot(data, sign_plot)
 			house = _labeled_building(
 				StringName("npc_house_%d" % placed),
 				&"house",
-				Vector2i(sign.x - 1, sign.y - 1),
+				Vector2i(sign_plot.x - 1, sign_plot.y - 1),
 				Vector2i(3, 3),
 				true,
 				villager.outdoor_house_visual(),
@@ -1185,11 +1251,11 @@ static func apply_residents(data: WorldData, residents: TownResidents) -> void:
 	for slot: int in TownResidents.ANIMAL_NUM_MAX:
 		if residents.is_free(slot):
 			continue
-		var sign: Vector2i = residents.home_of(slot)
+		var sign_plot: Vector2i = residents.home_of(slot)
 		var villager: VillagerData = VillagerCatalog.get_villager(residents.slots[slot]["id"] as StringName)
-		if sign == TownResidents.NO_HOME or villager == null:
+		if sign_plot == TownResidents.NO_HOME or villager == null:
 			continue
-		place_villager_house(data, slot, sign, villager)
+		place_villager_house(data, slot, sign_plot, villager)
 
 
 ## Nobody has moved yet: the generator's own houses already are the roster.
@@ -1209,12 +1275,12 @@ static func _residents_match_generated(data: WorldData, residents: TownResidents
 
 ## One villager's house on its SIGN plot plus the villager in the yard
 ## (`mNpc_BuildHouseBeforeFieldct`; the house FG item sits on the SIGN unit).
-static func place_villager_house(data: WorldData, slot: int, sign: Vector2i, villager: VillagerData) -> void:
-	_remove_objects_in_house_plot(data, sign)
+static func place_villager_house(data: WorldData, slot: int, sign_plot: Vector2i, villager: VillagerData) -> void:
+	_remove_objects_in_house_plot(data, sign_plot)
 	var house := _labeled_building(
 		StringName("npc_house_%d" % slot),
 		&"house",
-		Vector2i(sign.x - 1, sign.y - 1),
+		Vector2i(sign_plot.x - 1, sign_plot.y - 1),
 		Vector2i(3, 3),
 		true,
 		villager.outdoor_house_visual(),
@@ -1242,6 +1308,7 @@ static func generated_houses(data: WorldData) -> Array[Dictionary]:
 
 
 static func _yard_cell(data: WorldData, house_nw: Vector2i, footprint: Vector2i) -> Vector2i:
+	@warning_ignore("integer_division")
 	var candidates: Array[Vector2i] = [
 		Vector2i(house_nw.x + footprint.x / 2, house_nw.y + footprint.y),
 		Vector2i(house_nw.x + footprint.x, house_nw.y + footprint.y / 2),
@@ -1266,11 +1333,11 @@ static func _sign_fits_house(reserve: Vector2i) -> bool:
 	return ux > 0 and ux < UT - 1 and uz > 0 and uz < UT - 1
 
 
-static func _house_plot_blocked(data: WorldData, sign: Vector2i) -> bool:
+static func _house_plot_blocked(data: WorldData, sign_plot: Vector2i) -> bool:
 	## Skip a SIGN whose 3×3 would sit on an existing occupied building.
 	for dz: int in range(-1, 2):
 		for dx: int in range(-1, 2):
-			var cell: Vector2i = sign + Vector2i(dx, dz)
+			var cell: Vector2i = sign_plot + Vector2i(dx, dz)
 			for b: BuildingPlacement in data.buildings:
 				if b == null or not b.occupy_grid:
 					continue
@@ -1279,11 +1346,11 @@ static func _house_plot_blocked(data: WorldData, sign: Vector2i) -> bool:
 	return false
 
 
-static func _remove_objects_in_house_plot(data: WorldData, sign: Vector2i) -> void:
+static func _remove_objects_in_house_plot(data: WorldData, sign_plot: Vector2i) -> void:
 	var blocked: Dictionary = {}
 	for dz: int in range(-1, 2):
 		for dx: int in range(-1, 2):
-			blocked[sign + Vector2i(dx, dz)] = true
+			blocked[sign_plot + Vector2i(dx, dz)] = true
 	var keep: Array[ObjectPlacement] = []
 	for o: ObjectPlacement in data.objects:
 		if o != null and blocked.has(o.cell):
@@ -1704,7 +1771,9 @@ static func _unit_at_cell(data: WorldData, cell: Vector2i) -> Dictionary:
 
 static func _visual_at_cell(data: WorldData, cell: Vector2i) -> StringName:
 	if data.acre_visuals.size() == TownFieldGenerator.BLOCK_TOTAL:
+		@warning_ignore("integer_division")
 		var bx: int = cell.x / UT + 1
+		@warning_ignore("integer_division")
 		var bz: int = cell.y / UT + 1
 		if bx >= 1 and bx <= 5 and bz >= 1 and bz <= 6:
 			return StringName(data.acre_visuals[bz * TownFieldGenerator.BLOCK_X + bx])

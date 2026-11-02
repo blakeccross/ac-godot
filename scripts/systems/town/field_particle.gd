@@ -626,6 +626,7 @@ static func _mud(s: Style, yaw: float, arg0: int, arg1: int) -> void:
 	s.model = "ef_mogura01_00" if mole else ("ef_anahori03_00" if arg0 == FootstepEffects.ATTR_SAND or arg0 == FootstepEffects.ATTR_WAVE else "ef_anahori02_00")
 	s.frames = MUD_MOLE_FRAMES if mole else (MUD_SAND_FRAMES if s.model == "ef_anahori03_00" else MUD_FRAMES)
 	s.tile0 = PackedInt32Array()
+	@warning_ignore("integer_division")
 	for step: int in life / 2:
 		var left: int = life - step * 2
 		s.tile0.append(0 if left > 18 else (1 if left > 14 else (2 if left > 10 else 3)))

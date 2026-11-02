@@ -102,6 +102,14 @@ var interact_prompt: String = ""
 ## Title attract mode (`SCENE_TITLE_DEMO`): `title.tscn` hosts the generated town with a
 ## recorded player. Cleared by `reset_session`, so any real entry point drops it.
 var title_demo_active: bool = false
+## On Kapp'n's island (`mRF_BLOCKKIND_ISLAND`): the world scene builds the island, not the town. Not saved;
+## a load starts back in the town.
+var island_visit: bool = false
+## Which half of a boat trip the next world picks up (`IslandService`): `&"arrive"` just landed on the
+## island, `&"return"` just left it, to sail home across the town's sea.
+var island_ride: StringName = &""
+## Where the player stood in the town when boarding, to step off at on the way home.
+var island_town_stand: Vector3 = DEFAULT_SPAWN
 var title_demo_index: int = 0
 
 ## K.K.'s scene runs the player select of an existing town (`ac_npc_p_sel2`) rather than the
@@ -179,6 +187,12 @@ func _init() -> void:
 func _ready() -> void:
 	DisplayConfig.ensure_loaded()
 	DisplayConfig.apply(get_window())
+	## Mobile blends 3D into an RGB10A2 buffer: alpha is two bits, and the river
+	## and ocean sheets (about 0.14) round down to 0, so the water draws nothing.
+	## RGBA16F is the buffer Forward+ already uses, and it keeps that opacity.
+	## 2D on this window blends in linear light as well.
+	if RenderingServer.get_current_rendering_method() == "mobile":
+		get_tree().root.use_hdr_2d = true
 	train.name = "Train"
 	add_child(train)
 	ReddBook.ensure_art_items()
@@ -244,6 +258,8 @@ func start_new_game(
 
 
 func continue_game(slot: int = -1) -> void:
+	island_visit = false
+	island_ride = &""
 	## Every real entry point starts clean; without this the title's attract-demo flag survived
 	## into the loaded game and `notify_world_ready` kept the phase on TITLE (no Esc, no events).
 	reset_session()
@@ -273,6 +289,8 @@ func continue_game(slot: int = -1) -> void:
 
 func return_to_title() -> void:
 	capture_player_from_tree()
+	island_visit = false
+	island_ride = &""
 	## A visitor can't save here (`save_menu_data_save_from`, `SAVE_ERROR_FLASHROM`): only Porter
 	## sends them home with their things. Quitting drops this visit.
 	if not foreigner:
@@ -281,10 +299,14 @@ func return_to_title() -> void:
 	_change_scene(TITLE_SCENE)
 
 
-## The real-time clock ran on while the game was off; a clock set back marks the save.
+## The real-time clock ran on while the game was off: renewals catch up from the saved time,
+## a clock set back marks the save, and play resumes on the current day and time (a debug skip
+## or time set in the last session doesn't carry over).
 func resume_clock(elapsed: int) -> void:
 	if not Clock.resume_after(elapsed):
 		town.cheated_flag = true
+	Clock.rtc_override = false
+	Clock.sync_from_os()
 
 
 func notify_title_ready() -> void:
@@ -522,6 +544,10 @@ func resolve_world_data() -> WorldData:
 		data = WorldGenerator.authored_test_town()
 	data.grass_pattern = town.grass_pattern
 	FieldCatalog.set_grass_pattern(town.grass_pattern)
+	if island_visit:
+		var island: WorldData = WorldGenerator.generate_island(data)
+		island.grass_pattern = data.grass_pattern
+		return island
 	return data
 
 
@@ -713,9 +739,10 @@ func refresh_feng_shui() -> void:
 
 
 ## `mCD_SetResetInfo`: the save was still marked open, so the last session ended without
-## saving. A debug disable skips the visit and does not count it.
+## saving. A debug disable skips the visit and does not count it. So does a phone, where the
+## OS ends backgrounded apps all the time, so an unsaved quit is not the player's doing.
 func note_reset(reset_code: int) -> void:
-	if resetti_disabled:
+	if resetti_disabled or InputDeviceTracker.on_mobile:
 		reset_flag = false
 		return
 	reset_flag = reset_code != 0
@@ -738,7 +765,8 @@ func notify_wade_start() -> void:
 
 func capture_player_from_tree() -> void:
 	var player: Player = Player.find(get_tree())
-	if player == null:
+	## On the island the town position stays as it was: a save there resumes at the wharf.
+	if player == null or island_visit:
 		return
 	resident.player_position = player.global_position
 	resident.player_yaw = player.facing_yaw()
@@ -1019,6 +1047,8 @@ func _reset_session_flags() -> void:
 
 ## Start a new town: every book and flag back to its first value.
 func reset_session() -> void:
+	island_visit = false
+	island_ride = &""
 	town.reset()
 	resident.reset()
 	roster = PlayerRoster.new()
@@ -1093,6 +1123,11 @@ func _set_phase(next: Phase) -> void:
 		return
 	phase = next
 	phase_changed.emit(phase)
+
+
+## Reload the world scene (the town or the island, by `island_visit`).
+func travel_to_world() -> void:
+	_change_scene(WORLD_SCENE)
 
 
 func _change_scene(path: String) -> void:

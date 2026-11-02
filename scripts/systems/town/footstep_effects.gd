@@ -261,7 +261,7 @@ static func _scoop_point(hole: Vector3, player: Vector3, yaw: float) -> Vector3:
 ## `Player_actor_SetEffectStart_axe_common` at frame 12 of every axe swing
 ## (`eSwing_Axe_init` arg1 1): standing in a bush throws five leaves (and five snow puffs in
 ## winter), and a grown flower underfoot loses two petals.
-static func axe_start(bg: Array, player: Vector3, yaw: float) -> void:
+static func axe_start(bg: Array, player: Vector3) -> void:
 	var host := _bind(bg)
 	if host == null:
 		return

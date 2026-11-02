@@ -118,7 +118,7 @@ static func has_id(id: StringName) -> bool:
 		return true
 	if _entries.has(id):
 		return true
-	return FileAccess.file_exists(_stream_path(id))
+	return ResourceLoader.exists(_stream_path(id))
 
 
 static func stream_for(id: StringName) -> AudioStream:
@@ -128,7 +128,8 @@ static func stream_for(id: StringName) -> AudioStream:
 	if _streams.has(id):
 		return _streams[id] as AudioStream
 	var path := _path_for(id)
-	if path.is_empty() or not FileAccess.file_exists(path):
+	## An export packs the imported stream, not the source `.ogg`. `FileAccess` misses it.
+	if path.is_empty() or not ResourceLoader.exists(path):
 		return null
 	var loaded: Resource = load(path)
 	if loaded is AudioStream:
@@ -158,7 +159,7 @@ static func arm_stream_for(id: StringName) -> AudioStream:
 	if _streams.has(arm_id):
 		return _streams[arm_id] as AudioStream
 	var path := _arm_path_for(id)
-	if path.is_empty() or not FileAccess.file_exists(path):
+	if path.is_empty() or not ResourceLoader.exists(path):
 		return null
 	var loaded: Resource = load(path)
 	if loaded is AudioStream:

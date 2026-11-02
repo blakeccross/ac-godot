@@ -186,6 +186,7 @@ static func _without_bones(mesh: Mesh, skin: Skin, skel: Skeleton3D, hidden: Pac
 		var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES] if arrays[Mesh.ARRAY_BONES] != null else PackedInt32Array()
 		var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS] if arrays[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
 		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		@warning_ignore("integer_division")
 		var per: int = bones.size() / maxi(verts.size(), 1)
 		var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
 		if index.is_empty():

@@ -148,6 +148,7 @@ static func player_home_cell(placement: BuildingPlacement) -> Vector2i:
 
 static func npc_home_cell(placement: BuildingPlacement) -> Vector2i:
 	## SIGN unit: center of the 3×3 (`aHUS` home).
+	@warning_ignore("integer_division")
 	return Vector2i(
 		placement.cell.x + placement.footprint.x / 2, placement.cell.y + placement.footprint.y / 2
 	)

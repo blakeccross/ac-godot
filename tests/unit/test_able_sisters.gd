@@ -166,9 +166,8 @@ func test_story_parts_alternate_sable_mabel_sable_with_text_for_each() -> void:
 	assert_str(NeedleworkTalk.story_speaker(0)).is_equal("Sable")
 	assert_str(NeedleworkTalk.story_speaker(1)).is_equal("Mabel")
 	assert_str(NeedleworkTalk.story_speaker(2)).is_equal("Sable")
-	var rng := _rng(1)
 	for row in 24:
-		var ids := NeedleworkTalk.story_line_ids(row, rng)
+		var ids := NeedleworkTalk.story_line_ids(row)
 		var authored: Array = NeedleworkTalk.STORY_TEXT[row]
 		assert_int(authored.size()).override_failure_message("row %d" % row).is_equal(ids.size())
 		for now in ids.size():

@@ -6,32 +6,32 @@ extends GdUnitTestSuite
 
 
 func test_records_only_known_species_once() -> void:
-	var log := SpeciesLog.new()
-	assert_bool(log.record(&"koi")).is_true()
-	assert_bool(log.record(&"koi")).is_false()
-	assert_bool(log.has(&"koi")).is_true()
+	var book := SpeciesLog.new()
+	assert_bool(book.record(&"koi")).is_true()
+	assert_bool(book.record(&"koi")).is_false()
+	assert_bool(book.has(&"koi")).is_true()
 	## Not a fish or bug — ignored.
-	assert_bool(log.record(&"axe")).is_false()
-	assert_bool(log.has(&"axe")).is_false()
+	assert_bool(book.record(&"axe")).is_false()
+	assert_bool(book.has(&"axe")).is_false()
 
 
 func test_page_counts_split_fish_and_insect() -> void:
-	var log := SpeciesLog.new()
-	log.record(&"koi")
-	log.record(&"sea_bass")
-	log.record(&"firefly")
-	assert_int(log.page_count(&"fish")).is_equal(2)
-	assert_int(log.page_count(&"insect")).is_equal(1)
-	assert_int(log.page_total(&"fish")).is_equal(40)
-	assert_int(log.page_total(&"insect")).is_equal(40)
+	var book := SpeciesLog.new()
+	book.record(&"koi")
+	book.record(&"sea_bass")
+	book.record(&"firefly")
+	assert_int(book.page_count(&"fish")).is_equal(2)
+	assert_int(book.page_count(&"insect")).is_equal(1)
+	assert_int(book.page_total(&"fish")).is_equal(40)
+	assert_int(book.page_total(&"insect")).is_equal(40)
 
 
 func test_save_round_trips() -> void:
-	var log := SpeciesLog.new()
-	log.record(&"koi")
-	log.record(&"mantis")
+	var book := SpeciesLog.new()
+	book.record(&"koi")
+	book.record(&"mantis")
 	var restored := SpeciesLog.new()
-	restored.apply_snapshot(log.to_save())
+	restored.apply_snapshot(book.to_save())
 	assert_bool(restored.has(&"koi")).is_true()
 	assert_bool(restored.has(&"mantis")).is_true()
 	assert_int(restored.page_count(&"fish")).is_equal(1)

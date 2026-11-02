@@ -16,6 +16,11 @@ config/version="0.1.0"
 run/main_scene="res://features/intro/title.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="uid://cwa4625x2q3up"
+run/max_fps.mobile=60
+
+[audio]
+
+general/ios/session_category=3
 
 [autoload]
 
@@ -32,7 +37,8 @@ TouchMenus="*res://scenes/ui/touch_menu_pad.tscn"
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
+window/stretch/aspect="keep_width"
+window/handheld/orientation=6
 
 [editor_plugins]
 
@@ -180,6 +186,7 @@ pointing/emulate_touch_from_mouse.debug=true
 
 [rendering]
 
+scaling_3d/scale.mobile=0.75
 textures/canvas_textures/default_texture_filter=0
 textures/vram_compression/import_s3tc_bptc=true
 textures/vram_compression/import_etc2_astc=true

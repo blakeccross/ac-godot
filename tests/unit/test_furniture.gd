@@ -62,10 +62,10 @@ func test_wall_and_surface_placement() -> void:
 	var table: FurnitureData = ItemCatalog.get_item(&"wood_table") as FurnitureData
 	var placed: FurniturePlacement = interior.place(table, inner, WorldGrid.Facing.SOUTH)
 	assert_that(placed).is_not_null()
-	var mini: FurnitureData = ItemCatalog.furniture_for_visual(&"int_test_mini")
-	mini.placement = FurnitureData.Placement.SMALL
-	assert_bool(interior.can_place(mini, inner, WorldGrid.Facing.SOUTH)).is_true()
-	var stacked: FurniturePlacement = interior.place(mini, inner, WorldGrid.Facing.SOUTH)
+	var small_item: FurnitureData = ItemCatalog.furniture_for_visual(&"int_test_mini")
+	small_item.placement = FurnitureData.Placement.SMALL
+	assert_bool(interior.can_place(small_item, inner, WorldGrid.Facing.SOUTH)).is_true()
+	var stacked: FurniturePlacement = interior.place(small_item, inner, WorldGrid.Facing.SOUTH)
 	assert_that(stacked).is_not_null()
 	assert_int(stacked.layer).is_equal(1)
 	assert_that(interior.grid.occupant_at(inner)).is_equal(placed.id)
@@ -132,9 +132,9 @@ func test_wallpaper_and_carpet_from_inventory() -> void:
 	Game.inventory.add(wall, 1)
 	assert_bool(FurnitureEditing.apply_cover(wall)).is_true()
 	assert_that(room.wall_id).is_equal(InteriorStyleCatalog.WALL_BLUE)
-	var floor: ItemData = ItemCatalog.get_item(&"floor_tile")
-	Game.inventory.add(floor, 1)
-	assert_bool(FurnitureEditing.apply_cover(floor)).is_true()
+	var floor_item: ItemData = ItemCatalog.get_item(&"floor_tile")
+	Game.inventory.add(floor_item, 1)
+	assert_bool(FurnitureEditing.apply_cover(floor_item)).is_true()
 	assert_that(room.floor_id).is_equal(InteriorStyleCatalog.FLOOR_TILE)
 
 

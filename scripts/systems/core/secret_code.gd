@@ -339,6 +339,7 @@ static func _unrsa(p: PackedByteArray) -> void:
 	while true:
 		var t: int = n * phi + 1
 		if t % r == 0:
+			@warning_ignore("integer_division")
 			d = t / r
 			break
 		n += 1
@@ -384,9 +385,11 @@ static func _shift(p: PackedByteArray, shift: int) -> void:
 	out.resize(n)
 	out.fill(0)
 	for bit: int in total:
+		@warning_ignore("integer_division")
 		var src_byte: int = bit / 8
 		var v: int = (buf[src_byte] >> (bit % 8)) & 1
 		var dst: int = (bit + amount) % total
+		@warning_ignore("integer_division")
 		out[dst / 8] |= v << (dst % 8)
 	_unstrip(p, KEY_IDX, out)
 
@@ -431,7 +434,9 @@ static func _to_6bits(p: PackedByteArray) -> PackedByteArray:
 	out.resize(STR_LEN)
 	out.fill(0)
 	for bit: int in STR_LEN * 6:
+		@warning_ignore("integer_division")
 		var v: int = (p[bit / 8] >> (bit % 8)) & 1
+		@warning_ignore("integer_division")
 		out[bit / 6] |= v << (bit % 6)
 	return out
 
@@ -441,6 +446,8 @@ static func _to_8bits(six: PackedByteArray) -> PackedByteArray:
 	out.resize(STR_LEN)
 	out.fill(0)
 	for bit: int in DATA_LEN * 8:
+		@warning_ignore("integer_division")
 		var v: int = (six[bit / 6] >> (bit % 6)) & 1
+		@warning_ignore("integer_division")
 		out[bit / 8] |= v << (bit % 8)
 	return out

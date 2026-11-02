@@ -14,6 +14,8 @@ var goal_block: Vector2i = Vector2i.ZERO
 var _goal_kind: StringName = VillagerWalk.GOAL_MY_HOME
 var travel_beat: float = 0.0
 var stay_elapsed: float = 0.0
+var _water_home: Vector3 = Vector3.INF
+var _water_stand_cached: Vector3 = Vector3.INF
 
 ## The Villager this belongs to (the parent), found on first use: tests build scenes
 ## without adding them to the tree.
@@ -199,6 +201,7 @@ func _building_stand(building_id: StringName) -> Vector3:
 	for b: BuildingPlacement in world_data.buildings:
 		if b == null or b.id != building_id:
 			continue
+		@warning_ignore("integer_division")
 		var cell := Vector2i(b.cell.x + b.footprint.x / 2, b.cell.y + b.footprint.y)
 		return grid.cell_to_world(cell)
 	return Vector3.INF
@@ -216,14 +219,17 @@ func _furniture_stand() -> Vector3:
 	return _villager._motor.home
 
 
+## The town's water never moves, so the search (a world scan) runs once per home.
 func _water_stand() -> Vector3:
+	var home: Vector3 = _villager._motor.home
+	if _water_home == home:
+		return _water_stand_cached
 	var bg: Array = _villager._bg()
 	if bg.size() != 2:
 		return Vector3.INF
 	var world_data: WorldData = bg[0] as WorldData
 	var grid: WorldGrid = bg[1] as WorldGrid
-	var from: Vector2i = grid.world_to_cell(_villager._motor.home)
-	var stand: Vector2i = VillagerPlan.nearest_water_stand(world_data, from)
-	if stand == Vector2i(-1, -1):
-		return Vector3.INF
-	return grid.cell_to_world(stand)
+	var stand: Vector2i = VillagerPlan.nearest_water_stand(world_data, grid.world_to_cell(home))
+	_water_home = home
+	_water_stand_cached = Vector3.INF if stand == Vector2i(-1, -1) else grid.cell_to_world(stand)
+	return _water_stand_cached

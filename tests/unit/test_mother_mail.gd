@@ -5,9 +5,9 @@ extends GdUnitTestSuite
 const BD := Vector2i(10, 1)
 
 
-func _rng(seed: int) -> RandomNumberGenerator:
+func _rng(town_seed: int) -> RandomNumberGenerator:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = seed
+	rng.seed = town_seed
 	return rng
 
 

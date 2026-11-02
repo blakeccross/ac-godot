@@ -99,10 +99,13 @@ static func _motif_px(motif: int, x: int, y: int, fg: int, bg: int) -> int:
 		Motif.SOLID:
 			return fg
 		Motif.VSTRIPE:
+			@warning_ignore("integer_division")
 			return fg if (x / 4) % 2 == 0 else bg
 		Motif.HSTRIPE:
+			@warning_ignore("integer_division")
 			return fg if (y / 4) % 2 == 0 else bg
 		Motif.CHECK:
+			@warning_ignore("integer_division")
 			return fg if ((x / 4) + (y / 4)) % 2 == 0 else bg
 		Motif.GRID:
 			return fg if (x % 8 == 0 or y % 8 == 0) else bg
@@ -111,6 +114,7 @@ static func _motif_px(motif: int, x: int, y: int, fg: int, bg: int) -> int:
 			var cy: int = y % 8 - 4
 			return fg if (cx * cx + cy * cy) <= 4 else bg
 		Motif.DIAGONAL:
+			@warning_ignore("integer_division")
 			return fg if ((x + y) / 3) % 2 == 0 else bg
 		Motif.DIAMOND:
 			var dx: int = absi(x % 8 - 4)
@@ -132,6 +136,7 @@ static func _motif_px(motif: int, x: int, y: int, fg: int, bg: int) -> int:
 			if v and h:
 				return fg
 			if v or h:
+				@warning_ignore("integer_division")
 				return (fg + bg) / 2
 			return bg
 	return bg

@@ -936,7 +936,6 @@ func test_attach_villager_hardens_blend_face_cutouts() -> void:
 	auto_free(host)
 	var vis: Node3D = GeneratedVisual.attach_villager(host, &"cub", false)
 	assert_that(vis).is_not_null()
-	var saw_scissor := false
 	var stack: Array[Node] = [vis]
 	while not stack.is_empty():
 		var node: Node = stack.pop_back()
@@ -951,7 +950,6 @@ func test_attach_villager_hardens_blend_face_cutouts() -> void:
 				var std := mat as StandardMaterial3D
 				assert_int(std.transparency).is_not_equal(BaseMaterial3D.TRANSPARENCY_ALPHA)
 				if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
-					saw_scissor = true
 					assert_int(std.depth_draw_mode).is_equal(BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY)
 		for child: Node in node.get_children():
 			stack.append(child)
@@ -1209,7 +1207,7 @@ func test_first_avoid_hop_keeps_side_zero() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var hop: Dictionary = VillagerWalk.first_avoid_hop(
-		data, from, deg_to_rad(90.0), Vector2i(1, 1), null, rng
+		data, from, deg_to_rad(90.0), Vector2i(1, 1), rng
 	)
 	assert_bool(hop.is_empty()).is_false()
 	var pos: Vector3 = hop["pos"] as Vector3

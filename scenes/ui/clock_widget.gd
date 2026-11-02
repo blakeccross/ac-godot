@@ -122,19 +122,19 @@ func _badge(diameter: float) -> TextureRect:
 
 
 func _dot(diameter: float) -> Control:
-	var wrap := Control.new()
-	wrap.custom_minimum_size = Vector2(diameter, diameter)
-	wrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(diameter, diameter)
+	holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var t := TextureRect.new()
 	t.set_anchors_preset(Control.PRESET_FULL_RECT)
 	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.add_child(t)
+	holder.add_child(t)
 	t.texture = load(_TEX_DIR + "dot.png")
 	_dot_nodes.append(t)
-	return wrap
+	return holder
 
 
 func _gap(width: float) -> Control:
@@ -152,8 +152,10 @@ func _refresh() -> void:
 	var hour12: int = Clock.hour % 12
 	if hour12 == 0:
 		hour12 = 12
+	@warning_ignore("integer_division")
 	var hour_tens: int = hour12 / 10
 	var hour_ones: int = hour12 % 10
+	@warning_ignore("integer_division")
 	var minute_tens: int = Clock.minute / 10
 	var minute_ones: int = Clock.minute % 10
 

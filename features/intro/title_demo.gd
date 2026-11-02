@@ -138,6 +138,7 @@ static func acres() -> Dictionary:
 	var visuals := PackedStringArray()
 	visuals.resize(TownFieldGenerator.BLOCK_TOTAL)
 	for i: int in bg.size():
+		@warning_ignore("integer_division")
 		types[i] = block_type_from_decomp(int(types_in[i]), i / cols)
 		heights[i] = int(heights_in[i])
 		visuals[i] = String(bg[i])

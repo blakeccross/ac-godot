@@ -118,6 +118,7 @@ func select(index: int) -> void:
 
 func move_cursor(dx: int, dy: int) -> void:
 	var col: int = selected_index % COLUMNS
+	@warning_ignore("integer_division")
 	var row: int = selected_index / COLUMNS
 	col = clampi(col + dx, 0, COLUMNS - 1)
 	row = clampi(row + dy, 0, ROWS - 1)
@@ -400,6 +401,7 @@ func select_mail(index: int) -> void:
 
 func move_mail_cursor(dx: int, dy: int) -> void:
 	var col: int = selected_mail_index % MAIL_COLUMNS
+	@warning_ignore("integer_division")
 	var row: int = selected_mail_index / MAIL_COLUMNS
 	col = clampi(col + dx, 0, MAIL_COLUMNS - 1)
 	row = clampi(row + dy, 0, MAIL_ROWS - 1)

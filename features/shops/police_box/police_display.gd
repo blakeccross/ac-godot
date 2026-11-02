@@ -111,6 +111,7 @@ static func cells_from_fg(items: PackedInt32Array) -> Array[Vector2i]:
 		var slot: int = items[i] - RSV_POLICE_ITEM_0
 		if slot < 0 or slot >= PoliceBook.STORAGE_COUNT:
 			continue
+		@warning_ignore("integer_division")
 		out[slot] = Vector2i(i % 16, i / 16)
 		found += 1
 	if found != PoliceBook.STORAGE_COUNT:
@@ -139,6 +140,7 @@ static func zone_for(local: Vector3) -> int:
 
 static func zone_waypoint(zone: int) -> Vector3:
 	var zx: int = posmod(zone, ZONE_COLUMNS)
+	@warning_ignore("integer_division")
 	var zz: int = clampi(zone / ZONE_COLUMNS, 0, ZONE_ROWS - 1)
 	return Vector3(ZONE_POS_X[zx], 0.0, ZONE_POS_Z[zz])
 
@@ -146,6 +148,7 @@ static func zone_waypoint(zone: int) -> Vector3:
 ## `aPOL2_get_next_zone`: the next zone Booker heads for on his way to `dst`.
 ## Rows 1 and 3 (units z 3 / 5) are the shelf rows. `coin` stands in for `RANDOM(2)`.
 static func next_zone(dst: int, src: int, coin: int = 0) -> int:
+	@warning_ignore("integer_division")
 	var src_z: int = src / ZONE_COLUMNS
 	if src_z == 1 or src_z == 3:
 		return _next_zone_sub0(dst, src, coin)
@@ -169,8 +172,10 @@ static func _next_zone_move_z(dst_x: int, dst_z: int, src_x: int, src_z: int) ->
 
 static func _next_zone_sub0(dst: int, src: int, coin: int) -> int:
 	var src_x: int = src % ZONE_COLUMNS
+	@warning_ignore("integer_division")
 	var src_z: int = src / ZONE_COLUMNS
 	var dst_x: int = dst % ZONE_COLUMNS
+	@warning_ignore("integer_division")
 	var dst_z: int = dst / ZONE_COLUMNS
 	if src_z != dst_z:
 		return _next_zone_move_z(dst_x, dst_z, src_x, src_z)
@@ -181,8 +186,10 @@ static func _next_zone_sub0(dst: int, src: int, coin: int) -> int:
 
 static func _next_zone_sub1(dst: int, src: int) -> int:
 	var src_x: int = src % ZONE_COLUMNS
+	@warning_ignore("integer_division")
 	var src_z: int = src / ZONE_COLUMNS
 	var dst_x: int = dst % ZONE_COLUMNS
+	@warning_ignore("integer_division")
 	var dst_z: int = dst / ZONE_COLUMNS
 	if absi(dst_z - src_z) > 1:
 		return _next_zone_move_z(dst_x, dst_z, src_x, src_z)

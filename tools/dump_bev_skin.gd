@@ -36,20 +36,7 @@ func _run() -> void:
 			mx = mx.max(p)
 		print("surf", si, " mat=", mi.mesh.surface_get_material(si).resource_name if mi.mesh.surface_get_material(si) else "?",
 			" nV=", pos.size(), " aabb=", mn, "..", mx)
-		# skin first 3 verts manually
 		for vi in mini(3, pos.size()):
 			var p := pos[vi]
-			var skinned := Vector3.ZERO
-			for k in 4:
-				var bi := bones[vi * 4 + k]
-				var w := weights[vi * 4 + k]
-				if w == 0.0:
-					continue
-				var bone_xf := sk.get_bone_global_pose(bi)
-				# IBM is in skin; approximate as inverse rest chain — use Skeleton3D API
-				# Godot stores pose including rest. For bind-pose mesh:
-				# skinned = global_pose * inverse_rest_global * vertex — actually
-				# Mesh is in bind pose; Skeleton3D applies skin internally.
-				skinned += w * (bone_xf * p)  # WRONG without IBM
 			print("  v", vi, " bind=", p, " bones0=", bones[vi*4], " w0=", weights[vi*4])
 	quit(0)

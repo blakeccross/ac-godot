@@ -407,6 +407,7 @@ func test_reserve_points_match_fg_templates() -> void:
 		var expected: Array = []
 		for i: int in items.size():
 			if kinds.has(items[i]):
+				@warning_ignore("integer_division")
 				expected.append([kinds[items[i]], Vector2i(i % 16, i / 16)])
 		var got: Array = []
 		for slot: Dictionary in slots:

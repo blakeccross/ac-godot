@@ -23,6 +23,7 @@ func _ready() -> void:
 	layer = 30
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	_root.visible = false
 	_input.text_submitted.connect(_on_submit)
 	_input.text_changed.connect(_on_text_changed)
@@ -38,6 +39,15 @@ static func find(tree: SceneTree) -> DebugConsoleOverlay:
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	return MenuFrame.rect_of(_root.get_node("Panel") as Control)
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
 
 
 func open() -> void:
@@ -176,7 +186,7 @@ func _step_history(delta: int) -> void:
 		_history_index = int(prev["index"])
 		_set_input_text(String(prev["text"]))
 	else:
-		var nxt: Dictionary = _console.history_next(_input.text, _history_index, _live_line)
+		var nxt: Dictionary = _console.history_next(_history_index, _live_line)
 		_history_index = int(nxt["index"])
 		_set_input_text(String(nxt["text"]))
 	_tab_matches.clear()

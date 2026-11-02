@@ -296,6 +296,60 @@ func test_force_next_turns_without_input() -> void:
 	assert_str(String(overlay.runner().node_id)).is_equal("b")
 
 
+## A tap or click turns a finished page. A finger on a phone arrives as this click.
+func test_a_click_turns_a_finished_page() -> void:
+	var overlay := _open_line("Hi", {"next": "b"})
+	for _i in 10:
+		overlay._type(T)
+	assert_str(String(overlay.runner().node_id)).is_equal("a")
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	overlay._unhandled_input(release)
+	var right := InputEventMouseButton.new()
+	right.button_index = MOUSE_BUTTON_RIGHT
+	right.pressed = true
+	overlay._unhandled_input(right)
+	assert_str(String(overlay.runner().node_id)).is_equal("a")
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	overlay._unhandled_input(click)
+	assert_str(String(overlay.runner().node_id)).is_equal("b")
+
+
+## A held finger is Shift: glyphs land every tick and a pause is skipped. Lifting
+## returns to a glyph every other tick. The hold does not turn a finished page.
+func test_a_held_finger_speeds_text_until_it_lifts() -> void:
+	var overlay := _open_line("Ab{p:3}cdefgh")
+	_finger(overlay, true)
+	for _i in 4:
+		overlay._type(T)
+	assert_int(overlay._cursor).is_equal(4)
+	_finger(overlay, false)
+	var at: int = overlay._cursor
+	## The wait already counted down at the fast rate still lands one glyph.
+	overlay._type(T)
+	assert_int(overlay._cursor).is_equal(at + 1)
+	overlay._type(T)
+	assert_int(overlay._cursor).is_equal(at + 1)
+	overlay._type(T)
+	assert_int(overlay._cursor).is_equal(at + 2)
+	var page := _open_line("Hi", {"next": "b"})
+	_finger(page, true)
+	for _i in 10:
+		page._type(T)
+	assert_str(String(page.runner().node_id)).is_equal("a")
+
+
+func _finger(overlay: DialogueOverlay, down: bool) -> void:
+	var touch := InputEventScreenTouch.new()
+	touch.index = 0
+	touch.pressed = down
+	touch.position = Vector2(20, 20)
+	overlay._input(touch)
+
+
 ## A does not dump a line. B turns on fast text. `ABLECANCEL` lets A dump it.
 func test_a_waits_and_b_speeds_unless_cancelable() -> void:
 	var overlay := _open_line("Hello")

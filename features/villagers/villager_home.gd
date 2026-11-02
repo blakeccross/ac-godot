@@ -54,6 +54,7 @@ static func indoor_stand(session: IndoorSession) -> Vector3:
 	if session == null or session.grid == null or session.room == null:
 		return Vector3(8.0, 0.0, 10.0)
 	var room: Room = session.room
+	@warning_ignore("integer_division")
 	var cell := Vector2i(
 		room.inner_origin.x + maxi(room.inner_size.x / 2, 1),
 		room.inner_origin.y + maxi(room.inner_size.y / 2, 1)

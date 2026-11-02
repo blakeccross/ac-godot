@@ -108,6 +108,7 @@ static func _load_generated_id(conv_id: StringName) -> void:
 	var msg_no: int = int(key.substr(4))
 	if msg_no < 0:
 		return
+	@warning_ignore("integer_division")
 	var chunk: int = (msg_no / GENERATED_CHUNK) * GENERATED_CHUNK
 	_load_file("%s/%04d.json" % [GENERATED_DIR, chunk])
 

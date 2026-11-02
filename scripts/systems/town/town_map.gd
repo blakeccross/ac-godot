@@ -124,6 +124,7 @@ static func compose_fg_texture(types: PackedByteArray) -> Texture2D:
 			src = src.duplicate()
 			src.resize(tile_px, tile_px, Image.INTERPOLATE_BILINEAR)
 		var x: int = (i % cols) * tile_px
+		@warning_ignore("integer_division")
 		var y: int = int(i / cols) * tile_px
 		img.blit_rect(src, Rect2i(0, 0, tile_px, tile_px), Vector2i(x, y))
 	return ImageTexture.create_from_image(img)

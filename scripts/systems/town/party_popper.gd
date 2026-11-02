@@ -150,6 +150,7 @@ func _burst() -> void:
 		s = sin(d) * CONFETTI_SPEED
 		var vel2: Vector3 = tilt * Vector3(s * sin(r), cos(d) * CONFETTI_SPEED, s * cos(r))
 		var axis: Vector3 = Basis.from_euler(Vector3(_rng.randf() * TAU, _rng.randf() * TAU, _rng.randf() * TAU), EULER_ORDER_ZYX) * Vector3.BACK
+		@warning_ignore("integer_division")
 		_confetti.append({
 			"pos": _body_pos, "vel": vel, "pos2": _body_pos, "vel2": vel2,
 			"phase": _rng.randf() * TAU,

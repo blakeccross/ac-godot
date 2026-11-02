@@ -158,6 +158,7 @@ func test_demo_structures_sit_in_their_fixed_acres() -> void:
 	for id: String in expect:
 		assert_bool(structures.has(id)).is_true()
 		var cell: Vector2i = structures[id]
+		@warning_ignore("integer_division")
 		assert_vector(Vector2(cell.x / WorldGenerator.UT + 1, cell.y / WorldGenerator.UT + 1)).is_equal(
 			Vector2(expect[id])
 		)

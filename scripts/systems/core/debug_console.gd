@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "cam", "repay", "manpu", "digup", "ball", "xmas", "popper", "costume", "glow", "shine", "reflect", "drop", "bridge", "lighthouse", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "cam", "repay", "manpu", "digup", "ball", "xmas", "island", "ride", "cannon", "popper", "costume", "glow", "shine", "reflect", "drop", "bridge", "lighthouse", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -798,6 +798,31 @@ func execute(raw: String) -> String:
 			if not args.is_empty() and String(args[0]).to_lower() == "auto":
 				pit_player.struggle_assist = 0.1
 			return "Pitfall buried at %s." % pit_cell
+		"island":
+			## `island [home]`: swap to Kapp'n's island (or back to the town) without the boat.
+			Game.island_visit = args.is_empty() or String(args[0]) != "home"
+			Game.island_ride = &""
+			Game.travel_to_world()
+			return "Island." if Game.island_visit else "Town."
+		"ride":
+			## Take Kapp'n's boat now, as if the talk had ended on yes.
+			var rd_tree := Engine.get_main_loop() as SceneTree
+			var rd_service: IslandService = rd_tree.root.find_child("IslandService", true, false) as IslandService
+			if rd_service == null:
+				return "No boat here."
+			var rd_talk := KappnTalk.new()
+			rd_talk.ride = true
+			rd_service.mute = not args.is_empty() and String(args[0]) == "fast"
+			rd_service._on_talked(rd_talk)
+			return "All aboard."
+		"cannon":
+			## The cannon furniture's shell, fired away from the camera over the player's ground.
+			var cn_player: Node3D = Player.find(Engine.get_main_loop() as SceneTree)
+			if cn_player == null:
+				return "No player."
+			var cn_at: Vector3 = cn_player.global_position + Vector3(0.0, 0.8, 0.0)
+			CannonShot.fire(cn_player.get_parent(), cn_at, 0.0, Rect2(cn_at.x - 30.0, cn_at.z - 30.0, 60.0, 60.0))
+			return "Bang."
 		"popper":
 			## A New Year's party popper going off beside the player (`eEC_EFFECT_CLACKER`).
 			var pp_player: Node3D = Player.find(Engine.get_main_loop() as SceneTree)
@@ -935,7 +960,7 @@ func history_prev(current: String, index: int) -> Dictionary:
 	return {"text": String(history[next_i]), "index": next_i}
 
 
-func history_next(current: String, index: int, live: String) -> Dictionary:
+func history_next(index: int, live: String) -> Dictionary:
 	if history.is_empty() or index < 0:
 		return {"text": live, "index": -1}
 	var next_i: int = index + 1

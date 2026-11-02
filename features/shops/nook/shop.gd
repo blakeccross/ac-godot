@@ -16,7 +16,7 @@ func _ready() -> void:
 	add_to_group("interactable")
 	_sync_from_shop_book()
 	GeneratedVisual.attach(self, visual_id)
-	HostCollision.apply_shop(self, footprint, HostCollision.CELL)
+	HostCollision.apply_shop(self)
 
 
 func _sync_from_shop_book() -> void:

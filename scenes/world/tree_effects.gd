@@ -62,7 +62,7 @@ var _base_scale: float = 1.0
 static func leaf(host: Node, crown: Vector3, family: PlantData.Family, medium_cedar: bool) -> void:
 	var fx := TreeEffects.new()
 	fx._kind = Kind.LEAF
-	fx._setup_leaf(crown, family, medium_cedar)
+	fx._setup_leaf(crown, medium_cedar)
 	host.add_child(fx)
 	fx.global_position = crown
 	fx._attach_leaf_model(family)
@@ -118,7 +118,7 @@ static func _rand2() -> float:
 	return randf() - 0.5
 
 
-func _setup_leaf(crown: Vector3, family: PlantData.Family, medium_cedar: bool) -> void:
+func _setup_leaf(crown: Vector3, medium_cedar: bool) -> void:
 	## `eBushHappa_ct`: ±4 GX more on X and Z.
 	var hz: float = (-4.0 + _rand() * 8.0) * GX
 	drift_position = jitter(crown, medium_cedar) + Vector3(hz, 0.0, hz)

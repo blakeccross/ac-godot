@@ -1,0 +1,17 @@
+[config]
+name="AudioSession"
+binary="audio_session.xcframework"
+
+initialization="audio_session_init"
+deinitialization="audio_session_deinit"
+
+[dependencies]
+linked=[]
+embedded=[]
+system=["AVFoundation.framework"]
+
+capabilities=[]
+
+files=[]
+
+[plist]

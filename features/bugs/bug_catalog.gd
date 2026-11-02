@@ -16,20 +16,16 @@ static func ensure_loaded() -> void:
 	if _loaded:
 		return
 	_bugs.clear()
-	var dir := DirAccess.open(CREATURES_DIR)
-	if dir != null:
-		dir.list_dir_begin()
-		var entry: String = dir.get_next()
-		while entry != "":
-			if not dir.current_is_dir() and entry.ends_with(".tres"):
-				var res: Resource = load("%s/%s" % [CREATURES_DIR, entry])
-				if res is BugData and (res as BugData).id != &"":
-					var bug := res as BugData
-					## `aINS_program_type[]` wins over the authored `program` field.
-					bug.program = BugData.program_for_type(bug.type_index)
-					_bugs.append(bug)
-			entry = dir.get_next()
-		dir.list_dir_end()
+	## Exported builds remap resources; list them the way the editor does.
+	for entry: String in ResourceLoader.list_directory(CREATURES_DIR):
+		if entry.ends_with("/") or not entry.ends_with(".tres"):
+			continue
+		var res: Resource = load("%s/%s" % [CREATURES_DIR, entry])
+		if res is BugData and (res as BugData).id != &"":
+			var bug := res as BugData
+			## `aINS_program_type[]` wins over the authored `program` field.
+			bug.program = BugData.program_for_type(bug.type_index)
+			_bugs.append(bug)
 	_bugs.sort_custom(func(a: BugData, b: BugData) -> bool: return a.id < b.id)
 	_loaded = true
 

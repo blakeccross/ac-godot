@@ -34,12 +34,12 @@ static func _bit_talk(type: int) -> int:
 
 ## `mSM_CHECK_ALL_FISH_GET` / `..._INSECT_GET`.
 static func collection_complete(type: int) -> bool:
-	var log: SpeciesLog = Game.species_log
-	if log == null:
+	var book: SpeciesLog = Game.species_log
+	if book == null:
 		return false
 	var kind: StringName = _kind(type)
-	var total: int = log.page_total(kind)
-	return total > 0 and log.page_count(kind) >= total
+	var total: int = book.page_total(kind)
+	return total > 0 and book.page_count(kind) >= total
 
 
 ## `mPr_StartSetCompleteTalkInfo`: at game start, note collections that are already done.

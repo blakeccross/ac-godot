@@ -478,6 +478,7 @@ func _stress_from(at_gx: Vector3, move_gx: float) -> float:
 		return 0.0
 	var tmp0: float = maxf(d - UNIT_GX, 0.0)
 	## `(int)((min_dist - 40) - tmp0) / 20` — the table steps every 20 GX.
+	@warning_ignore("integer_division")
 	var idx: int = int(min_dist - UNIT_GX - tmp0) / 20
 	idx = clampi(idx, 0, STRESS_CALC_TABLE.size() - 1)
 	## `calc_stress = |frame move| * calc_table[idx]`.

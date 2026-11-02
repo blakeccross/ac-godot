@@ -3,9 +3,9 @@ extends GdUnitTestSuite
 ## The fishing tourney's records, results letter and board post (`m_fishrecord.c`).
 
 
-func _rng(seed: int) -> RandomNumberGenerator:
+func _rng(town_seed: int) -> RandomNumberGenerator:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = seed
+	rng.seed = town_seed
 	return rng
 
 

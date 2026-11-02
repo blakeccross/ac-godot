@@ -13,9 +13,9 @@ func after_test() -> void:
 	Game.town.clear_grass = _saved_clear
 
 
-func _rng(seed: int) -> RandomNumberGenerator:
+func _rng(town_seed: int) -> RandomNumberGenerator:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = seed
+	rng.seed = town_seed
 	return rng
 
 

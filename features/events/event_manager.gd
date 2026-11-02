@@ -298,6 +298,7 @@ func spawn_structure(
 		if door != null:
 			node.remove_child(door)
 			door.free()
+	@warning_ignore("integer_division")
 	var anchor: Vector2i = cell - Vector2i(size.x / 2, size.y / 2)
 	var pos: Vector3 = world.grid.footprint_center(anchor, size, WorldGrid.Facing.SOUTH)
 	if world.layout != null and world.layout.is_in_bounds(cell):
@@ -355,6 +356,7 @@ static func block_unit_to_cell(block: Vector2i, unit: Vector2i) -> Vector2i:
 
 
 static func cell_to_block(cell: Vector2i) -> Vector2i:
+	@warning_ignore("integer_division")
 	return Vector2i(cell.x / UT + 1, cell.y / UT + 1)
 
 
@@ -414,7 +416,9 @@ func is_block_in_view(block: Vector2i) -> bool:
 	var pb: Vector2i = cell_to_block(cell)
 	var ux: int = posmod(cell.x, UT)
 	var uz: int = posmod(cell.y, UT)
+	@warning_ignore("integer_division")
 	var nx: int = pb.x + (1 if ux >= UT / 2 else -1)
+	@warning_ignore("integer_division")
 	var nz: int = pb.y + (1 if uz >= UT / 2 else -1)
 	return (block.x == pb.x or block.x == nx) and (block.y == pb.y or block.y == nz)
 
@@ -486,6 +490,7 @@ func search_free_unit(id: StringName, seed_value: int, adjust: int = 0) -> Vecto
 		for cur: int in range(n, 0, -1):
 			var nseed: int = int(t["month"]) * int(t["day"]) + int(t["sec"]) + (int(t["hour"]) + cur) * 3 + seed_value * 9
 			nseed = absi(nseed) % n
+			@warning_ignore("integer_division")
 			var block := Vector2i(1 + nseed % x, 2 + nseed / x)
 			if pass_i >= 2 and is_block_in_view(block):
 				continue
@@ -513,6 +518,7 @@ func search_empty_unit(id: StringName, seed_value: int) -> Vector2i:
 		for cur: int in range(n, 0, -1):
 			var nseed: int = int(t["month"]) * int(t["day"]) + int(t["sec"]) + (int(t["hour"]) + cur) * 7 - seed_value
 			nseed = absi(nseed) % n
+			@warning_ignore("integer_division")
 			var block := Vector2i(1 + nseed % x, 2 + nseed / x)
 			if pass_i >= 2 and is_block_in_view(block):
 				continue
@@ -533,8 +539,10 @@ func search_seaside_unit(seed_value: int) -> Vector2i:
 	var bx: int = 1 + posmod(seed_value + Clock.day + Clock.minute, n)
 	var dock: Vector2i = block_of("dock")
 	if Vector2i(bx, BLOCK_Z_MAX) == dock:
+		@warning_ignore("integer_division")
 		bx = bx - 1 if bx > (BLOCK_X_MAX + 2) / 2 else bx + 1
 	if is_block_in_view(Vector2i(bx, BLOCK_Z_MAX)):
+		@warning_ignore("integer_division")
 		bx = bx - 2 if bx > (BLOCK_X_MAX + 2) / 2 else bx + 2
 	bx = clampi(bx, 1, BLOCK_X_MAX)
 	var unit: Vector2i = wave_unit(Vector2i(bx, BLOCK_Z_MAX))

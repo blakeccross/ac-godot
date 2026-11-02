@@ -130,6 +130,7 @@ static func _wrap_tile_grid(
 	if stamped != Vector2i.ZERO:
 		return stamped
 	var cell: int = _gcd(atlas.x, atlas.y)
+	@warning_ignore("integer_division")
 	return Vector2i(maxi(atlas.x / cell, 1), maxi(atlas.y / cell, 1)) if cell > 0 else Vector2i.ONE
 
 

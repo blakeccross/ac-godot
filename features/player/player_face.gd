@@ -42,13 +42,13 @@ static func tan_index(female: bool, face: int, swell: bool, rank: int) -> int:
 
 ## Paint the current face onto every eye / mouth surface under `host`; a sunburn `tan`
 ## rank (1–8) swaps the face palette, which also colours the skin.
-static func apply(host: Node, female: bool, face: int, swell: bool, tan: int = 0) -> void:
+static func apply(host: Node, female: bool, face: int, swell: bool, tan_rank: int = 0) -> void:
 	var idx: int = set_index(female, face, swell)
 	var eye: Texture2D = _load(eye_path(idx))
 	var mouth: Texture2D = _load(mouth_path(idx))
 	if eye == null and mouth == null:
 		return
-	var to: Array = _tan_palette(tan_index(female, face, swell, tan)) if tan > 0 else []
+	var to: Array = _tan_palette(tan_index(female, face, swell, tan_rank)) if tan_rank > 0 else []
 	if not to.is_empty():
 		var own: Array = _set_palette(idx)
 		eye = _recolor(eye, own, to)
@@ -73,8 +73,8 @@ static func _set_palette(idx: int) -> Array:
 
 static func _tan_palette(idx: int) -> Array:
 	_ensure_palettes()
-	var tan: Array = _palettes.get("tan", [])
-	return tan[idx] if idx >= 0 and idx < tan.size() else []
+	var tan_rows: Array = _palettes.get("tan", [])
+	return tan_rows[idx] if idx >= 0 and idx < tan_rows.size() else []
 
 
 ## Index-for-index colour swap of a CI4 texture decoded with palette `from`.

@@ -46,7 +46,7 @@ tools/capture.sh mobile=1 touch=20,20 ui=1 inventory=slot:0 console=give,axe aft
 
 ## Preview the phone UI on a desktop
 
-Debug builds accept a `--mobile` user argument, which shows the Android / iOS touch UI (bottom tab bar, mobile inventory, no clock):
+Debug builds accept a `--mobile` user argument, which shows the Android / iOS touch UI (round tab buttons in the top right, which slide away while the player walks, mobile inventory, no clock):
 
 ```sh
 $GODOT_BIN --path . --resolution 1560x720 -- --mobile
@@ -100,7 +100,7 @@ Suites live in `tests/unit/`: `test_clock.gd`, `test_inventory.gd`, `test_save_s
 - **On a desktop:** `pointing/emulate_touch_from_mouse.debug` is on, so a debug run turns mouse clicks into touches. The gestures work (tap to walk, tap things), but the on-screen buttons only appear on Android or iOS (`InputDeviceTracker.on_mobile`). On a desktop, a host with verbs on both buttons gets A instead of chips. Captures take `mobile=1` to show them; tests set `InputDeviceTracker.on_mobile = true`.
 - **Phone-size captures:**
   - `tools/capture.sh ui=1 mobile=1 size=1266x585 touch=850,330 after=2,90` shows the HUD and the tap marker at half of 2532×1170.
-  - Add `console=repay` (or any menu) to see the menu pad.
+  - Add `console=repay` (or any menu) to open that screen. A tap still advances a waiting page; there is no arrow pad.
 - **Android:** the `Android` preset in `export_presets.cfg` builds an arm64 APK to `out/android/`, landscape and immersive, with the vibrate permission for haptics.
   1. Install the Android export templates and set the SDK and debug keystore paths in Editor Settings.
   2. Export with `$GODOT_BIN --headless --export-debug Android out/android/ac-godot.apk`.

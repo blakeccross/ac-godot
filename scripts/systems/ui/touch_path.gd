@@ -5,7 +5,8 @@ extends RefCounted
 ## straight legs. A unit is open when it's walkable ground, nothing stands on it and the
 ## field doesn't forbid it (water, cliffs); a move between side-by-side units is shut by a
 ## cliff or bank edge; a diagonal needs both of its side moves open, so routes never cut a
-## corner. Indoors (no field) only the room's floor and its furniture count.
+## corner. Indoors (no field) the carpet, the exit porch and stair bays count; furniture
+## blocks them.
 
 ## Units expanded at most before giving up.
 const MAX_NODES := 4000
@@ -39,10 +40,35 @@ static func find(data: WorldData, grid: WorldGrid, from: Vector3, to: Vector3, r
 
 static func is_open(data: WorldData, grid: WorldGrid, cell: Vector2i, room: Room = null) -> bool:
 	if room != null:
-		return room.is_inner(cell) and not grid.is_occupied(cell)
+		return _room_open(room, grid, cell) and not grid.is_occupied(cell)
 	if not grid.is_in_bounds(cell) or not grid.is_walkable(cell) or grid.is_occupied(cell):
 		return false
 	return data == null or not FieldCollision.forbids_enter(data, cell)
+
+
+## Carpet, the outdoor-door porch, or a stair bay. The porch sits past `is_inner`
+## (a small house's exit is two units south of the rug).
+static func _room_open(room: Room, grid: WorldGrid, cell: Vector2i) -> bool:
+	if room.is_inner(cell):
+		return true
+	if room.door_cell.x >= 0 and (cell.x == room.door_cell.x or cell.x == room.door_cell.x + 1):
+		var south: int = room.inner_origin.y + maxi(room.inner_size.y, 1)
+		if room.door_cell.y >= south and cell.y >= south and cell.y <= room.door_cell.y:
+			return true
+		if room.door_cell.y < room.inner_origin.y and cell.y >= room.door_cell.y and cell.y < room.inner_origin.y:
+			return true
+	for stair: RoomStair in room.stairs:
+		if stair == null or stair.target_room_id == &"":
+			continue
+		var landing: Vector2i = grid.world_to_cell(WorldGrid.room_point(grid, stair.landing))
+		if (
+			cell.x >= mini(stair.cell.x, landing.x)
+			and cell.x <= maxi(stair.cell.x, landing.x)
+			and cell.y >= mini(stair.cell.y, landing.y)
+			and cell.y <= maxi(stair.cell.y, landing.y)
+		):
+			return true
+	return false
 
 
 static func can_step(data: WorldData, grid: WorldGrid, a: Vector2i, b: Vector2i, room: Room = null) -> bool:

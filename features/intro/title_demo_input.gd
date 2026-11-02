@@ -30,10 +30,12 @@ func _init() -> void:
 
 
 static func stick_x(word: int) -> int:
+	@warning_ignore("integer_division")
 	return MathUtil.s16_signed(word & 0xFE00) / 512
 
 
 static func stick_y(word: int) -> int:
+	@warning_ignore("integer_division")
 	return MathUtil.s16_signed((word & 0x00FE) << 8) / 512
 
 

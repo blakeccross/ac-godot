@@ -65,6 +65,7 @@ static func grow(world: Node, grid: WorldGrid, layout: WorldData, amount: int, r
 		for x: int in grid.columns:
 			var cell := Vector2i(x, z)
 			if can_grow(grid, layout, cell):
+				@warning_ignore("integer_division")
 				var acre := Vector2i(x / 16, z / 16)
 				if not by_acre.has(acre):
 					by_acre[acre] = []

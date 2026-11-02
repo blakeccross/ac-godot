@@ -61,6 +61,7 @@ func _ready() -> void:
 	layer = 27
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_text_view.draw.connect(_draw_text)
@@ -79,12 +80,7 @@ func _ready() -> void:
 
 
 func _fit_screen() -> void:
-	var sz := _root.size
-	if sz.x <= 0.0 or sz.y <= 0.0:
-		return
-	var k := minf(sz.x / 320.0, sz.y / 240.0)
-	_screen.scale = Vector2(k, k)
-	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
+	MenuFrame.fit(self, _root, _screen)
 
 
 func _process(_delta: float) -> void:
@@ -93,6 +89,15 @@ func _process(_delta: float) -> void:
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	return MenuFrame.rect_of(_screen)
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
 
 
 func open(initial: String, callback: Callable = Callable(), kind: StringName = &"design") -> void:

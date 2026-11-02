@@ -75,6 +75,11 @@ const ITEM_MUSEUM := 0x584A
 const ITEM_NEEDLEWORK_SHOP := 0x584D
 ## Wharf dock sign (`PORT_SIGN` / `m_name_table.h` STRUCTURE_START + 82).
 const ITEM_PORT_SIGN := 0x5852
+## The island's own structures: `FLAG`, `BOAT` (the landing), `COTTAGE_MY`, `COTTAGE_NPC`.
+const ITEM_ISLAND_FLAG := 0x584E
+const ITEM_ISLAND_BOAT := 0x584F
+const ITEM_COTTAGE_MY := 0x5850
+const ITEM_COTTAGE_NPC := 0x5851
 const ITEM_WATERFALL_SOUTH := 0x580D
 const ITEM_WATERFALL_EAST := 0x580E
 const ITEM_WATERFALL_WEST := 0x580F
@@ -288,6 +293,17 @@ static func placement_for_item(item_id: int) -> Dictionary:
 				"nw_off": Vector2i(-1, 0),
 				"door_verb": &"shop",
 			}
+		ITEM_COTTAGE_MY, ITEM_COTTAGE_NPC:
+			## `ac_cottage`: the island's summer house (the player's, then the islander's).
+			return {
+				"kind": &"structure",
+				"building": &"building",
+				"visual": &"obj_s_house_i",
+				"id": &"cottage_my" if item_id == ITEM_COTTAGE_MY else &"cottage_npc",
+				"label": "Cottage",
+				"foot": Vector2i(3, 3),
+				"nw_off": Vector2i(-1, -1),
+			}
 		ITEM_PORT_SIGN:
 			return {
 				"kind": &"sign",
@@ -344,6 +360,7 @@ static func _tree_place(item_id: int) -> Dictionary:
 	if item_id >= ITEM_TREE_PALM_SAPLING and item_id <= ITEM_TREE_PALM_FRUIT:
 		return {"kind": &"tree", "visual": &"TREE_PALM_FRUIT", "tree": &"palm"}
 	if item_id >= ITEM_TREE_FRUIT_FIRST and item_id <= ITEM_TREE_FRUIT_LAST:
+		@warning_ignore("integer_division")
 		var fruit: StringName = FRUIT_TREE_NAMES[(item_id - ITEM_TREE_FRUIT_FIRST) / FRUIT_TREE_SPAN]
 		return {"kind": &"tree", "visual": StringName("TREE_%s_FRUIT" % String(fruit).to_upper()), "tree": fruit}
 	if (

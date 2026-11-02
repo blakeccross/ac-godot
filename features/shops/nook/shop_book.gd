@@ -149,6 +149,7 @@ static func sell_price(item: ItemData) -> int:
 	if StalkMarket.is_turnip(item.id):
 		return 0
 	if item.id in FRUITS and item.id != town_fruit():
+		@warning_ignore("integer_division")
 		return FOREIGN_FRUIT_PRICE / SELL_RATIO
 	## Fruit data holds Nook's price already; fish and bugs hold `fish_price_table` /
 	## `insect_price_table` and pay a quarter like everything else.
@@ -157,6 +158,7 @@ static func sell_price(item: ItemData) -> int:
 	var unit: int = item.buy_price if item.buy_price > 0 else maxi(item.sell_price, 0)
 	if item.id == ShopGoods.SIGNBOARD:
 		unit = SIGNBOARD_PRICE
+	@warning_ignore("integer_division")
 	return unit / SELL_RATIO
 
 
@@ -595,6 +597,7 @@ func sell_result(shop_id: StringName, item_id: StringName, inv: Inventory, count
 		inv.add(bag_data, 1)
 	inv.set_wallet(total)
 	if shop_id == NOOK_ID:
+		@warning_ignore("integer_division")
 		plus_sales(paid / 2)
 	if code == Sell.JUNK:
 		return {"code": code, "paid": 0, "msg": "Nook took the %s off your hands." % data.display_name}

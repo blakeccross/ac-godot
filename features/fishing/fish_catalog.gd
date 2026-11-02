@@ -18,17 +18,13 @@ static func ensure_loaded() -> void:
 	if _loaded:
 		return
 	_fish.clear()
-	var dir := DirAccess.open(CREATURES_DIR)
-	if dir != null:
-		dir.list_dir_begin()
-		var entry: String = dir.get_next()
-		while entry != "":
-			if not dir.current_is_dir() and entry.ends_with(".tres"):
-				var res: Resource = load("%s/%s" % [CREATURES_DIR, entry])
-				if res is FishData and (res as FishData).id != &"":
-					_fish.append(res as FishData)
-			entry = dir.get_next()
-		dir.list_dir_end()
+	## Exported builds remap resources; list them the way the editor does.
+	for entry: String in ResourceLoader.list_directory(CREATURES_DIR):
+		if entry.ends_with("/") or not entry.ends_with(".tres"):
+			continue
+		var res: Resource = load("%s/%s" % [CREATURES_DIR, entry])
+		if res is FishData and (res as FishData).id != &"":
+			_fish.append(res as FishData)
 	_fish.sort_custom(func(a: FishData, b: FishData) -> bool: return a.id < b.id)
 	_loaded = true
 

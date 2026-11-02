@@ -54,6 +54,31 @@ func test_mobile_title_can_preview_map_without_unlocking_it() -> void:
 	InputDeviceTracker.on_mobile = was_mobile
 
 
+func test_portrait_map_has_a_close_button_that_acts_as_escape() -> void:
+	var was_mobile := InputDeviceTracker.on_mobile
+	InputDeviceTracker.on_mobile = true
+	InputDeviceTracker.portrait_override = 1
+	var map := auto_free((load("res://scenes/ui/map_overlay.tscn") as PackedScene).instantiate()) as MapOverlay
+	add_child(map)
+	map.open(true)
+	map._fit_screen()
+	var close := map.get_node("Root/MobileClose") as Button
+	assert_bool(close.visible).is_true()
+	close.pressed.emit()
+	assert_bool(map.is_open()).is_false()
+	InputDeviceTracker.portrait_override = 0
+	map.open(true)
+	map._fit_screen()
+	assert_bool(close.visible).is_false()
+	map.close()
+	InputDeviceTracker.on_mobile = was_mobile
+
+
+func after_test() -> void:
+	InputDeviceTracker.portrait_override = -1
+	InputDeviceTracker.on_mobile = OS.has_feature("android") or OS.has_feature("ios")
+
+
 func test_generated_town_labels_its_buildings_and_houses() -> void:
 	var data: WorldData = Game.resolve_world_data() if Game != null else null
 	if data == null or data.acre_types.size() != TownFieldGenerator.BLOCK_TOTAL:

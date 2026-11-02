@@ -473,8 +473,10 @@ func _decide_calendar_ev() -> int:
 	elif rumor == RUMOR_FIREWORKS:
 		_set_free(15, DialogueCatalog.rom_string(DAY_STR + _next_weekday_day(6) - 1))
 	var moon: Vector2i = moon_dates(Clock.year)
+	@warning_ignore("integer_division")
 	_set_free(16, DialogueCatalog.rom_string(MONTH_STR + moon.x / 100 - 1))
 	_set_free(17, DialogueCatalog.rom_string(DAY_STR + moon.x % 100 - 1))
+	@warning_ignore("integer_division")
 	_set_free(18, DialogueCatalog.rom_string(MONTH_STR + moon.y / 100 - 1))
 	_set_free(19, DialogueCatalog.rom_string(DAY_STR + moon.y % 100 - 1))
 	return msg
@@ -613,6 +615,7 @@ func _order_decide_trade(value: int) -> void:
 		3:
 			_decide_trade_common(false, CATEGORY_0, SEL_RANDOM, wallet, wallet, false)
 		4:
+			@warning_ignore("integer_division")
 			_decide_trade_common(false, CATEGORY_0, SEL_RANDOM, wallet / 2, wallet / 2, false)
 		5:
 			_decide_trade_common(false, CATEGORY_0, SEL_RANDOM, 3000, 3000, false)
@@ -625,6 +628,7 @@ func _order_decide_trade(value: int) -> void:
 		9:
 			_decide_trade_common(false, CATEGORY_0, SEL_PITFALL, wallet, wallet, true)
 		10:
+			@warning_ignore("integer_division")
 			_decide_trade_common(false, CATEGORY_0, SEL_PITFALL, wallet / 2, wallet / 2, true)
 		11:
 			_decide_trade_common(true, CATEGORY_1, SEL_PITFALL, 100, 3000, true)
@@ -673,6 +677,7 @@ func _decide_pay(pay_min: int, pay_max: int, round_tens: bool) -> void:
 		d = -d
 	var add: int = _rand_f(d)
 	if round_tens:
+		@warning_ignore("integer_division")
 		add = (add / 10) * 10
 	pay = add + lo
 	_set_free(19, str(pay))
@@ -843,6 +848,7 @@ func _order_set_calendar(value: int) -> void:
 
 
 func _set_md(month_free: int, day_free: int, md: int) -> void:
+	@warning_ignore("integer_division")
 	_set_free(month_free, DialogueCatalog.rom_string(MONTH_STR + clampi(md / 100, 1, 12) - 1))
 	_set_free(day_free, DialogueCatalog.rom_string(DAY_STR + clampi(md % 100, 1, 31) - 1))
 

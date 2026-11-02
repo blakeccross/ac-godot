@@ -15,7 +15,7 @@ static func run(host: Node, ctx: InteractionContext) -> bool:
 	if entry == null or data == null:
 		return false
 	if data.is_music_player():
-		await _run_music(entry, data, ctx)
+		await _run_music(entry, ctx)
 	else:
 		await _run_storage(entry, data, ctx)
 	return true
@@ -74,7 +74,7 @@ static func _close_furniture(ctx: InteractionContext, data: FurnitureData) -> vo
 ## --- music player -----------------------------------------------------------------------
 
 
-static func _run_music(entry: FurniturePlacement, data: FurnitureData, ctx: InteractionContext) -> void:
+static func _run_music(entry: FurniturePlacement, ctx: InteractionContext) -> void:
 	var inv: Inventory = ctx.inventory if ctx != null and ctx.inventory != null else Game.inventory
 	var session: IndoorSession = Game.interior_session
 	var house: House = Game.interiors.player_house()

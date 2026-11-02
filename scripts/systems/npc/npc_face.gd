@@ -264,6 +264,7 @@ static func _mirror_expand_image(image: Image, target_w: int) -> Image:
 	var h: int = image.get_height()
 	var src_w: int = image.get_width()
 	var out := Image.create(target_w, h, false, Image.FORMAT_RGBA8)
+	@warning_ignore("integer_division")
 	var half_w: int = mini(src_w, target_w / 2)
 	for y: int in h:
 		for x: int in half_w:

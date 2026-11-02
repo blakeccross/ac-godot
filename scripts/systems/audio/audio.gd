@@ -187,6 +187,7 @@ func field_placement_at(tree: SceneTree, pos: Vector3) -> Vector2:
 ## The SFX sub-bus panned nearest `pan` (−1 left … 1 right), made on first use.
 func pan_bus(pan: float) -> String:
 	var step: int = clampi(roundi((pan + 1.0) * 0.5 * float(PAN_STEPS - 1)), 0, PAN_STEPS - 1)
+	@warning_ignore("integer_division")
 	if step == (PAN_STEPS - 1) / 2:
 		return SFX_BUS
 	var name: String = "%s_pan%d" % [SFX_BUS, step]

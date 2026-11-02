@@ -184,6 +184,10 @@ func _ready() -> void:
 		if body_player != null:
 			_animator.bind(body_player)
 			_body_anim = _animator
+			## Foot plants and the sounds some animations make, on their own keyframes.
+			_animator.add_clip_events(VillagerSteps.marks(_resolve_clip), DecompTime.FRAME_HZ)
+			if not _animator.clip_event.is_connected(_on_clip_event):
+				_animator.clip_event.connect(_on_clip_event)
 			## Before the head look binds, so the head override lands on top of the arm pose.
 			if not _body_anim.mixer_applied.is_connected(_apply_sub_anim):
 				_body_anim.mixer_applied.connect(_apply_sub_anim)
@@ -216,10 +220,17 @@ func _ready() -> void:
 			_take_out_umbrella(true)
 
 
+## Replans when the clock slot changed. The hints are costly, so they are only built then.
+func _sync_ai() -> void:
+	var now: StringName = current_activity()
+	if not ai.is_synced(now):
+		ai.sync(now, brain.hints())
+
+
 func _sync_from_clock() -> void:
 	if indoor_resident or event_away:
 		return
-	ai.sync(current_activity(), brain.hints())
+	_sync_ai()
 	_apply_presence(ai.is_present())
 
 
@@ -320,7 +331,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 	if indoor_resident:
 		var who: String = data.display_name if data else "Villager"
 		return [Interaction.of(Interaction.TALK, "Talk to %s" % who, 20)]
-	ai.sync(current_activity(), brain.hints())
+	_sync_ai()
 	if not ai.is_talkable():
 		return []
 	var who_out: String = data.display_name if data else "Villager"
@@ -331,7 +342,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.TALK:
 		return false
 	if not indoor_resident:
-		ai.sync(current_activity(), brain.hints())
+		_sync_ai()
 		if not ai.is_talkable():
 			return false
 	_ensure_bound()
@@ -379,7 +390,7 @@ func _physics_process(delta: float) -> void:
 		_apply_pipe_push()
 		_tick_indoor(delta)
 		return
-	ai.sync(current_activity(), brain.hints())
+	_sync_ai()
 	var present: bool = ai.is_present()
 	_apply_presence(present)
 	_apply_pipe_push()
@@ -388,7 +399,7 @@ func _physics_process(delta: float) -> void:
 	if not present:
 		velocity = Vector3.ZERO
 		ai.step(delta)
-		_update_animation(delta, Vector3.ZERO)
+		_update_animation(Vector3.ZERO)
 		return
 	if ai.is_talking():
 		_react = React.NONE
@@ -479,7 +490,7 @@ func _physics_process(delta: float) -> void:
 		_wall_time += delta
 	else:
 		_wall_time = 0.0
-	_update_animation(delta, Vector3(velocity.x, 0.0, velocity.z))
+	_update_animation(Vector3(velocity.x, 0.0, velocity.z))
 	_tick_fatigue(delta, Vector3(velocity.x, 0.0, velocity.z))
 	_tick_annoyance(delta)
 	ai.step(delta)
@@ -498,7 +509,7 @@ func _tick_indoor(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 	move_and_slide()
-	_update_animation(delta, Vector3.ZERO)
+	_update_animation(Vector3.ZERO)
 
 
 func _tick_head_look(delta: float) -> void:
@@ -615,7 +626,7 @@ func _face_towards(world_pos: Vector3) -> void:
 		_model.rotation.y = _motor.facing
 
 
-func _update_animation(delta: float, planar: Vector3) -> void:
+func _update_animation(planar: Vector3) -> void:
 	if _body_anim == null:
 		return
 	var moving: bool = planar.length() > IDLE_SPEED
@@ -719,6 +730,16 @@ func _play_clip(suffix: String, loop: bool, blend: float = 0.12) -> void:
 	_body_anim.play(clip, blend)
 	if _feel != null:
 		_feel.set_pose(suffix)
+
+
+## `aNPC_anime_se_proc`: a foot lands, or an animation makes its sound.
+func _on_clip_event(clip: StringName, event: StringName) -> void:
+	if event == VillagerSteps.STEP_L or event == VillagerSteps.STEP_R:
+		VillagerSteps.plant(self, _visual, event == VillagerSteps.STEP_R, String(clip).contains("run"), _bg())
+		return
+	var sound: StringName = VillagerSteps.sound_of(event)
+	if sound != &"" and is_visible_in_tree():
+		Audio.play_se(sound, self)
 
 
 func _resolve_clip(suffix: String) -> String:

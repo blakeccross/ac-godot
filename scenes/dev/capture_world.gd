@@ -14,6 +14,7 @@ extends Node3D
 ##   room=<id>         Mount an interior (`needlework`, `police_box`, `shop0`, …) in
 ##                     `interior.tscn` with its own follow camera and lighting.
 ##   seed=12345        Generated-town seed.
+##   island=1          Kapp'n's island instead of the town.
 ##   station=7         Station design 0–14 (model type / 5, palette type % 5); default the seed's roll.
 ##   fruit=orange      Native fruit (default: the seed's own roll); apple, cherry, pear, peach, orange.
 ##   save=user://…     Load that save file's town instead (an imported GameCube town, …).
@@ -85,6 +86,7 @@ func _capture_date(date: String) -> void:
 		Game.town.grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
 		Game.town.town_fruit = StringName(str(_args.get("fruit", WorldGenerator.decide_fruit(seed_value))))
 		Game.town.station_type = int(_args.get("station", WorldGenerator.decide_station_type(seed_value)))
+		Game.island_visit = _args.has("island")
 	Clock.apply_snapshot({
 		"year": int(ymd[0]), "month": int(ymd[1]), "day": int(ymd[2]),
 		"hour": int(hm[0]), "minute": int(hm[1]) if hm.size() > 1 else 0, "second": 0,

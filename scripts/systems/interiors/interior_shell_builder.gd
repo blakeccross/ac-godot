@@ -362,6 +362,24 @@ static func shell_bounds(room: Room, grid: WorldGrid) -> AABB:
 	return AABB(Vector3(nw.x, 0.0, nw.z), Vector3(se.x - nw.x, WALL_HEIGHT, se.z - nw.z))
 
 
+## South edge of the floor a touch has to hit: the outdoor door, else a stair bay,
+## else the carpet. The follow camera zooms out until this is on screen.
+static func south_floor_z(room: Room, grid: WorldGrid) -> float:
+	var z: float = shell_bounds(room, grid).end.z
+	if room.door_cell.x >= 0:
+		z = maxf(z, _cell_south(grid, room.door_cell + Vector2i(1, 0)))
+	for stair: RoomStair in room.stairs:
+		if stair == null or stair.target_room_id == &"":
+			continue
+		z = maxf(z, _cell_south(grid, stair.cell))
+		z = maxf(z, _cell_south(grid, grid.world_to_cell(WorldGrid.room_point(grid, stair.landing))))
+	return z
+
+
+static func _cell_south(grid: WorldGrid, cell: Vector2i) -> float:
+	return grid.cell_corner(cell + Vector2i(0, 1)).z
+
+
 static func _apply_tile_texture(mat: StandardMaterial3D, path: String) -> void:
 	if path.is_empty():
 		return

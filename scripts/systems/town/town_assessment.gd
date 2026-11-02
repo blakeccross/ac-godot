@@ -107,6 +107,7 @@ static func evaluate(acres: Array, rng: RandomNumberGenerator) -> Dictionary:
 				perfect += 1
 			1:
 				good += 1
+	@warning_ignore("integer_division")
 	var score: int = perfect + good / 2
 	if dust_total >= DUST_OVER_NUM:
 		score = 0

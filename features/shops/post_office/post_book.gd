@@ -31,6 +31,7 @@ func clear() -> void:
 ## `mPO_set_next_delivery_time`: 9:00, else 17:00, else 9:00 tomorrow.
 static func next_delivery(now_minute: int) -> int:
 	var day: int = floori(float(now_minute) / 1440.0)
+	@warning_ignore("integer_division")
 	var hour: int = (now_minute - day * 1440) / 60
 	if hour < 9:
 		return day * 1440 + 9 * 60

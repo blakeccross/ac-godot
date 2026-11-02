@@ -77,9 +77,12 @@ var station_type: int = 0
 static func station_visual_for(type: int, season: String = "s") -> StringName:
 	var t: int = clampi(type, 0, STATION_TYPES - 1)
 	var letter: String = "abcde"[t % STATION_PALETTES]
+	@warning_ignore("integer_division")
 	var stem := "obj_%s_station%d" % [season, 1 + t / STATION_PALETTES]
 	return StringName(stem if letter == "a" else "%s_%s" % [stem, letter])
 var town_name: String = DEFAULT_TOWN_NAME
+## The island's name, asked for on the first boat ride (`Save_Get(island).name`, `mLE_TYPE_ISLAND_NAME`).
+var island_name: String = ""
 ## This town's identity, so a passport knows its home (`mLd_CheckThisLand`). Random per town.
 var town_id: int = 0
 ## `Save_Get(melody)`: the town tune (`TownTune`), set at the tune board.
@@ -150,6 +153,7 @@ func write_save(out: Dictionary) -> void:
 	out["town_fruit"] = String(town_fruit)
 	out["station_type"] = station_type
 	out["town_name"] = town_name
+	out["island_name"] = island_name
 	out["num_statues"] = num_statues
 	out["cheated_flag"] = cheated_flag
 	out["town_tune"] = Array(town_tune)
@@ -283,6 +287,7 @@ func read_save(data: Dictionary) -> void:
 					"size": int(rec.get("size", 0)), "ordinal": int(rec.get("ordinal", 0)),
 					"minute": int(rec.get("minute", 0)), "settled": bool(rec.get("settled", false))})
 	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
+	island_name = str(data.get("island_name", ""))
 	num_statues = clampi(int(data.get("num_statues", 0)), 0, 3)
 	cheated_flag = bool(data.get("cheated_flag", false))
 	town_tune = TownTune.sanitize(data.get("town_tune", null))
@@ -401,6 +406,7 @@ func reset() -> void:
 	plant_states.clear()
 	buried_deposits.clear()
 	town_name = DEFAULT_TOWN_NAME
+	island_name = ""
 	num_statues = 0
 	cheated_flag = false
 	town_tune = TownTune.default_notes()

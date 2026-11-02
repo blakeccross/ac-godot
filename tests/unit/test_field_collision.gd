@@ -285,7 +285,9 @@ func test_revise_xz_allows_beach_wave_not_sea() -> void:
 func _catalog_attr(data: WorldData, cell: Vector2i) -> int:
 	if data.acre_visuals.size() != TownFieldGenerator.BLOCK_TOTAL:
 		return -1
+	@warning_ignore("integer_division")
 	var bx: int = int(cell.x / WorldGenerator.UT) + 1
+	@warning_ignore("integer_division")
 	var bz: int = int(cell.y / WorldGenerator.UT) + 1
 	if bx < 1 or bx > 5 or bz < 1 or bz > 6:
 		return -1
@@ -773,7 +775,9 @@ func _house_data() -> WorldData:
 
 func _visual_at(data: WorldData, cell: Vector2i) -> StringName:
 	if data.acre_visuals.size() == TownFieldGenerator.BLOCK_TOTAL:
+		@warning_ignore("integer_division")
 		var bx: int = int(cell.x / WorldGenerator.UT) + 1
+		@warning_ignore("integer_division")
 		var bz: int = int(cell.y / WorldGenerator.UT) + 1
 		if bx >= 1 and bx <= 5 and bz >= 1 and bz <= 6:
 			return StringName(data.acre_visuals[bz * TownFieldGenerator.BLOCK_X + bx])

@@ -746,11 +746,11 @@ func _reel_catch(school: FishSchool) -> void:
 static func completes_record(fish: FishData) -> bool:
 	if fish == null or fish.is_trash or Game == null or Game.species_log == null:
 		return false
-	var log: SpeciesLog = Game.species_log
-	if log.has(fish.id):
+	var book: SpeciesLog = Game.species_log
+	if book.has(fish.id):
 		return false
-	var total: int = log.page_total(&"fish")
-	return total > 0 and log.page_count(&"fish") == total - 1
+	var total: int = book.page_total(&"fish")
+	return total > 0 and book.page_count(&"fish") == total - 1
 
 
 func _finish(out: Outcome, school: FishSchool) -> void:

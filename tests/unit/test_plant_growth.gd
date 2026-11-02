@@ -281,6 +281,7 @@ func test_assign_special_trees_tops_up_bare_mature() -> void:
 	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 20, "hour": 12, "minute": 0})
 	var hardwood: PlantData = load("res://data/plants/hardwood_tree.tres")
 	for i: int in 40:
+		@warning_ignore("integer_division")
 		var cell := Vector2i(i % 16, i / 16)
 		var pid: StringName = PlantGrowth.persist_id(cell)
 		PlantGrowth.ensure(pid, hardwood, &"TREE", cell)

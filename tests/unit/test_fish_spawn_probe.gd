@@ -86,6 +86,7 @@ func test_species_rows_agree_with_the_spawn_table() -> void:
 					if t == S.TYPE_SALMON2:
 						t = S.TYPE_SALMON
 					var row: Dictionary = seen.get(t, {"months": {}, "slots": {}, "waters": {}, "w": 0})
+					@warning_ignore("integer_division")
 					row["months"][term / 2 + 1] = true
 					row["slots"][slot] = true
 					row["waters"][int(keys[key])] = true
@@ -450,7 +451,6 @@ func test_a_fish_left_behind_is_culled_and_the_acre_restocks_on_return() -> void
 	_settle()
 	var w := _two_acre_school()
 	var school: FishSchool = w["school"]
-	var grid: WorldGrid = w["grid"]
 	for i: int in 30:
 		school.seed_rng(i)
 		if school.try_spawn_in_acre(Vector2i(1, 1), 0) != null:
@@ -589,7 +589,7 @@ func test_generated_town_river_pond_and_sea_acres_stock_all_year() -> void:
 		for bx: int in range(VillagerWalk.FG_X0, VillagerWalk.FG_X1 + 1):
 			var acre := Vector2i(bx, bz)
 			var units: Array = school.acre_units(acre)
-			var kind: int = school.block_kind(acre, units)
+			var kind: int = school.block_kind(acre)
 			if kind & S.KIND_MARINE:
 				classes["sea"].append(acre)
 			elif kind & S.KIND_RIVER:

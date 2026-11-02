@@ -62,6 +62,7 @@ func test_a_balloon_drifts_downwind_at_cruising_height() -> void:
 	var balloon := Balloon.new()
 	world.add_child(balloon)
 	auto_free(balloon)
+	@warning_ignore("integer_division")
 	var start: Vector3 = world.grid.cell_to_world(Vector2i(world.grid.columns / 2, world.grid.rows / 2))
 	balloon.start_near(start)
 	balloon.heading = 0

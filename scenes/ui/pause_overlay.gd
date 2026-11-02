@@ -22,14 +22,37 @@ static func find(tree: SceneTree) -> PauseOverlay:
 func _ready() -> void:
 	layer = 30
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	_root.visible = false
 	_resume.pressed.connect(close)
 	_settings.pressed.connect(_open_settings)
 	_exit.pressed.connect(_confirm_exit)
+	_root.resized.connect(_fit_window)
+	if not InputDeviceTracker.layout_changed.is_connected(_fit_window):
+		InputDeviceTracker.layout_changed.connect(_fit_window)
 
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	return MenuFrame.rect_of(_root.get_node("Center/Panel") as Control)
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
+
+
+func _fit_window() -> void:
+	var panel := _root.get_node("Center/Panel") as Control
+	var portrait := InputDeviceTracker.uses_mobile_ui()
+	var width := _root.size.x - 48.0 if portrait and _root.size.x > 64.0 else 320.0
+	panel.custom_minimum_size = Vector2(width, 0)
+	var tall := 56.0 if portrait else 0.0
+	for button: Button in [_resume, _settings, _exit]:
+		button.custom_minimum_size.y = tall
 
 
 func open() -> void:
@@ -38,6 +61,7 @@ func open() -> void:
 	_open = true
 	_root.visible = true
 	get_tree().paused = true
+	_fit_window()
 	_resume.grab_focus()
 
 

@@ -87,6 +87,21 @@ func test_disable_skips_the_visit_until_turned_back_on() -> void:
 	assert_int(Game.resident.reset_count).is_equal(1)
 
 
+## A phone ends backgrounded apps on its own, so an unsaved quit there brings no visit and no count.
+func test_mobile_skips_the_visit() -> void:
+	var was_mobile: bool = InputDeviceTracker.on_mobile
+	InputDeviceTracker.on_mobile = true
+	assert_int(SaveService.save_game(PATH)).is_equal(OK)
+	SaveService.mark_session_open(0, PATH)
+	Game.reset_session()
+	assert_int(SaveService.load_game(PATH)).is_equal(OK)
+	var count: int = Game.resident.reset_count
+	Game.note_reset(SaveService.last_reset_code)
+	InputDeviceTracker.on_mobile = was_mobile
+	assert_bool(Game.reset_flag).is_false()
+	assert_int(Game.resident.reset_count).is_equal(count)
+
+
 ## The RTC ran while the game was off (`lbRTC_GetTime` at start); a clock behind the last save
 ## marks `cheated_flag` (`aNPS2_game_start_wait`).
 func test_time_passes_while_away() -> void:
@@ -102,5 +117,6 @@ func test_time_passes_while_away() -> void:
 	assert_int(renewed[0]).is_equal(2)
 	Game.resume_clock(-86400)
 	assert_bool(Game.town.cheated_flag).is_true()
-	assert_int(Clock.day).is_equal(16)
+	assert_bool(Clock.rtc_override).is_false()
+	assert_int(Clock.day).is_equal(int(Time.get_datetime_dict_from_system()["day"]))
 	Clock.reset_to_default()

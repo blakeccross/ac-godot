@@ -205,9 +205,9 @@ func test_renew_waits_while_in_the_police_box() -> void:
 
 func test_start_box_shirts_are_different() -> void:
 	## `mSP_SelectRandomItem_New` rejects duplicates.
-	for seed: int in 40:
+	for town_seed: int in 40:
 		var book := PoliceBook.new()
-		book.rng.seed = seed
+		book.rng.seed = town_seed
 		book.init_town()
 		assert_that(book.item_at(1)).is_not_equal(book.item_at(2))
 
@@ -228,6 +228,7 @@ func test_rsv_cells_read_from_the_fg_template() -> void:
 	items.resize(FieldObjectCatalog.ITEMS_PER_ACRE)
 	for slot: int in PoliceBook.STORAGE_COUNT:
 		## Put slot N at unit (N % 8 + 1, N / 8 * 2 + 1), in reverse scan order.
+		@warning_ignore("integer_division")
 		var cell := Vector2i(slot % 8 + 1, slot / 8 * 2 + 1)
 		items[cell.y * 16 + cell.x] = PoliceDisplay.RSV_POLICE_ITEM_0 + slot
 	var cells: Array[Vector2i] = PoliceDisplay.cells_from_fg(items)

@@ -12,10 +12,14 @@ static func apply(
 	refresh_light(host, world_env, grid, room)
 	if camera != null and allows_camera_index(room) and camera.has_method("follow_in_room"):
 		## The normal 620 GX camera following the player inside the room
-		## (`Camera2_main_Normal_SetEndCenterPos_fromPlayer`); the floor stands in for the
-		## room's block extent.
-		camera.set("offset", preload("res://scenes/world/follow_camera.gd").DEFAULT_OFFSET)
-		camera.call("follow_in_room", InteriorShellBuilder.shell_bounds(room, grid))
+		## (`Camera2_main_Normal_SetEndCenterPos_fromPlayer`). Pulled back when the south
+		## door would sit under the lens, so a tap has floor past the wall.
+		var room_box: AABB = InteriorShellBuilder.shell_bounds(room, grid)
+		camera.set(
+			"offset",
+			FollowCamera.offset_to_show_south(room_box, InteriorShellBuilder.south_floor_z(room, grid))
+		)
+		camera.call("follow_in_room", room_box)
 		return
 	if camera != null and "offset" in camera:
 		## Homes frame the shell (never closer than Camera2 620). Museum / shops /

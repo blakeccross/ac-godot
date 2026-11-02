@@ -294,7 +294,7 @@ func try_spawn_in_acre(acre: Vector2i, tourney: int = -1) -> FishShadow:
 	if acre_has_fish(acre):
 		return null
 	var units: Array = acre_units(acre)
-	var kind: int = block_kind(acre, units)
+	var kind: int = block_kind(acre)
 	if (
 		(kind & FishSpawnScheduler.KIND_MARINE) == 0
 		and (kind & FishSpawnScheduler.KIND_RIVER) == 0
@@ -337,14 +337,13 @@ func acre_has_fish(acre: Vector2i) -> bool:
 
 ## `mFI_BkNum2BlockKind`, or a stand-in from the water in the acre when the layout carries
 ## no block types.
-func block_kind(acre: Vector2i, units: Array = []) -> int:
+func block_kind(acre: Vector2i) -> int:
 	if _has_block_types():
 		if acre.x < 0 or acre.x >= TownFieldGenerator.BLOCK_X or acre.y < 0 or acre.y >= TownFieldGenerator.BLOCK_Z:
 			return 0
 		return FishSpawnScheduler.block_kind_for_type(
 			int(_layout.acre_types[acre.y * TownFieldGenerator.BLOCK_X + acre.x])
 		)
-	var rows: Array = units if not units.is_empty() else acre_units(acre)
 	var kind: int = 0
 	var origin: Vector2i = _acre_origin(acre)
 	for uz: int in FishSpawnScheduler.UT:

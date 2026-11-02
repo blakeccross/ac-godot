@@ -305,6 +305,7 @@ func test_rumour_topic_uses_the_event_rumor_table_slot() -> void:
 		seen[msg] = true
 		var base: int = VillagerTalkManager.EV_CAL[2]
 		## Whatever is live today, at its `event_rumor_table` slot × 2 (+0/1).
+		@warning_ignore("integer_division")
 		var slot: int = (msg - base) / 2
 		assert_bool(slot >= 0 and slot < VillagerTalkManager.RUMOR_TABLE.size()).is_true()
 		assert_bool(VillagerTalkManager.RUMOR_TABLE[slot] in Game.events.active_rumors()).is_true()

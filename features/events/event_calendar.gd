@@ -300,7 +300,6 @@ func _refresh_active(hour: int) -> void:
 ## `update_schedule_today`: `id -> 24-bit active-hours mask` for `now`'s date. With
 ## `gated` false the weekly / special / unsupported gates are skipped (for `next_start`).
 func resolve_day(now: Dictionary, gated: bool = true) -> Dictionary:
-	var year: int = int(now["year"])
 	var today: int = EventDates.md(int(now["month"]), int(now["day"]))
 	var out: Dictionary = {}
 	var soncho_claimed: bool = false
@@ -374,7 +373,6 @@ func _row_gated_off(id: StringName) -> bool:
 ## Returns the adjusted `(begin, end)` or `Vector2i(-1, -1)` to drop the row today.
 func _patch(id: StringName, begin: int, end: int, now: Dictionary, equinox_day: int) -> Vector2i:
 	var year: int = int(now["year"])
-	var today: int = EventDates.md(int(now["month"]), int(now["day"]))
 	match id:
 		&"spring_equinox", &"soncho_spring_sports_fair":
 			var vernal: int = EventDates.vernal_equinox_day(year)

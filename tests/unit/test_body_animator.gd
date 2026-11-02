@@ -158,7 +158,7 @@ func test_clip_events_hold_while_a_clip_runs_backwards() -> void:
 		return
 	a.callback_mode_method = AnimationMixer.ANIMATION_CALLBACK_MODE_METHOD_IMMEDIATE
 	var fired: Array = []
-	a.clip_event.connect(func(clip: StringName, event: StringName) -> void: fired.append(event))
+	a.clip_event.connect(func(_clip: StringName, event: StringName) -> void: fired.append(event))
 	a.add_clip_events({&"ply_1_putaway1": [[0.0, &"gasagoso"]]}, 30.0)
 	var clip: Animation = a.get_animation(&"ply_1_putaway1")
 	clip.loop_mode = Animation.LOOP_NONE

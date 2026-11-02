@@ -524,6 +524,7 @@ func ring_offset(t: float) -> Vector3:
 func _model_id() -> String:
 	match kind:
 		Kind.PETAL:
+			@warning_ignore("integer_division")
 			return PETAL_MODELS[clampi(arg0 / 3, 0, 3)]
 		Kind.TURN_PRINT:
 			return "ef_turn_footprint"

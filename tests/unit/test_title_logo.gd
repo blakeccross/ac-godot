@@ -142,6 +142,40 @@ func test_start_waits_for_the_owner_then_selects_once() -> void:
 	assert_int(selected[0]).is_equal(1)
 
 
+func test_a_click_starts_like_the_start_button() -> void:
+	var logo := _logo()
+	_to_pulse(logo)
+	logo.set("can_start", true)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	logo.call("_unhandled_input", release)
+	var right := InputEventMouseButton.new()
+	right.button_index = MOUSE_BUTTON_RIGHT
+	right.pressed = true
+	logo.call("_unhandled_input", right)
+	assert_str(String(_seq(logo).current_animation)).is_equal("pulse")
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	logo.call("_unhandled_input", click)
+	assert_str(String(_seq(logo).current_animation)).is_equal("start")
+
+
+func test_a_click_does_not_start_behind_an_open_menu() -> void:
+	var logo := _logo()
+	_to_pulse(logo)
+	logo.set("can_start", true)
+	var menu := auto_free(_OpenMenu.new()) as _OpenMenu
+	menu.add_to_group(SettingsOverlay.GROUP)
+	add_child(menu)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	logo.call("_unhandled_input", click)
+	assert_str(String(_seq(logo).current_animation)).is_equal("pulse")
+
+
 func test_accept_does_not_start_the_title_behind_an_open_menu() -> void:
 	var logo := _logo()
 	_to_pulse(logo)

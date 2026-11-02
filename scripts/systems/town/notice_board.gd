@@ -133,7 +133,7 @@ func auto_write(year: int, month: int, day: int, hour: int, free: Dictionary = {
 		var row: Array = entry[1]
 		if int(row[0]) < 0:
 			var winner: Dictionary = fishing.call(EventDates.ordinal(y, int(row[1]), int(row[2])))
-			write(_post(FishRecord.notice_text(y, int(row[1]), int(row[2]), winner), y, int(row[1]), int(row[2]),
+			write(_post(FishRecord.notice_text(int(row[1]), int(row[2]), winner), y, int(row[1]), int(row[2]),
 				FishRecord.END_HOUR, 0))
 			continue
 		var slots: Dictionary = free.duplicate()

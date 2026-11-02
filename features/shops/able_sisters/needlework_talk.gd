@@ -96,7 +96,7 @@ static func pick_story_row(days: int, first_of_day: bool, rng: RandomNumberGener
 
 
 ## Full sequence of message ids for one sister-story talk.
-static func story_line_ids(story_row: int, rng: RandomNumberGenerator) -> Array[int]:
+static func story_line_ids(story_row: int) -> Array[int]:
 	var out: Array[int] = []
 	var row: int = clampi(story_row, 0, 23)
 	for now in SISTER_NOW_NUM:

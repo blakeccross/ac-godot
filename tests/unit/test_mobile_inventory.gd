@@ -7,11 +7,13 @@ const CLOCK_SCENE := preload("res://scenes/ui/clock_widget.tscn")
 var _overlay: InventoryOverlay
 var _mobile: MobileInventory
 var _grid: GridContainer
+var _species_restore: Variant = null
 
 
 func before_test() -> void:
 	TestIsolation.forget_groups(get_tree(), [InventoryOverlay.GROUP])
 	InputDeviceTracker.on_mobile = true
+	InputDeviceTracker.portrait_override = 1
 	InputDeviceTracker._set_device(InputDeviceTracker.Device.TOUCH)
 	Game.inventory.clear()
 	_overlay = auto_free(OVERLAY_SCENE.instantiate()) as InventoryOverlay
@@ -23,10 +25,15 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	_overlay._ignore_close_once = false
 	_overlay.close()
 	Game.inventory.clear()
 	InputDeviceTracker.on_mobile = OS.has_feature("android") or OS.has_feature("ios")
+	InputDeviceTracker.portrait_override = -1
 	InputDeviceTracker._set_device(InputDeviceTracker.Device.KEYS)
+	if _species_restore != null:
+		Game.species_log.apply_snapshot(_species_restore)
+		_species_restore = null
 
 
 func _card(index: int) -> Button:
@@ -75,8 +82,9 @@ func test_mobile_sheet_leaves_the_world_and_bottom_bar_visible() -> void:
 	var sheet := _mobile.get_node("SafeArea/Sheet") as Control
 	var screen := get_viewport().get_visible_rect()
 	assert_float(sheet.get_global_rect().position.y).is_greater(screen.size.y * 0.3)
-	assert_float(sheet.get_global_rect().end.y).is_less_equal(screen.end.y - 100.0)
-	assert_float(sheet.size.x).is_less(screen.size.x)
+	assert_float(sheet.get_global_rect().end.y).is_less_equal(screen.end.y - 16.0 + 8.0)
+	var safe_area := _mobile.get_node("SafeArea") as Control
+	assert_float(sheet.size.x).is_equal_approx(safe_area.size.x, 1.0)
 	assert_bool((_overlay.get_node("Root/Dim") as Control).visible).is_false()
 
 
@@ -227,17 +235,79 @@ func test_move_action_can_place_an_item_in_an_empty_mobile_slot() -> void:
 	await get_tree().create_timer(0.4).timeout
 
 
-func test_letters_and_more_preserves_the_classic_screen_and_can_return() -> void:
-	(_mobile.get_node("%More") as Button).pressed.emit()
+func test_letters_fish_and_insects_stay_on_the_portrait_sheet() -> void:
+	_species_restore = Game.species_log.to_save()
+	Game.species_log.clear()
+	Game.species_log.record(&"crucian_carp")
+	Game.species_log.record(&"common_butterfly")
+	var mail := MailData.make_send(&"bob", "Bob", "Come visit the river.", "Player")
+	Game.inventory.add_mail(mail)
+	(_mobile.get_node("%PageLetters") as Button).pressed.emit()
+	assert_bool(_mobile.get_node("%LettersScroll").visible).is_true()
+	assert_bool(_overlay.get_node("Root/Center").visible).is_false()
+	assert_str((_mobile.get_node("%LetterList").get_child(0).get_node("Content/Name") as Label).text).is_equal("To Bob")
+	(_mobile.get_node("%LetterList").get_child(0) as Button).pressed.emit()
+	assert_object(_action("Discard")).is_not_null()
+	(_mobile.get_node("%PageFish") as Button).pressed.emit()
+	assert_bool(_mobile.get_node("%CollectionScroll").visible).is_true()
+	assert_str((_mobile.get_node("%Title") as Label).text).is_equal("Fish")
+	assert_int(_mobile.get_node("%CollectionGrid").get_child_count()).is_equal(40)
+	var fish_name := ItemCatalog.get_item(&"crucian_carp").display_name
+	assert_str((_mobile.get_node("%CollectionGrid").get_child(0).get_node("Content/Name") as Label).text).is_equal(fish_name)
+	assert_str((_mobile.get_node("%CollectionGrid").get_child(1).get_node("Content/Name") as Label).text).is_equal("???")
+	(_mobile.get_node("%PageInsects") as Button).pressed.emit()
+	assert_str((_mobile.get_node("%Title") as Label).text).is_equal("Insects")
+	var bug_name := ItemCatalog.get_item(&"common_butterfly").display_name
+	assert_str((_mobile.get_node("%CollectionGrid").get_child(0).get_node("Content/Name") as Label).text).is_equal(bug_name)
+	(_mobile.get_node("%PageItems") as Button).pressed.emit()
+	assert_bool(_mobile.get_node("%Scroll").visible).is_true()
+
+
+func test_landscape_phone_uses_the_classic_inventory() -> void:
+	InputDeviceTracker.portrait_override = 0
+	_overlay._refresh()
+	assert_bool(_overlay.uses_mobile_layout()).is_false()
 	assert_bool(_mobile.visible).is_false()
 	assert_bool(_overlay.get_node("Root/Center").visible).is_true()
-	assert_bool(_overlay.get_node("Root/BackToItems").visible).is_true()
-	(_overlay.get_node("Root/BackToItems") as Button).pressed.emit()
-	assert_bool(_mobile.visible).is_true()
-	assert_bool(_overlay.get_node("Root/BackToItems").visible).is_false()
-	_overlay.open_letters()
-	assert_bool(_overlay._focus_mail).is_true()
-	assert_bool(_overlay.get_node("Root/Center").visible).is_true()
+	InputDeviceTracker.portrait_override = 1
+	_overlay._refresh()
+	assert_bool(_overlay.uses_mobile_layout()).is_true()
+
+
+func test_desktop_click_outside_closes_like_escape() -> void:
+	InputDeviceTracker.on_mobile = false
+	_overlay.close()
+	_overlay._slide.settle()
+	_overlay.open()
+	_overlay._slide.settle()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	Game.inventory.add(ItemCatalog.get_item(&"axe"))
+	(_overlay.get_node("Root/Center/ShellStack/SlotLayer/ItemSlot0") as Button).pressed.emit()
+	assert_bool(_overlay._tag_mode).is_true()
+	var rect := _overlay.menu_rect()
+	var outside := Vector2(4, 4)
+	if rect.has_point(outside):
+		outside = rect.position + Vector2(-12, rect.size.y * 0.5)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = outside
+	click.global_position = outside
+	assert_bool(WindowDismiss.handle(get_tree(), click, not InputDeviceTracker.uses_mobile_ui())).is_true()
+	assert_bool(_overlay.is_open()).is_true()
+	assert_bool(_overlay._tag_mode).is_false()
+	assert_bool(WindowDismiss.handle(get_tree(), click, not InputDeviceTracker.uses_mobile_ui())).is_true()
+	assert_bool(_overlay.is_open()).is_false()
+	_overlay.open()
+	_overlay._slide.settle()
+	await get_tree().process_frame
+	var current := _overlay.menu_rect()
+	if current.has_point(current.get_center()):
+		click.position = current.get_center()
+		click.global_position = click.position
+		assert_bool(WindowDismiss.handle(get_tree(), click)).is_false()
+		assert_bool(_overlay.is_open()).is_true()
 
 
 func test_keyboard_navigation_matches_four_columns_without_changing_inventory_rules() -> void:
@@ -282,8 +352,32 @@ func test_clock_stays_hidden_on_mobile_with_touch_or_keys() -> void:
 func test_native_mobile_inventory_hides_the_menu_pad_but_not_in_classic_mode() -> void:
 	var pad := TouchMenuPad.find(get_tree())
 	assert_bool(pad.wanted()).is_false()
-	(_mobile.get_node("%More") as Button).pressed.emit()
+	InputDeviceTracker.portrait_override = 0
+	_overlay._refresh()
 	assert_bool(pad.wanted()).is_true()
+	InputDeviceTracker.portrait_override = 1
+	_overlay._refresh()
+	assert_bool(pad.wanted()).is_false()
+
+
+func test_house_payment_shows_hand_over_and_ignores_the_opening_close() -> void:
+	## The tap that parks Nook's money line can land on Close the moment the sheet
+	## appears. That press must not dismiss the down payment.
+	Game.inventory.clear()
+	Game.intro.payment_pending = true
+	Game.inventory.add(ItemCatalog.get_item(&"money_1000"), 1, InventoryItem.Condition.QUEST)
+	Game.inventory.select(4)
+	assert_bool(_overlay.present_handover(&"money_1000")).is_true()
+	_overlay._slide.settle()
+	assert_int(Game.inventory.selected_index).is_equal(0)
+	assert_int(_overlay.layer).is_equal(30)
+	assert_object(_action("Hand over")).is_not_null()
+	(_mobile.get_node("%Close") as Button).pressed.emit()
+	assert_bool(_overlay.is_open()).is_true()
+	_overlay._ignore_close_once = false
+	(_mobile.get_node("%Close") as Button).pressed.emit()
+	assert_bool(_overlay.is_open()).is_false()
+	Game.intro.payment_pending = false
 
 
 func test_close_button_closes_inventory() -> void:

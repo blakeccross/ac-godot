@@ -57,6 +57,7 @@ static func find(tree: SceneTree) -> DiaryOverlay:
 func _ready() -> void:
 	layer = 21
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	_root.visible = false
 	_font = LetterBoard.load_font()
 	var names: Array[String] = ["dia_w1", "dia_w2", "dia_w3", "dia_moji"]
@@ -74,16 +75,20 @@ func _ready() -> void:
 
 
 func _fit_screen() -> void:
-	var sz := _root.size
-	if sz.x <= 0.0 or sz.y <= 0.0:
-		return
-	var k := minf(sz.x / 320.0, sz.y / 240.0)
-	_screen.scale = Vector2(k, k)
-	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
+	MenuFrame.fit(self, _root, _screen)
 
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	return MenuFrame.rect_of(_screen)
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
 
 
 ## `mDI_diary_ovl_init`: in from the left on `p_month`'s page (1–12).

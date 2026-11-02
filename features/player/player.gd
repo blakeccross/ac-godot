@@ -436,7 +436,7 @@ func _physics_process(delta: float) -> void:
 	if _cutscene_driven:
 		velocity = Vector3.ZERO
 		_mesh.rotation.y = _motor.facing
-		_update_animation(delta)
+		_update_animation()
 		return
 
 	if not _wade.is_empty():
@@ -495,7 +495,7 @@ func _physics_process(delta: float) -> void:
 	if _snowball != null:
 		snowball.push_snowball(delta, wish, stick, sprint and not menu_open, input_dir, bg)
 		if _snowball == null:
-			_update_animation(delta)
+			_update_animation()
 		return
 	_motor.position = global_position
 	## `mEv_IsNotTitleDemo() && destiny == BAD_LUCK` gates the dash trip.
@@ -536,7 +536,7 @@ func _physics_process(delta: float) -> void:
 		_acre_border(before, input_dir, bg)
 		if not _wade.is_empty():
 			return
-	_update_animation(delta)
+	_update_animation()
 	_update_footprints(delta, bg)
 	_update_ripples(delta, bg)
 	_update_focus()
@@ -1052,7 +1052,7 @@ func _on_clip_event(_clip: StringName, event: StringName) -> void:
 		&"fx_shock":
 			feel.play(&"shock")
 		&"fx_axe_start":
-			FootstepEffects.axe_start(_bg(), global_position, _motor.facing)
+			FootstepEffects.axe_start(_bg(), global_position)
 		&"fx_axe_bounce":
 			FootstepEffects.axe_bounce(_bg(), global_position, _motor.facing)
 		&"fx_axe_pieces":
@@ -1113,7 +1113,7 @@ func _note_wall_contact(before: Vector3, planar: Vector3, delta: float) -> void:
 	_motor.wall_ratio = 1.0 if ratio > 0.98 else ratio
 
 
-func _update_animation(delta: float) -> void:
+func _update_animation() -> void:
 	if tools.tool_swap or net.is_active():
 		return
 	var next: PlayerLocomotion.Gait = _motor.gait()

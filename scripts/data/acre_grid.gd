@@ -68,4 +68,5 @@ static func _is_height_max_filler(id: String, packed: PackedByteArray) -> bool:
 	for u: int in FieldCatalog.UNITS_PER_ACRE:
 		if packed[u * FieldCatalog.UNIT_STRIDE] >= FieldCatalog.HEIGHT_MAX:
 			n_max += 1
+	@warning_ignore("integer_division")
 	return n_max > FieldCatalog.UNITS_PER_ACRE / 2

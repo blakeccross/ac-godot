@@ -46,6 +46,9 @@ var _shown: String = ""
 var _visible_len: int = 0
 var _cursor: int = 0
 var _fast_text: bool = false
+## Screen-touch indexes currently down. A held finger uses the fast rate for as long as
+## it stays down — the same pace as holding Shift (`sprint`) — and lets go of it on lift.
+var _fingers_down: Dictionary = {}
 ## `ABLECANCEL`: A or B dumps the rest of this cursor run. Off until that code.
 var _cancelable: bool = false
 ## `SNDCUT`: animalese is replaced by system SE 0x54.
@@ -79,6 +82,7 @@ func _ready() -> void:
 	layer = 25
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	if not Engine.is_editor_hint():
 		_root.visible = false
 
@@ -104,6 +108,26 @@ static func open_in(tree: SceneTree) -> bool:
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	var rect := Rect2()
+	var started := false
+	for node_name: String in ["Cloud", "NamePlate", "ChoicePanel", "ChoiceList"]:
+		var part := _chrome.get_node_or_null(node_name) as Control
+		if part == null or not part.is_visible_in_tree():
+			continue
+		var piece: Rect2 = MenuFrame.rect_of(part)
+		if piece.size.x < 1.0 or piece.size.y < 1.0:
+			continue
+		rect = piece if not started else rect.merge(piece)
+		started = true
+	return rect
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
 
 
 ## Put the window away while the talk waits on something else (the intro payment's pockets),
@@ -280,6 +304,7 @@ func _begin_open(speaker: String, sex: MessageWindowChrome.SpeakerSex) -> void:
 	_phase = Phase.APPEARING
 	_anim_t = 0.0
 	_fast_text = false
+	_fingers_down.clear()
 	_cancelable = false
 	_sound_cut = false
 	_root.visible = true
@@ -331,6 +356,7 @@ func _finish_close() -> void:
 	_visible_len = 0
 	_cursor = 0
 	_fast_text = false
+	_fingers_down.clear()
 	_chrome.set_window_scale(1.0)
 	_chrome.set_continue_visible(false)
 	_disconnect_runner()
@@ -392,7 +418,7 @@ func _type(delta: float) -> void:
 			return
 		if _btn_wait:
 			return
-		var fast: bool = _fast_text and not _just
+		var fast: bool = (_fast_text or _finger_down()) and not _just
 		if _pause_left > 0.0:
 			if fast:
 				_pause_left = 0.0
@@ -588,6 +614,25 @@ func _show_continue() -> void:
 	_chrome.set_continue_visible(not blocked)
 
 
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventScreenTouch):
+		return
+	## The window is closed: drop any contact so a finger held from walking does not
+	## rush the next talk the moment it opens.
+	if not _open:
+		_fingers_down.clear()
+		return
+	var touch := event as InputEventScreenTouch
+	if touch.pressed:
+		_fingers_down[touch.index] = true
+	else:
+		_fingers_down.erase(touch.index)
+
+
+func _finger_down() -> bool:
+	return not _fingers_down.is_empty()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _open or _suspended:
 		return
@@ -611,13 +656,25 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _runner != null and _runner.is_continue_blocked():
 		get_viewport().set_input_as_handled()
 		return
-	if _is_b(event) or _is_a(event):
+	## A click turns the page. A finger arrives as a mouse click
+	## (`emulate_mouse_from_touch`), which is how a tap continues talk on a phone.
+	## A choice is its own button, so a click there never reaches this.
+	if _is_b(event) or _is_a(event) or _page_click(event):
 		get_viewport().set_input_as_handled()
 		_press_page(_is_b(event))
 
 
 func _is_a(event: InputEvent) -> bool:
 	return event.is_action_pressed("interact") or event.is_action_pressed("ui_accept")
+
+
+## Left click only. A release, or another button, does not turn the page.
+func _page_click(event: InputEvent) -> bool:
+	return (
+		event is InputEventMouseButton
+		and (event as InputEventMouseButton).pressed
+		and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT
+	)
 
 
 func _is_b(event: InputEvent) -> bool:

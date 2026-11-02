@@ -35,7 +35,7 @@ func _ready() -> void:
 	_rng.randomize()
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if state == State.SPAWNED:
 		return
 	if Game != null and Game.first_job != null and Game.first_job.is_active() and not Game.first_job.open_quest:

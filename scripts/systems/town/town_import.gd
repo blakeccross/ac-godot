@@ -163,10 +163,12 @@ static func _add_field(world: Dictionary, town: Dictionary, summary: Dictionary)
 	for acre: int in mini(field.size(), GameCubeTown.FIELD_X * GameCubeTown.FIELD_Z):
 		var units: PackedInt32Array = field[acre]
 		var rows: PackedInt32Array = deposits[acre] if acre < deposits.size() else PackedInt32Array()
+		@warning_ignore("integer_division")
 		var origin := Vector2i((acre % GameCubeTown.FIELD_X) * GameCubeTown.UNITS, (acre / GameCubeTown.FIELD_X) * GameCubeTown.UNITS)
 		for i: int in units.size():
 			var number: int = units[i]
 			var ux: int = i % GameCubeTown.UNITS
+			@warning_ignore("integer_division")
 			var uz: int = i / GameCubeTown.UNITS
 			var cell: Vector2i = origin + Vector2i(ux, uz)
 			var is_buried: bool = uz < rows.size() and ((rows[uz] >> ux) & 1) == 1
@@ -344,9 +346,9 @@ static func _rooms(raw_rooms: Variant, size: int, has_basement: bool, summary: D
 	for r: int in mini(floors.size(), ROOM_IDS.size()):
 		if not _room_exists(r, size, has_basement):
 			continue
-		var floor: Dictionary = floors[r] if typeof(floors[r]) == TYPE_DICTIONARY else {}
-		var layers: Array = floor.get("layers", []) if typeof(floor.get("layers")) == TYPE_ARRAY else []
-		var switches: Array = floor.get("switches", []) if typeof(floor.get("switches")) == TYPE_ARRAY else []
+		var room_floor: Dictionary = floors[r] if typeof(floors[r]) == TYPE_DICTIONARY else {}
+		var layers: Array = room_floor.get("layers", []) if typeof(room_floor.get("layers")) == TYPE_ARRAY else []
+		var switches: Array = room_floor.get("switches", []) if typeof(room_floor.get("switches")) == TYPE_ARRAY else []
 		var switch0: int = int(switches[0]) if switches.size() > 0 else 0
 		var floor_layer: PackedInt32Array = layers[0] if layers.size() > 0 and layers[0] is PackedInt32Array else PackedInt32Array()
 		var by_cell: Dictionary = {}
@@ -362,6 +364,7 @@ static func _rooms(raw_rooms: Variant, size: int, has_basement: bool, summary: D
 				continue
 			seq += 1
 			var x: int = i % GameCubeTown.UNITS
+			@warning_ignore("integer_division")
 			var z: int = i / GameCubeTown.UNITS
 			var entry: Dictionary = {
 				"id": "ftr_%d" % seq,
@@ -407,6 +410,7 @@ static func _rooms(raw_rooms: Variant, size: int, has_basement: bool, summary: D
 					summary["skipped_items"] = int(summary["skipped_items"]) + 1
 					continue
 				seq += 1
+				@warning_ignore("integer_division")
 				placements.append({
 					"id": "ftr_%d" % seq,
 					"furniture_id": String(id),
@@ -419,8 +423,8 @@ static func _rooms(raw_rooms: Variant, size: int, has_basement: bool, summary: D
 		var room_id := String(ROOM_IDS[r])
 		out[room_id] = {
 			"id": room_id,
-			"wall_id": String(InteriorStyleCatalog.wall_style_id(int(floor.get("wall_idx", 0)))),
-			"floor_id": String(InteriorStyleCatalog.floor_style_id(int(floor.get("floor_idx", 0)))),
+			"wall_id": String(InteriorStyleCatalog.wall_style_id(int(room_floor.get("wall_idx", 0)))),
+			"floor_id": String(InteriorStyleCatalog.floor_style_id(int(room_floor.get("floor_idx", 0)))),
 			"placements": placements,
 			"placement_seq": seq,
 		}

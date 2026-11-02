@@ -37,7 +37,8 @@ static func stream_for(spec: int, phoneme: int) -> AudioStream:
 	if _streams.has(key):
 		return _streams[key] as AudioStream
 	var path := _path_for(spec, phoneme)
-	if path.is_empty() or not FileAccess.file_exists(path):
+	## An export packs the imported stream, not the source `.ogg`. `FileAccess` misses it.
+	if path.is_empty() or not ResourceLoader.exists(path):
 		return null
 	var loaded: Resource = load(path)
 	if loaded is AudioStream:

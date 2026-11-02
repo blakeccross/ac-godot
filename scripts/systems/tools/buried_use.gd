@@ -172,7 +172,7 @@ static func spring_pitfall(world: Node, grid: WorldGrid, cell: Vector2i) -> Node
 	var pid: StringName = grid.occupant_at(cell)
 	if not is_pitfall(pid):
 		return null
-	_remove(world, grid, pid, cell)
+	_remove(world, grid, pid)
 	var ctx := InteractionContext.new()
 	ctx.world = world
 	if not HoleUse.dig(ctx, cell, false):
@@ -238,7 +238,7 @@ static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 	var item: ItemData = ItemCatalog.get_item(item_id)
 	## `setup_main_Get_scoop`: into the pockets if there's room; either way it comes up.
 	var banked: bool = item == null or ctx == null or ctx.inventory == null or ctx.inventory.add(item, 1) == 0
-	_remove(ctx.world if ctx != null else null, grid, occupant, cell)
+	_remove(ctx.world if ctx != null else null, grid, occupant)
 	if ctx != null and ctx.actor != null:
 		PlayerSe.buried_dig(ctx.actor)
 	if kind == KIND_SHINE:
@@ -361,7 +361,7 @@ static func _clear_shine(world: Node, grid: WorldGrid) -> void:
 		var rec: Dictionary = record(pid)
 		if not rec.is_empty():
 			cell = Vector2i(int(rec.get(KEY_CELL_X, cell.x)), int(rec.get(KEY_CELL_Z, cell.y)))
-		_remove(world, grid, pid, cell)
+		_remove(world, grid, pid)
 
 
 static func _deposit(
@@ -389,7 +389,7 @@ static func _deposit(
 	return true
 
 
-static func _remove(world: Node, grid: WorldGrid, pid: StringName, cell: Vector2i) -> void:
+static func _remove(world: Node, grid: WorldGrid, pid: StringName) -> void:
 	Game.town.buried_deposits.erase(String(pid))
 	if grid != null:
 		grid.remove(pid)

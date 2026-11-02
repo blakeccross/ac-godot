@@ -57,6 +57,7 @@ static func decide_family_count(house: House) -> void:
 
 
 static func _day_number(year: int, month: int, day: int) -> int:
+	@warning_ignore("integer_division")
 	return int(Time.get_unix_time_from_datetime_dict({"year": year, "month": month, "day": day, "hour": 12}) / 86400)
 
 

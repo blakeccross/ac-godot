@@ -437,6 +437,7 @@ func note_snowman(block: Vector2i, residents: TownResidents, built: bool) -> boo
 	if int(c.get("progress", 0)) != 1:
 		return false
 	var home: Vector2i = residents.home_of(i)
+	@warning_ignore("integer_division")
 	if home == TownResidents.NO_HOME or home / 16 != block:
 		return false
 	c["player"] = built
@@ -562,6 +563,7 @@ static func letter_reply(villager: VillagerData, rank: int, present: StringName,
 static func pay_rate(money_power: int) -> int:
 	if money_power <= 0:
 		return 0
+	@warning_ignore("integer_division")
 	var idx: int = mini(money_power / 100, RATE_TABLE.size() - 1)
 	var row: Array = RATE_TABLE[idx]
 	return int(float(row[1]) + float(row[0]) * float(money_power))

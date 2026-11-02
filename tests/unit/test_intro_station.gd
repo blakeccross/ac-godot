@@ -274,6 +274,61 @@ func test_train_smoke_and_steam_effects_follow_decomp() -> void:
 	assert_float(FieldParticle.offset_at(steam, 0.05).y).is_less(0.0)
 
 
+func test_missing_payment_bag_opens_the_pockets() -> void:
+	## An exported build used to skip the bag, walk Nook off, and leave the parked
+	## talk open so touch could not move.
+	ItemCatalog.reload()
+	assert_object(ItemCatalog.get_item(&"money_1000")).is_not_null()
+	var director = _payment_director()
+	var ui: DialogueOverlay = director._dialogue
+	ui.say("With fees and closing costs, the house comes to 19,800 Bells.")
+	ui.set_suspended(true)
+	director._payment_hold = true
+	director._begin_demand_payment()
+	assert_int(Game.inventory.count_of(&"money_1000")).is_equal(1)
+	var pockets: InventoryOverlay = InventoryOverlay.find(get_tree())
+	assert_object(pockets).is_not_null()
+	assert_bool(pockets.is_open()).is_true()
+	assert_bool(pockets._tag_choices.has("Hand over")).is_true()
+	assert_bool(ui.is_suspended()).is_true()
+	assert_bool(ui.is_open()).is_true()
+	assert_that(director._stage.action).is_equal(IntroStationStage.Action.NOOK_DEBT)
+	pockets._ignore_close_once = false
+	pockets.close()
+
+
+func test_full_pockets_do_not_leave_the_talk_parked() -> void:
+	var director = _payment_director()
+	var ui: DialogueOverlay = director._dialogue
+	var apple: ItemData = ItemCatalog.get_item(&"apple")
+	for _i: int in Inventory.POCKET_SLOTS:
+		Game.inventory.add_to_empty_slot(apple, 1)
+	ui.say("The house comes to 19,800 Bells.")
+	ui.set_suspended(true)
+	ui.closed.connect(director._on_dialogue_closed)
+	director._payment_hold = true
+	director._begin_demand_payment()
+	assert_int(Game.inventory.count_of(&"money_1000")).is_equal(0)
+	assert_bool(ui.is_open()).is_false()
+	assert_bool(ui.is_suspended()).is_false()
+	assert_that(director._stage.action).is_equal(IntroStationStage.Action.NOOK_JOB)
+
+
+func _payment_director():
+	TestIsolation.forget_groups(get_tree(), [InventoryOverlay.GROUP, DialogueOverlay.GROUP])
+	var director = auto_free(load("res://features/intro/intro_station_director.gd").new())
+	director.process_mode = Node.PROCESS_MODE_DISABLED
+	add_child(director)
+	var ui: DialogueOverlay = auto_free(load("res://scenes/ui/dialogue_overlay.tscn").instantiate())
+	add_child(ui)
+	var pockets: InventoryOverlay = auto_free(load("res://scenes/ui/inventory_overlay.tscn").instantiate())
+	add_child(pockets)
+	director._dialogue = ui
+	director._stage.action = IntroStationStage.Action.NOOK_DEBT
+	director._stage._awaiting_dialogue = true
+	return director
+
+
 func test_suspended_dialogue_ignores_input() -> void:
 	## The payment's pockets sit over a parked talk: the window must not eat Enter.
 	var ui: DialogueOverlay = load("res://scenes/ui/dialogue_overlay.tscn").instantiate()

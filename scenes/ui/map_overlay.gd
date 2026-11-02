@@ -95,6 +95,7 @@ static func find(tree: SceneTree) -> MapOverlay:
 func _ready() -> void:
 	layer = 21
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_font = LetterBoard.load_font()
@@ -112,16 +113,20 @@ func _tex_of(name: String) -> Texture2D:
 
 
 func _fit_screen() -> void:
-	var sz := _root.size
-	if sz.x <= 0.0 or sz.y <= 0.0:
-		return
-	var k := minf(sz.x / 320.0, sz.y / 240.0)
-	_screen.scale = Vector2(k, k)
-	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
+	MenuFrame.fit(self, _root, _screen)
 
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	return MenuFrame.rect_of(_screen)
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
 
 
 ## `force` is the town's sight-map board (`mSM_OVL_MAP` mode 0): it shows the map without an item.
@@ -202,7 +207,9 @@ static func build_labels(data: WorldData) -> Dictionary:
 				continue
 			## The house's SIGN unit (one in from its NW corner) inside its 16-unit acre.
 			var local := Vector2i(posmod(b.cell.x + 1, 16), posmod(b.cell.y + 1, 16))
+			@warning_ignore("integer_division")
 			var col: int = clampi(local.x * 3 / 16, 0, 2)
+			@warning_ignore("integer_division")
 			var row: int = clampi(local.y * 3 / 16, 0, 2)
 			(entry["residents"] as Array).append({
 				"name": v.display_name if v != null else String(b.resident_id),
@@ -402,6 +409,7 @@ func _draw_house_marks() -> void:
 		var top: float = MAP_ORIGIN.y + BLOCK * 0.5 - f.y * BLOCK
 		for r: Dictionary in e["residents"]:
 			var idx: int = int(r["idx"])
+			@warning_ignore("integer_division")
 			_blit("mp_npc2T_%d" % (int(r["layer"]) + 1), MARK_BOUNDS,
 				Vector2(left + HOUSE_OFS_X[idx % 3], top + HOUSE_OFS_Y[idx / 3]))
 	var here := Vector2(MAP_ORIGIN.x - BLOCK * 0.5 + player_fg.x * BLOCK + 8.0,

@@ -115,7 +115,7 @@ func test_goki_data_round_trips_through_save() -> void:
 
 
 func test_game_start_lets_them_in_and_saving_stamps_today() -> void:
-	var house: House = _away(9)
+	_away(9)
 	var snapshot: Dictionary = Game.to_save()
 	assert_int(HouseCockroaches.days_away(_house())).is_equal(0)
 	Game.reset_session()

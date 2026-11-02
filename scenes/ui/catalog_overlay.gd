@@ -119,6 +119,7 @@ func _ready() -> void:
 	layer = 21
 	add_to_group("shop_ui")
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	_root.visible = false
 	_hand_node.visible = false
 	_font = LetterBoard.load_font()
@@ -143,8 +144,8 @@ func _ready() -> void:
 	## Carpet samples repeat their pages (`mCL_rom_myhome1_floor_model` UVs reach 2).
 	_front_body.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	_back_body.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	_back_body.draw.connect(_draw_page.bind(_back_body, false))
-	_front_body.draw.connect(_draw_page.bind(_front_body, true))
+	_back_body.draw.connect(_draw_page.bind(_back_body))
+	_front_body.draw.connect(_draw_page.bind(_front_body))
 	_tabs.draw.connect(_draw_tabs)
 	_tag_text.draw.connect(_draw_tag_text)
 	_tag_frame.texture = InventoryChrome.load_tex("tag_frame")
@@ -164,19 +165,23 @@ func _load(name: String) -> Texture2D:
 
 
 func _fit_screen() -> void:
-	var sz := _root.size
-	if sz.x <= 0.0 or sz.y <= 0.0:
-		return
-	var k := minf(sz.x / 320.0, sz.y / 240.0)
-	_screen.scale = Vector2(k, k)
-	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
-	_hand_node.size = Vector2(36, 36) * k
+	MenuFrame.fit(self, _root, _screen)
+	_hand_node.size = Vector2(36, 36) * _screen.scale.x
 	if _open:
 		_point_hand(false)
 
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	return MenuFrame.rect_of(_screen)
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
 
 
 ## `mCL_catalog_ovl_init`: every page from the top, the furniture page in front.
@@ -204,6 +209,7 @@ func open(book: CatalogBook = null) -> void:
 	_root.visible = true
 	_hand_node.visible = true
 	_tag.visible = false
+	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	set_process(true)
 	set_process_unhandled_input(true)
 	## `mCL_catalog_ovl_init`: `mSM_MOVE_IN_RIGHT`.
@@ -228,6 +234,7 @@ func _on_slid_out() -> void:
 	if _open:
 		return
 	_root.visible = false
+	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	set_process(false)
 	_clear_preview()
 
@@ -500,7 +507,7 @@ func _refresh() -> void:
 	_update_tag()
 
 
-func _draw_page(canvas: Control, is_front: bool) -> void:
+func _draw_page(canvas: Control) -> void:
 	var page: int = int(canvas.get_meta("page", -1))
 	if page < 0 or _pages == null:
 		return
@@ -557,7 +564,7 @@ func _draw_page(canvas: Control, is_front: bool) -> void:
 		canvas.draw_texture_rect(star, Rect2(_u(origin + Vector2(sx, -66)) - MARK_SIZE * 0.5, MARK_SIZE), false)
 	if item == &"":
 		return
-	_draw_item(canvas, item, origin, is_front)
+	_draw_item(canvas, item, origin)
 	## `mCL_price_draw`.
 	var py_text: float = 167.0 - position.y - py + asc
 	if price == 0:
@@ -570,7 +577,7 @@ func _draw_page(canvas: Control, is_front: bool) -> void:
 
 
 ## `mCL_item_draw` for the flat kinds; furniture turns in the preview viewport.
-func _draw_item(canvas: Control, item: StringName, origin: Vector2, is_front: bool) -> void:
+func _draw_item(canvas: Control, item: StringName, origin: Vector2) -> void:
 	var data: ItemData = ItemCatalog.get_item(item)
 	if data == null:
 		return

@@ -100,7 +100,9 @@ func _looking_at_pond() -> bool:
 	var world := World.find(get_tree()) if is_inside_tree() else null
 	if player == null or world == null or world.grid == null:
 		return false
+	@warning_ignore("integer_division")
 	var a: Vector2i = world.grid.world_to_cell(player.global_position) / 16
+	@warning_ignore("integer_division")
 	var b: Vector2i = world.grid.world_to_cell(_set_position()) / 16
 	return a == b
 

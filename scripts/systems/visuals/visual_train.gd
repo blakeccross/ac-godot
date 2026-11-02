@@ -109,6 +109,7 @@ static func train_vestibule_opening_z(car_pivot: Node3D) -> float:
 	if zs.is_empty():
 		return 0.0
 	zs.sort()
+	@warning_ignore("integer_division")
 	return zs[zs.size() / 2]
 
 

@@ -34,6 +34,7 @@ static func today_ordinal() -> int:
 			{"year": Clock.year, "month": Clock.month, "day": Clock.day, "hour": 12}
 		)
 	)
+	@warning_ignore("integer_division")
 	return int(unix / 86400)
 
 

@@ -72,6 +72,7 @@ func _ready() -> void:
 	layer = 26
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group(GROUP)
+	add_to_group(WindowDismiss.GROUP)
 	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_book_slots.draw.connect(_draw_mine)
@@ -110,13 +111,8 @@ func _design_tex(name: String) -> Texture2D:
 
 
 func _fit_screen() -> void:
-	var sz := _root.size
-	if sz.x <= 0.0 or sz.y <= 0.0:
-		return
-	var k := minf(sz.x / 320.0, sz.y / 240.0)
-	_screen.scale = Vector2(k, k)
-	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
-	_hand.size = Vector2(36, 36) * k
+	MenuFrame.fit(self, _root, _screen)
+	_hand.size = Vector2(36, 36) * _screen.scale.x
 	_point_hand(false)
 
 
@@ -128,6 +124,15 @@ func _process(_delta: float) -> void:
 
 func is_open() -> bool:
 	return _open
+
+
+func menu_rect() -> Rect2:
+	return MenuFrame.rect_of(_screen)
+
+
+func dismiss() -> void:
+	if is_open():
+		_unhandled_input(WindowDismiss.escape_key())
 
 
 const GROUP := &"design_album_ui"
@@ -318,6 +323,7 @@ func _folder_label(page: int) -> String:
 ## Album-local pixels (window left -62, top 86).
 static func album_slot_rect(i: int) -> Rect2:
 	var j := i % ALBUM_COLS
+	@warning_ignore("integer_division")
 	var k := i / ALBUM_COLS
 	return Rect2(-12.0 + 32.0 * j + 62.0, 86.0 - (56.0 - 29.0 * k), 24.0, 24.0)
 
@@ -326,6 +332,7 @@ static func album_slot_rect(i: int) -> Rect2:
 ## pixels (window left -139, top 81).
 static func mine_slot_rect(i: int) -> Rect2:
 	var x0: float = -100.0 if i % MINE_COLS == 0 else -68.0
+	@warning_ignore("integer_division")
 	return Rect2(x0 + 139.0, 81.0 - (57.0 - 29.0 * float(i / MINE_COLS)), 24.0, 24.0)
 
 
@@ -343,6 +350,7 @@ func _on_input(event: InputEvent, region: int) -> void:
 	if region == Region.ALBUM and hit < 0 and event is InputEventMouseButton \
 			and (event as InputEventMouseButton).pressed:
 		for page in DesignBook.ALBUM_PAGES:
+			@warning_ignore("integer_division")
 			var off := (page * 29) / 2
 			if Rect2(152, 26 + off, 30, 14).has_point(p) and page != _page:
 				flip_page(page - _page)

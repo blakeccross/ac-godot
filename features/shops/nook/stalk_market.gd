@@ -54,8 +54,8 @@ static func bundle_size(item_id: StringName) -> int:
 
 
 static func sunday_ordinal(year: int, month: int, day: int) -> int:
-	var ord: int = EventDates.ordinal(year, month, day)
-	return ord - EventDates.weekday(year, month, day)
+	var day_ord: int = EventDates.ordinal(year, month, day)
+	return day_ord - EventDates.weekday(year, month, day)
 
 
 ## `Kabu_manager`: re-roll Mon–Sat on the Sunday the schedule was set, and the whole

@@ -39,5 +39,6 @@ func _tris(mesh: Mesh) -> int:
 	var n := 0
 	for s: int in mesh.get_surface_count():
 		var idx: Variant = mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX]
+		@warning_ignore("integer_division")
 		n += (idx as PackedInt32Array).size() / 3 if idx != null else 0
 	return n

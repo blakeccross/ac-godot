@@ -1,7 +1,7 @@
 class_name TestTouchMenuPad
 extends GdUnitTestSuite
 
-## The menu pad sends the keys a keyboard would, marked as a finger's.
+## A tap advances a waiting page. The pad has no on-screen buttons.
 
 
 class _KeyLog extends Node:
@@ -20,7 +20,6 @@ class _Menu extends Node:
 
 
 func before_test() -> void:
-	## The pad is on-screen buttons: as on a phone.
 	InputDeviceTracker.on_mobile = true
 
 
@@ -33,69 +32,36 @@ func _pad() -> TouchMenuPad:
 	return TouchMenuPad.find(get_tree())
 
 
-func test_ok_and_back_send_enter_and_escape_without_leaving_touch() -> void:
-	var log := auto_free(_KeyLog.new()) as _KeyLog
-	add_child(log)
-	InputDeviceTracker._set_device(InputDeviceTracker.Device.TOUCH)
+func test_the_pad_has_no_buttons() -> void:
 	var pad: TouchMenuPad = _pad()
 	assert_object(pad).is_not_null()
-	pad.get_node("Root/Confirm/Ok").pressed.emit()
-	pad.get_node("Root/Confirm/Back").pressed.emit()
-	await get_tree().process_frame
-	assert_array(log.keys).contains_exactly([KEY_ENTER, KEY_ESCAPE])
-	assert_bool(InputDeviceTracker.is_touch()).is_true()
+	assert_object(pad.get_node_or_null("Root")).is_null()
+	assert_int(pad.get_child_count()).is_equal(0)
 
 
-func test_an_arrow_held_repeats_until_let_go() -> void:
-	var log := auto_free(_KeyLog.new()) as _KeyLog
-	add_child(log)
-	InputDeviceTracker._set_device(InputDeviceTracker.Device.TOUCH)
-	TestIsolation.forget_groups(get_tree(), [Player.GROUP])
-	var pad: TouchMenuPad = _pad()
-	pad._refresh()
-	var up: Button = pad.get_node("Root/Arrows/Up")
-	up.button_down.emit()
-	await get_tree().create_timer(1.0).timeout
-	up.button_up.emit()
-	var count: int = log.keys.size()
-	## The press, then at least one repeat.
-	assert_int(count).is_greater(1)
-	await get_tree().create_timer(0.3).timeout
-	assert_int(log.keys.size()).is_equal(count)
-	for key: Key in log.keys:
-		assert_int(key).is_equal(KEY_UP)
-
-
-func test_shown_only_for_touch_with_a_menu_up() -> void:
-	var pad: TouchMenuPad = _pad()
+func test_menu_open_tracks_an_overlay() -> void:
 	var menu := auto_free(_Menu.new()) as _Menu
 	menu.add_to_group(&"bank_ui")
 	add_child(menu)
-	InputDeviceTracker._set_device(InputDeviceTracker.Device.KEYS)
-	pad._refresh()
-	assert_bool(pad.get_node("Root").visible).is_false()
-	InputDeviceTracker._set_device(InputDeviceTracker.Device.TOUCH)
-	pad._refresh()
-	assert_bool(pad.get_node("Root").visible).is_true()
 	assert_bool(TouchMenuPad.menu_open(get_tree())).is_true()
 	menu.open = false
 	assert_bool(TouchMenuPad.menu_open(get_tree())).is_false()
 
 
-func test_a_tap_off_the_pad_is_ok_on_the_title() -> void:
+func test_a_tap_is_ok_on_the_title() -> void:
 	TestIsolation.forget_groups(get_tree(), [Player.GROUP])
-	var log := auto_free(_KeyLog.new()) as _KeyLog
-	add_child(log)
+	var trace := auto_free(_KeyLog.new()) as _KeyLog
+	add_child(trace)
 	InputDeviceTracker._set_device(InputDeviceTracker.Device.TOUCH)
 	var pad: TouchMenuPad = _pad()
-	pad._refresh()
 	assert_bool(pad.taps_accept()).is_true()
 	var tap := InputEventScreenTouch.new()
 	tap.position = Vector2(640, 200)
 	tap.pressed = false
 	pad._unhandled_input(tap)
 	await get_tree().process_frame
-	assert_array(log.keys).contains([KEY_ENTER])
+	assert_array(trace.keys).contains([KEY_ENTER])
+	assert_bool(InputDeviceTracker.is_touch()).is_true()
 
 
 func test_a_tap_is_start_on_the_title_even_with_the_demo_player() -> void:
@@ -105,26 +71,24 @@ func test_a_tap_is_start_on_the_title_even_with_the_demo_player() -> void:
 	assert_bool(_pad().taps_accept()).is_true()
 
 
-func test_no_buttons_on_a_desktop_even_by_touch() -> void:
-	var pad: TouchMenuPad = _pad()
-	var menu := auto_free(_Menu.new()) as _Menu
-	menu.add_to_group(&"bank_ui")
-	add_child(menu)
-	InputDeviceTracker.on_mobile = false
-	InputDeviceTracker._set_device(InputDeviceTracker.Device.TOUCH)
-	pad._refresh()
-	assert_bool(pad.get_node("Root").visible).is_false()
-	assert_bool(InputDeviceTracker.shows_touch_buttons()).is_false()
-
-
-func test_map_has_no_extra_mobile_controls() -> void:
+func test_map_does_not_take_taps() -> void:
 	var map := auto_free(_Menu.new()) as _Menu
 	map.add_to_group(MapOverlay.GROUP)
 	add_child(map)
-	InputDeviceTracker._set_device(InputDeviceTracker.Device.TOUCH)
-	_pad()._refresh()
 	assert_bool(_pad().wanted()).is_false()
-	assert_bool((_pad().get_node("Root") as Control).visible).is_false()
+
+
+func test_a_talk_page_is_not_also_accepted_by_the_pad() -> void:
+	## The finger's click already turns the page. Enter from the pad would turn
+	## a second one and can dismiss the house-payment pockets as they open.
+	var ui: DialogueOverlay = load("res://scenes/ui/dialogue_overlay.tscn").instantiate()
+	auto_free(ui)
+	add_child(ui)
+	ui.say("The house comes to 19,800 Bells.")
+	assert_bool(ui.is_open()).is_true()
+	assert_bool(_pad().taps_accept()).is_false()
+	ui.close(true)
+	assert_bool(ui.is_open()).is_false()
 
 
 func test_title_taps_do_not_accept_while_an_overlay_is_open() -> void:

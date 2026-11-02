@@ -276,6 +276,7 @@ static func make_room(
 	room.rows = 16
 	room.inner_origin = origin
 	room.inner_size = size
+	@warning_ignore("integer_division")
 	var door_x: int = origin.x + int(size.x / 2)
 	var door_z: int = origin.y + size.y - 1
 	room.door_cell = Vector2i(door_x, door_z)

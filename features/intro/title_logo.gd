@@ -3,8 +3,8 @@ extends CanvasLayer
 ## Title logo overlay (`ac_animal_logo`). The `Sequence` player runs it: `in` (the logo
 ## clips, then the backdrop fading in) → `hold` (TM mark up, START ignored) → `pulse`
 ## ("PRESS START" breathing until START) → `start` (solid, with the chime, then
-## `start_selected`). START or A during `in` skips to its end. If the demo runs out while
-## "PRESS START" pulses, the logo idles with it hidden.
+## `start_selected`). START, A, or a click during `in` skips to its end. If the demo runs
+## out while "PRESS START" pulses, the logo idles with it hidden.
 ## Layout is authored in `title_logo.tscn` in the original 320x240 space
 ## (`mFont_SetMatrix`: ortho +-160x120 px, y up); generated art is attached here when present.
 ## The original copyright line is omitted on purpose.
@@ -73,7 +73,7 @@ var _has_models: bool = false
 
 
 func _ready() -> void:
-	## A tap on the title is START (`TouchMenuPad`), though the demo town has a player.
+	## A click or tap on the title is START, though the demo town has a player.
 	add_to_group(TouchMenuPad.TITLE_GROUP)
 	## The project canvas filter is nearest. This texture is a scaled render, so nearest
 	## turns it into blocks.
@@ -92,15 +92,25 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if TouchMenuPad.menu_open(get_tree()):
 		return
-	## START or A (`aAL_chk_start_key`).
-	if event.is_action_pressed("ui_accept") or event.is_action_pressed("interact"):
+	## START, A (`aAL_chk_start_key`), or a click. A finger arrives as a mouse click
+	## (`emulate_mouse_from_touch`), so the touch event is left alone.
+	if event.is_action_pressed("ui_accept") or event.is_action_pressed("interact") or _click(event):
 		press_start()
 		get_viewport().set_input_as_handled()
 
 
-## START or A. During `in` it skips to the end (`aAL_start_key_chk_start_wait_init` snaps every
-## clip to its last frame); during `hold` it is ignored; while "PRESS START" pulses it starts
-## the game once the owner allows it.
+## Left click only. A release, or another button, is not START.
+func _click(event: InputEvent) -> bool:
+	return (
+		event is InputEventMouseButton
+		and (event as InputEventMouseButton).pressed
+		and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT
+	)
+
+
+## START, A, or a click. During `in` it skips to the end (`aAL_start_key_chk_start_wait_init`
+## snaps every clip to its last frame); during `hold` it is ignored; while "PRESS START"
+## pulses it starts the game once the owner allows it.
 func press_start() -> void:
 	match _sequence.current_animation:
 		&"in":

@@ -112,7 +112,7 @@ func advance(delta: float) -> void:
 	anim_phase += delta
 	match _program:
 		BugData.Program.BUTTERFLY, BugData.Program.DRAGONFLY, BugData.Program.FIREFLY:
-			_fly_orbit(delta)
+			_fly_orbit()
 		BugData.Program.POND_SKATER:
 			_skate(delta)
 		BugData.Program.GRASSHOPPER, BugData.Program.COCKROACH, BugData.Program.PILL_BUG:
@@ -138,7 +138,7 @@ func _tick_pose(delta: float) -> void:
 		_pose_frame = (_pose_frame + 1) % _pose_pattern.size()
 
 
-func _fly_orbit(delta: float) -> void:
+func _fly_orbit() -> void:
 	var radius: float = 0.35 if _program == BugData.Program.FIREFLY else 0.55
 	var angle: float = anim_phase * (1.4 if active else 0.3)
 	position.x = _home.x + cos(angle + yaw) * radius

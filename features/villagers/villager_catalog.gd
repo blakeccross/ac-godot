@@ -13,21 +13,15 @@ static func ensure_loaded() -> void:
 	if _loaded:
 		return
 	_by_id.clear()
-	var dir := DirAccess.open(DIR)
-	if dir == null:
-		_loaded = true
-		return
-	dir.list_dir_begin()
-	var name: String = dir.get_next()
-	while name != "":
-		if not dir.current_is_dir() and name.ends_with(".tres"):
-			var res: Resource = load("%s/%s" % [DIR, name])
-			if res is VillagerData:
-				var data := res as VillagerData
-				if data.id != &"":
-					_by_id[data.id] = data
-		name = dir.get_next()
-	dir.list_dir_end()
+	## Exported builds remap resources; list them the way the editor does.
+	for name: String in ResourceLoader.list_directory(DIR):
+		if name.ends_with("/") or not name.ends_with(".tres"):
+			continue
+		var res: Resource = load("%s/%s" % [DIR, name])
+		if res is VillagerData:
+			var data := res as VillagerData
+			if data.id != &"":
+				_by_id[data.id] = data
 	_loaded = true
 
 

@@ -118,6 +118,7 @@ func player_spawn() -> SpawnPoint:
 			return spawn
 	var fallback := SpawnPoint.new()
 	fallback.id = &"player"
+	@warning_ignore("integer_division")
 	fallback.cell = Vector2i(columns / 2, rows / 2)
 	return fallback
 

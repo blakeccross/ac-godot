@@ -17,6 +17,17 @@ func _elevation(cam: FollowCamera, center: Vector3) -> float:
 	return atan2(arm.y, Vector2(arm.x, arm.z).length())
 
 
+func test_portrait_opens_the_lens_a_little() -> void:
+	assert_float(FollowCamera.fov_for_aspect(16.0 / 9.0)).is_equal_approx(FollowCamera.BASE_FOV, 0.001)
+	assert_float(FollowCamera.fov_for_aspect(21.0 / 9.0)).is_equal_approx(FollowCamera.BASE_FOV, 0.001)
+	var portrait: float = FollowCamera.fov_for_aspect(9.0 / 16.0)
+	assert_float(portrait).is_between(FollowCamera.BASE_FOV + 1.0, FollowCamera.NARROW_FOV_MAX)
+	var phone: float = FollowCamera.fov_for_aspect(9.0 / 19.5)
+	assert_float(phone).is_equal_approx(FollowCamera.NARROW_FOV_MAX, 0.05)
+	var standard: float = FollowCamera.fov_for_aspect(4.0 / 3.0)
+	assert_float(standard).is_between(FollowCamera.BASE_FOV, portrait)
+
+
 func test_look_center_is_the_eased_lookat_not_the_eye() -> void:
 	## `Camera2_getCenterPos_p` — weather spawn boxes use this.
 	var cam: FollowCamera = _camera()
@@ -50,10 +61,12 @@ func test_going_in_morphs_over_140_ticks() -> void:
 	var center := Vector3(1.0, 1.65, 1.0)
 	cam.begin_door(center, true)
 	var ticks: int = roundi(FollowCamera.DOOR_MORPH_SECONDS * 60.0)
+	@warning_ignore("integer_division")
 	for _i in ticks / 2:
 		cam._follow_door(false, 1.0 / 60.0)
 	var halfway: float = cam.global_position.distance_to(cam._look_current)
 	assert_float(halfway).is_between(FollowCamera.DOOR_DISTANCE + 0.5, FollowCamera.FOLLOW_DISTANCE - 0.5)
+	@warning_ignore("integer_division")
 	for _i in ticks - ticks / 2:
 		cam._follow_door(false, 1.0 / 60.0)
 	assert_vector(cam._look_current).is_equal_approx(center, Vector3.ONE * 0.001)
@@ -144,3 +157,26 @@ func test_room_center_follows_inside_the_border_and_centres_small_rooms() -> voi
 	var mid: Vector3 = FollowCamera.room_center(Vector3(1, 1, 11), home, 1, 1)
 	assert_float(mid.x).is_equal_approx(6.0, 0.001)
 	assert_float(mid.z).is_equal_approx(6.0, 0.001)
+
+
+func test_small_house_zooms_out_past_the_exit() -> void:
+	## The rug is centred in frame. The door is south of it, so the arm lengthens until
+	## a step of floor past that wall is still inside the lens.
+	var room: Room = InteriorCatalog.room_template(&"player_main")
+	var session := IndoorSession.new()
+	session.bind(room)
+	var carpet: AABB = InteriorShellBuilder.shell_bounds(room, session.grid)
+	var south: float = InteriorShellBuilder.south_floor_z(room, session.grid)
+	var offset: Vector3 = FollowCamera.offset_to_show_south(carpet, south)
+	assert_float(offset.length()).is_greater(FollowCamera.FOLLOW_DISTANCE)
+	var look: Vector3 = FollowCamera.room_center(
+		Vector3(carpet.get_center().x, 0.0, carpet.end.z + 50.0), carpet, 1, 1
+	)
+	var shown: float = look.z + FollowCamera.south_floor_past_look(offset.length())
+	assert_float(shown).is_greater_equal(south + FollowCamera.SOUTH_FLOOR_MARGIN - 0.05)
+
+
+func test_a_deep_room_keeps_the_normal_arm() -> void:
+	var wing := AABB(Vector3(0, 0, 0), Vector3(28, 3, 24))
+	var offset: Vector3 = FollowCamera.offset_to_show_south(wing, wing.end.z)
+	assert_float(offset.length()).is_equal_approx(FollowCamera.FOLLOW_DISTANCE, 0.05)

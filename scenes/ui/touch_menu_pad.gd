@@ -1,15 +1,13 @@
 class_name TouchMenuPad
 extends CanvasLayer
 
-## Fingers on menus. On Android or iOS, while touch is the last device used and a menu is up (or there's no
-## player yet: the title and the intro), arrows, OK and Back sit at the bottom corners and
-## send the very keys a keyboard would (↑ ↓ ← →, Enter, Escape), so every overlay runs the
-## handler its keys already call and none grows touch code of its own. An arrow held
-## repeats. A tap anywhere else is OK while a page is waiting (talk, a letter, the title).
-## The keys are marked as emulated so the device tracker doesn't count them as keyboard.
+## A tap is OK on the title, a letter, or the intro. Talk pages are turned by the
+## finger's mouse click, not by this pad. There are no on-screen arrow, OK, or Back
+## buttons. The key is marked as a finger's so the device tracker doesn't count it as
+## a keyboard.
 
 const GROUP := &"touch_menu_pad"
-## The overlays the pad serves: every one opens with `is_open()`.
+## The overlays a tap must not steal from: every one opens with `is_open()`.
 const MENU_GROUPS: Array[StringName] = [
 	&"inventory_ui", &"map_ui", &"dialogue_ui", &"shop_ui", &"catalog_ui", &"bank_ui",
 	&"repay_ui", &"birthday_ui", &"calendar_ui", &"diary_ui", &"notice_ui", &"town_tune_ui",
@@ -20,19 +18,6 @@ const MENU_GROUPS: Array[StringName] = [
 ## The title logo: the demo town behind it has a player, but a tap is still START.
 const TITLE_GROUP := &"title_ui"
 
-@onready var _root: Control = $Root
-@onready var _repeat: Timer = $Repeat
-@onready var _buttons: Dictionary = {
-	$Root/Arrows/Up: KEY_UP,
-	$Root/Arrows/Down: KEY_DOWN,
-	$Root/Arrows/Left: KEY_LEFT,
-	$Root/Arrows/Right: KEY_RIGHT,
-	$Root/Confirm/Ok: KEY_ENTER,
-	$Root/Confirm/Back: KEY_ESCAPE,
-}
-
-var _held_key: Key = KEY_NONE
-
 
 static func find(tree: SceneTree) -> TouchMenuPad:
 	return tree.get_first_node_in_group(GROUP) as TouchMenuPad if tree != null else null
@@ -41,26 +26,6 @@ static func find(tree: SceneTree) -> TouchMenuPad:
 func _ready() -> void:
 	add_to_group(GROUP)
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	TouchSafeArea.fit(_root)
-	for button: Button in _buttons:
-		var key: Key = _buttons[button]
-		if key in [KEY_ENTER, KEY_ESCAPE]:
-			button.pressed.connect(send_key.bind(key))
-		else:
-			button.button_down.connect(_arrow_down.bind(key))
-			button.button_up.connect(_arrow_up)
-	_repeat.timeout.connect(_on_repeat)
-	_refresh()
-
-
-func _process(_delta: float) -> void:
-	_refresh()
-
-
-func _refresh() -> void:
-	_root.visible = InputDeviceTracker.shows_touch_buttons() and wanted()
-	if not _root.visible:
-		_arrow_up()
 
 
 ## A menu is up, or the game has no player yet (the title, the intro).
@@ -80,73 +45,44 @@ static func menu_open(tree: SceneTree) -> bool:
 	return Menus.any_open(tree, MENU_GROUPS)
 
 
-## Whether a screen point is on the pad.
-func covers(at: Vector2) -> bool:
-	if not _root.visible:
-		return false
-	for button: Button in _buttons:
-		if button.is_visible_in_tree() and button.get_global_rect().has_point(at):
-			return true
-	return false
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventScreenTouch):
+		return
+	if not InputDeviceTracker.on_mobile or not InputDeviceTracker.is_touch() or not wanted():
+		return
+	var touch := event as InputEventScreenTouch
+	if touch.pressed or touch.index != 0:
+		return
+	if taps_accept():
+		_accept()
 
 
-## Press then release `key`, as a keyboard would.
-func send_key(key: Key) -> void:
-	_key_event(key, true)
-	_key_event(key, false)
+## Press then release Enter, as a keyboard would.
+func _accept() -> void:
+	_key_event(KEY_ENTER, true)
+	_key_event(KEY_ENTER, false)
 
 
-func _key_event(key: Key, pressed: bool, echo: bool = false) -> void:
+func _key_event(key: Key, pressed: bool) -> void:
 	var event := InputEventKey.new()
 	event.keycode = key
 	event.physical_keycode = key
 	event.pressed = pressed
-	event.echo = echo
 	event.device = InputEvent.DEVICE_ID_EMULATION
 	Input.parse_input_event(event)
 
 
-func _arrow_down(key: Key) -> void:
-	_held_key = key
-	_key_event(key, true)
-	_repeat.start(_repeat.wait_time * 3.0)
-
-
-func _arrow_up() -> void:
-	if _held_key == KEY_NONE:
-		return
-	_key_event(_held_key, false)
-	_held_key = KEY_NONE
-	_repeat.stop()
-
-
-## Held: the key repeats, as an OS key repeat would (echo off, so `is_action_pressed` takes it).
-func _on_repeat() -> void:
-	if _held_key == KEY_NONE:
-		return
-	_key_event(_held_key, true)
-	_repeat.start()
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventScreenTouch) or not _root.visible:
-		return
-	var touch := event as InputEventScreenTouch
-	if touch.pressed or touch.index != 0 or covers(touch.position):
-		return
-	if taps_accept():
-		send_key(KEY_ENTER)
-
-
-## A tap off the pad is OK: a talk page or letter waiting, or the title / intro.
+## A tap is OK on the title, a letter, or the intro. A talk page is not: the finger
+## already arrives as a mouse click (`emulate_mouse_from_touch` → `_page_click`), and
+## sending Enter as well turns two pages. The second one lands on the pockets the
+## moment Nook asks for the house money and closes them before they can be seen.
 func taps_accept() -> bool:
 	var tree := get_tree()
 	if not tree.get_nodes_in_group(TITLE_GROUP).is_empty() and not menu_open(tree):
 		return true
 	for node: Node in tree.get_nodes_in_group(&"dialogue_ui"):
 		if node is DialogueOverlay and (node as DialogueOverlay).is_open():
-			## A choice is picked with its own button or the arrows and OK.
-			return (node as DialogueOverlay).waits_for_page()
+			return false
 	if Menus.is_open(tree, &"letter_reader_ui"):
 		return true
 	return Player.find(tree) == null and not menu_open(tree)

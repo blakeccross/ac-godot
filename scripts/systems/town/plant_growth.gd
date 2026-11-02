@@ -505,6 +505,7 @@ static func set_xmas_trees(month: int, day: int, rng: RandomNumberGenerator, wor
 			lit = false
 		if not lit and not can_hold_lights(pid, rec, plant):
 			continue
+		@warning_ignore("integer_division")
 		var acre := Vector2i(int(rec.get(KEY_CELL_X, 0)) / XMAS_UNIT, int(rec.get(KEY_CELL_Z, 0)) / XMAS_UNIT)
 		var bucket: Dictionary = by_acre.get(acre, {"lit": 0, "free": []})
 		if lit:
@@ -954,17 +955,12 @@ static func _ensure_plants() -> void:
 		return
 	_plants_loaded = true
 	_plants.clear()
-	var dir := DirAccess.open(PLANTS_DIR)
-	if dir == null:
-		return
-	dir.list_dir_begin()
-	var name: String = dir.get_next()
-	while name != "":
-		if not dir.current_is_dir() and name.ends_with(".tres"):
-			var res: Resource = load("%s/%s" % [PLANTS_DIR, name])
-			if res is PlantData:
-				var data := res as PlantData
-				if data.id != &"":
-					_plants[data.id] = data
-		name = dir.get_next()
-	dir.list_dir_end()
+	## Exported builds remap resources; list them the way the editor does.
+	for name: String in ResourceLoader.list_directory(PLANTS_DIR):
+		if name.ends_with("/") or not name.ends_with(".tres"):
+			continue
+		var res: Resource = load("%s/%s" % [PLANTS_DIR, name])
+		if res is PlantData:
+			var data := res as PlantData
+			if data.id != &"":
+				_plants[data.id] = data

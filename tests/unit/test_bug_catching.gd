@@ -734,6 +734,7 @@ func test_a_walking_villager_stresses_an_insect_like_the_player() -> void:
 	var actor: BugActor = BugActor.create(bug, BugData.Habitat.FLYING, at, RandomNumberGenerator.new())
 	actor.patience = 0.0
 	var radius: float = actor.stress_radius_gx()
+	@warning_ignore("integer_division")
 	var idx: int = int(radius - BugActor.UNIT_GX - 10.0) / 20
 	var sense := BugActor.Sense.new()
 	sense.npc_positions.append(at + Vector3(50.0 * FieldCatalog.GX_TO_METERS, 0.0, 0.0))

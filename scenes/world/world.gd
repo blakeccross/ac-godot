@@ -91,6 +91,9 @@ func _ready() -> void:
 	)
 	print(WorldGenerator.map_text(layout))
 	WorldBuilder.new().build(self, layout, grid)
+	if Game.island_visit:
+		_ready_island()
+		return
 	HoleUse.restore(self, grid)
 	BuriedUse.restore(self, grid)
 	WeedUse.restore(self, grid)
@@ -151,11 +154,27 @@ func _ready() -> void:
 	var event_mgr: EventManager = get_node_or_null("EventManager") as EventManager
 	if event_mgr != null:
 		event_mgr.setup(self)
+	if not Game.title_demo_active and not Game.intro.active:
+		IslandService.setup(self)
 	if Game.intro.active:
 		var director: Node = load("res://features/intro/intro_station_director.gd").new()
 		add_child(director)
 		if director.has_method("setup"):
 			director.call("setup", self)
+
+
+## Kapp'n's island: none of the town's saved field (plants, holes, weeds, shells…) lives here, so
+## only the sea, the sky, the player and the boat are set up (`IslandService`).
+func _ready_island() -> void:
+	fish.configure(grid, 0.0, layout)
+	_build_navigation()
+	Clock.time_changed.connect(_apply_time_of_day)
+	Clock.hour_changed.connect(_on_hour_changed)
+	Game.weather_changed.connect(_on_weather_changed)
+	_apply_time_of_day()
+	play_outdoor_bgm()
+	_spawn_player()
+	IslandService.setup(self)
 
 
 ## Porter on the platform in normal play (`fd_npc_land_actable`). A resident back from a trip
