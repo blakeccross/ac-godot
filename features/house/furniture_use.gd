@@ -24,6 +24,8 @@ static func actions(host: Node, ctx: InteractionContext) -> Array[Interaction]:
 		if FurnitureAmbience.PRESS.has(data.visual_id):
 			verb = "Use %s"
 		out.append(Interaction.of(Interaction.TOGGLE, verb % label, 7))
+	if FurnitureOneLiner.has(data) and not out.any(func(a: Interaction) -> bool: return a.id == Interaction.TOGGLE):
+		out.append(Interaction.of(Interaction.TOGGLE, "Use %s" % label, 7))
 	if data != null and is_diary(data) and _diary_open_here(entry):
 		out.append(Interaction.of(Interaction.READ, "Read %s" % label, 9))
 	if data != null and _can_take(data, entry):
@@ -51,7 +53,11 @@ static func apply(action: Interaction, host: Node, ctx: InteractionContext) -> b
 		Interaction.READ:
 			return open_diary(host)
 		Interaction.TOGGLE:
-			return toggle(pid, ctx)
+			var done: bool = toggle(pid, ctx)
+			var spoken: FurnitureData = _data(host)
+			if done and FurnitureOneLiner.has(spoken):
+				await FurnitureOneLiner.say(spoken, pid_node(pid))
+			return done
 		Interaction.DISPLAY:
 			return put_display(pid, ctx)
 		Interaction.TAKE:
@@ -135,7 +141,7 @@ static func toggle(placement_id: StringName, ctx: InteractionContext = null) -> 
 			_fire_cannon(interior, entry, ctx)
 	if data != null and data.radio_aerobics:
 		FurnitureTalk.refresh_room_bgm()
-	if data == null or not FurnitureAmbience.PRESS.has(data.visual_id):
+	if data == null or not (FurnitureAmbience.PRESS.has(data.visual_id) or FurnitureOneLiner.has(data)):
 		Game.post_notice("Turned %s." % ("on" if entry.on else "off"))
 	return true
 

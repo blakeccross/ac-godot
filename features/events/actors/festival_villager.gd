@@ -148,6 +148,8 @@ func _race(delta: float) -> void:
 		return
 	if not _foot_race.racing(slot):
 		if entered and phase == FootRace.Phase.RACE:
+			## `aTKN1_omedeto`: team 1 claps on level 0x2F, team 0 on 0x31.
+			clap_level = 0x2F if FootRace.team_of(slot) != 0 else 0x31
 			play_clip(FootRace.CLIP_CLAP, true)
 		elif entered and phase == FootRace.Phase.WARMUP:
 			if global_position.distance_to(_home) > 0.5:
@@ -254,6 +256,8 @@ func _setup_toss() -> void:
 	_basket = _basket_at(BallToss.team_of(slot)) if slot > 0 else Vector3.INF
 	_toss_step = BallToss.Step.LOOK
 	_toss_clock = rng().randf_range(0.5, 3.0)
+	## `aTMN0`: the cheerleader's claps ring on level 0x2F.
+	clap_level = 0x2F if slot == 0 else 0
 	play_clip(BallToss.CLIP_LOOK if slot > 0 else BallToss.CLIP_CLAP, true)
 
 

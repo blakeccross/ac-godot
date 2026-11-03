@@ -22,6 +22,13 @@ const PLY_TRANS_WAIT := "ply_1_trans_wait1"
 const PLY_GET := "ply_1_get1"
 const PLY_GET_PULL := "ply_1_get_pull1"
 const PLY_GET_PUTAWAY := "ply_1_get_putaway1"
+const PLY_WAIT := "ply_1_wait1"
+## `Player_actor_check_item_is_fish`: a fish is carried, offered and taken in its own poses.
+const PLY_GET_F := "ply_1_get_f1"
+const PLY_GET_PULL_F := "ply_1_get_pull_f1"
+const PLY_GET_PUTAWAY_F := "ply_1_get_putaway_f1"
+const PLY_TRANSFER_F := "ply_1_transfer_f1"
+const PLY_TRANS_WAIT_F := "ply_1_trans_wait_f1"
 
 ## Hold the transferred pose briefly (`aHOI_REQUEST_TRANS_WAIT`).
 const TRANS_WAIT_HOLD := 0.35
@@ -38,33 +45,41 @@ static func _both_valid(a: Variant, b: Variant) -> bool:
 	return is_instance_valid(a) and is_instance_valid(b)
 
 
-## NPC hands an item to the player (`aNPC_DEMO_GIVE_ITEM` / first-job gifts).
+## NPC hands an item to the player (`aNPC_DEMO_GIVE_ITEM` / first-job gifts). The player's
+## side is `mPlayer_INDEX_RECIEVE_WAIT` → `RECIEVE_STRETCH` → `RECIEVE` → `RECIEVE_PUTAWAY`:
+## standing idle while the NPC holds the item out, reaching for it (`GET1`) once it is
+## settled, drawing it in (`GET_PULL1`) and tucking it away (`GET_PUTAWAY1`); a fish has its
+## own `_F1` clips for each.
 static func npc_gives_to_player(npc: Node3D, player: Node3D, item_id: StringName = &"") -> void:
 	if npc == null or player == null:
 		return
 	var tree: SceneTree = npc.get_tree()
 	if tree == null:
 		return
+	var fish: bool = _is_fish(item_id)
 	_face_each_other(npc, player)
 	var locked: bool = _lock_player(player)
 	var prop: HandOverItem = _spawn_prop(npc, item_id)
 	if prop != null:
 		prop.set_master(npc)
 		prop.begin_mode(HandOverItem.Mode.TRANSFER)
-	await _play_pair(
-		npc,
-		[NPC_TRANSFER],
-		player,
-		[PLY_GET_PULL, PLY_GET],
-		tree
-	)
+	## `RECIEVE_WAIT`: the player stands by while the NPC puts the item out.
+	var player_ap: AnimationPlayer = _anim_player(player)
+	_start_oneshot(player_ap, _resolve(player_ap, PLY_WAIT), true)
+	await _play_one(npc, [NPC_TRANSFER], tree)
 	if not _both_valid(npc, player):
 		_free_prop(prop)
 		return
-	## Brief hold while both keep the offer / take pose.
+	## The NPC holds it out (`aHOI_REQUEST_TRANS_WAIT`) while the player reaches and pulls.
 	if prop != null and is_instance_valid(prop):
 		prop.begin_mode(HandOverItem.Mode.TRANS_WAIT)
-	await _hold_pair(npc, NPC_TRANS_WAIT, player, PLY_GET_PULL, tree, TRANS_WAIT_HOLD)
+	var npc_ap: AnimationPlayer = _anim_player(npc)
+	_start_oneshot(npc_ap, _resolve(npc_ap, NPC_TRANS_WAIT), true)
+	await _play_one(player, [PLY_GET_F if fish else PLY_GET], tree)
+	if not _both_valid(npc, player):
+		_free_prop(prop)
+		return
+	await _play_one(player, [PLY_GET_PULL_F if fish else PLY_GET_PULL], tree)
 	if not _both_valid(npc, player):
 		_free_prop(prop)
 		return
@@ -72,7 +87,7 @@ static func npc_gives_to_player(npc: Node3D, player: Node3D, item_id: StringName
 	if prop != null and is_instance_valid(prop):
 		prop.set_master(player, true)
 		prop.begin_mode(HandOverItem.Mode.PUTAWAY)
-	await _play_one(player, [PLY_GET_PUTAWAY], tree)
+	await _play_one(player, [PLY_GET_PUTAWAY_F if fish else PLY_GET_PUTAWAY], tree)
 	_free_prop(prop)
 	if _both_valid(npc, player):
 		_idle(npc)
@@ -149,9 +164,10 @@ static func player_gives_to_npc(player: Node3D, npc: Node3D, item_id: StringName
 	if prop != null:
 		prop.set_master(player)
 		prop.begin_mode(HandOverItem.Mode.TRANSFER)
+	var fish: bool = _is_fish(item_id)
 	await _play_pair(
 		player,
-		[PLY_TRANSFER],
+		[PLY_TRANSFER_F if fish else PLY_TRANSFER],
 		npc,
 		[NPC_GET_PULL, NPC_GET],
 		tree
@@ -161,7 +177,7 @@ static func player_gives_to_npc(player: Node3D, npc: Node3D, item_id: StringName
 		return
 	if prop != null and is_instance_valid(prop):
 		prop.begin_mode(HandOverItem.Mode.TRANS_WAIT)
-	await _hold_pair(player, PLY_TRANS_WAIT, npc, NPC_GET_PULL, tree, TRANS_WAIT_HOLD)
+	await _hold_pair(player, PLY_TRANS_WAIT_F if fish else PLY_TRANS_WAIT, npc, NPC_GET_PULL, tree, TRANS_WAIT_HOLD)
 	if not _both_valid(npc, player):
 		_free_prop(prop)
 		return
@@ -179,6 +195,14 @@ static func player_gives_to_npc(player: Node3D, npc: Node3D, item_id: StringName
 ## Test-only: no in-game callers; kept for tests.
 static func has_npc_transfer(npc: Node3D) -> bool:
 	return _resolve(_anim_player(npc), NPC_TRANSFER) != ""
+
+
+## `Player_actor_check_item_is_fish`.
+static func _is_fish(item_id: StringName) -> bool:
+	if item_id == &"":
+		return false
+	var data: ItemData = ItemCatalog.get_item(item_id)
+	return data != null and data.category == ItemData.Category.FISH
 
 
 static func _spawn_prop(host: Node3D, item_id: StringName) -> HandOverItem:

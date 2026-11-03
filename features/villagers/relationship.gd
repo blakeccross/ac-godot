@@ -40,6 +40,9 @@ var milestones: Array[StringName] = []
 ## The memory exists (`mNpc_CheckFreeAnimalMemory` is FALSE): made on first talk, or by the
 ## player's first letter (`mNpc_SendMailtoNpc` → `mNpc_ForceGetFreeAnimalMemoryIdx`).
 var has_memory: bool = false
+## `Anmmem_c.saved_town_tune`: the town tune as it was when you last spoke (empty = never,
+## which the disc stores as all zeros).
+var saved_town_tune: PackedByteArray = PackedByteArray()
 ## `Anmmem_c.letter_info` + `.letter`: the last letter this player sent.
 var letter_exists: bool = false
 ## `mNpc_LETTER_RANK_*` of that letter (0 bad, 1 good).
@@ -55,6 +58,21 @@ func talked_on(day_key: String) -> bool:
 	return day_key != "" and last_spoke_day == day_key
 
 
+## `mNpc_SetAnimalMemory…`: every talk copies the town's current tune into the memory.
+func remember_town_tune() -> void:
+	if Game != null and Game.town != null:
+		saved_town_tune = Game.town.town_tune.duplicate()
+
+
+## The remembered tune as sixteen notes, all `0` when there is none (`mMld_TransformMelodyData_u64_2_u8`).
+func remembered_tune() -> PackedByteArray:
+	if saved_town_tune.size() == TownTune.LENGTH:
+		return saved_town_tune
+	var blank := PackedByteArray()
+	blank.resize(TownTune.LENGTH)
+	return blank
+
+
 func record_talk(day_key: String) -> int:
 	var first_ever: bool = talk_count == 0
 	var first_today: bool = not talked_on(day_key)
@@ -65,6 +83,7 @@ func record_talk(day_key: String) -> int:
 		kind = TALK_KIND_AGAIN
 	talk_count += 1
 	last_spoke_day = day_key
+	remember_town_tune()
 	_push_talk(day_key, kind)
 	if not has_memory:
 		has_memory = true
@@ -118,6 +137,7 @@ func to_save() -> Dictionary:
 		"gifts": gifts.duplicate(true),
 		"milestones": marks,
 		"has_memory": has_memory,
+		"saved_town_tune": Array(saved_town_tune),
 		"letter_exists": letter_exists,
 		"letter_cond": letter_cond,
 		"send_reply": send_reply,
@@ -136,6 +156,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	talks = _dict_list(data.get("talks", []))
 	gifts = _dict_list(data.get("gifts", []))
 	has_memory = bool(data.get("has_memory", talk_count > 0))
+	saved_town_tune = TownTune.sanitize(data.get("saved_town_tune", null)) if data.has("saved_town_tune") else PackedByteArray()
 	letter_exists = bool(data.get("letter_exists", false))
 	letter_cond = int(data.get("letter_cond", 0))
 	send_reply = bool(data.get("send_reply", false))

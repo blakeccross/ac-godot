@@ -10,6 +10,9 @@ extends AudioStreamPlayer
 ## Where the sound sits on its host (the waterfall's is 40 GX, 2 m, up).
 @export var offset: Vector3 = Vector3.ZERO
 
+## False while the source is quiet (a clapping crowd between claps).
+var sounding: bool = true
+
 var _host: Node3D
 
 
@@ -22,6 +25,10 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	if _host == null or not is_inside_tree():
+		return
+	if not sounding:
+		if playing:
+			stop()
 		return
 	var at: Vector3 = _host.global_position + offset
 	var placed: Vector2 = Audio.field_placement_at(get_tree(), at)

@@ -21,6 +21,8 @@ const UNIT := 40.0 * FieldCatalog.GX_TO_METERS
 ## `timer = 300` ticks: the wait at a ball-toss corner, and each tug-of-war beat.
 const STATION_WAIT := 300.0 * DecompTime.TICK_SEC
 const CLIP_CLAP := "npc_1_clap1"
+## `aES2_tug_of_war`: `NA_SE_2F` while he claps.
+const CLAP_LEVEL := 0x2F
 
 ## `mSC_EVENT_*` (or `TortimerHoliday.JAN_VACATION` / `FEB_VACATION`).
 var holiday: int = 0
@@ -143,4 +145,5 @@ func _round_point(units: Vector2i) -> Vector3:
 ## `aES2_tug_of_war_init`: claps or watches for the next 300 ticks, even odds.
 func _tug_beat() -> void:
 	_station_timer = STATION_WAIT
+	clap_level = CLAP_LEVEL
 	play_clip(CLIP_CLAP if rng().randf() < 0.5 else idle_clip(), true)

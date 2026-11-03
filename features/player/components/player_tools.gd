@@ -159,6 +159,18 @@ func tick_balloon(delta: float) -> void:
 	_balloon.apply(_player._motor.facing)
 
 
+## `Player_actor_setup_Item_Tumble_getup`: getting up from a tumble, the balloon in hand floats
+## off and its pocket is emptied.
+func release_balloon() -> bool:
+	if _balloon == null:
+		return false
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_player._mesh)
+	var attach := skeleton.get_node_or_null(HeldTool.ATTACH_NAME) as Node3D if skeleton != null else null
+	if attach != null and attach.get_child_count() > 0:
+		BalloonFlyaway.release(attach.get_child(0) as Node3D, _player)
+	return Game.inventory != null and Game.inventory.swap_equipped(&"")
+
+
 func tick_pinwheel(delta: float) -> void:
 	var tool: ToolData = equipped_tool()
 	if tool == null or not tool.is_pinwheel() or tool_hidden():

@@ -48,7 +48,7 @@ Equipping a tool puts the player into a **tool-ready** main index. A then uses t
 - **Pull** (`GET_M1`, 52 keyframes): insect hidden until keyframe 15, then in the left hand; turn toward yaw 0 past keyframe 17; report opens 50 ticks in (`mushi_msg`: `0xA2C + type` below 0x20, else `0x2FA1 + type`).
 - **Notice**: pockets first, catch record bit (`mSM_COLLECT_INSECT_SET`) regardless, snap to yaw 0. `main_pull->already_collected` is really `mSM_CHECK_LAST_INSECT_GET` — true only when this species is the last one missing from the record → report 0xA4E (item name) continuing to 0xA4F with `YATTA2` + fanfare 0x4B. Full pockets → 0xA4D yes/no (yes opens the exchange inventory; no releases it).
 - **Put-away** (`PUTAWAY_M1`, 19 keyframes, `GASAGOSO`): insect ×0.89125 a tick until keyframe 17, gone there.
-- Not ported yet: golden net reach, netting bees (`ac_bee` force-catch), the exchange inventory, the release-creature clip, `ef_swing_net` effects, the pull / complete fanfares, ant/mosquito `YAJIRUSHI` mark.
+- In since this was written: golden net reach (`NetSwing.GOLDEN_REACH`), the bee swarm's forced catch, the release-creature clip, the swing effects and the `YATTA` catch fanfare (`Netting`). The ant / mosquito / killifish arrow is in (`CatchMark`). Not ported yet: the exchange inventory.
 
 ## Umbrellas (`ac_t_umbrella.c`, `m_player_item_umbrella`, `m_player_main_rotate_umbrella`)
 

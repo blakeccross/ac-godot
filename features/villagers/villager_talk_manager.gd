@@ -152,6 +152,8 @@ var show_letter: Callable
 var edit_catchphrase: Callable
 ## `mSM_OVL_BIRTHDAY`: asks the player's birthday (order 8).
 var edit_birthday: Callable
+## `aQMgr_order_play_memory_melody` (order 6): sings the tune they remember.
+var play_memory_melody: Callable
 ## First-job hint counter (`Private_c.hint_count`), read and written through these.
 var hint_count_get: Callable
 var hint_count_set: Callable
@@ -572,8 +574,11 @@ func order(order_type: int, value: int) -> void:
 				edit_birthday.call()
 		9:
 			_order_set_string(value)
+		6:
+			## `aQMgr_order_play_memory_melody`: the tune as it was when you last spoke.
+			if play_memory_melody.is_valid():
+				play_memory_melody.call()
 		_:
-			## 6 plays a remembered town tune: not ported yet.
 			pass
 
 

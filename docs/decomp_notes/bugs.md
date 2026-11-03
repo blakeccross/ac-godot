@@ -69,7 +69,7 @@ All 40 species, each on its own `BugBehavior` overlay (`features/bugs/behaviors/
 
 **Grasshoppers / crickets / locusts** (`ac_ins_batta.c`): wait → change direction (probe 53 GX, 218 for migratory locusts, reject > 40 GX height change or water) → jump (4 up, 5.5 forward, gravity 0.7). The jump-or-turn choice uses the shared play clock (`game_frame % 200`: locusts jump unless in the first 20 frames, crickets only then). A scare hops them away from the player, or back toward the acre centre past 240 GX; hopping north up a slope adds `3·sin(slope)` lift. Net escapes leap off the player's facing ±60°. Debug: console `bug <id> [count]`; capture `tools/capture.sh console=bug,grasshopper,3 target=bug:grasshopper date=2001-08-20`.
 
-**Not ported:** insect sounds (`sAdo_OngenPos` chirps 157–160, locust wings 0xA2/0xA3, beetle/cicada SEs), the drown splash (`eEC_EFFECT_TURI_MIZU` + SE 0x438), attribute walls (`bg_type 1` / `mCoBG_UniqueWallCheck`) beyond `BugTerrain`'s coarse blocked-cell test.
+Insect sounds (chirps, locust wings, beetle / cicada SEs) and the drown splash are in (`BugSounds`, `BugActor.one_shot_sounds`). **Not ported:** attribute walls (`bg_type 1` / `mCoBG_UniqueWallCheck`) beyond `BugTerrain`'s coarse blocked-cell test.
 
 ## Spawning, schedule and catching (parity pass 2026-09-28)
 

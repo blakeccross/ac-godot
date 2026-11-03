@@ -73,3 +73,13 @@ func test_a_balloon_drifts_downwind_at_cruising_height() -> void:
 	assert_float(flat).is_between(1.5 * 2.0 * 0.9, 2.25 * 2.0 * 1.1)
 	var ground: float = FieldCollision.ground_y(world.layout, world.grid.world_to_cell(balloon.pos))
 	assert_float(balloon.pos.y - ground).is_between(Balloon.HEIGHT - Balloon.BOB - 0.5, Balloon.HEIGHT + Balloon.BOB + 0.5)
+
+
+func test_the_head_is_tinted_from_its_own_texture_with_back_faces_culled() -> void:
+	## The head texture is the whole shaded ball, so it is the only tile the tint reads (the
+	## wire's 8×8 ring tile read as concentric squares), and `G_CULL_BACK` hides the far side
+	## of the egg (the far lobe showed through as a dark second balloon).
+	var code: String = Balloon.HEAD_SHADER
+	assert_str(code).contains("render_mode cull_back")
+	assert_str(code).contains("t.b * 255.0 / 200.0")
+	assert_bool(code.contains("sampler2D shade")).is_false()

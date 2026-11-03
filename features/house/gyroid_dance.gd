@@ -33,7 +33,9 @@ func _process(delta: float) -> void:
 		_pose(0.0)
 		return
 	_seconds += delta
-	_pose(GyroidRhythm.counter(GyroidRhythm.steps(_seconds), gyroid_idx))
+	## In a room the dancers keep the room's beat, the one their voices play on.
+	var step_count: float = GyroidVoices.beats * GyroidRhythm.STEPS_PER_BEAT if GyroidVoices.running else GyroidRhythm.steps(_seconds)
+	_pose(GyroidRhythm.counter(step_count, gyroid_idx))
 
 
 func _is_on() -> bool:

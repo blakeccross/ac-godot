@@ -595,3 +595,85 @@ class LevPortTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GyroidRhythmTests(unittest.TestCase):
+    """The rhythm sequence's callbacks into the game (`rhythm.c`) and the loop it renders."""
+
+    def _renderer(self, seq: bytes = bytes(64)) -> SeqRenderer:
+        return SeqRenderer(seq, {}, 0, [0])
+
+    def test_group_counter_steps_every_24_tatums_when_straight(self) -> None:
+        renderer = self._renderer()
+        renderer.grp.port[2] = 0
+        renderer.grp.port[3] = 0
+        rets = [renderer._rhythm_group_process() for _ in range(24)]
+        self.assertEqual(rets[:23], [1] * 23)
+        self.assertEqual(rets[23], 0)
+        self.assertEqual(renderer.grp.port[3], 0)
+
+    def test_swung_steps_alternate_16_and_32_tatums(self) -> None:
+        renderer = self._renderer()
+        renderer.rhythm_beat_type = 0
+        renderer.grp.port[3] = 0
+        lengths = []
+        for step in range(4):
+            renderer.grp.port[2] = step
+            count = 0
+            while True:
+                count += 1
+                if renderer._rhythm_group_process() == 0:
+                    break
+            lengths.append(count)
+        self.assertEqual(lengths, [16, 32, 16, 32])
+
+    def test_group_publishes_its_counters_with_a_store(self) -> None:
+        # 0xCC value 7; 0xC7 +1 → seq[0x20]; end.
+        seq = bytearray(64)
+        seq[0:7] = bytes([0xCC, 7, 0xC7, 1, 0x00, 0x20, 0xFF])
+        renderer = SeqRenderer(bytes(seq), {}, 0, [0])
+        renderer.run(max_sec=0.05)
+        self.assertEqual(renderer.seq[0x20], 8)
+
+    def test_rhythm_variant_follows_the_step_type(self) -> None:
+        renderer = self._renderer()
+        sub = renderer.grp.subtracks[0]
+        sub.port[4] = 4
+        self.assertEqual(renderer._rhythm_se_num(0, sub), 12)
+        sub.port[4] = 0
+        self.assertEqual(renderer._rhythm_se_num(0, sub), 0)
+        sub.port[3] = 0x01
+        self.assertEqual(renderer._rhythm_se_num(1, sub), 0)
+        sub.port[3] = 0x14
+        self.assertTrue(all(0 <= renderer._rhythm_se_num(1, sub) < 8 for _ in range(20)))
+        sub.port[3] = 0x5F
+        self.assertTrue(all(0 <= renderer._rhythm_se_num(1, sub) < 6 for _ in range(20)))
+
+    def test_loop_folds_the_tail_over_the_head(self) -> None:
+        from array import array
+
+        from asset_pipeline.audio_seq import wrap_loop
+
+        pcm = array("h", [0] * 10 + list(range(1, 11)) + [100, 200, 300]).tobytes()
+        out = array("h")
+        out.frombytes(wrap_loop(pcm, 10, start_sec=1.0, loop_sec=1.0, channels=1))
+        self.assertEqual(len(out), 10)
+        self.assertEqual(list(out)[:3], [101, 202, 303])
+        self.assertEqual(out[3], 4)
+
+    def test_every_gyroid_is_catalogued_straight_and_swung(self) -> None:
+        from asset_pipeline.audio import GYROID_COUNT, _gyroid_catalog_entries, gyroid_id
+
+        entries = _gyroid_catalog_entries()
+        self.assertEqual(len(entries), GYROID_COUNT * 2)
+        self.assertEqual(entries[0]["id"], gyroid_id(0, False))
+        self.assertTrue(all(e["loop"] for e in entries))
+        self.assertEqual(gyroid_id(5, True), "gyroid_005_swing")
+
+
+class ClapLevelTests(unittest.TestCase):
+    def test_event_claps_are_level_sounds(self) -> None:
+        from asset_pipeline.audio import LEV_SE_NUMS
+
+        self.assertEqual(LEV_SE_NUMS["lev_2f"], 0x2F)
+        self.assertEqual(LEV_SE_NUMS["lev_31"], 0x31)

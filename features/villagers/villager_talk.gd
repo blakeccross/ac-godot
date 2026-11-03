@@ -56,6 +56,7 @@ static func manager(villager: VillagerData, state: VillagerState, ctx: DialogueC
 	m.show_letter = func(letter: Dictionary) -> void: _show_letter(villager, letter)
 	m.edit_catchphrase = func() -> void: _edit_catchphrase(villager, state)
 	m.edit_birthday = _edit_birthday
+	m.play_memory_melody = func() -> void: _play_memory_melody(state, ctx)
 	m.send_mail = MailDelivery.to_mailbox
 	m.field_counts = Game.field_counts
 	if state != null:
@@ -88,6 +89,13 @@ static func _edit_catchphrase(villager: VillagerData, state: VillagerState) -> v
 		if ui != null and is_instance_valid(ui):
 			ui.set_suspended(false)
 	board.connect("closed", resume, CONNECT_ONE_SHOT)
+
+
+## `mMld_ActorMakeThisMelody`: the tune they remember, in their own voice.
+static func _play_memory_melody(state: VillagerState, ctx: DialogueContext) -> void:
+	if state == null or ctx == null:
+		return
+	Audio.play_melody(state.remembered_town_tune(), DialogueVoice.melody_voice(ctx.sound_spec))
 
 
 ## `aQMgr_talk_normal_open_birthday`: the window drops in over the paused conversation.

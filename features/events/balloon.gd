@@ -85,16 +85,21 @@ const ENV: Array[Color] = [
 ## `Matrix_scale(0.01)` on a GLB baked at `PIPELINE_SCALE`.
 const MODEL_SCALE := 0.01 * FieldCatalog.GX_TO_METERS / FieldCatalog.PIPELINE_SCALE
 
+## The head texture comes out of the converter already combined with `fuusen`'s default pair
+## (prim 255 210 200, env 255 40 0 — `_FUUSEN_DEFAULT_*` in `gfx.py`), so its blue channel is
+## the intensity scaled to 200/255. `(PRIM − ENV) × TEXEL + ENV` with this balloon's own pair
+## puts the colour back; the alpha cuts the round edge (`gDPSetTexEdgeAlpha(144)`).
 const HEAD_SHADER := """
 shader_type spatial;
-render_mode cull_disabled;
-uniform sampler2D tex : source_color, filter_nearest;
-uniform sampler2D shade : source_color, filter_linear;
+render_mode cull_back;
+uniform sampler2D tex : source_color, filter_linear;
 uniform vec4 prim : source_color = vec4(1.0);
 uniform vec4 env : source_color = vec4(1.0, 0.0, 0.0, 1.0);
 void fragment() {
-	ALBEDO = mix(env.rgb, prim.rgb, texture(shade, UV).r);
-	ALPHA = texture(tex, UV).a;
+	vec4 t = texture(tex, UV);
+	float intensity = clamp(t.b * 255.0 / 200.0, 0.0, 1.0);
+	ALBEDO = mix(env.rgb, prim.rgb, intensity);
+	ALPHA = t.a;
 	ALPHA_SCISSOR_THRESHOLD = 144.0 / 255.0;
 }
 """
@@ -164,20 +169,11 @@ func _attach(visual: StringName) -> Node3D:
 	return host
 
 
-## Joint 3 (the head, `act_balloon_head_tex_rgb_ia8`) combines two tiles: an intensity
-## shading tile blends env (dark) to prim (the highlight), the IA8 tile cuts the round edge
-## (`gDPSetTexEdgeAlpha(144)`). The converter bound only the IA8 tile to the head; the
-## shading tile sits on the model's first material.
+## Joint 3 is the head (`act_balloon_head_tex_rgb_ia8`): tint it with this balloon's colour pair.
 func _tint() -> void:
 	if _head_shader == null:
 		_head_shader = Shader.new()
 		_head_shader.code = HEAD_SHADER
-	var shade: Texture2D = null
-	for mi: Node in _balloon.find_children("*", "MeshInstance3D", true, false):
-		var m := mi as MeshInstance3D
-		var first := m.get_active_material(0) as BaseMaterial3D if m.mesh != null and m.mesh.get_surface_count() > 0 else null
-		if first != null and not String(first.resource_name).contains("head"):
-			shade = first.albedo_texture
 	for mi: Node in _balloon.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		for i: int in (m.mesh.get_surface_count() if m.mesh != null else 0):
@@ -187,7 +183,6 @@ func _tint() -> void:
 			var mat := ShaderMaterial.new()
 			mat.shader = _head_shader
 			mat.set_shader_parameter("tex", src.albedo_texture)
-			mat.set_shader_parameter("shade", shade)
 			mat.set_shader_parameter("prim", PRIM[type_idx])
 			mat.set_shader_parameter("env", ENV[type_idx])
 			m.set_surface_override_material(i, mat)

@@ -8,8 +8,8 @@ extends RefCounted
 ## over two steps.
 ##
 ## The rhythm group runs at 120 BPM until room music sets its tempo
-## (`Na_SetRhythmInfo`), which is the pace used here. The rhythm sequence's own sounds
-## (seq 246) are not rendered by the pipeline yet, so gyroids dance without their voices.
+## (`Na_SetRhythmInfo`). In a room `GyroidVoices` owns the clock and plays the rhythm
+## sequence's own sounds (seq 246); this file only turns beats into poses.
 
 ## `FTR_HNW_COMMON000`: the first gyroid's furniture number.
 const FIRST_FTR := 0x16C

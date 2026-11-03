@@ -111,6 +111,15 @@ func test_friendship_order_counts_values_over_100_as_losses() -> void:
 	assert_int(m.state.friendship).is_equal(127)
 
 
+func test_order_six_plays_the_remembered_tune() -> void:
+	var m: VillagerTalkManager = _manager()
+	m._normal = true
+	var played: Array = []
+	m.play_memory_melody = func() -> void: played.append(true)
+	m.order(6, 0)
+	assert_int(played.size()).is_equal(1)
+
+
 func test_trade_buys_the_players_furniture_for_goods() -> void:
 	var m: VillagerTalkManager = _manager()
 	## Quest demo orders only reach the everyday chat.

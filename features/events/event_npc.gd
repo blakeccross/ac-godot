@@ -41,7 +41,11 @@ var _model: Node3D
 var _body_anim: AnimationPlayer
 var _face: NpcFace = NpcFace.new()
 var _feel: NpcFeelGlyphs
+## `sAdo_OngenPos(npc, level, …)` while the clap clip runs: the level SE the clapping makes
+## (0x2F, 0x31), or 0 for a silent clap.
+var clap_level: int = 0
 var _clip: String = ""
+var _clap_sound: LevelSound
 var _clip_timer: float = 0.0
 var _manpu_clip: String = ""
 var _turning_home: bool = false
@@ -92,6 +96,7 @@ func _process(delta: float) -> void:
 	if talking and get_tree() != null:
 		uttering = DialogueOverlay.uttering_in(get_tree())
 	_face.advance(delta, uttering)
+	_update_clap_sound()
 
 
 func _physics_process(delta: float) -> void:
@@ -380,6 +385,20 @@ func _ensure_visual() -> void:
 
 func model() -> Node3D:
 	return _model
+
+
+const CLAP_SOUND := preload("res://scenes/world/level_sound.tscn")
+
+
+func _update_clap_sound() -> void:
+	var clapping: bool = clap_level > 0 and _clip.ends_with("clap1")
+	if _clap_sound == null:
+		if not clapping:
+			return
+		_clap_sound = CLAP_SOUND.instantiate() as LevelSound
+		_clap_sound.level_id = clap_level
+		add_child(_clap_sound)
+	_clap_sound.sounding = clapping
 
 
 ## Play `suffix` (`npc_1_wait1`, …); returns its length in seconds.

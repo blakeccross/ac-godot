@@ -322,6 +322,26 @@ func test_a_long_piece_will_not_swing_through_furniture() -> void:
 	assert_bool(_session.grid.cells_of(table.id).has(Vector2i(4, 3))).is_true()
 
 
+## `aMR_SearchFrictionObstacle`: only the held end's two free neighbours rub, and only against
+## another piece that also `check_rotation`s.
+func test_a_long_piece_rubs_only_on_the_neighbours_of_the_end_it_pivots() -> void:
+	_table.check_rotation = true
+	_chair.check_rotation = true
+	var table: FurniturePlacement = _place(_table, Vector2i(3, 3), WorldGrid.Facing.SOUTH)
+	## Beside the far end, not the pivot: clear of the swing and of the pivot's neighbours.
+	_place(_chair, Vector2i(4, 4))
+	assert_bool(_session.rotate_about(table.id, 1, Vector2i(3, 3))).is_true()
+
+
+func test_a_long_piece_will_not_turn_against_a_touching_piece_at_its_pivot() -> void:
+	_table.check_rotation = true
+	_chair.check_rotation = true
+	var table: FurniturePlacement = _place(_table, Vector2i(3, 3), WorldGrid.Facing.SOUTH)
+	_place(_chair, Vector2i(3, 4))
+	assert_bool(_session.rotate_about(table.id, 1, Vector2i(3, 3))).is_false()
+	assert_that(table.facing).is_equal(WorldGrid.Facing.SOUTH)
+
+
 func test_a_long_piece_will_not_swing_onto_the_player() -> void:
 	var table: FurniturePlacement = _place(_table, Vector2i(3, 3), WorldGrid.Facing.SOUTH)
 	assert_bool(_session.rotate_about(table.id, 1, Vector2i(3, 3), Vector2i(3, 2))).is_false()

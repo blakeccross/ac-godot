@@ -1,10 +1,11 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/interior.gd" id="1"]
 [ext_resource type="PackedScene" path="res://features/player/player.tscn" id="40_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/clock_hud.tscn" id="2"]
 [ext_resource type="Script" path="res://scenes/world/follow_camera.gd" id="3"]
 [ext_resource type="Script" path="res://features/house/furniture_ambience.gd" id="4"]
+[ext_resource type="Script" path="res://features/house/gyroid_voices.gd" id="5_gyroid_voices"]
 
 [sub_resource type="Environment" id="Env"]
 background_mode = 1
@@ -60,3 +61,6 @@ script = ExtResource("3")
 
 [node name="FurnitureAmbience" type="Node" parent="."]
 script = ExtResource("4")
+
+[node name="GyroidVoices" type="Node" parent="."]
+script = ExtResource("5_gyroid_voices")

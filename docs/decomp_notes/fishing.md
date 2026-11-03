@@ -141,8 +141,8 @@ The decomp runs everything below on the 60 Hz mover tick; tick counts are quoted
 
 - Walls are the body's cells, not `mCoBG` wall segments, so the wall-angle choice of which way to turn is replaced by "the side that is still water"; waterfalls (`aGYO_check_fall`), bridges (`aGYO_check_bridge`) and the 10 GX height check are not modelled.
 - The hooked fish's thrash position (`aGTT_pos_calc` off the player's facing), the controller vibration tables and `NA_SE_24` / `NA_SE_11A` are presentation not yet built.
-- Water ripples (`eEC_EFFECT_TURI_HAMON`): the shadow's on a scare (arg 3 for XXS–M, 2 for L–XXL), the puff's at `delete_timer == 96` (arg 2 / 1 / 0 by size), and the bobber's on each nibble and landing. The project has no ripple effect to spawn yet; the splash sound and the dip carry the beat.
-- The nibble dip is still a short eased dip rather than `aUKI_touch_vib_proc`'s spring (0.9 / 1.0 around the surface).
+- Water ripples (`eEC_EFFECT_TURI_HAMON`): the shadow's on a scare (arg 3 for XXS–M, 2 for L–XXL), the puff's at `delete_timer == 96` (arg 2 / 1 / 0 by size), and the bobber's on each nibble and landing. All three are in: the scare ring (`FishSchool.Puff.birth_ripple`), the puff's ring (`FishSpawner._puff_ripples`) and the bobber's rings on landing, each nibble and the bite (`Fishing`, `FootstepEffects.ripple` / `bobber_splash`).
+- The hooked bobber's vertical spring is in (`fishing.gd`); the nibble dip before it is still a short eased dip rather than `aUKI_touch_vib_proc`'s spring (0.9 / 1.0 around the surface).
 - The full-pocket `0x1348` choice has no exchange inventory yet, so either answer throws the fish back (same gap as the net).
 - The bobber's flight back to the hand after an empty or air cast is not drawn.
 

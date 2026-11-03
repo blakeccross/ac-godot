@@ -228,16 +228,14 @@ Implemented (manager layer, `ac_event_manager` equivalent):
 Gaps (behaviour that differs from the decomp or is missing):
 - Visitors appear at their spot for the whole event; the original's walk-in / walk-out at the acre edge ("show at wade") is not modelled. Jack and Jingle teleport to a new acre once the player is 20 m away.
 - Event NPCs walk under the villagers' BG rules: `EventNpc._step_move` runs every step through `FieldCollision.revise_xz` (houses are `StructureOffset` heightfield walls), and a move pinned for 1 s calls `move_blocked()` (scripted moves finish at the spot; Halloween costumes stop and re-think, like `aNPC_THINK_INTERRUPT_OBSTACLE`). `EventManager.npc_can_stand` also applies `mCoBG_Attr2CheckPlaceNpc` and refuses raised house-body units. Jack himself stands still in the port; the original wanders (`aNPC_CT_SCHED_TYPE_WANDER`).
-- Rows kept but disabled (`EventSchedule.UNSUPPORTED`): bridge, Blanca / go-home NPC, Wisp. Wisp needs the spirit (hitodama) field actors; Blanca needs the face editor.
-- Sports fair: residents stand at their stations with their lines, but the foot race, ball toss and tug-of-war games (`ac_tokyoso_*`, `ac_tamaire_*`, `ac_tunahiki_*`) are not played. Aerobics: no Copper, no Tortimer radio card (`mSC_Radio_*`). New Year's: no queue at the offering box (`ac_hatumode_control`). Groundhog: no pop-up demo.
-- Meteor shower has no shooting stars (`eEC_EFFECT_SHOOTING_SET`); the fireworks' ground flash is one omni light.
-- Handbills and event mail (birthday, Christmas, Valentine's), the bargain FG layout for Sale Day; Gulliver's foreign-item letter.
-- Destiny (Katrina, the lottery) is stored but nothing reads it yet (villager popularity, money / goods luck).
+- Rows kept but disabled (`EventSchedule.UNSUPPORTED`): the bridge, which `SecondBridge` raises on its own. The Wisp row stays out of the calendar too (`ghost`); the spirit itself is a field actor (`WispSpirit`).
+- Sports fair games, Copper and Tortimer's radio card, the groundhog pop-up and the meteor shower's shooting stars (`MeteorShower`) are all in; see the checklist's §31. The New Year queue at the wishing well is in too (`ShrineQueue`, `tests/unit/test_shrine_queue.gd`). Still open: the fireworks' ground flash is one omni light.
+- Handbills, the bargain FG layout for Sale Day and Gulliver's foreign-item letter (birthday and Valentine's mail are in). Destiny is read by buried money, the money rock and the digging luck; villager popularity luck is not.
 - Held props (fans, tumblers, crackers) are animations only; no hand-held item models.
 - The snow cabin model shows an untextured grey quad at its entrance (conversion).
 - Joan's hand-over order is simplified; K.K.'s staff roll has no light / camera moves.
 - Rumor plumbing: `EventCalendar.active_rumors()` exists, dialogue reads the rumor events through `VillagerTalkManager`.
-- `town_day` is `1 + world_seed % 28` — a placeholder; the decomp's roll was not researched.
+- `town_day` is rolled `1 + RANDOM(30)` skipping the 4th, as in `mSDI_StartInitNew` (the checklist's §1 has it).
 
 Answered from the decomp while implementing: harvest moon = the 8th lunisolar month's start date + 14 days (table in `lb_reki.c`); equinox = `(int)(20.8431 + 0.242194 * (y - 1980)) - (y - 1980) / 4` (spring) / `23.2488` (autumn); the table's start *hour* for special visits is a literal per event (Redd 18, gypsy 21, others 6); only the shop-sale handbill's end hour reads `dates[SPECIAL3]`.
 
@@ -257,3 +255,7 @@ Start with the calendar + weather + rumor plumbing (cheap, testable headlessly),
 - `mFAs_GetFieldRank` (town rating → special-event gap) depends on the field-assessment system, which does not exist here yet. Use a constant until it does.
 - `mEv_LiveSonchoPresent` / `mEv_LivePlayer` (suppress events while the mayor is away or a resident is a visitor) were not read.
 - The per-event NPC scripts (`ac_ev_*`, `ac_tokyoso_*`, `ac_tunahiki_*`, `ac_hatumode_*`, `ac_countdown_*`) are not covered here; each needs its own note before implementation.
+
+## Sky balloon look (`Balloon._tint`)
+
+The head (`act_balloon_head_tex_rgb_ia8`, IA8 intensity + alpha, `G_TEXTURE_GEN`, `G_CULL_BACK`) is one texture: the converter bakes it with `fuusen`'s default pair (prim 255 210 200, env 255 40 0), so the blue channel is the intensity × 200/255 and the runtime re-tints with the balloon's own pair. An earlier version read the string's 8×8 ring tile as a second "shading" tile (it showed as concentric squares) and drew both faces (the far lobe showed through as a darker second balloon).

@@ -17,7 +17,7 @@ the island climate (always summer), island fish/insects/tune, the shanties' musi
 - The island is **a block kind of the town field** (`mRF_BLOCKKIND_ISLAND`), not a separate scene:
   `BOAT_DEMO` checks the player's block and sets `at_island`. The two island grounds are already
   drawn here (`grd_s_il_*` / `grd_s_ir_*`); what is missing is their FG (`mFM_SetIslandFg`, trees,
-  cottage), `mRF_IslandBgData_To_VillageData`, and a way to get the player there.
+  cottage) and `mRF_IslandBgData_To_VillageData`; the way there is built (`Boat`, `Kappn`, `IslandRoute`).
 - `BOAT_DEMO` (control actor) drives the trip; Kapp'n (`NPC_SENDO`) reacts to its `action`
   (`aBTD_ACTION_*`) and the demo reacts to his `demo_act`. The boat (`ac_boat`) sails between the
   town wharf and the island wharf; the player rides on it.

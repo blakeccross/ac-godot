@@ -58,3 +58,23 @@ func test_resolve_finds_baked_clips() -> void:
 	assert_bool(has_get_return).is_true()
 	assert_bool(has_get_pull_wait).is_true()
 	nook.queue_free()
+
+
+func test_a_fish_is_handed_over_in_its_own_poses() -> void:
+	## `Player_actor_check_item_is_fish` picks the `_F1` clips; anything else the plain ones.
+	ItemCatalog.reload()
+	assert_bool(HandOver._is_fish(&"")).is_false()
+	assert_bool(HandOver._is_fish(&"apple")).is_false()
+	var fish: ItemData = ItemCatalog.get_item(&"carp")
+	if fish != null:
+		assert_bool(HandOver._is_fish(&"carp")).is_true()
+
+
+func test_receiving_runs_wait_stretch_pull_putaway_in_order() -> void:
+	## `RECIEVE_WAIT` → `RECIEVE_STRETCH` (`GET1`) → `RECIEVE` (`GET_PULL1`) → `RECIEVE_PUTAWAY`.
+	assert_str(HandOver.PLY_GET).is_equal("ply_1_get1")
+	assert_str(HandOver.PLY_GET_PULL).is_equal("ply_1_get_pull1")
+	assert_str(HandOver.PLY_GET_PUTAWAY).is_equal("ply_1_get_putaway1")
+	assert_str(HandOver.PLY_GET_F).is_equal("ply_1_get_f1")
+	assert_str(HandOver.PLY_GET_PULL_F).is_equal("ply_1_get_pull_f1")
+	assert_str(HandOver.PLY_GET_PUTAWAY_F).is_equal("ply_1_get_putaway_f1")

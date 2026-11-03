@@ -104,6 +104,16 @@ static func ensure_loaded() -> void:
 	_loaded = true
 
 
+## What the gyroids keep time with while `id` plays (`Na_GetRhythmInfo`): `{ bpm, swing }`.
+## `bpm` is 0 for a track the catalog has no tempo for.
+static func rhythm_info(id: StringName) -> Dictionary:
+	ensure_loaded()
+	var rec: Variant = _entries.get(id)
+	if rec is Dictionary:
+		return {"bpm": float((rec as Dictionary).get("bpm", 0.0)), "swing": bool((rec as Dictionary).get("swing", false))}
+	return {"bpm": 0.0, "swing": false}
+
+
 static func register_stream(id: StringName, stream: AudioStream) -> void:
 	if id == &"" or stream == null:
 		return

@@ -1184,6 +1184,8 @@ func _on_mode_entered(prev: PlayerLocomotion.Gait, next: PlayerLocomotion.Gait) 
 		PlayerLocomotion.Gait.TUMBLE:
 			Audio.play_se(_tumble_se(attr), self)
 			FootstepEffects.tumble(bg, global_position, _motor.facing, attr, 0)
+		PlayerLocomotion.Gait.TUMBLE_GETUP:
+			tools.release_balloon()
 	if prev == PlayerLocomotion.Gait.TURN_DASH:
 		var foot: Transform3D = _foot_anchor(true)
 		var at: Vector3 = foot.origin if foot.basis.determinant() != 0.0 else global_position

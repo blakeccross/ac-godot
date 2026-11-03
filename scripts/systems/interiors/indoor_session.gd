@@ -231,7 +231,7 @@ func rotate_about(
 				break
 		if not found:
 			return false
-		if data.check_rotation and _friction_blocked(entry, old_cells):
+		if data.check_rotation and _pivot_rubbed(entry, pivot, old_cells, quarter):
 			return false
 	var riders: Array[FurniturePlacement] = _riders_of(entry, data)
 	var rider_cells: Array[Vector2i] = []
@@ -328,6 +328,30 @@ func _friction_blocked(entry: FurniturePlacement, cells: Array[Vector2i]) -> boo
 			var other_data: FurnitureData = furniture_of(other.furniture_id) if other != null else null
 			if other_data != null and other_data.check_rotation:
 				return true
+	return false
+
+
+## `aMR_SearchFrictionObstacle` (`rotate_forbid_friction_table`): a 2×1 piece turning about its
+## held end only rubs on the two neighbours of that end it is not swinging into or lying along.
+## One of them being another `check_rotation` piece stops the turn.
+func _pivot_rubbed(
+	entry: FurniturePlacement, pivot: Vector2i, cells: Array[Vector2i], quarter: WorldGrid.Facing
+) -> bool:
+	var swing: Vector2i = pivot
+	for cell: Vector2i in cells:
+		if cell != pivot:
+			swing = pivot + grid.rotate_offset(cell - pivot, quarter)
+	for offset: Vector2i in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(1, 0)]:
+		var near: Vector2i = pivot + offset
+		if cells.has(near) or near == swing:
+			continue
+		var who: StringName = grid.occupant_at(near)
+		if who == &"" or who == entry.id:
+			continue
+		var other: FurniturePlacement = room.placement_by_id(who)
+		var other_data: FurnitureData = furniture_of(other.furniture_id) if other != null else null
+		if other_data != null and other_data.check_rotation:
+			return true
 	return false
 
 

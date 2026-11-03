@@ -123,6 +123,11 @@ func wear_present_cloth() -> void:
 	has_present_cloth = false
 
 
+## The tune this villager remembers from your last talk (`Anmmem_c.saved_town_tune`).
+func remembered_town_tune() -> PackedByteArray:
+	return _bond().remembered_tune()
+
+
 func add_friendship(amount: int) -> void:
 	_bond().add_friendship(amount)
 

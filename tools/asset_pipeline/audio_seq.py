@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 import struct
 import subprocess
 import wave
@@ -202,6 +203,11 @@ class RenderResult:
     loop_start_sec: float
     duration_sec: float
     notes: int
+    ## Tempo two seconds in (`Na_GetRhythmInfo`'s beats per minute) and the beat type the song
+    ## writes to group port 1 (0 = swing if it ever does, else -1 straight); the rhythm group
+    ## follows both. K.K. songs open on -1 and switch to 0 once the band comes in.
+    tempo_bpm: float = 0.0
+    beat_type: int = -1
 
 
 def common_com(grp: Group, cur: Cursor, cmd: int, arg: int) -> int:
@@ -341,6 +347,10 @@ class SeqRenderer:
         self.seconds = 0.0
         ## When True, sequence 0xFB loop marks do not end the render (SE / voice one-shots).
         self.ignore_loop_end = False
+        ## `Nap_GetRandom` stand-in; seeded so a render is repeatable.
+        self.rng = random.Random(0)
+        self._tempo_probe: Optional[float] = None
+        self._first_beat: Optional[int] = None
 
     def bank(self, bank_id: int) -> Optional[Bank]:
         return self.banks.get(bank_id) or self.banks.get(self.grp.bank_id)
@@ -373,6 +383,8 @@ class SeqRenderer:
             if max_sec is not None and self.seconds >= max_sec:
                 break
             running = self._tick_group()
+            if self._tempo_probe is None and self.seconds >= 2.0:
+                self._tempo_probe = self.grp.tempo / AUDIO_TATUMS_PER_BEAT
             chunk = self._samples_per_tatum()
             self._mix_tatum(mix, chunk)
             self.seconds += chunk / MIX_RATE
@@ -403,6 +415,8 @@ class SeqRenderer:
             loop_start_sec=self.loop_start_sec,
             duration_sec=duration,
             notes=self.note_count,
+            tempo_bpm=self._tempo_probe if self._tempo_probe is not None else self.grp.tempo / AUDIO_TATUMS_PER_BEAT,
+            beat_type=self._first_beat if self._first_beat is not None else -1,
         )
 
     def _samples_per_tatum(self) -> float:
@@ -468,7 +482,7 @@ class SeqRenderer:
                     break
                 continue
             if cmd == 0xBE:
-                cur.u8()
+                self._native_hook(None, cur.u8())
                 continue
             lo = cmd & 0x0F
             hi = cmd & 0xF0
@@ -479,14 +493,16 @@ class SeqRenderer:
                 grp.subtracks[lo].enabled = False
                 grp.subtracks[lo].notes = [None] * NOTE_LAYERS
             elif hi == 0x50:
-                cur.value -= grp.port[lo & 7]
+                cur.value -= _s8(grp.port[lo & 7])
             elif hi == 0x60:
                 cur.u8()
                 cur.u8()
             elif hi == 0x70:
                 grp.port[lo & 7] = cur.value
+                if lo & 7 == 1 and _s8(int(cur.value)) == 0:
+                    self._first_beat = 0
             elif hi == 0x80:
-                cur.value = grp.port[lo & 7]
+                cur.value = _s8(grp.port[lo & 7])
                 if lo < 2:
                     grp.port[lo] = -1
             elif hi == 0x90:
@@ -518,8 +534,12 @@ class SeqRenderer:
         elif cmd == 0xC6:
             grp.stop_script = True
         elif cmd == 0xC7:
-            cur.u8()
-            cur.u16()
+            ## GRP_CMD_MACRO_VALUE_STORE: seq[addr] = value + n. The rhythm group publishes its
+            ## step, step flag and beat counters this way for its subtracks to read (`CB`).
+            addend = cur.u8()
+            addr = cur.u16()
+            if 0 <= addr < len(self.seq):
+                self.seq[addr] = (int(cur.value) + addend) & 0xFF
         elif cmd == 0xC8:
             cur.value -= _s8(cur.u8())
         elif cmd == 0xC9:
@@ -642,13 +662,13 @@ class SeqRenderer:
                 # Read another subtrack's port into macro value.
                 port_i = cur.u8() & 7
                 if lo < AUDIO_SUBTRACK_NUM:
-                    cur.value = self.grp.subtracks[lo].port[port_i]
+                    cur.value = _s8(self.grp.subtracks[lo].port[port_i])
             elif hi == 0x50:
                 if lo < 8:
-                    cur.value -= sub.port[lo]
+                    cur.value -= _s8(sub.port[lo])
             elif hi == 0x60:
                 if lo < 8:
-                    cur.value = sub.port[lo]
+                    cur.value = _s8(sub.port[lo])
                     if lo < 2:
                         sub.port[lo] = -1
             elif hi == 0x70:
@@ -656,13 +676,13 @@ class SeqRenderer:
                     sub.port[lo] = int(cur.value) & 0xFF
                 elif 8 <= lo <= 11:
                     rel = cur.s16()
-                    _start_note(sub, lo - 8, cur.pc + rel, self.seq)
+                    self._start_layer(sub, lo - 8, cur.pc + rel, self.seq)
             elif hi == 0x80:
                 if lo <= 3:
                     layer = sub.notes[lo]
                     cur.value = 1 if layer is None or layer.finished else 0
                 elif 8 <= lo <= 11:
-                    _start_note(sub, lo - 8, cur.u16(), self.seq)
+                    self._start_layer(sub, lo - 8, cur.u16(), self.seq)
             elif hi == 0x90:
                 if lo <= 3:
                     layer = sub.notes[lo]
@@ -704,6 +724,11 @@ class SeqRenderer:
             if idx < AUDIO_SUBTRACK_NUM:
                 self.grp.subtracks[idx].enabled = False
                 self._silence_sub(self.grp.subtracks[idx])
+        elif cmd == 0xCB:
+            ## SUBTRACK_CMD_READ_SEQ: value = seq[addr].
+            addr = a0 & 0xFFFF
+            if 0 <= addr < len(self.seq):
+                sub.cur.value = self.seq[addr]
         elif cmd == 0xCC:
             sub.cur.value = _s8(a0)
         elif cmd == 0xC8:
@@ -726,6 +751,18 @@ class SeqRenderer:
             if sub.dyn_tbl + int(sub.cur.value) * 2 + 1 < len(self.seq):
                 ofs = sub.dyn_tbl + int(sub.cur.value) * 2
                 sub.dynamic_value = (self.seq[ofs] << 8) | self.seq[ofs + 1]
+        elif cmd in (0xB7, 0xB8):
+            ## SUBTRACK_CMD_RANDOM / RANDOM_LARGE: value = rand % n (n = 0 → the whole byte).
+            span = a0 & (0xFFFF if cmd == 0xB7 else 0xFF)
+            roll = self.rng.getrandbits(16) >> 2
+            sub.cur.value = roll % span if span else roll & 0xFF
+        elif cmd == 0xBE:
+            self._native_hook(sub, a0 & 0xFF)
+        elif cmd == 0xB6:
+            # READ_DYNTBL (byte table): value = seq[dyn_tbl + value] (gyroid type → pattern).
+            ofs = sub.dyn_tbl + int(sub.cur.value)
+            if int(sub.cur.value) >= 0 and ofs < len(self.seq):
+                sub.cur.value = self.seq[ofs]
         elif cmd == 0xE4:
             # DYNTBL_CALL — call dyn_tbl[value]
             if sub.cur.value != -1:
@@ -785,6 +822,76 @@ class SeqRenderer:
         elif cmd == 0xE9:
             pass
         return True
+
+    ## `Nap_SetS32(NA_MAKE_COMMAND(228, 0, 0, n), fn)` (`Na_RhythmInit`): the rhythm sequence
+    ## (seq 246) calls back into the game for its beat counter (group, n = 1) and the random
+    ## variant of a gyroid's step (subtrack, n = 0). Other sequences never use 0xBE.
+    rhythm_beat_type = -1
+
+    def _native_hook(self, sub: Optional[SubTrack], index: int) -> None:
+        if sub is None:
+            if index == 1:
+                self.grp.cur.value = self._rhythm_group_process()
+            return
+        if index == 0:
+            sub.cur.value = self._rhythm_se_num(int(sub.cur.value), sub)
+
+    def _rhythm_group_process(self) -> int:
+        """`Na_RhythmGrpProcess` with no BGM to follow: advance the step counter (group port 3)
+        by one tatum; returns 0 when it wraps to the next step."""
+        grp = self.grp
+        beat = self.rhythm_beat_type
+        step = max(0, _s8(grp.port[2]))
+        counter = max(0, _s8(grp.port[3]))
+        if beat == 0:
+            per_step = 32 if step % 2 != 0 else 16
+        else:
+            per_step = AUDIO_TATUMS_PER_BEAT // 2
+        counter += 1
+        ret = 1
+        if counter >= per_step:
+            counter -= per_step
+            ret = 0
+        grp.port[3] = counter & 0xFF
+        grp.port[4] = int(counter * 100 / per_step) & 0xFF
+        return ret
+
+    ## `Na_GetRhythmSeNum`: gyroid step type (`sub->port[3]`) → how many variants it picks from.
+    RHYTHM_MOD8 = frozenset({0x14, 0x15, 0x16, 0x50, 0x51, 0x52, 0x5A})
+    RHYTHM_MOD6 = frozenset(
+        {0xC, 0xD, 0xE, *range(0x17, 0x2F), 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43}
+        | {0x4C, 0x4D, 0x4E, 0x4F, 0x58, 0x59, *range(0x5E, 0x7D)}
+    )
+    RHYTHM_MOD5 = frozenset({0x53, 0x54, 0x55, 0x56, 0x57})
+    RHYTHM_MOD4 = frozenset({0x3C, 0x3D, 0x5D})
+    RHYTHM_MOD3 = frozenset({0x5, 0xF, 0x2F, *range(0x44, 0x4C)})
+
+    def _rhythm_se_num(self, num: int, sub: SubTrack) -> int:
+        if num == 0:
+            num = 16 - (sub.port[4] if sub.port[4] >= 0 else 0)
+            return 0 if num == 16 else num
+        kind = sub.port[3]
+        rand = self.rng.getrandbits(31)
+        if kind in self.RHYTHM_MOD8:
+            return rand & 7
+        if kind in self.RHYTHM_MOD6:
+            return rand % 6
+        if kind in self.RHYTHM_MOD5:
+            return rand % 5
+        if kind in self.RHYTHM_MOD4:
+            return rand & 3
+        if kind in self.RHYTHM_MOD3:
+            return rand % 3
+        return 0
+
+    def _start_layer(self, sub: SubTrack, idx: int, pc: int, seq: bytes) -> None:
+        """`Nas_EntryNoteTrack`: starting a layer that is already running lets its voice go
+        (`Nas_Release_Channel`) before the layer's script starts over."""
+        if 0 <= idx < NOTE_LAYERS:
+            old = sub.notes[idx]
+            if old is not None:
+                self._release_note(old, force=False)
+        _start_note(sub, idx, pc, seq)
 
     def _dyn_entry(self, sub: SubTrack, index: int) -> Optional[int]:
         if index < 0:
@@ -1257,6 +1364,61 @@ def render_se(
     lo, hi, subtrack = se_port_values(se_id)
     renderer.set_subtrack_ports(subtrack, {0: lo, 1: hi})
     return renderer.run(max_sec=max_sec, stop_after_notes=True)
+
+
+## Gyroids (`ac_hnw_common.c`, `rhythm.c`): the rhythm sequence on `FTR_INST_GROUP`. A gyroid
+## starts subtrack 0's pattern with its number + 1 in port 3 (`sAdo_RhythmStart`). The pattern
+## repeats every 16 steps; two cycles are kept so the random variants do not loop obviously.
+GYROID_SEQ_INDEX = 246
+GYROID_COUNT = 127
+GYROID_BPM = 120.0
+GYROID_LEAD_SEC = 4.0
+GYROID_LOOP_SEC = 8.0
+GYROID_TAIL_SEC = 2.0
+
+
+def render_gyroid(
+    seq: bytes,
+    banks: dict[int, Bank],
+    default_bank: int,
+    gyroid: int,
+    seq_banks: Optional[list[int]] = None,
+    swing: bool = False,
+) -> RenderResult:
+    """One gyroid's voice as a seamless loop at 120 BPM (`swing`: the shuffled beat type 0)."""
+    renderer = SeqRenderer(seq, banks, default_bank, seq_banks)
+    renderer.ignore_loop_end = True
+    renderer.rhythm_beat_type = 0 if swing else -1
+    renderer.set_subtrack_ports(0, {0: 0, 3: gyroid + 1, 7: 0})
+    total = GYROID_LEAD_SEC + GYROID_LOOP_SEC + GYROID_TAIL_SEC
+    result = renderer.run(max_sec=total)
+    pcm = wrap_loop(result.pcm, result.rate, GYROID_LEAD_SEC, GYROID_LOOP_SEC)
+    return RenderResult(
+        pcm=pcm,
+        rate=result.rate,
+        loop_start_sec=0.0,
+        duration_sec=len(pcm) / 4 / result.rate,
+        notes=result.notes,
+        tempo_bpm=GYROID_BPM,
+        beat_type=0 if swing else -1,
+    )
+
+
+def wrap_loop(pcm: bytes, rate: int, start_sec: float, loop_sec: float, channels: int = 2) -> bytes:
+    """Cut `[start, start + loop)` and fold what rings on past its end back over its head."""
+    samples = array("h")
+    samples.frombytes(pcm)
+    frame = channels
+    first = int(start_sec * rate) * frame
+    length = int(loop_sec * rate) * frame
+    body = array("h", samples[first : first + length])
+    if len(body) < length:
+        body.extend([0] * (length - len(body)))
+    tail = samples[first + length :]
+    for i, value in enumerate(tail):
+        j = i % length
+        body[j] = max(-32768, min(32767, body[j] + value))
+    return body.tobytes()
 
 
 ## `Sou_LevSet`: a level (looping, positional) SE runs on SE subtrack 8 + its slot, with the

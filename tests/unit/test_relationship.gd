@@ -143,3 +143,23 @@ func _spoken(data: DialogueData, ctx: DialogueContext, state: VillagerState) -> 
 	var runner := DialogueRunner.new()
 	runner.start(data, ctx, state)
 	return runner.line
+
+
+func test_a_talk_remembers_the_towns_tune_as_it_was() -> void:
+	var tune := PackedByteArray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3])
+	Game.town.town_tune = tune
+	var bond := Relationship.new()
+	assert_int(bond.remembered_tune().size()).is_equal(TownTune.LENGTH)
+	assert_int(bond.remembered_tune()[3]).is_equal(0)
+	bond.record_talk("2001-01-01")
+	Game.town.town_tune = PackedByteArray([15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15])
+	assert_array(Array(bond.remembered_tune())).is_equal(Array(tune))
+
+
+func test_the_remembered_tune_survives_a_save() -> void:
+	Game.town.town_tune = PackedByteArray([4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7])
+	var bond := Relationship.new()
+	bond.record_talk("2001-01-01")
+	var restored := Relationship.new()
+	restored.apply_snapshot(bond.to_save())
+	assert_array(Array(restored.remembered_tune())).is_equal(Array(bond.remembered_tune()))

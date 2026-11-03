@@ -17,12 +17,15 @@ from .audio_bank import (
     parse_audiomap_bytes,
 )
 from .audio_seq import (
+    GYROID_COUNT,
+    GYROID_SEQ_INDEX,
     SE_BANKS,
     SE_SEQ_INDEX,
     VOICE_BANKS,
     VOICE_SEQ_BY_SPEC,
     encode_ogg,
     make_seamless_loop,
+    render_gyroid,
     render_lev_se,
     render_se,
     render_sequence,
@@ -177,6 +180,11 @@ LEV_SE_NUMS: dict[str, int] = {
     "lev_c": 0x0C,
     "lev_5a": 0x5A,
     "lev_b0": 0xB0,
+    ## Event crowds clapping, `sAdo_OngenPos(npc, 0x2F / 0x31, pos)` while their clap clip runs:
+    ## the ball-toss cheerleader, Tortimer at the tug-of-war and the foot race's watchers
+    ## (0x2F for team 1, 0x31 for team 0).
+    "lev_2f": 0x2F,
+    "lev_31": 0x31,
     "lev_34": 0x34,
     "lev_2c": 0x2C,
     "lev_35": 0x35,
@@ -419,10 +427,11 @@ def convert_audio(cfg: PipelineConfig, decomp_root: Optional[Path] = None) -> di
     wave_groups = _slice_wave_groups(audiowave, wave_entries)
 
     entries = _catalog_entries(bgm_ids, seq_table, seq_entries)
-    sfx_entries = _sfx_catalog_entries(se_ids)
+    sfx_entries = _sfx_catalog_entries(se_ids) + _gyroid_catalog_entries()
     voice_entries = _voice_catalog_entries()
     wanted_banks = _wanted_bank_ids(entries, map_bytes)
     wanted_banks |= set(SE_BANKS)
+    wanted_banks |= set(banks_for_seq(map_bytes, GYROID_SEQ_INDEX))
     for seq_idx in VOICE_BANKS:
         wanted_banks.add(VOICE_BANKS[seq_idx])
         for bank_id in banks_for_seq(map_bytes, seq_idx):
@@ -631,6 +640,30 @@ def _sfx_catalog_entries(se_ids: dict[str, int]) -> list[dict[str, Any]]:
     return out
 
 
+def gyroid_id(gyroid: int, swing: bool) -> str:
+    return f"gyroid_{gyroid:03d}{'_swing' if swing else ''}"
+
+
+def _gyroid_catalog_entries() -> list[dict[str, Any]]:
+    """Every gyroid's rhythm voice, straight and swung (`rhythm.c`, seq 246)."""
+    out: list[dict[str, Any]] = []
+    for gyroid in range(GYROID_COUNT):
+        for swing in (False, True):
+            key = gyroid_id(gyroid, swing)
+            out.append(
+                {
+                    "id": key,
+                    "gyroid": gyroid,
+                    "swing": swing,
+                    "seq": GYROID_SEQ_INDEX,
+                    "path": f"{SFX_SUBDIR}/{key}.ogg",
+                    "loop": True,
+                    "rendered": False,
+                }
+            )
+    return out
+
+
 def _voice_catalog_entries() -> list[dict[str, Any]]:
     phonemes = list(range(VOICE_PHONEME_MAX + 1))
     out: list[dict[str, Any]] = []
@@ -758,6 +791,9 @@ def _render_entries(
         rec["loop_start_sec"] = round(result.loop_start_sec, 3)
         rec["duration_sec"] = round(result.duration_sec, 3)
         rec["notes"] = result.notes
+        ## What the gyroids keep time with (`Na_GetRhythmInfo`).
+        rec["bpm"] = round(result.tempo_bpm, 2)
+        rec["swing"] = result.beat_type == 0
         rec.pop("render_error", None)
         rendered += 1
         if not arm_tracks:
@@ -796,6 +832,9 @@ def _render_sfx_entries(
         for rec in entries:
             rec["render_error"] = f"missing seq {SE_SEQ_INDEX}"
         return 0
+    rhythm_seq = seq_blobs.get(GYROID_SEQ_INDEX)
+    rhythm_banks = banks_for_seq(map_bytes, GYROID_SEQ_INDEX)
+    rhythm_used = {b: banks[b] for b in rhythm_banks if b in banks}
     seq_banks = banks_for_seq(map_bytes, SE_SEQ_INDEX) or list(SE_BANKS)
     default_bank = seq_banks[-1] if seq_banks else SE_BANKS[-1]
     used = {b: banks[b] for b in seq_banks if b in banks}
@@ -812,7 +851,19 @@ def _render_sfx_entries(
         se_id = int(rec.get("se_num", -1))
         track_id = str(rec.get("id", ""))
         try:
-            if "lev" in rec:
+            if "gyroid" in rec:
+                if not rhythm_seq or not rhythm_used:
+                    rec["render_error"] = f"missing seq {GYROID_SEQ_INDEX} or its banks"
+                    continue
+                result = render_gyroid(
+                    rhythm_seq,
+                    rhythm_used,
+                    rhythm_banks[-1],
+                    int(rec["gyroid"]),
+                    rhythm_banks,
+                    bool(rec["swing"]),
+                )
+            elif "lev" in rec:
                 result = render_lev_se(seq, used, default_bank, int(rec["lev"]), seq_banks)
                 result = replace(result, pcm=make_seamless_loop(result.pcm, result.rate))
                 result = replace(result, duration_sec=len(result.pcm) / 4 / result.rate)

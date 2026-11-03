@@ -59,6 +59,14 @@ Town tune: 16 nibbles in save (`u64 melody`). Values 0–12 = pitches G(low)–E
 
 K.K. / minidisks are ordinary sequences (`BGM_MD0`–`BGM_MD54`). Gyroids are a small rhythm sequencer, not full songs.
 
+**Gyroid voices (seq 246 on `FTR_INST_GROUP`, `rhythm.c`).** Not a song: a group script that counts steps and a bank of subtracks that fire a voice per gyroid.
+
+- **Group script** (offset 0): each tick `0xBE 1` calls `Na_RhythmGrpProcess` (value = 0 when a step wraps; 24 tatums a step, or 32 / 16 alternately when the BGM's beat type is 0, i.e. swung), then publishes step / new-step flag / counter / percent into four bytes of its own sequence data (`0xC7`: `seq[0x88..0x8b]`) for the subtracks to read (`0xCB`).
+- **Subtrack 0 script** (offset 0x8c): `Na_RhythmStart` writes port 0 = 0 (go), port 3 = gyroid number + 1, port 7 = start step. It counts a 16-step cycle in port 6, looks the gyroid up in a byte table (`seq[0x5526]`, `0xB6`: gyroid → pattern 0–10), and fires a hit macro per pattern. `0xBE 0` is `Na_GetRhythmSeNum`, the random variant (`rand % 3/4/5/6/8` by gyroid class). `0x88` restarts a layer that is already running (`Nas_EntryNoteTrack` releases its voice first).
+- **Tempo and beat type** come from the BGM group: `Na_RhythmGrpProcess` slews the rhythm tempo to the music's one BPM per tick and reads group port 1 for the beat type. Field and shop tracks never write port 1 (straight); K.K. songs write 0 or -1.
+
+Pipeline: `render_gyroid` (audio_seq.py) runs the sequence offline with those callbacks, one gyroid at a time at 120 BPM, straight and swung, keeps two cycles (8 s) and folds the tail over the head. The catalog gets `gyroid_NNN` / `gyroid_NNN_swing` rows (`sfx` section, `loop: true`) and every BGM row gets `bpm` and `swing`. Runtime: `GyroidVoices` (see [furniture.md](furniture.md)). Gyroids 0–126 only; types 128+ are silent by design.
+
 ## Important states
 
 - Current BGM id + which of the two groups is active.
