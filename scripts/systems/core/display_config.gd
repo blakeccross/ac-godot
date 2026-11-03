@@ -3,7 +3,9 @@ extends RefCounted
 
 ## The screen shape the player picked: fixed 4:3 or 16:9 (black bars when the window differs) or
 ## adaptive, which fills the whole window. Kept in `user://config.cfg` under `[display]` and
-## applied to the root window's content scale. Not an autoload.
+## applied to the root window's content scale. Also holds whether the town camera scrolls to the
+## next acre on its own 0.6 s sweep when the player wades (`camera_wade`); a phone defaults to
+## off, where the camera just follows. Not an autoload.
 
 enum Aspect { ADAPTIVE, WIDESCREEN, STANDARD }
 
@@ -17,6 +19,8 @@ const STANDARD_SIZE := Vector2i(960, 720)
 
 static var path: String = DEFAULT_PATH
 static var aspect: int = Aspect.ADAPTIVE
+## -1 = not chosen (the platform default), 0 = off, 1 = on.
+static var wade_choice: int = -1
 static var _loaded: bool = false
 
 
@@ -27,12 +31,14 @@ static func ensure_loaded() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(path) == OK:
 		aspect = clampi(int(cfg.get_value(SECTION, "aspect", Aspect.ADAPTIVE)), 0, Aspect.STANDARD)
+		wade_choice = clampi(int(cfg.get_value(SECTION, "camera_wade", -1)), -1, 1)
 
 
 ## Back to the default (tests; a fresh install).
 static func reset(p_path: String = DEFAULT_PATH) -> void:
 	path = p_path
 	aspect = Aspect.ADAPTIVE
+	wade_choice = -1
 	_loaded = true
 
 
@@ -40,7 +46,23 @@ static func save() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(path)
 	cfg.set_value(SECTION, "aspect", aspect)
+	cfg.set_value(SECTION, "camera_wade", wade_choice)
 	cfg.save(path)
+
+
+## Whether the town camera does `Camera2_main_Wade`'s scripted sweep across an acre line.
+## Unchosen, it is on everywhere but a phone or tablet.
+static func camera_wade() -> bool:
+	ensure_loaded()
+	if wade_choice >= 0:
+		return wade_choice == 1
+	return not InputDeviceTracker.on_mobile
+
+
+static func set_camera_wade(on: bool) -> void:
+	ensure_loaded()
+	wade_choice = 1 if on else 0
+	save()
 
 
 static func label(mode: int = aspect) -> String:

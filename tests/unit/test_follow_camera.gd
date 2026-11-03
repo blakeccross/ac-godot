@@ -180,3 +180,34 @@ func test_a_deep_room_keeps_the_normal_arm() -> void:
 	var wing := AABB(Vector3(0, 0, 0), Vector3(28, 3, 24))
 	var offset: Vector3 = FollowCamera.offset_to_show_south(wing, wing.end.z)
 	assert_float(offset.length()).is_equal_approx(FollowCamera.FOLLOW_DISTANCE, 0.05)
+
+
+func test_camera_wade_defaults_off_on_a_phone_and_on_elsewhere() -> void:
+	var was_mobile: bool = InputDeviceTracker.on_mobile
+	DisplayConfig.reset("user://test_display_config.cfg")
+	InputDeviceTracker.on_mobile = true
+	assert_bool(DisplayConfig.camera_wade()).is_false()
+	InputDeviceTracker.on_mobile = false
+	assert_bool(DisplayConfig.camera_wade()).is_true()
+	## A choice beats the platform default.
+	DisplayConfig.set_camera_wade(false)
+	InputDeviceTracker.on_mobile = true
+	assert_bool(DisplayConfig.camera_wade()).is_false()
+	DisplayConfig.set_camera_wade(true)
+	assert_bool(DisplayConfig.camera_wade()).is_true()
+	InputDeviceTracker.on_mobile = was_mobile
+	DirAccess.remove_absolute("user://test_display_config.cfg")
+	DisplayConfig.reset()
+
+
+
+func test_town_goal_follows_across_an_acre_line_but_stays_in_the_town() -> void:
+	var first: Dictionary = AcreCamera.box(Vector2i.ONE)
+	var next: Dictionary = AcreCamera.box(Vector2i(2, 1))
+	var across := Vector3(float(next["x_min"]) + 1.0, 0.0, float(first["z_min"]) + 5.0)
+	## The acre goal holds the centre at the edge of the acre the player is in; the town goal does not.
+	assert_float(AcreCamera.goal(across, Vector3(float(first["x_max"]), 0.0, across.z)).x).is_equal(first["x_max"])
+	assert_float(AcreCamera.goal_town(across).x).is_equal_approx(across.x, 0.001)
+	var last: Dictionary = AcreCamera.box(Vector2i(WorldGenerator.FG_X, WorldGenerator.FG_Z))
+	assert_float(AcreCamera.goal_town(Vector3(-100.0, 0.0, -100.0)).x).is_equal(first["x_min"])
+	assert_float(AcreCamera.goal_town(Vector3(1000.0, 0.0, 1000.0)).z).is_equal(last["z_max"])

@@ -250,6 +250,20 @@ func test_grass_pattern_texture_path_prefers_variant() -> void:
 	FieldCatalog.set_grass_pattern(WorldData.GrassPattern.TRIANGLE)
 
 
+func test_grass_pattern_applies_to_fringe_roles() -> void:
+	## Dirt, sand and cliff fringes are drawn in the motif's shapes, not just the grass.
+	FieldCatalog.set_grass_pattern(WorldData.GrassPattern.CIRCLE)
+	for role: String in FieldCatalog.SEASON_PATTERN_ROLES:
+		var path := FieldCatalog.season_texture_path(role)
+		if path.is_empty():
+			continue
+		assert_str(path.get_file()).is_equal("%s_2.png" % role)
+	FieldCatalog.set_grass_pattern(WorldData.GrassPattern.TRIANGLE)
+	var triangle := FieldCatalog.season_texture_path("earth")
+	if not triangle.is_empty():
+		assert_str(triangle.get_file()).is_equal("earth.png")
+
+
 func test_grass_pattern_labels() -> void:
 	assert_str(WorldData.grass_pattern_label(WorldData.GrassPattern.TRIANGLE)).is_equal("triangle")
 	assert_str(WorldData.grass_pattern_label(WorldData.GrassPattern.SQUARE)).is_equal("square")

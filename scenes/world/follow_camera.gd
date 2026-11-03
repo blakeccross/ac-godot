@@ -479,6 +479,20 @@ func _follow(snap: bool, delta: float = 0.0) -> void:
 	_move_camera(destination, look_at_point, snap, delta, follow_rate)
 
 
+## The centre the outdoor camera heads for: held in the player's acre, or (with the acre-line
+## sweep off) anywhere in the town.
+func _acre_goal(eye: Vector3, player_at: Vector3) -> Vector3:
+	if DisplayConfig.camera_wade():
+		return AcreCamera.goal(eye, player_at)
+	return AcreCamera.goal_town(eye)
+
+
+## The camera steps (`step_indoor`) also apply outdoors on a phone or tablet, where the Camera
+## button offers them. Elsewhere the town camera stays fixed, as in the original.
+func _outdoor_steps() -> bool:
+	return InputDeviceTracker.on_mobile
+
+
 ## `Camera2_main_Normal` / `Camera2_main_Wade` outdoors.
 func _follow_acre(snap: bool, delta: float) -> void:
 	var look_w: Vector3 = _look_point()
@@ -488,7 +502,7 @@ func _follow_acre(snap: bool, delta: float) -> void:
 		_acre_active = true
 		_acre_wade = {}
 		if snap or not _has_look:
-			_acre_center = AcreCamera.goal(eye, player_at)
+			_acre_center = _acre_goal(eye, player_at)
 			_acre_pitch = AcreCamera.swing(eye, player_at)
 			_acre_distance = FOLLOW_DISTANCE
 			_acre_yaw = 0.0
@@ -501,7 +515,7 @@ func _follow_acre(snap: bool, delta: float) -> void:
 			_acre_pitch = atan2(arm.y, Vector2(arm.x, arm.z).length()) - atan2(offset.y, offset.z)
 			_acre_yaw = atan2(arm.x, arm.z)
 	var wade: Dictionary = _target.call("wade_state") as Dictionary
-	if not wade.is_empty() and _acre_wade.is_empty():
+	if not wade.is_empty() and _acre_wade.is_empty() and DisplayConfig.camera_wade():
 		## `Camera2_request_main_wade(end eye, 9, 36)` with the acre still being left.
 		var end_eye: Vector3 = (wade["end"] as Vector3) + (look_w - _target.global_position)
 		_acre_wade = {
@@ -512,7 +526,12 @@ func _follow_acre(snap: bool, delta: float) -> void:
 	if not snap:
 		_acre_step(eye, player_at, delta)
 	var center_w: Vector3 = TownSpace.field_to_world(_acre_center)
-	global_position = center_w + _arm(_acre_distance, atan2(offset.y, offset.z) + _acre_pitch, _acre_yaw)
+	var steps: bool = _outdoor_steps()
+	global_position = center_w + _arm(
+		_acre_distance + (_indoor_dist_add if steps else 0.0),
+		atan2(offset.y, offset.z) + _acre_pitch + (_indoor_pitch_add if steps else 0.0),
+		_acre_yaw + (_indoor_yaw_add if steps else 0.0),
+	)
 	_look_current = center_w
 	_has_look = true
 	look_at(center_w, Vector3.UP)
@@ -523,7 +542,7 @@ func _acre_step(eye: Vector3, player_at: Vector3, delta: float) -> void:
 	_acre_distance = AcreCamera.follow_distance(_acre_distance, FOLLOW_DISTANCE, delta)
 	_acre_yaw = AcreCamera.follow_pitch(_acre_yaw, 0.0, delta)
 	if _acre_wade.is_empty():
-		_acre_center = AcreCamera.follow(_acre_center, AcreCamera.goal(eye, player_at), delta)
+		_acre_center = AcreCamera.follow(_acre_center, _acre_goal(eye, player_at), delta)
 		_acre_pitch = AcreCamera.follow_pitch(_acre_pitch, pitch_goal, delta)
 		return
 	var t: float = float(_acre_wade["t"])
@@ -591,7 +610,7 @@ func _normal_center() -> Vector3:
 	var look_w: Vector3 = _look_point()
 	if TownSpace.is_outdoor_town():
 		return TownSpace.field_to_world(
-			AcreCamera.goal(TownSpace.world_to_field(look_w), TownSpace.world_to_field(_target.global_position))
+			_acre_goal(TownSpace.world_to_field(look_w), TownSpace.world_to_field(_target.global_position))
 		)
 	return look_w
 

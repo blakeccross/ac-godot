@@ -10,6 +10,10 @@ extends CanvasLayer
 ## gameplay. The buttons stay
 ## up over their own three screens with that button lit: the lit button closes it, another one
 ## switches (close, then open next frame). Under any other screen (talk, a shop) it hides.
+## Camera: a round button in the top left. It toggles a row of four more beside it: turn left,
+## turn right, closer, farther (`Player.turn_camera`). They work in rooms that take the indoor
+## C-stick camera (homes, the museum wings) and out in the town; anywhere else the button is
+## dimmed and the row stays shut. The bar slides off the left edge with the right-hand one.
 ## There is no B: a tapped item is picked up with B by the touch driver.
 ##
 ## Chips: a tapped host with a verb on each button (a chair to sit on or move, a sign to read
@@ -54,6 +58,15 @@ const TABS: Dictionary = {
 	&"inventory": $Root/TabBar/Tabs/Inventory,
 	&"settings": $Root/TabBar/Tabs/Settings,
 }
+@onready var _camera_bar: Control = $Root/CameraBar
+@onready var _camera_row: HBoxContainer = $Root/CameraBar/Row
+@onready var _camera_button: Button = $Root/CameraBar/Row/Camera
+@onready var _camera_steps: Dictionary = {
+	$Root/CameraBar/Row/Left: Vector2i(0, -1),
+	$Root/CameraBar/Row/Right: Vector2i(0, 1),
+	$Root/CameraBar/Row/Closer: Vector2i(-1, 0),
+	$Root/CameraBar/Row/Farther: Vector2i(1, 0),
+}
 @onready var _chips: Control = $Root/Chips
 @onready var _chip_a: Button = $Root/Chips/ChipA
 @onready var _chip_b: Button = $Root/Chips/ChipB
@@ -61,6 +74,11 @@ const TABS: Dictionary = {
 @onready var _stick_base: Panel = $Root/Stick/Base
 @onready var _stick_knob: Panel = $Root/Stick/Knob
 
+## Buttons in the camera bar (the toggle, plus four when the row is out); the layout follows.
+var _camera_cols: int = 1
+## Distance the camera bar travels to clear the left edge.
+var _camera_travel: float = BUTTON_PT
+var _camera_w: float = BUTTON_PT
 var _chip_volume: InteractVolume = null
 var _chip_pick: Callable
 var _margin_px: float = 12.0
@@ -96,6 +114,9 @@ func _ready() -> void:
 	_stick_knob.add_theme_stylebox_override(&"panel", _stick_knob_style)
 	for action: StringName in _tabs:
 		(_tabs[action] as Button).pressed.connect(press_tab.bind(action))
+	for step_button: Button in _camera_steps:
+		step_button.pressed.connect(_on_camera_step.bind(_camera_steps[step_button]))
+	_camera_button.toggled.connect(func(_on: bool) -> void: _refresh())
 	_chip_a.pressed.connect(_on_chip.bind(false))
 	_chip_b.pressed.connect(_on_chip.bind(true))
 	var sample := _tabs[&"map"] as Button
@@ -125,6 +146,17 @@ func _refresh() -> void:
 	)
 	var open: StringName = open_tab()
 	_tab_bar.visible = not _menu_up() or open != &""
+	var camera_ok := player != null and player.can_turn_camera()
+	_camera_bar.visible = not _menu_up()
+	_camera_button.disabled = not camera_ok
+	_camera_button.modulate.a = 1.0 if camera_ok else 0.45
+	var row_out: bool = camera_ok and _camera_button.button_pressed
+	for step_button: Button in _camera_steps:
+		step_button.visible = row_out
+	var cols: int = 1 + (_camera_steps.size() if row_out else 0)
+	if cols != _camera_cols:
+		_camera_cols = cols
+		_apply_tab_layout()
 	for action: StringName in _tabs:
 		(_tabs[action] as Button).set_pressed_no_signal(action == open)
 	if _chips.visible:
@@ -155,10 +187,12 @@ func _measured_px() -> float:
 
 ## Sizes the buttons in points. `px_per_point` forces a scale and `inset_right` the safe
 ## area's right inset in tests; zero and a negative value measure the window.
-func _apply_tab_layout(px_per_point: float = 0.0, inset_right: float = -1.0) -> void:
+func _apply_tab_layout(px_per_point: float = 0.0, inset_right: float = -1.0, inset_left: float = -1.0) -> void:
 	var px := px_per_point if px_per_point > 0.0 else _measured_px()
 	if inset_right < 0.0:
 		inset_right = TouchSafeArea.insets(get_viewport()).z
+	if inset_left < 0.0:
+		inset_left = TouchSafeArea.insets(get_viewport()).x
 	_margin_px = MARGIN_PT * px
 	var side := BUTTON_PT * px
 	var icon := int(round(ICON_PT * px))
@@ -166,8 +200,10 @@ func _apply_tab_layout(px_per_point: float = 0.0, inset_right: float = -1.0) -> 
 	var gap := int(round(GAP_PT * px))
 	var idle := _round_style(_idle_style, side, pad, px)
 	var lit := _round_style(_lit_style, side, pad, px)
-	for action: StringName in _tabs:
-		var button := _tabs[action] as Button
+	var buttons: Array[Button] = [_camera_button]
+	buttons.append_array(_tabs.values())
+	buttons.append_array(_camera_steps.keys())
+	for button: Button in buttons:
 		button.custom_minimum_size = Vector2(side, side)
 		button.add_theme_constant_override(&"icon_max_width", icon)
 		for state: StringName in [&"normal", &"hover", &"focus", &"disabled"]:
@@ -176,6 +212,11 @@ func _apply_tab_layout(px_per_point: float = 0.0, inset_right: float = -1.0) -> 
 			button.add_theme_stylebox_override(state, lit)
 	_tab_stack.add_theme_constant_override(&"separation", gap)
 	var stack := Vector2(side, side * _tabs.size() + gap * (_tabs.size() - 1))
+	_camera_row.add_theme_constant_override(&"separation", gap)
+	_camera_w = side * _camera_cols + gap * (_camera_cols - 1)
+	_camera_bar.offset_top = _margin_px
+	_camera_bar.offset_bottom = _margin_px + side
+	_camera_travel = side * (1 + _camera_steps.size()) + gap * _camera_steps.size() + _margin_px + inset_left + SHADOW_PT * px
 	_tab_bar.offset_top = _margin_px
 	_tab_bar.offset_bottom = _margin_px + stack.y
 	_stack_w = stack.x
@@ -205,6 +246,9 @@ func _place_bar() -> void:
 	var shift := _travel * _drop
 	_tab_bar.offset_left = -_margin_px - _stack_w + shift
 	_tab_bar.offset_right = -_margin_px + shift
+	var camera_shift := _camera_travel * _drop
+	_camera_bar.offset_left = _margin_px - camera_shift
+	_camera_bar.offset_right = _camera_bar.offset_left + _camera_w
 
 
 ## Walking tucks the bar away; standing still brings it back. A tab screen keeps it up.
@@ -260,6 +304,12 @@ func _toggle_tab(tab: StringName) -> void:
 		settings.close()
 	else:
 		settings.open(true)
+
+
+func _on_camera_step(step: Vector2i) -> void:
+	var player := Player.find(get_tree())
+	if player != null:
+		player.turn_camera(step.x, step.y)
 
 
 ## Offer the host behind `volume` as two chips; `pick(pickup)` runs on the chosen one.
@@ -362,6 +412,8 @@ func covers(at: Vector2) -> bool:
 	if not _root.visible:
 		return false
 	if _tab_bar.is_visible_in_tree() and _tab_bar.get_global_rect().has_point(at):
+		return true
+	if _camera_bar.is_visible_in_tree() and _camera_bar.get_global_rect().has_point(at):
 		return true
 	for button: Button in [_chip_a, _chip_b]:
 		if button.is_visible_in_tree() and button.get_global_rect().has_point(at):

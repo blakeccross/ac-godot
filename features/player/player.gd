@@ -863,9 +863,7 @@ func _snap_to_bg() -> bool:
 ## (`check_able_change_camera_normal_index`). `camera_move1` for up and the turns,
 ## `camera_move2` for down.
 func _poll_indoor_camera() -> void:
-	if _menu_open() or not Game.is_indoors() or Game.interior_session == null:
-		return
-	if not InteriorLighting.allows_camera_index(Game.interior_session.room):
+	if not can_turn_camera():
 		return
 	var dist_step: int = 0
 	var dir_step: int = 0
@@ -877,13 +875,31 @@ func _poll_indoor_camera() -> void:
 		dir_step = -1
 	elif Input.is_action_just_pressed("camera_right"):
 		dir_step = 1
-	if dist_step == 0 and dir_step == 0:
-		return
+	turn_camera(dist_step, dir_step)
+
+
+## Nothing is up and the camera takes steps: a room with the indoor C-stick camera, or, on a
+## phone or tablet, the open town (`FollowCamera._outdoor_steps`).
+func can_turn_camera() -> bool:
+	if _menu_open():
+		return false
+	if not Game.is_indoors():
+		return InputDeviceTracker.on_mobile and TownSpace.is_outdoor_town()
+	if Game.interior_session == null:
+		return false
+	return InteriorLighting.allows_camera_index(Game.interior_session.room)
+
+
+## Step the indoor camera (−1 closer / left, +1 farther / right) and play its sound. The touch
+## camera buttons call this too. False when nothing moved.
+func turn_camera(dist_step: int, dir_step: int) -> bool:
+	if (dist_step == 0 and dir_step == 0) or not can_turn_camera():
+		return false
 	var cam := get_viewport().get_camera_3d() as FollowCamera
-	if cam == null:
-		return
-	if cam.step_indoor(dist_step, dir_step):
-		Audio.play_se(&"camera_move2" if dist_step > 0 else &"camera_move1", null)
+	if cam == null or not cam.step_indoor(dist_step, dir_step):
+		return false
+	Audio.play_se(&"camera_move2" if dist_step > 0 else &"camera_move1", null)
+	return true
 
 
 func _menu_open() -> bool:

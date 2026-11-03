@@ -12,6 +12,9 @@ const WINDOW_SIZE := Vector2(260.0, 104.0)
 const WINDOW_CENTER_X := 167.0
 const WINDOW_BOTTOM_V := 237.4
 const MAX_BODY_LINES := 4
+## A portrait phone is narrow, so the cloud grows to take this share of the width instead of
+## fitting the 320×240 screen (which would leave it about 80% of the width).
+const PORTRAIT_FILL := 0.96
 
 const MIN_NAMEPLATE_SIZE := Vector2(98.0, 28.0)
 
@@ -343,12 +346,33 @@ func _apply_name_colors() -> void:
 	_name.add_theme_color_override("font_color", fg)
 
 
+## Portrait phone only (`InputDeviceTracker.uses_mobile_ui`). The editor has no autoloads.
+func _portrait_phone() -> bool:
+	return not Engine.is_editor_hint() and InputDeviceTracker.uses_mobile_ui()
+
+
+## Screen pixels per 320×240 reference pixel.
+func _reference_scale() -> float:
+	if _portrait_phone():
+		return size.x * PORTRAIT_FILL / WINDOW_SIZE.x
+	return minf(size.x / SCREEN_W, size.y / SCREEN_H)
+
+
+## Where the reference screen's top-left falls. The reference screen is centred, except in
+## portrait, where the cloud itself is centred across the width.
+func _reference_origin(ui_scale: float) -> Vector2:
+	var origin := (size - Vector2(SCREEN_W, SCREEN_H) * ui_scale) * 0.5
+	if _portrait_phone():
+		origin.x = size.x * 0.5 - WINDOW_CENTER_X * ui_scale
+	return origin
+
+
 func _layout() -> void:
 	if not is_node_ready():
 		return
-	var ui_scale := minf(size.x / SCREEN_W, size.y / SCREEN_H)
+	var ui_scale := _reference_scale()
 	_ui_scale = ui_scale
-	var origin := (size - Vector2(SCREEN_W, SCREEN_H) * ui_scale) * 0.5
+	var origin := _reference_origin(ui_scale)
 	var cloud := cloud_rect()
 	var full_pos := origin + cloud.position * ui_scale
 	var full_size := cloud.size * ui_scale
@@ -429,6 +453,8 @@ func _layout_choices(origin: Vector2, ui_scale: float) -> void:
 		target_center.y -= float(count - 4) * CHOICE_LINE_PITCH * ui_scale
 	var panel_center := begin_center.lerp(target_center, cs)
 	var panel_pos := panel_center - panel_size * 0.5
+	## A larger portrait scale can push a long list past the right edge.
+	panel_pos.x = clampf(panel_pos.x, 0.0, maxf(size.x - panel_size.x, 0.0))
 	_choice_panel.position = panel_pos
 	_choice_panel.size = panel_size
 	_choices.position = panel_pos + Vector2(pad.x + mark_gutter, pad.y)

@@ -53,6 +53,18 @@ static func goal(eye: Vector3, player: Vector3) -> Vector3:
 	return out
 
 
+## The player's eye clamped into the box spanning every walkable acre, so the centre keeps
+## following across an acre line instead of waiting to hop to the next acre's box. The view
+## still never leaves the town. Used when the acre-line sweep is off (`DisplayConfig.camera_wade`).
+static func goal_town(eye: Vector3) -> Vector3:
+	var first: Dictionary = box(Vector2i.ONE)
+	var last: Dictionary = box(Vector2i(WorldGenerator.FG_X, WorldGenerator.FG_Z))
+	var out := eye
+	out.x = clampf(out.x, first["x_min"], last["x_max"])
+	out.z = clampf(out.z, first["z_min"], last["z_max"])
+	return out
+
+
 ## `Camera2_ChangeCameraPos_inBlock`: the wade's camera goal. `pos` is the player's eye at the
 ## wade's end; the box is still the one of the acre being left, so the jump uses the decomp's
 ## literal offsets (they land 40 GX past the far box edge when wading north; the normal camera

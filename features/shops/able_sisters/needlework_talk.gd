@@ -48,6 +48,35 @@ static func trend_tier(count: int) -> int:
 	return 3
 
 
+## `aNNW_set_trend_cloth_message` / `_umbrella_message`: the ROM report for how many
+## villagers wear the top design (tiers 0 / 1 / <5 / 5+), then the shared sign-off.
+const MSG_TREND_CLOTH_TIERS: Array[int] = [0x2FDC, 0x2FDB, 0x2FDA, 0x2FD9]
+const MSG_TREND_UMBRELLA_TIERS: Array[int] = [0x2FE0, 0x2FDF, 0x2FDE, 0x2FDD]
+const MSG_TREND_DONE := 0x2FE1  ## "But, that's just my opinion. Did it help at all?"
+## `aNNW_string_table`: where each display sits, by slot & 3 ("far left" … "far right").
+const POSITION_STRINGS: Array[int] = [0x6CC, 0x6CB, 0x6CA, 0x6C9]
+
+
+## The ROM pages of a trend report (`{item0}`…`{item3}` still in them), or the authored
+## line without the bank.
+static func trend_pages(design_name: String, count: int, is_umbrella: bool) -> Array[String]:
+	var tiers: Array[int] = MSG_TREND_UMBRELLA_TIERS if is_umbrella else MSG_TREND_CLOTH_TIERS
+	var msg: int = tiers[trend_tier(count)]
+	if line(msg) == null:
+		return [trend_line(design_name, count, is_umbrella)]
+	return pages(msg, "")
+
+
+## `aNNW_set_trend_set_string`: the design's name and its position phrase, in the item
+## slots the report reads (cloth `{item0}` / `{item2}`, umbrella `{item1}` / `{item3}`).
+## Returns `[item0, item_strs]` for a `DialogueContext`.
+static func trend_items(design_name: String, shop_idx: int, is_umbrella: bool) -> Array:
+	var position: String = DialogueCatalog.rom_string(POSITION_STRINGS[shop_idx & 3])
+	if is_umbrella:
+		return ["", PackedStringArray([design_name, "", position, ""])]
+	return [design_name, PackedStringArray(["", position, "", ""])]
+
+
 ## Plain-English trend line for a design and its town wear count.
 static func trend_line(design_name: String, count: int, is_umbrella: bool) -> String:
 	var thing := "umbrella print" if is_umbrella else "shirt"

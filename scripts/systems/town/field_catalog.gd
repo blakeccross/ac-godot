@@ -100,6 +100,10 @@ const SEASON_FIELD_ROLES: Dictionary = {
 	"beach_wet": "beach_wet",
 	"river_edge": "river_edge",
 }
+## Field roles with a `{role}_{n}.png` sheet per grass motif (grass itself ships `grass_0`–`grass_2`).
+const SEASON_PATTERN_ROLES: PackedStringArray = [
+	"earth", "cliff", "bush_a", "bush_b", "rail", "stone", "sand", "river_edge",
+]
 const SEASON_TREE_ROLES: Dictionary = {
 	"leaf": "tree_leaf",
 	"trunk": "tree_trunk",
@@ -155,26 +159,24 @@ static func season_texture_path(role: String) -> String:
 	if role.begins_with("tree_") and season_letter() == "f":
 		return ""
 	var letter := season_tex_letter()
-	var rels: PackedStringArray = PackedStringArray()
-	if role == "grass":
-		rels.append("environment/seasons/%s/grass_%d.png" % [letter, _grass_pattern_idx])
-		rels.append("environment/seasons/%s/grass.png" % letter)
-	else:
-		rels.append("environment/seasons/%s/%s.png" % [letter, role])
-	var found: PackedStringArray = _existing(rels)
+	var found: PackedStringArray = _existing(_season_texture_candidates(letter, role))
 	if not found.is_empty():
 		return found[0]
 	if letter != "s":
-		if role == "grass":
-			found = _existing([
-				"environment/seasons/s/grass_%d.png" % _grass_pattern_idx,
-				"environment/seasons/s/grass.png",
-			])
-		else:
-			found = _existing(["environment/seasons/s/%s.png" % role])
+		found = _existing(_season_texture_candidates("s", role))
 		if not found.is_empty():
 			return found[0]
 	return ""
+
+
+static func _season_texture_candidates(letter: String, role: String) -> PackedStringArray:
+	## The town's grass motif also redraws the fringe on dirt, sand, cliffs and bushes
+	## (`{role}_{n}.png`); the plain `{role}.png` is the triangle motif.
+	var rels: PackedStringArray = PackedStringArray()
+	if _grass_pattern_idx > 0 and (role == "grass" or SEASON_PATTERN_ROLES.has(role)):
+		rels.append("environment/seasons/%s/%s_%d.png" % [letter, role, _grass_pattern_idx])
+	rels.append("environment/seasons/%s/%s.png" % [letter, role])
+	return rels
 
 
 static func wrap_tiles_from_extras(mat: Material) -> Vector2i:

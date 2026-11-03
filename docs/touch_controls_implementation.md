@@ -233,7 +233,7 @@ The rule: no overlay grows its own touch logic. Each one gets tap regions that c
 
 ## Phase 6: polish
 
-**On-screen buttons are mobile only.** The tab buttons (Map · Inventory · Settings: three round white icon buttons stacked down the top right inside the safe area, slid off the right edge while the player walks or the stick is out) and verb chips show on Android or iOS (`InputDeviceTracker.shows_touch_buttons()`). There is no arrow, OK, or Back pad. A tap still advances a waiting page. The gestures work on every platform.
+**On-screen buttons are mobile only.** The Camera button (top left, with its row of four step buttons) and the tab buttons (Map · Inventory · Settings: round white icon buttons stacked down the top right inside the safe area, slid off the right edge while the player walks or the stick is out) and verb chips show on Android or iOS (`InputDeviceTracker.shows_touch_buttons()`). There is no arrow, OK, or Back pad. A tap still advances a waiting page. The gestures work on every platform.
 
 **Done.** Haptics in `GameConfig.rumble` (`Input.vibrate_handheld` while touch is the last device), `TouchSafeArea` pads the HUD and the menu pad on phones, an Android preset plus side-load notes in `docs/testing.md` § Touch, and phone-size captures. Hit sizes were checked at 1266×585: the buttons moved up off the clock, and `SELF_RADIUS_PX`, the pick ring and the chips scale with the viewport height. The capture isn't an automated regression yet, and the haptics and safe area are untested on a device.
 

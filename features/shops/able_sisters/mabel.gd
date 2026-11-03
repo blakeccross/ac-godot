@@ -13,13 +13,9 @@ const ANIM_WAIT := "npc_1_wait1"
 const ANIM_WALK := "npc_1_walk1"
 const MENU_ID := &"mabel_menu"
 
-## `aNNW_next_target`: run to the player when they are within ~115 GX (5.75 m) and
-## in a reachable area; `aNNW_my_proc_player` runs to the player's own position and
-## stops just short. She greets the player as soon as they walk in
-## (`aNNW_force_talk_request`, think 8 / 9).
-const APPROACH_RANGE := 5.75
-const STOP_RANGE := 1.7
-const MOVE_SPEED := 2.4  ## `aNPC_ACT_RUN`
+## Safety net for the walk-over before a trade: `aNNW_omatikudasai2` waits on her
+## reaching the player, and the retail avoid logic that frees a stuck run isn't ported.
+const TRADE_WALK_TIMEOUT := 12.0
 
 enum Pending { NONE, DESIGN, BOOK, TREND, LISTEN, GBA, TRADE_PICK, ACT }
 
@@ -44,6 +40,12 @@ var _after_queue: Callable = Callable()
 var _active_ui: DialogueOverlay = null
 var _rng := RandomNumberGenerator.new()
 var _home: Vector3
+## Her roaming brain (`aNNW_MY_PROC_*`, `_schedule.c_inc`).
+var _roam := NeedleworkRoam.new()
+## `aNNW_THINK_OMATIKUDASI`: the player pressed A at a display; she walks over first.
+var _trade_walk := false
+var _trade_walk_first := false
+var _trade_walk_time := 0.0
 ## `aNNW_force_talk_request` — Mabel starts the conversation herself as the player
 ## walks in. Sticky for the visit.
 var _auto_greeted := false
@@ -60,6 +62,7 @@ func _ready() -> void:
 	_rng.randomize()
 	_ensure_visual()
 	_home = global_position
+	_roam.reset(rotation.y)
 
 
 func _process(delta: float) -> void:
@@ -81,40 +84,62 @@ func _physics_process(delta: float) -> void:
 		return
 	if _check_goodbye():
 		return
-	var roam := _roam_velocity(delta)
-	velocity = Vector3(roam.x, 0.0, roam.z)
+	if _trade_walk:
+		_walk_to_trade(delta)
+		return
+	_greet_on_entry()
+	_roam_step(delta)
+
+
+## One physics step of her roaming: tick the brain from where she and the player stand,
+## then move her body as it asks.
+func _roam_step(delta: float) -> void:
+	var player := Player.find(get_tree()) if get_tree() != null else null
+	var dlg := DialogueOverlay.find(get_tree()) if get_tree() != null else null
+	if player == null or (dlg != null and dlg.is_open()):
+		velocity = Vector3.ZERO
+		move_and_slide()
+		return
+	_roam.tick(delta, global_position, player.global_position, rotation.y)
+	rotation.y = _roam.yaw
+	velocity = _roam.velocity
 	move_and_slide()
-	if roam.length() > 0.05:
-		_face_toward(global_position + roam)
-		_play_clip(ANIM_WALK, true)
-	else:
-		_play_clip(ANIM_WAIT, true)
+	_play_clip(ANIM_WALK if _roam.moving else ANIM_WAIT, true)
 
 
-## `aNNW_my_proc_player` boiled down: run to the player while they're in range, stop
-## just short and face them. The walk-in greeting (think 8 / 9) comes first.
-func _roam_velocity(_delta: float) -> Vector3:
-	if get_tree() == null or Game == null:
-		return Vector3.ZERO
+## Think 8 / 9 is the state she spawns in: its force talk fires as soon as the player
+## can be spoken to, wherever they stand (no range check).
+func _greet_on_entry() -> void:
+	if _auto_greeted or _talking or _talked_today or Game == null:
+		return
 	var player := Player.find(get_tree())
-	if player == null:
-		return Vector3.ZERO
-	var dlg := DialogueOverlay.find(get_tree())
-	if dlg != null and dlg.is_open():
-		return Vector3.ZERO
-	## Think 8 / 9 is the state she spawns in: its force talk fires as soon as the
-	## player can be spoken to, wherever they stand (no range check).
-	if not _auto_greeted and not _talking and not _talked_today and not player.is_busy():
+	if player != null and not player.is_busy():
 		_auto_greeted = true
 		call_deferred("_begin_talk")
-		return Vector3.ZERO
-	var to_player: Vector3 = player.global_position - global_position
-	to_player.y = 0.0
-	var dist := to_player.length()
-	if dist > STOP_RANGE and dist < APPROACH_RANGE:
-		return to_player.normalized() * MOVE_SPEED
-	_face_toward(player.global_position)
-	return Vector3.ZERO
+
+
+## `aNNW_omatikudasai` / `aNNW_omatikudasai2`: with the player held in place she runs the
+## same roaming brain (closing in to 55 GX instead of 115) until it comes back to WAIT,
+## then the trade talk opens (`aNNW_THINK_11` / `_12`).
+func _walk_to_trade(delta: float) -> void:
+	var player := Player.find(get_tree())
+	if player == null:
+		_trade_walk = false
+		_trade_fixture = -1
+		return
+	_trade_walk_time += delta
+	if not _trade_walk_first and (_roam.is_waiting() or _trade_walk_time > TRADE_WALK_TIMEOUT):
+		_trade_walk = false
+		_roam.waiting_on_trade = false
+		velocity = Vector3.ZERO
+		player.set_busy(false)
+		_face_toward(player.global_position)
+		_roam.yaw = rotation.y
+		_play_clip(ANIM_WAIT, true)
+		_flow_trade_menu()
+		return
+	_trade_walk_first = false
+	_roam_step(delta)
 
 
 ## `player_go_away` → `aNNW_THINK_10`: the player stands on the row in front of the
@@ -202,11 +227,17 @@ func begin_trade(slot: int, ctx: InteractionContext) -> bool:
 		return false
 	_trade_fixture = slot
 	_pending = Pending.NONE
-	var listener: Node3D = ctx.actor as Node3D if ctx != null else _player_node()
-	_face_toward(listener.global_position if listener != null else global_position)
 	_talked_today = true
 	_auto_greeted = true
-	_flow_trade_menu()
+	## `mPlib_request_main_demo_wait_type1`: the player stands still while she comes over.
+	var player := _player_node() as Player
+	if player != null:
+		player.set_busy(true)
+		player.play_wait_idle()
+	_roam.waiting_on_trade = true
+	_trade_walk = true
+	_trade_walk_first = true
+	_trade_walk_time = 0.0
 	return true
 
 
@@ -571,10 +602,22 @@ func _flow_trend() -> void:
 		return
 	var cloth: Array = Game.designs.trend_top(false, _rng)
 	var umb: Array = Game.designs.trend_top(true, _rng)
-	_line_queue = [
-		{"text": NeedleworkTalk.trend_line(Game.designs.shop[cloth[0] & 7].name, int(cloth[1]), false), "speaker": "Mabel"},
-		{"text": NeedleworkTalk.trend_line(Game.designs.shop[umb[0] & 7].name, int(umb[1]), true), "speaker": "Mabel"},
-	]
+	var cloth_name: String = Game.designs.shop[int(cloth[0]) & 7].name
+	var umb_name: String = Game.designs.shop[int(umb[0]) & 7].name
+	## One window, as in the original (`mMsg_Set_ForceNext`): the shirt report, the umbrella
+	## report, then the sign-off. Shirt text reads `{item0}` / `{item2}`, umbrella `{item1}`
+	## / `{item3}`, so both sets of strings ride the same context.
+	var pages: Array[String] = []
+	pages.append_array(NeedleworkTalk.trend_pages(cloth_name, int(cloth[1]), false))
+	pages.append_array(NeedleworkTalk.trend_pages(umb_name, int(umb[1]), true))
+	pages.append_array(NeedleworkTalk.pages(NeedleworkTalk.MSG_TREND_DONE, "...But, that's just my\nopinion. Did it help at all?"))
+	var cloth_items: Array = NeedleworkTalk.trend_items(cloth_name, int(cloth[0]), false)
+	var umb_items: Array = NeedleworkTalk.trend_items(umb_name, int(umb[0]), true)
+	var strs: PackedStringArray = PackedStringArray(["", "", "", ""])
+	strs[0] = umb_name
+	strs[1] = (cloth_items[1] as PackedStringArray)[1]
+	strs[2] = (umb_items[1] as PackedStringArray)[2]
+	_line_queue = [{"pages": pages, "speaker": "Mabel", "item0": cloth_name, "item_strs": strs}]
 	_after_queue = Callable()
 	_flush_queue()
 
@@ -710,7 +753,8 @@ func _flush_queue() -> void:
 	var speaker: String = str(entry.get("speaker", "Mabel"))
 	var ui := DialogueOverlay.find(get_tree())
 	if ui == null:
-		Game.post_notice("%s: %s" % [speaker, str(entry.get("text", "")).replace("\n", " ")])
+		var shown: String = str(entry["pages"][0]) if entry.has("pages") else str(entry.get("text", ""))
+		Game.post_notice("%s: %s" % [speaker, shown.replace("\n", " ")])
 		_flush_queue()
 		return
 	var focus: Node3D = entry.get("focus") as Node3D
@@ -724,7 +768,16 @@ func _flush_queue() -> void:
 		_start_talk_session(_player_node())
 	if not ui.closed.is_connected(_on_queue_closed):
 		ui.closed.connect(_on_queue_closed, CONNECT_ONE_SHOT)
-	ui.play(_one_line("mabel_queue", str(entry.get("text", ""))), _make_ctx(speaker))
+	var ctx: DialogueContext = _make_ctx(speaker)
+	ctx.item0 = str(entry.get("item0", ""))
+	if entry.has("item_strs"):
+		ctx.item_strs = entry["item_strs"]
+	var said: Array[String] = []
+	if entry.has("pages"):
+		said.assign(entry["pages"])
+	else:
+		said.append(str(entry.get("text", "")))
+	ui.play(_pages_data("mabel_queue", said), ctx)
 
 
 func _on_queue_closed() -> void:

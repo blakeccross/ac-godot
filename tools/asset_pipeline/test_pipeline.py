@@ -2171,8 +2171,15 @@ class SeasonRoleTests(unittest.TestCase):
     def test_grass_pattern_symbol_order(self) -> None:
         from asset_pipeline.seasons import _GRASS_TEX_SYMBOLS
 
-        self.assertIn("mFM_grd_s_grass_3_tex", _GRASS_TEX_SYMBOLS["s"][1])
-        self.assertIn("mFM_grd_s_grass_2_tex", _GRASS_TEX_SYMBOLS["s"][2])
+        ## Pattern N reads `l_bg_tex_segment_rom_start_*_N`: plain, `_2` (square), `_3` (circle).
+        self.assertIn("mFM_grd_s_grass_2_tex", _GRASS_TEX_SYMBOLS["s"][1])
+        self.assertIn("mFM_grd_s_grass_3_tex", _GRASS_TEX_SYMBOLS["s"][2])
+
+    def test_pattern_roles_cover_fringe_tiles(self) -> None:
+        from asset_pipeline.seasons import _PATTERN_ROLE_SPECS, FIELD_ROLE_NEEDLES
+
+        ## Everything the motif redraws except grass itself, which has its own export.
+        self.assertEqual(set(_PATTERN_ROLE_SPECS), set(FIELD_ROLE_NEEDLES) - {"grass"})
 
 
 class VertexShadeTests(unittest.TestCase):

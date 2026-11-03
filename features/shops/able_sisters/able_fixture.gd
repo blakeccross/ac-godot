@@ -52,10 +52,9 @@ func _refresh_design() -> void:
 	var tex: Texture2D = DesignTexture.build(d)
 	VisualCloth.apply_design(self, tex)
 	if kind == Kind.UMBRELLA:
-		## `obj_shop_umbmy` binds the design to `ANIME_2` on the `umb_w` canopy.
-		VisualCloth.paint_surface_albedo(
-			self, tex, PackedStringArray(["kasa", "umbmy", "umb_w", "anime_2"])
-		)
+		## `obj_shop_umbmy` binds the design to `ANIME_2` (`seg_09`) for the canopy only;
+		## the handle is the plain `tol_umb_w_tuka` texture and keeps it.
+		VisualCloth.paint_surface_albedo(self, tex, PackedStringArray(["seg_09", "anime_2"]))
 
 
 ## The display's model under `Model`.

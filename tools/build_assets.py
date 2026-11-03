@@ -45,6 +45,7 @@ from asset_pipeline.weather_sprites import export_weather_sprites  # noqa: E402
 from asset_pipeline.first_run import ensure_decomp, local_config_path, write_local_config  # noqa: E402
 from asset_pipeline.extract import extract_archives, extract_disc  # noqa: E402
 from asset_pipeline.design_ui import extract_design_ui  # noqa: E402
+from asset_pipeline.needlework_seed import extract_needlework_seed  # noqa: E402
 from asset_pipeline.menu_ui import extract_menu_ui  # noqa: E402
 from asset_pipeline.inventory_ui import extract_inventory_ui  # noqa: E402
 from asset_pipeline.map_ui import extract_map_ui  # noqa: E402
@@ -63,6 +64,7 @@ SIDE_KINDS = (
     "seasons",
     "inventory-ui",
     "design-ui",
+    "needlework",
     "menu-ui",
     "map-ui",
     "message-ui",
@@ -157,6 +159,13 @@ def convert_kind(cfg, kind: str) -> bool:
                 print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
             if errors:
                 failed = True
+    elif kind == "needlework":
+        report = extract_needlework_seed(cfg)
+        if report.get("error"):
+            print(f"needlework: {report['error']}")
+            failed = True
+        else:
+            print(f"wrote {report['converted']} starting designs -> {report['output']}")
     elif kind == "design-ui":
         report = extract_design_ui(cfg)
         if report.get("error"):
@@ -430,7 +439,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "design-ui", "menu-ui", "map-ui", "message-ui", "clock-ui", "title", "dialogue", "villagers", "villager-textures", "faces", "audio", "water", "fish", "bugs", "seasons"],
+        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "design-ui", "needlework", "menu-ui", "map-ui", "message-ui", "clock-ui", "title", "dialogue", "villagers", "villager-textures", "faces", "audio", "water", "fish", "bugs", "seasons"],
         default="all",
         help="all (default: the full convert, then FG templates, seasons, UI chrome, title, dialogue, faces and audio; not villagers), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory/map UI chrome, dialogue banks, villager roster from decomp tables, per-villager body texture sets, NPC eye/mouth face frames, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
     )

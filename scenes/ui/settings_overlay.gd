@@ -17,6 +17,7 @@ var _resume_on_close: bool = false
 var _waiting: StringName = &""
 var _bind_buttons: Dictionary = {} ## StringName → Button
 var _screen_button: Button
+var _wade_button: Button
 
 
 ## The one in `tree`, or null.
@@ -62,6 +63,9 @@ func _fit_window() -> void:
 	var tall := 56.0 if portrait else 0.0
 	for button: Button in _bind_buttons.values():
 		button.custom_minimum_size.y = tall
+	for button: Button in [_screen_button, _wade_button]:
+		if button != null:
+			button.custom_minimum_size.y = tall
 	_reset.custom_minimum_size = Vector2(140, tall)
 	_back.custom_minimum_size = Vector2(140, tall)
 	var scroll := _root.get_node("Center/Panel/Margin/VBox/Scroll") as Control
@@ -101,6 +105,7 @@ func _build_rows() -> void:
 		child.queue_free()
 	_bind_buttons.clear()
 	_list.add_child(_build_screen_row())
+	_list.add_child(_build_wade_row())
 	for entry: Dictionary in InputBindings.ACTIONS:
 		var id: StringName = entry["id"]
 		var row := HBoxContainer.new()
@@ -135,6 +140,27 @@ func _build_screen_row() -> HBoxContainer:
 	return row
 
 
+func _build_wade_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var name_label := Label.new()
+	name_label.text = "Camera scroll"
+	name_label.custom_minimum_size = Vector2(160, 0)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_wade_button = Button.new()
+	_wade_button.custom_minimum_size = Vector2(260, 0)
+	_wade_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_wade_button.pressed.connect(_on_wade_pressed)
+	row.add_child(name_label)
+	row.add_child(_wade_button)
+	return row
+
+
+func _on_wade_pressed() -> void:
+	DisplayConfig.set_camera_wade(not DisplayConfig.camera_wade())
+	_refresh_labels()
+
+
 func _on_screen_pressed() -> void:
 	DisplayConfig.set_aspect(DisplayConfig.next(), get_window())
 	_refresh_labels()
@@ -143,6 +169,8 @@ func _on_screen_pressed() -> void:
 func _refresh_labels() -> void:
 	if _screen_button != null:
 		_screen_button.text = DisplayConfig.label()
+	if _wade_button != null:
+		_wade_button.text = "Sweep across acres: %s" % ("On" if DisplayConfig.camera_wade() else "Off")
 	for id: Variant in _bind_buttons.keys():
 		var button: Button = _bind_buttons[id]
 		if id == _waiting:

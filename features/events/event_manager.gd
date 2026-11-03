@@ -438,6 +438,11 @@ func npc_can_stand(cell: Vector2i, hard: bool = false) -> bool:
 		return false
 	if not world.grid.is_walkable(cell) or world.grid.is_occupied(cell):
 		return false
+	## `mFI_CheckFGNpcOn` + `mCoBG_Attr2CheckPlaceNpc`: nothing on the unit, an attribute an NPC
+	## may stand on, and not under a house's raised body (`SetPluss5PointOffset`).
+	if world.layout != null:
+		if not VillagerWalk.is_standable(world.layout, cell) or FieldCollision.is_raised_plus(world.layout, cell):
+			return false
 	if hard:
 		var t: WorldGrid.Terrain = world.grid.terrain_at(cell)
 		if t != WorldGrid.Terrain.GRASS and t != WorldGrid.Terrain.SOIL and t != WorldGrid.Terrain.STONE:

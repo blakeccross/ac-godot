@@ -8,6 +8,7 @@ changes — including when only summer meshes are present on disk.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -73,18 +74,33 @@ _FIELD_TEX_SPECS: dict[str, tuple[int, int, str]] = {
 	"rail_tex": (64, 64, "rail_pal"),
 }
 
-## `mFM_BG_TEX_*` order: triangle, square, circle. Each maps to a distinct CI4 tile in REL.
+## `mFM_BG_TEX_*` order: triangle, square, circle. Pattern N reads the `l_bg_tex_segment_rom_start_*_N`
+## table, i.e. the unsuffixed tile, then `_2_tex` (squares), then `_3_tex` (circles).
 _GRASS_TEX_SYMBOLS: dict[str, tuple[tuple[str, ...], ...]] = {
 	"s": (
 		("mFM_grd_s_grass_tex", "grd_s_grass_tex"),
-		("mFM_grd_s_grass_3_tex", "grd_s_grass_3_tex"),
 		("mFM_grd_s_grass_2_tex", "grd_s_grass_2_tex"),
+		("mFM_grd_s_grass_3_tex", "grd_s_grass_3_tex"),
 	),
 	"w": (
 		("mFM_grd_w_grass_tex", "grd_w_grass_tex"),
-		("mFM_grd_w_grass_3_tex", "grd_w_grass_3_tex"),
 		("mFM_grd_w_grass_2_tex", "grd_w_grass_2_tex"),
+		("mFM_grd_w_grass_3_tex", "grd_w_grass_3_tex"),
 	),
+}
+
+## Field tiles the game rebinds per grass motif beside `grass`: the leaf / blade fringe on dirt,
+## sand, cliffs and bushes is drawn in the motif's shapes. Pattern 0 is the plain `{role}.png`;
+## patterns 1 and 2 write `{role}_{n}.png`. Size and palette table per `m_bg_tex.c` / `mFM_*_pal`.
+_PATTERN_ROLE_SPECS: dict[str, tuple[int, int, str]] = {
+	"earth": (64, 64, "earth_pal"),
+	"cliff": (64, 64, "cliff_pal"),
+	"bush_a": (64, 64, "bush_pal"),
+	"bush_b": (64, 32, "bush_pal"),
+	"rail": (64, 64, "rail_pal"),
+	"stone": (64, 64, "earth_pal"),
+	"sand": (64, 32, "beach_pal"),
+	"river_edge": (64, 32, "cliff_pal"),
 }
 _EARTH_PAL_SYMBOLS: tuple[str, ...] = (
 	"mFM_earth_pal_dummy",
@@ -280,12 +296,12 @@ def _discover_grass_symbol(bank: TextureBank, bg_season: str, pattern: int):
 			if needle in lower and "grass_2" not in lower and "grass_3" not in lower:
 				return sym
 	elif pattern == 1:
-		needle = f"grd_{bg_season}_grass_3_tex"
+		needle = f"grd_{bg_season}_grass_2_tex"
 		for name, sym in sorted(bank.by_name.items()):
 			if needle in name.lower():
 				return sym
 	else:
-		needle = f"grd_{bg_season}_grass_2_tex"
+		needle = f"grd_{bg_season}_grass_3_tex"
 		for name, sym in sorted(bank.by_name.items()):
 			if needle in name.lower():
 				return sym
@@ -375,6 +391,66 @@ def _export_grass_patterns(
 			if force or not legacy.is_file():
 				_write_png(legacy, png, cfg.project_root)
 				written.append(str(legacy))
+	return written, missing
+
+
+def _export_pattern_roles(
+	cfg: PipelineConfig,
+	bank: TextureBank,
+	season: str,
+	out_dir: Path,
+	*,
+	force: bool,
+) -> tuple[list[str], list[str]]:
+	"""Write ``{role}_1.png`` / ``{role}_2.png`` for the non-grass field tiles of each motif."""
+	written: list[str] = []
+	missing: list[str] = []
+	bg_season = "w" if season == "w" else "s"
+	for variant in range(1, GRASS_PATTERN_COUNT):
+		_clear_bank(bank)
+		bank.bind_field_bg(
+			season=bg_season,
+			variant=variant,
+			pal_row=_FIELD_PAL_ROW_BY_SEASON[season],
+		)
+		seg = bank.segment_images.get(0x80)
+		names = bank._segment_offset_names.get(0x80, {})
+		if seg is None or not names:
+			missing.append(f"{season}/pattern_{variant}:no_field_bank")
+			continue
+		data = bytes(seg.data)
+		pals: dict[str, bytes] = {}
+		for key in {spec[2] for spec in _PATTERN_ROLE_SPECS.values()}:
+			off = _pal_offset(names, key)
+			if off is not None and off + 32 <= len(data):
+				pals[key] = data[off : off + 32]
+		found: set[str] = set()
+		for off, name in sorted(names.items()):
+			if "pal" in name.lower():
+				continue
+			## `mFM_grd_s_river_2_tex` → `river_tex`, so the role needles still match.
+			role = _role_for_name(re.sub(r"_[23]_tex$", "_tex", name), FIELD_ROLE_NEEDLES)
+			spec = _PATTERN_ROLE_SPECS.get(role)
+			if spec is None or role in found:
+				continue
+			width, height, pal_key = spec
+			pal = pals.get(pal_key)
+			needed = width * height // 2
+			if pal is None or off + needed > len(data):
+				continue
+			try:
+				png = _field_tile_png(bank, data[off : off + needed], width, height, pal)
+			except (KeyError, ValueError, IndexError):
+				continue
+			found.add(role)
+			dest = out_dir / f"{role}_{variant}.png"
+			if dest.is_file() and not force:
+				continue
+			_write_png(dest, png, cfg.project_root)
+			written.append(str(dest))
+		for role in _PATTERN_ROLE_SPECS:
+			if role not in found:
+				missing.append(f"{season}/{role}_{variant}")
 	return written, missing
 
 
@@ -482,6 +558,9 @@ def _export_field_season(
 			bank, rel, symbols, extra_job, cfg.scale, FIELD_ROLE_NEEDLES, by_role
 		)
 	w, m = _export_grass_patterns(cfg, bank, rel, season, out_dir, force=force)
+	written.extend(w)
+	missing.extend(m)
+	w, m = _export_pattern_roles(cfg, bank, season, out_dir, force=force)
 	written.extend(w)
 	missing.extend(m)
 	for role in (*FIELD_ROLE_NEEDLES, *SEASON_STATE_ROLES):

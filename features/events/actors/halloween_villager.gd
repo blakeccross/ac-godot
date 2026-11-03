@@ -7,6 +7,8 @@ extends EventNpc
 const RUN_SPEED := 3.0
 const CALL_RANGE := 3.5  ## 70 GX
 const CHASE_REPATH := 0.5
+## `aNPC_THINK_INTERRUPT_OBSTACLE`: pinned against a house, it stops and thinks again.
+const OBSTACLE_PAUSE := 1.0
 
 var villager: VillagerData
 var _met: bool = false
@@ -50,6 +52,12 @@ func _same_acre() -> bool:
 		return false
 	return EventManager.cell_to_block(world.grid.world_to_cell(p.global_position)) == \
 		EventManager.cell_to_block(world.grid.world_to_cell(global_position))
+
+
+func move_blocked() -> void:
+	stop_moving()
+	_repath = OBSTACLE_PAUSE
+	play_clip(idle_clip(), true)
 
 
 func think(delta: float) -> void:

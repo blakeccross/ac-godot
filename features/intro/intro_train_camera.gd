@@ -48,7 +48,6 @@ func setup(camera: Camera3D, eye_gx: Vector3 = IntroTrainStage.CAM_EYE_GX, look_
 	_look_gx = look_gx
 	if _camera == null:
 		return
-	_camera.fov = IntroTrainStage.CAM_FOV
 	_camera.near = IntroTrainStage.CAM_NEAR_METERS
 	_camera.far = IntroTrainStage.CAM_FAR_GX * FieldCatalog.GX_TO_METERS
 	_camera_move = 0.0
@@ -121,6 +120,8 @@ func advance(delta: float, shadow_gx: Vector3) -> void:
 	_shadow_gx = shadow_gx
 	if _camera == null:
 		return
+	## Every frame, so turning the phone takes effect at once.
+	_camera.fov = IntroPortraitLens.fov(IntroTrainStage.CAM_FOV)
 	_apply_sway(delta)
 	_camera_tilt = rotate_toward(_camera_tilt, _camera_tilt_goal, _camera_tilt_chase * delta * DecompTime.FRAME_HZ)
 	var tilt_sin: float = sin(_camera_tilt)

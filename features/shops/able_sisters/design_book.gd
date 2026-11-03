@@ -20,8 +20,8 @@ const PLAYER_START_PALETTES: Array = [0, 8, 7, 7, 0, 0, 0, 0]
 ## mNW_InitNeedleworkPelatteNo: pal_table {7,1,10,3,6,0,6,7}
 const SHOP_START_PALETTES: Array = [7, 1, 10, 3, 6, 0, 6, 7]
 
-## ROM string table 0x6DF+i / 0x6E7+i (not yet extracted by the asset pipeline).
-## TODO: replace with the real localized names once the string table is dumped.
+## Stand-in names for a checkout with no generated assets; the real ones are ROM strings
+## 0x6DF+i / 0x6E7+i, read from `seed_designs.json`.
 const PLAYER_START_NAMES: Array = [
 	"Sample 1", "Sample 2", "Sample 3", "Sample 4",
 	"blank", "blank", "blank", "blank",
@@ -84,7 +84,7 @@ func clear() -> void:
 	listened_flag = false
 
 
-## Placeholder motifs per starter slot until ARAM slots 27/28 are extracted.
+## Placeholder motifs per starter slot when `seed_designs.json` is missing.
 const PLAYER_START_MOTIFS: Array = [
 	DesignPattern.Motif.VSTRIPE, DesignPattern.Motif.CHECK,
 	DesignPattern.Motif.FLOWER, DesignPattern.Motif.DIAMOND,
@@ -100,55 +100,49 @@ func _seed_player(i: int) -> DesignPattern:
 	if i >= 4:
 		return DesignPattern.blank()
 	var d := _load_seed("player_%02d" % i, int(PLAYER_START_PALETTES[i]), int(PLAYER_START_MOTIFS[i]))
-	d.name = str(PLAYER_START_NAMES[i])
+	d.name = str(_seed_entry("player_%02d" % i).get("name", PLAYER_START_NAMES[i]))
 	return d
 
 
 func _seed_shop(i: int) -> DesignPattern:
 	var d := _load_seed("shop_%02d" % i, int(SHOP_START_PALETTES[i]), int(SHOP_START_MOTIFS[i]))
-	d.name = str(SHOP_START_NAMES[i])
+	d.name = str(_seed_entry("shop_%02d" % i).get("name", SHOP_START_NAMES[i]))
 	return d
 
 
-## ARAM resource slots 27 (player) / 28 (shop) if the pipeline extracted them,
-## else a generated placeholder motif.
+## The disc's starting designs (ARAM resources 27 / 28, `seed_designs.json` from the
+## `needlework` pipeline kind), else a generated placeholder motif.
 func _load_seed(stem: String, palette_idx: int, motif: int) -> DesignPattern:
-	var path := "res://assets/generated/needlework/%s.png" % stem
-	if ResourceLoader.exists(path):
-		var tex: Variant = load(path)
-		var img: Image = (tex as Texture2D).get_image() if tex is Texture2D else null
-		if img != null and img.get_width() == DesignPattern.WIDTH and img.get_height() == DesignPattern.HEIGHT:
-			var d := DesignPattern.blank()
-			d.palette = palette_idx
-			d.flag_set = true
-			d.pixels = _quantise(img, palette_idx)
-			return d
+	var entry: Dictionary = _seed_entry(stem)
+	if not entry.is_empty():
+		var d := DesignPattern.blank()
+		d.palette = palette_idx
+		d.flag_set = true
+		d.from_ci4(Marshalls.base64_to_raw(str(entry.get("ci4", ""))))
+		return d
 	## fg/bg indices vary per motif so palettes with a dark tail still read well.
 	var fg := 2 + (motif % 5)
 	var bg := 9 if palette_idx not in [13, 14] else 4
 	return DesignPattern.generate(motif, palette_idx, fg, bg)
 
 
-func _quantise(img: Image, palette_idx: int) -> PackedByteArray:
-	var pal := NeedleworkPalettes.colors(palette_idx)
-	var out := PackedByteArray()
-	out.resize(DesignPattern.WIDTH * DesignPattern.HEIGHT)
-	for y in DesignPattern.HEIGHT:
-		for x in DesignPattern.WIDTH:
-			var c := img.get_pixel(x, y)
-			var best := 0
-			var best_d := 1e9
-			for ci in NeedleworkPalettes.COLOR_COUNT:
-				var pc := pal[ci]
-				var dr := c.r - pc.r
-				var dg := c.g - pc.g
-				var db := c.b - pc.b
-				var dist := dr * dr + dg * dg + db * db
-				if dist < best_d:
-					best_d = dist
-					best = ci
-			out[y * DesignPattern.WIDTH + x] = best
-	return out
+static var _seed_cache: Dictionary = {}
+
+
+## `stem` is `player_NN` / `shop_NN`; the entry carries the ROM name and CI4 blob.
+static func _seed_entry(stem: String) -> Dictionary:
+	if _seed_cache.is_empty():
+		var path := "res://assets/generated/needlework/seed_designs.json"
+		var parsed: Variant = null
+		if FileAccess.file_exists(path):
+			parsed = JSON.parse_string(FileAccess.get_file_as_string(path))
+		_seed_cache = parsed if parsed is Dictionary else {"none": true}
+	var parts := stem.split("_")
+	var rows: Variant = _seed_cache.get(parts[0], [])
+	var idx := int(parts[1])
+	if rows is Array and idx < (rows as Array).size() and (rows as Array)[idx] is Dictionary:
+		return (rows as Array)[idx]
+	return {}
 
 
 # --- lookups -----------------------------------------------------------------

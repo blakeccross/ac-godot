@@ -307,3 +307,99 @@ func test_hidden_under_other_screens_and_on_a_desktop() -> void:
 	InputDeviceTracker.on_mobile = false
 	_hud._refresh()
 	assert_bool(_hud.get_node("Root").visible).is_false()
+
+
+
+## Put the player in a room that takes the indoor camera (or out of it).
+func _enter_room(room_id: StringName) -> void:
+	var session := IndoorSession.new()
+	session.bind(InteriorCatalog.room_template(room_id))
+	Game.interior_session = session
+	Game.current_room_id = room_id
+
+
+func _leave_room() -> void:
+	Game.interior_session = null
+	Game.current_room_id = &""
+
+
+func _camera_button() -> Button:
+	return _hud.get_node("Root/CameraBar/Row/Camera") as Button
+
+
+func test_the_camera_button_sits_top_left_and_dims_where_it_cannot_turn() -> void:
+	_enter_room(&"museum_fish")
+	_hud._refresh()
+	_hud._apply_tab_layout(1.0, 0.0, 0.0)
+	await get_tree().process_frame
+	var root := (_hud.get_node("Root") as Control).get_global_rect()
+	var rect := _camera_button().get_global_rect()
+	assert_float(rect.position.x).is_equal_approx(root.position.x + TouchHud.MARGIN_PT, 1.0)
+	assert_float(rect.position.y).is_equal_approx(root.position.y + TouchHud.MARGIN_PT, 1.0)
+	assert_bool(_camera_button().disabled).is_false()
+	_enter_room(&"museum_entrance")
+	_hud._refresh()
+	assert_bool(_camera_button().disabled).is_true()
+	assert_float(_camera_button().modulate.a).is_less(1.0)
+	_leave_room()
+
+
+func test_the_camera_button_works_in_the_open_town_on_a_phone() -> void:
+	## `can_turn_camera` outdoors needs a generated town; on any other the button stays dim.
+	_leave_room()
+	_hud._refresh()
+	var player := Player.find(get_tree())
+	assert_bool(_camera_button().disabled).is_equal(not player.can_turn_camera())
+
+
+func test_the_camera_button_toggles_the_four_step_buttons() -> void:
+	_enter_room(&"museum_fish")
+	var row := _hud.get_node("Root/CameraBar/Row")
+	_hud._refresh()
+	for name: String in ["Left", "Right", "Closer", "Farther"]:
+		assert_bool((row.get_node(name) as Control).visible).is_false()
+	_camera_button().button_pressed = true
+	_hud._refresh()
+	for name: String in ["Left", "Right", "Closer", "Farther"]:
+		assert_bool((row.get_node(name) as Control).visible).is_true()
+	_camera_button().button_pressed = false
+	_hud._refresh()
+	assert_bool((row.get_node("Left") as Control).visible).is_false()
+	_camera_button().button_pressed = true
+	_leave_room()
+	_hud._refresh()
+	assert_bool((row.get_node("Left") as Control).visible).is_equal(Player.find(get_tree()).can_turn_camera())
+
+
+func test_a_camera_step_button_moves_the_camera() -> void:
+	_enter_room(&"museum_fish")
+	var cam := auto_free(FollowCamera.new()) as FollowCamera
+	add_child(cam)
+	cam.make_current()
+	_camera_button().button_pressed = true
+	_hud._refresh()
+	var row := _hud.get_node("Root/CameraBar/Row")
+	(row.get_node("Closer") as Button).pressed.emit()
+	assert_that(cam.indoor_index()).is_equal(Vector2i(0, 1))
+	(row.get_node("Right") as Button).pressed.emit()
+	assert_that(cam.indoor_index()).is_equal(Vector2i(0, 2))
+	(row.get_node("Farther") as Button).pressed.emit()
+	assert_that(cam.indoor_index()).is_equal(Vector2i(1, 2))
+	(row.get_node("Left") as Button).pressed.emit()
+	assert_that(cam.indoor_index()).is_equal(Vector2i(1, 1))
+	_leave_room()
+
+
+func test_the_step_buttons_sit_right_of_the_camera_button_and_count_as_covered() -> void:
+	_enter_room(&"museum_fish")
+	_camera_button().button_pressed = true
+	_hud._refresh()
+	_hud._apply_tab_layout(1.0, 0.0, 0.0)
+	await get_tree().process_frame
+	var camera := _camera_button().get_global_rect()
+	var farther := (_hud.get_node("Root/CameraBar/Row/Farther") as Control).get_global_rect()
+	assert_float(farther.position.x).is_greater_equal(camera.end.x)
+	assert_float(farther.position.y).is_equal_approx(camera.position.y, 1.0)
+	assert_bool(_hud.covers(farther.get_center())).is_true()
+	assert_bool(_hud.covers(camera.get_center())).is_true()
+	_leave_room()

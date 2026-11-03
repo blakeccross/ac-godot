@@ -38,6 +38,7 @@ func _ready() -> void:
 	_dialogue.awaiting_input_changed.connect(_on_awaiting_input_changed)
 	_setup_stage_look()
 	_setup_camera()
+	InputDeviceTracker.layout_changed.connect(_apply_lens)
 	_refresh_missing()
 	if _fade != null:
 		_fade.modulate.a = 0.0
@@ -140,11 +141,16 @@ func _setup_camera() -> void:
 	if _camera == null:
 		return
 	_camera.current = true
-	_camera.fov = IntroKkStage.CAM_FOV
+	_apply_lens()
 	_camera.near = IntroKkStage.CAM_NEAR
 	_camera.far = IntroKkStage.CAM_FAR
 	_camera.global_position = IntroKkStage.CAM_EYE
 	_camera.look_at(IntroKkStage.CAM_CENTER, Vector3.UP)
+
+
+## Zooms out in portrait, so K.K. and his guitar fit the narrow screen.
+func _apply_lens() -> void:
+	_camera.fov = IntroPortraitLens.fov(IntroKkStage.CAM_FOV)
 
 
 func _refresh_missing() -> void:

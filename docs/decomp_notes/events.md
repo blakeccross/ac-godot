@@ -227,6 +227,7 @@ Implemented (manager layer, `ac_event_manager` equivalent):
 
 Gaps (behaviour that differs from the decomp or is missing):
 - Visitors appear at their spot for the whole event; the original's walk-in / walk-out at the acre edge ("show at wade") is not modelled. Jack and Jingle teleport to a new acre once the player is 20 m away.
+- Event NPCs walk under the villagers' BG rules: `EventNpc._step_move` runs every step through `FieldCollision.revise_xz` (houses are `StructureOffset` heightfield walls), and a move pinned for 1 s calls `move_blocked()` (scripted moves finish at the spot; Halloween costumes stop and re-think, like `aNPC_THINK_INTERRUPT_OBSTACLE`). `EventManager.npc_can_stand` also applies `mCoBG_Attr2CheckPlaceNpc` and refuses raised house-body units. Jack himself stands still in the port; the original wanders (`aNPC_CT_SCHED_TYPE_WANDER`).
 - Rows kept but disabled (`EventSchedule.UNSUPPORTED`): bridge, Blanca / go-home NPC, Wisp. Wisp needs the spirit (hitodama) field actors; Blanca needs the face editor.
 - Sports fair: residents stand at their stations with their lines, but the foot race, ball toss and tug-of-war games (`ac_tokyoso_*`, `ac_tamaire_*`, `ac_tunahiki_*`) are not played. Aerobics: no Copper, no Tortimer radio card (`mSC_Radio_*`). New Year's: no queue at the offering box (`ac_hatumode_control`). Groundhog: no pop-up demo.
 - Meteor shower has no shooting stars (`eEC_EFFECT_SHOOTING_SET`); the fireworks' ground flash is one omni light.

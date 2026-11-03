@@ -11,6 +11,10 @@ const TURN_RATE := deg_to_rad(11.25) * 30.0
 const WAIT_CYCLE_FALLBACK := 2.0
 ## `aNPC_ACT_WALK` pace (≈ 1.5 m/s); presenters pass their own for runs.
 const WALK_SPEED := 1.5
+## A step that keeps less than this fraction of its length is a wall scrape; that long
+## without progress hands the move to `move_blocked()`.
+const STUCK_FRAC := 0.35
+const STUCK_SECONDS := 1.0
 
 ## Event this NPC belongs to (`mEv_EVENT_*` id); set by `EventManager`.
 var event_id: StringName = &""
@@ -43,6 +47,7 @@ var _manpu_clip: String = ""
 var _turning_home: bool = false
 var _move_target: Vector3 = Vector3.INF
 var _move_speed: float = 0.0
+var _stuck_time: float = 0.0
 var _wander_wait: float = 0.0
 var _rng := RandomNumberGenerator.new()
 
@@ -131,6 +136,15 @@ func is_moving() -> bool:
 
 func stop_moving() -> void:
 	_move_target = Vector3.INF
+	_stuck_time = 0.0
+
+
+## The walk made no headway against a wall for `STUCK_SECONDS`. Scripted moves keep their
+## sequence by finishing at the spot; wanderers and chasers override to give up instead.
+func move_blocked() -> void:
+	global_position = Vector3(_move_target.x, global_position.y, _move_target.z)
+	stop_moving()
+	arrived()
 
 
 func arrived() -> void:
@@ -161,16 +175,25 @@ func _step_move(delta: float) -> void:
 	var step: float = _move_speed * delta
 	if dist <= step or dist < 0.01:
 		global_position = Vector3(_move_target.x, global_position.y, _move_target.z)
-		_move_target = Vector3.INF
+		stop_moving()
 		arrived()
 		return
 	turn_to(atan2(to.x, to.z), delta)
-	global_position += to / dist * step
+	var from: Vector3 = global_position
+	var next: Vector3 = from + to / dist * step
 	var world: World = World.find(get_tree()) if get_tree() != null else null
 	if world != null and world.layout != null:
-		var cell: Vector2i = world.grid.world_to_cell(global_position)
-		if world.layout.is_in_bounds(cell):
-			global_position.y = FieldCollision.ground_y(world.layout, cell)
+		## `BgCheckControll`: houses, cliffs and water are heightfield walls (`mCoBG`), the same
+		## ones villagers and the player slide along.
+		next = FieldCollision.revise_xz(world.layout, world.grid, from, next)
+	global_position = next
+	var moved := Vector2(next.x - from.x, next.z - from.z).length()
+	if moved < step * STUCK_FRAC:
+		_stuck_time += delta
+		if _stuck_time >= STUCK_SECONDS:
+			move_blocked()
+	else:
+		_stuck_time = 0.0
 
 
 ## Turn at the NPC turn rate; true once facing `yaw`.
