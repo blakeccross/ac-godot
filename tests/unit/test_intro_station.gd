@@ -289,7 +289,7 @@ func test_missing_payment_bag_opens_the_pockets() -> void:
 	var pockets: InventoryOverlay = InventoryOverlay.find(get_tree())
 	assert_object(pockets).is_not_null()
 	assert_bool(pockets.is_open()).is_true()
-	assert_bool(pockets._tag_choices.has("Hand over")).is_true()
+	assert_bool(pockets._tag_choices.has("Give")).is_true()
 	assert_bool(ui.is_suspended()).is_true()
 	assert_bool(ui.is_open()).is_true()
 	assert_that(director._stage.action).is_equal(IntroStationStage.Action.NOOK_DEBT)

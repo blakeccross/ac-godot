@@ -7,13 +7,14 @@ Formats/sizes come from decomp `inv_mwin.c` / `inv_mwin_g.c` GBI. Prefer ACHD
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 import json
 
+import numpy as np
 from PIL import Image
 
 from .achd import load_achd_pack, maybe_hd_png
@@ -33,7 +34,7 @@ from .texbank import (
     gbi_to_gx,
     image_png_bytes,
 )
-from .ui_gbi import Op, TextureCache, UiWalker, bake_layer
+from .ui_gbi import Batch, Op, TextureCache, UiWalker, bake_layer, rasterize
 
 # Prefer the inv_mwin.c dataobject cluster (US GAFE01 map); fall back to any match.
 _CLUSTER_LO = 0x00438000
@@ -48,6 +49,7 @@ _SHELL_SSAA = 2
 _INV_VTX_COUNT = 296
 _ITEM_SLOT_BASE = 176
 _ITEM_SLOT_COUNT = 15
+_LETTER_SLOT_COUNT = 10
 _MAIL_SLOT_BASE = 236
 _MAIL_SLOT_COUNT = 10
 
@@ -197,15 +199,7 @@ CHROME: list[TexSpec] = [
         prim_as_color=(100, 155, 255, 255),
         out_name="portrait_frame",
     ),
-    TexSpec("inv_mwin_shirushi4_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), out_name="tab_face_glyph"),
-    TexSpec("inv_original_shirushi_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), out_name="tab_pencil_glyph"),
     TexSpec("inv_original_shirushi3_tex", 32, 64, G_IM_FMT_IA, G_IM_SIZ_8b),
-    ## Encyclopedia page-tab glyphs (`inv_sakana_shirushiT` / `inv_mushi_shirushiT`
-    ## / `inv_mwin_shirushiT` / `inv_mwin_shirushi3`): a fish, a butterfly, a smiley
-    ## and a pencil. `tab_face_glyph` / `tab_pencil_glyph` above. Baked white so the
-    ## page colour drives `modulate`.
-    TexSpec("inv_mwin_shirushi2_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), out_name="tab_fish_glyph"),
-    TexSpec("inv_mwin_shirushi1_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), out_name="tab_bug_glyph"),
     TexSpec(
         "inv_mwin_sen_tex",
         16,
@@ -382,37 +376,13 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
     results.append(shell["record"])
 
     results.extend(
+        _bake_page_chrome(rel, symbols, stage_dir, out_dir, project_root, achd=achd)
+    )
+
+    results.extend(
         _bake_tag_chrome(rel, symbols, stage_dir, out_dir, project_root, achd=achd)
     )
 
-    results.append(
-        _bake_title_banner(
-            rel, by_name, stage_dir, out_dir, project_root,
-            out_stem="fish_title_banner",
-            left_tex="inv_sakana_waku1_tex",
-            right_tex="inv_sakana_waku2_tex",
-            prim=_FISH_BANNER_PRIM,
-            env=_FISH_BANNER_ENV,
-            achd=achd,
-        )
-    )
-    results.append(
-        _bake_title_banner(
-            rel, by_name, stage_dir, out_dir, project_root,
-            out_stem="bug_title_banner",
-            left_tex="inv_mushi_waku2_tex",
-            right_tex=None,
-            prim=_BUG_BANNER_PRIM,
-            env=_BUG_BANNER_ENV,
-            achd=achd,
-        )
-    )
-    results.append(
-        _bake_design_tab_shape(rel, by_name, stage_dir, out_dir, project_root, achd=achd)
-    )
-    results.append(
-        _bake_tab_lens_mask(rel, by_name, stage_dir, out_dir, project_root, achd=achd)
-    )
     catalog_path = shell.get("catalog_path")
 
     converted = sum(1 for r in results if r["status"] == "converted")
@@ -435,6 +405,216 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
     return out
 
 
+## `inv_mwin_model` draws the shell pieces first (batches 0-12: border + the scrolling paper),
+## then the translucent chrome in one combine state (RGB = PRIM, A = TEXEL0): the rim and white
+## panels (`1cT`/`1c`, I4 alpha 187 = the cream over the gold paper, with a hole where each slot
+## grid sits), the portrait ring, the three labels, the tab marks and the Bells box.
+_MODEL_PANEL_BATCHES = range(13, 19)
+_MODEL_RING_BATCH = 19
+_MODEL_BELLS_BATCHES = range(26, 28)
+## The pencil tab (the needlework book): body, then the pencil mark on it.
+_MODEL_DESIGN_TAB_BATCH = 24
+_MODEL_PENCIL_BATCH = 25
+## The pockets tab has no body of its own (the shell's notch is the tab): just the face mark.
+_MODEL_FACE_BATCH = 23
+## `inv_sakana_model` / `inv_mushi_model` batches after the shared shell (0-13): 14 = the page's
+## tab body, 15-21 = rim, panels and the 8 x 5 ring grid, then the title ribbon and word and
+## the tab's glyph. (kind, display list, glyph batch, title batches)
+_COLLECT_PAGES = (
+    ("fish", "inv_sakana_model", 24, (22, 23, 25)),
+    ("bug", "inv_mushi_model", 23, (22, 24)),
+)
+## `mIV_set_normal_frame_dl`: `gDPSetEnvColor` per slot, selectable / not.
+_SLOT_ENVS = {
+    "slot_item": (100, 100, 255, 255),
+    "slot_item_dim": (120, 140, 255, 255),
+    "slot_letter": (255, 60, 60, 255),
+    "slot_letter_dim": (255, 90, 90, 255),
+}
+## `mIV_pl_shadow_draw`: `ef_shadow_in_modelT` (a 2000-unit ground quad, I4 32x16 with the t
+## axis mirrored: a solid disc), prim (10, 0, 40, 150).
+_SHADOW_PRIM = (10, 0, 40, 150)
+_SHADOW_PX = 128
+_PAGE_OVERLAY_SCALE = 6
+_SLOT_SCALE = 8
+
+
+def _pack_combine(color: tuple[int, int, int, int], alpha: tuple[int, int, int, int]) -> tuple[int, int]:
+    """`gsDPSetCombineLERP` words that use the same (a, b, c, d) in both cycles."""
+    (a, b, c, d), (aa, ab, ac, ad) = color, alpha
+    w0 = (a << 20) | (c << 15) | (aa << 12) | (ac << 9) | (a << 5) | c
+    w1 = (b << 28) | (d << 15) | (ab << 12) | (ad << 9) | (b << 24) | (aa << 21) | (ac << 18) | (d << 6) | (ab << 3) | ad
+    return (w0, w1)
+
+
+## RGB and alpha both straight from TEXEL0.
+_TEXEL0_COMBINE = _pack_combine((15, 15, 31, 1), (7, 7, 7, 1))
+
+
+def _shell_silhouette(
+    shell_batches: list[Batch], textures: TextureCache, bounds: tuple[float, float, float, float]
+) -> Image.Image:
+    """The page shell's outline: the paper tiles draw through their `tex1` border alpha
+    (`inv_*_w*_tex_rgb_ci4`), so draw that alpha on its own, white, supersampled."""
+    tiles = [replace(b, tex0=b.tex1, tex1=None, combine=_TEXEL0_COMBINE) for b in shell_batches]
+    raw = rasterize(tiles, textures, bounds, _SHELL_SSAA * _BAKE_SCALE)
+    out = Image.new("RGBA", raw.size, (255, 255, 255, 0))
+    out.putalpha(raw.getchannel("A"))
+    return out.resize((int(bounds[2] * _BAKE_SCALE), int(bounds[3] * _BAKE_SCALE)), Image.Resampling.LANCZOS)
+
+
+def _union_bounds(batches: list[Batch]) -> tuple[float, float, float, float]:
+    xs = [v.x for b in batches for tri in b.tris for v in tri]
+    ys = [v.y for b in batches for tri in b.tris for v in tri]
+    return (min(xs), max(ys), max(xs) - min(xs), max(ys) - min(ys))
+
+
+def _batch_bounds(batch: Batch) -> tuple[float, float, float, float]:
+    xs = [v.x for tri in batch.tris for v in tri]
+    ys = [v.y for tri in batch.tris for v in tri]
+    return (min(xs), max(ys), max(xs) - min(xs), max(ys) - min(ys))
+
+
+def _split_halo(image: Image.Image) -> tuple[Image.Image, Image.Image]:
+    """Split a slot frame into (under, ring + fill). The texture's surround is white at alpha
+    187; the page draws it once under the whole grid so the cells meet with no seam. The ring is
+    opaque, so the under layer also runs beneath it (no gold fringe on its antialiased edge);
+    only the translucent fill (alpha 137) is left open to show the paper."""
+    px = np.asarray(image.convert("RGBA")).copy()
+    halo = (np.abs(px[..., 3].astype(int) - 187) <= 3) & (px[..., :3].min(axis=2) >= 250)
+    under = np.zeros_like(px)
+    under[px[..., 3] > 160] = (255, 255, 255, 187)
+    px[halo, 3] = 0
+    return Image.fromarray(under, "RGBA"), Image.fromarray(px, "RGBA")
+
+
+def _bake_portrait_shadow(
+    rel: RelData, symbols: list[MapSymbol], textures: TextureCache
+) -> Image.Image:
+    """Top-down image of the player's ground shadow, ready for a ground quad."""
+    batch = UiWalker(rel, symbols).run([Op("ef_shadow_in_modelT", prim=_SHADOW_PRIM)])[0]
+    tex = textures.get(batch.tex0)
+    intensity = np.round(tex[..., 0] * 255.0).astype(np.uint8)
+    full = np.vstack([intensity, intensity[::-1]])  # t: 0..16 then mirrored back
+    top_down = full.T[:, ::-1]  # rows = z (s), columns = x (t runs +x -> 0)
+    alpha = Image.fromarray(top_down, "L").resize((_SHADOW_PX, _SHADOW_PX), Image.Resampling.BILINEAR)
+    alpha = alpha.point(lambda v: v * _SHADOW_PRIM[3] // 255)
+    out = Image.new("RGBA", (_SHADOW_PX, _SHADOW_PX), _SHADOW_PRIM[:3] + (0,))
+    out.putalpha(alpha)
+    return out
+
+
+def _write_chrome_png(
+    image: Image.Image, stem: str, stage_dir: Path, out_dir: Path, project_root: Path
+) -> None:
+    png = image_png_bytes(image)
+    for folder in (stage_dir, out_dir):
+        (folder / f"{stem}.png").write_bytes(png)
+    write_import_sidecar(out_dir / f"{stem}.png", project_root)
+
+
+def _bake_page_chrome(
+    rel: RelData,
+    symbols: list[MapSymbol],
+    stage_dir: Path,
+    out_dir: Path,
+    project_root: Path,
+    *,
+    achd=None,
+) -> list[dict[str, Any]]:
+    """Rasterise the pockets page's translucent chrome from the real display lists.
+
+    The paper under it is the raw gold `backgound_texture` and it scrolls; these layers go on
+    top, so the slot circles show the paper through their translucent fill (the brown
+    crescents and orange letter circles of the original).
+    """
+    textures = TextureCache(rel, achd)
+    results: list[dict[str, Any]] = []
+
+    def record(stem: str, image: Image.Image) -> None:
+        _write_chrome_png(image, stem, stage_dir, out_dir, project_root)
+        results.append(
+            {
+                "asset_id": stem,
+                "source": "inv_mwin_*",
+                "output_path": f"ui/inventory/{stem}.png",
+                "status": "converted",
+                "error": None,
+                "meta": {"width": image.width, "height": image.height, "raster": "inv_mwin"},
+            }
+        )
+
+    try:
+        model = UiWalker(rel, symbols).run([Op("inv_mwin_model")])
+        slots = UiWalker(rel, symbols).run(
+            [Op("inv_mwin_item_frame_mode"), Op("inv_mwin_1bT_model", env=_SLOT_ENVS["slot_item"])]
+        )
+        names = UiWalker(rel, symbols).run([Op("inv_mwin_kuni_model"), Op("inv_mwin_kuni2_model")])
+        bounds = (float(_SHELL_ORIGIN[0]), float(_SHELL_ORIGIN[1]), float(_NATIVE_W), float(_NATIVE_H))
+        grid = UiWalker(rel, symbols)
+        frames = [Op("inv_mwin_item_frame_mode")]
+        frames += [Op(f"inv_mwin_{n}bT_model", env=_SLOT_ENVS["slot_item"]) for n in range(1, _ITEM_SLOT_COUNT + 1)]
+        frames += [Op(f"inv_mwin_{n}aT_model", env=_SLOT_ENVS["slot_letter"]) for n in range(1, _LETTER_SLOT_COUNT + 1)]
+        halo, _ = _split_halo(rasterize(grid.run(frames), textures, bounds, _PAGE_OVERLAY_SCALE))
+        panels = rasterize([model[i] for i in _MODEL_PANEL_BATCHES], textures, bounds, _PAGE_OVERLAY_SCALE)
+        panels.alpha_composite(halo)
+        panels.alpha_composite(
+            rasterize([model[i] for i in _MODEL_BELLS_BATCHES] + names, textures, bounds, _PAGE_OVERLAY_SCALE)
+        )
+        record("page_overlay", panels)
+        record(
+            "portrait_frame",
+            rasterize([model[_MODEL_RING_BATCH]], textures, _batch_bounds(model[_MODEL_RING_BATCH]), _SLOT_SCALE),
+        )
+        record("portrait_shadow", _bake_portrait_shadow(rel, symbols, textures))
+        ## The encyclopedia pages (`inv_sakana_model`, `inv_mushi_model`) have the same shell;
+        ## batches 15-21 are their rim, panels and the 8 x 5 ring grid. The tab (14) and the
+        ## title ribbon / word (22+) are separate nodes in the scene.
+        for kind, dl, glyph, title in _COLLECT_PAGES:
+            page = UiWalker(rel, symbols).run([Op(dl)])
+            ## Each page has its own outline: the right edge is split by the fish and insect tabs.
+            record(
+                f"page_shell_{kind}",
+                _shell_silhouette(page[:14], textures, (-120.0, 90.0, 240.0, 180.0)),
+            )
+            record(f"page_overlay_{kind}", rasterize(page[15:22], textures, bounds, _PAGE_OVERLAY_SCALE))
+            ## The page's own tab (the other two pages show only this part) and its title.
+            record(
+                f"page_tab_{kind}",
+                rasterize([page[14], page[glyph]], textures, _batch_bounds(page[14]), _SLOT_SCALE),
+            )
+            title_batches = [page[i] for i in title]
+            record(
+                f"page_title_{kind}",
+                rasterize(title_batches, textures, _union_bounds(title_batches), _PAGE_OVERLAY_SCALE),
+            )
+        for stem, index in (
+            ("tab_design_shape", _MODEL_DESIGN_TAB_BATCH),
+            ("tab_pencil_glyph", _MODEL_PENCIL_BATCH),
+            ("tab_face_glyph", _MODEL_FACE_BATCH),
+        ):
+            record(stem, rasterize([model[index]], textures, _batch_bounds(model[index]), _SLOT_SCALE))
+        item_quad = _batch_bounds(slots[0])
+        letter_walker = UiWalker(rel, symbols)
+        for stem, env in _SLOT_ENVS.items():
+            dl = "inv_mwin_1bT_model" if stem.startswith("slot_item") else "inv_mwin_1aT_model"
+            batches = letter_walker.run([Op("inv_mwin_item_frame_mode"), Op(dl, env=env)])
+            quad = item_quad if stem.startswith("slot_item") else _batch_bounds(batches[0])
+            record(stem, _split_halo(rasterize(batches, textures, quad, _SLOT_SCALE))[1])
+    except Exception as exc:  # noqa: BLE001
+        results.append(
+            {
+                "asset_id": "page_overlay",
+                "source": "inv_mwin_model",
+                "output_path": "ui/inventory/page_overlay.png",
+                "status": "error",
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+        )
+    return results
+
+
+
 ## `mTG_set_win_field` (`m_tag_ovl.c`): verb + name plates use `sen_win_wakuT_model`
 ## (figure-8 cloud), coloured from `p_col_table`/`e_col_table` NORMAL by tag index
 ## (`draw_no`). Index 0 = cream name plate; index 1 = cyan verb window.
@@ -446,24 +626,7 @@ _TAG_VERB_ENV = (120, 120, 200, 255)
 _TAG_CURSOR_PRIM = (215, 30, 215, 255)
 ## Screen-space bounds covering `sen_win_v` (same ballpark as menu_ui MSCORE_SEN).
 _TAG_SEN_BOUNDS = (-80.0, 70.0, 160.0, 140.0)
-_TAG_SEN_SCALE = 4
-
-## `inv_sakana_daimeiT_model` / `inv_mushi_daimeiT_model` (`inv_sakana.c` / `inv_mushi.c`):
-## the "Fish"/"Insects" title ribbon at the top of each collection page. Same
-## PRIM/ENV lerp as the tag frame above. The word itself is a separate glyph pass
-## (`inv_*_moji_model`, the ROM font) drawn on top — not baked into this texture.
-_FISH_BANNER_PRIM = (40, 40, 185, 255)
-_FISH_BANNER_ENV = (100, 100, 255, 255)
-_BUG_BANNER_PRIM = (145, 40, 40, 255)
-_BUG_BANNER_ENV = (235, 60, 60, 255)
-
-## `inv_mwin_shirushi2T_model` (`inv_mwin.c`): the design-tab flap's own lens-shaped
-## silhouette (`inv_original_shirushi3_tex`, 32x64 IA8) — a distinct shape from the
-## plain rounded-rect used for the fish/bug/pockets tabs. Same PRIM/ENV lerp as the
-## title banners; the pencil glyph (`inv_original_shirushi_tex` / `tab_pencil_glyph`)
-## draws on top of this, unchanged.
-_DESIGN_TAB_PRIM = (255, 205, 70, 255)
-_DESIGN_TAB_ENV = (165, 145, 50, 255)
+_TAG_SEN_SCALE = 6
 
 
 def _bake_tag_chrome(
@@ -486,11 +649,28 @@ def _bake_tag_chrome(
                 Op("sen_win_wakuT_model", prim=_TAG_VERB_PRIM, env=_TAG_VERB_ENV),
             ],
         ),
+        ## The item name plate is `sen_itemw_*` (tag window type 0, a single oval quad), not the
+        ## verb window's figure-8.
         (
             "tag_name_frame",
             [
                 Op("sen_item2_DL_mode"),
-                Op("sen_win_wakuT_model", prim=_TAG_NAME_PRIM, env=_TAG_NAME_ENV),
+                Op("sen_itemw_wakuT_model", prim=_TAG_NAME_PRIM, env=_TAG_NAME_ENV),
+            ],
+        ),
+        ("tag_name_shadow", [Op("sen_item2_DL_mode"), Op("sen_itemw_kage_model")]),
+        (
+            "tag_name_arrow",
+            [
+                Op("sen_item2_DL_mode"),
+                Op("sen_itemw_yajirushi_model", prim=_TAG_NAME_ENV),
+            ],
+        ),
+        (
+            "tag_name_arrow_r",
+            [
+                Op("sen_item2_DL_mode"),
+                Op("sen_itemw_yajirushi2T_model", prim=_TAG_NAME_ENV),
             ],
         ),
         ("tag_shadow", [Op("sen_item2_DL_mode"), Op("sen_win_kageT_model")]),
@@ -510,6 +690,7 @@ def _bake_tag_chrome(
         ),
     ]
     results: list[dict[str, Any]] = []
+    tag_models: dict[str, dict[str, float]] = {}
     for stem, ops in jobs:
         record: dict[str, Any] = {
             "asset_id": stem,
@@ -519,19 +700,12 @@ def _bake_tag_chrome(
             "error": None,
         }
         try:
-            image = bake_layer(walker, textures, ops, _TAG_SEN_BOUNDS, _TAG_SEN_SCALE)
-            bbox = image.split()[-1].getbbox()
-            if bbox is not None:
-                pad = 4
-                x0, y0, x1, y1 = bbox
-                image = image.crop(
-                    (
-                        max(0, x0 - pad),
-                        max(0, y0 - pad),
-                        min(image.width, x1 + pad),
-                        min(image.height, y1 + pad),
-                    )
-                )
+            ## The sprite covers the model's own bounds exactly (no alpha crop), so the layout
+            ## code can place it with the same arithmetic the ROM uses (`m_tag_ovl.c`).
+            batches = walker.run(ops)
+            bounds = _union_bounds(batches)
+            image = rasterize(batches, textures, bounds, _TAG_SEN_SCALE)
+            tag_models[stem] = {"x": bounds[0], "y": bounds[1], "w": bounds[2], "h": bounds[3]}
             png = image_png_bytes(image)
             for folder in (stage_dir, out_dir):
                 (folder / f"{stem}.png").write_bytes(png)
@@ -542,198 +716,10 @@ def _bake_tag_chrome(
             record["status"] = "error"
             record["error"] = f"{type(exc).__name__}: {exc}"
         results.append(record)
+    models = json.dumps(tag_models, indent=2).encode("utf-8")
+    for folder in (stage_dir, out_dir):
+        (folder / "tag_models.json").write_bytes(models)
     return results
-
-
-def _bake_title_banner(
-    rel: RelData,
-    by_name: dict[str, list[MapSymbol]],
-    stage_dir: Path,
-    out_dir: Path,
-    project_root: Path,
-    *,
-    out_stem: str,
-    left_tex: str,
-    right_tex: str | None,
-    prim: tuple[int, int, int, int],
-    env: tuple[int, int, int, int],
-    achd=None,
-) -> dict[str, Any]:
-    """`inv_*_daimeiT_model`: two 64x32 IA8 quads side by side (`inv_*_v[136..]`
-    screen-space positions, GX 0.001 scale). `right_tex=None` mirrors `left_tex`
-    (insects: one authored half, UV s=64..128 GX_MIRROR-wraps it) — fish authors
-    both halves separately (`inv_sakana_waku1_tex` left, `_waku2_tex` right,
-    neither mirrored). Uses ACHD when available (`achd` supplied) for higher
-    resolution; the earlier concern that ACHD redraws this art differently was
-    a false positive from comparing against a white background, which hides
-    the white-filled interior these PNGs use — composite onto a dark/gray
-    background before judging shape, see `_bake_design_tab_shape` below.
-    """
-    record: dict[str, Any] = {
-        "asset_id": out_stem,
-        "source": left_tex if right_tex is None else f"{left_tex}+{right_tex}",
-        "output_path": f"ui/inventory/{out_stem}.png",
-        "status": "pending",
-        "error": None,
-    }
-    try:
-        gx = gbi_to_gx(G_IM_FMT_IA, G_IM_SIZ_8b)
-        left_sym = _pick_symbol(by_name, left_tex)
-        left_data = rel.slice_at(left_sym.address, left_sym.size)
-        left_hd = maybe_hd_png(achd, left_data, 64, 32, gx, None)
-        used_achd = left_hd is not None
-        left = (
-            Image.open(BytesIO(left_hd)).convert("RGBA")
-            if left_hd is not None
-            else decode_gbi_texture(left_data, 64, 32, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
-        )
-        if right_tex is None:
-            right = left.transpose(Image.FLIP_LEFT_RIGHT)
-        else:
-            right_sym = _pick_symbol(by_name, right_tex)
-            right_data = rel.slice_at(right_sym.address, right_sym.size)
-            right_hd = maybe_hd_png(achd, right_data, 64, 32, gx, None)
-            used_achd = used_achd or right_hd is not None
-            right = (
-                Image.open(BytesIO(right_hd)).convert("RGBA")
-                if right_hd is not None
-                else decode_gbi_texture(right_data, 64, 32, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
-            )
-        sheet_w = left.width + right.width
-        sheet_h = max(left.height, right.height)
-        sheet = Image.new("RGBA", (sheet_w, sheet_h), (0, 0, 0, 0))
-        sheet.paste(left, (0, 0))
-        sheet.paste(right, (left.width, 0))
-        sheet = _ia_prim_env(sheet, prim, env)
-        png = image_png_bytes(sheet)
-        for folder in (stage_dir, out_dir):
-            (folder / f"{out_stem}.png").write_bytes(png)
-        write_import_sidecar(out_dir / f"{out_stem}.png", project_root)
-        record["status"] = "converted"
-        record["meta"] = {"width": sheet.width, "height": sheet.height, "achd": used_achd}
-    except Exception as exc:  # noqa: BLE001
-        record["status"] = "error"
-        record["error"] = f"{type(exc).__name__}: {exc}"
-    return record
-
-
-def _bake_design_tab_shape(
-    rel: RelData,
-    by_name: dict[str, list[MapSymbol]],
-    stage_dir: Path,
-    out_dir: Path,
-    project_root: Path,
-    *,
-    achd=None,
-) -> dict[str, Any]:
-    """`inv_mwin_shirushi2T_model`: design-tab flap silhouette — a narrow lens
-    shape (`inv_mwin_v[120..123]`: 30x60 GX units, single quad, no mirroring),
-    not the plain rounded-rect the other side tabs use.
-
-    ACHD's replacement for this hash first *looked* like a different drawing (a
-    curved hook, not the lens the native decode/decomp vertex data confirms),
-    but that was a false positive: the ACHD PNG fills the shape interior with
-    white, so viewing it raw against a white background hides that interior
-    and leaves only the dark outline visible, reading as a totally different
-    silhouette. Compositing onto a dark/gray background confirms it's the same
-    lens shape as native, just higher-resolution — used via `achd` normally.
-    """
-    record: dict[str, Any] = {
-        "asset_id": "tab_design_shape",
-        "source": "inv_original_shirushi3_tex",
-        "output_path": "ui/inventory/tab_design_shape.png",
-        "status": "pending",
-        "error": None,
-    }
-    try:
-        sym = _pick_symbol(by_name, "inv_original_shirushi3_tex")
-        data = rel.slice_at(sym.address, sym.size)
-        gx = gbi_to_gx(G_IM_FMT_IA, G_IM_SIZ_8b)
-        hd = maybe_hd_png(achd, data, 32, 64, gx, None)
-        used_achd = hd is not None
-        if hd is not None:
-            image = Image.open(BytesIO(hd)).convert("RGBA")
-            image = _ia_prim_env(image, _DESIGN_TAB_PRIM, _DESIGN_TAB_ENV)
-        else:
-            image = decode_gbi_texture(data, 32, 64, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
-            image = _ia_prim_env(image, _DESIGN_TAB_PRIM, _DESIGN_TAB_ENV)
-        png = image_png_bytes(image)
-        for folder in (stage_dir, out_dir):
-            (folder / "tab_design_shape.png").write_bytes(png)
-        write_import_sidecar(out_dir / "tab_design_shape.png", project_root)
-        record["status"] = "converted"
-        record["meta"] = {
-            "width": image.width,
-            "height": image.height,
-            "achd": used_achd,
-            "address": f"0x{sym.address:08X}",
-        }
-    except Exception as exc:  # noqa: BLE001
-        record["status"] = "error"
-        record["error"] = f"{type(exc).__name__}: {exc}"
-    return record
-
-
-def _bake_tab_lens_mask(
-    rel: RelData,
-    by_name: dict[str, list[MapSymbol]],
-    stage_dir: Path,
-    out_dir: Path,
-    project_root: Path,
-    *,
-    achd=None,
-) -> dict[str, Any]:
-    """Same `inv_original_shirushi3_tex` lens silhouette as the design tab, but
-    baked white+alpha (RGB=255, A=intensity) so Fish/Bug can `modulate_color`
-    it to their own tint instead of the design tab's baked-in gold.
-
-    The shape is asymmetric (rounded on one side, pointed on the other), not a
-    symmetric lens. Design sits on the window's left edge and uses it unflipped
-    (rounded side lands toward the window). Fish/Bug sit on the right edge — a
-    mirror-image position — so they need a horizontally-flipped copy for the
-    rounded side to land toward the window there too, matching the same
-    round-meets-paper / point-sticks-out-into-the-background read on both sides.
-    Same ACHD note as `_bake_design_tab_shape` above: judge shape correctness
-    against a dark background, not white (white-on-white hides the fill).
-    """
-    record: dict[str, Any] = {
-        "asset_id": "tab_lens_mask",
-        "source": "inv_original_shirushi3_tex",
-        "output_path": "ui/inventory/tab_lens_mask.png",
-        "status": "pending",
-        "error": None,
-    }
-    try:
-        sym = _pick_symbol(by_name, "inv_original_shirushi3_tex")
-        data = rel.slice_at(sym.address, sym.size)
-        gx = gbi_to_gx(G_IM_FMT_IA, G_IM_SIZ_8b)
-        hd = maybe_hd_png(achd, data, 32, 64, gx, None)
-        used_achd = hd is not None
-        if hd is not None:
-            ## ACHD PNG/DDS already carries real alpha — `_i_texel_as_alpha` would
-            ## wrongly re-derive it from the red channel (that's for native I4/IA8
-            ## decode, where R=G=B=intensity and alpha isn't meaningful yet).
-            rgba = Image.open(BytesIO(hd)).convert("RGBA")
-            white = Image.new("RGB", rgba.size, (255, 255, 255)).convert("RGBA")
-            white.putalpha(rgba.split()[3])
-            image = white
-        else:
-            image = decode_gbi_texture(data, 32, 64, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
-            image = _i_texel_as_alpha(image, (255, 255, 255, 255))
-        mirrored = image.transpose(Image.FLIP_LEFT_RIGHT)
-        png = image_png_bytes(image)
-        png_mirrored = image_png_bytes(mirrored)
-        for folder in (stage_dir, out_dir):
-            (folder / "tab_lens_mask.png").write_bytes(png)
-            (folder / "tab_lens_mask_r.png").write_bytes(png_mirrored)
-        write_import_sidecar(out_dir / "tab_lens_mask.png", project_root)
-        write_import_sidecar(out_dir / "tab_lens_mask_r.png", project_root)
-        record["status"] = "converted"
-        record["meta"] = {"width": image.width, "height": image.height, "address": f"0x{sym.address:08X}"}
-    except Exception as exc:  # noqa: BLE001
-        record["status"] = "error"
-        record["error"] = f"{type(exc).__name__}: {exc}"
-    return record
 
 
 def _pick_symbol(by_name: dict[str, list[MapSymbol]], name: str) -> MapSymbol:
@@ -901,10 +887,9 @@ def _copy_default_paper(cfg: PipelineConfig, stage_dir: Path, out_dir: Path) -> 
             "error": "shirt_226.png not generated yet",
         }
     dest_name = "paper.png"
-    # Soften toward cream so the pocket sheet matches the classic screenshot
-    # (cloth226 encodes as saturated yellow in our decode).
+    # The raw gold + white dots: the cream look is the translucent white panel drawn over
+    # it (`page_overlay`), and the slot circles show the gold through their fill.
     paper = Image.open(src).convert("RGBA")
-    paper = _cream_paper(paper)
     data = image_png_bytes(paper)
     for folder in (stage_dir, out_dir):
         (folder / dest_name).write_bytes(data)
@@ -919,29 +904,9 @@ def _copy_default_paper(cfg: PipelineConfig, stage_dir: Path, out_dir: Path) -> 
         "output_path": f"ui/inventory/{dest_name}",
         "status": "converted",
         "error": None,
-        "meta": {"achd": src.stat().st_size > 2048, "cream": True},
+        "meta": {"achd": src.stat().st_size > 2048},
     }
 
-
-def _cream_paper(image: Image.Image) -> Image.Image:
-    """Lift saturated yellow big-dot shirt toward cream polka paper."""
-    px = image.load()
-    w, h = image.size
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a <= 0:
-                continue
-            # Near-white dots stay white; yellow field → cream.
-            if r > 240 and g > 240 and b > 240:
-                px[x, y] = (255, 255, 255, a)
-                continue
-            cream_r, cream_g, cream_b = (255, 248, 208)
-            nr = int(r * 0.18 + cream_r * 0.82)
-            ng = int(g * 0.18 + cream_g * 0.82)
-            nb = int(b * 0.10 + cream_b * 0.90)
-            px[x, y] = (nr, ng, nb, a)
-    return image
 
 def _vtx_to_px(x: float, y: float) -> tuple[float, float]:
     ox, oy = _SHELL_ORIGIN

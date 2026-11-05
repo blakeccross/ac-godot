@@ -66,24 +66,34 @@ func test_equip_tool() -> void:
 	assert_that(inv.equipment_id).is_equal(&"axe")
 
 
-func test_tags_offer_unequip_only_for_the_equipped_item() -> void:
+func test_pocket_verbs_are_the_originals_outdoors() -> void:
+	var inv := Inventory.new()
+	inv.add(load("res://data/items/axe.tres"), 1)
+	## `mTG_field_default`: Grab, Drop, Quit - no Equip / Wear / Wrap / Move.
+	assert_that(inv.tags_for_slot(0)).is_equal(PackedStringArray(["Grab", "Drop", "Quit"]))
+	inv.bury_ready = true
+	## `mTG_field_default_bury`: a hole in front adds Bury before Quit.
+	assert_that(inv.tags_for_slot(0)).is_equal(PackedStringArray(["Grab", "Drop", "Bury", "Quit"]))
+
+
+func test_touch_layout_gets_the_drop_on_player_shortcuts() -> void:
 	var inv := Inventory.new()
 	var axe: ItemData = load("res://data/items/axe.tres")
 	var shovel: ItemData = load("res://data/items/shovel.tres")
 	inv.add(axe, 1) ## slot 0
 	inv.add(shovel, 1) ## slot 1
 	## Nothing equipped yet — both offer "Equip".
-	assert_bool(inv.tags_for_slot(0).has("Equip")).is_true()
-	assert_bool(inv.tags_for_slot(0).has("Unequip")).is_false()
+	assert_bool(inv.tags_for_slot(0, true).has("Equip")).is_true()
+	assert_bool(inv.tags_for_slot(0, true).has("Unequip")).is_false()
 	inv.equip_slot(0)
-	assert_bool(inv.tags_for_slot(0).has("Unequip")).is_true()
-	assert_bool(inv.tags_for_slot(0).has("Equip")).is_false()
+	assert_bool(inv.tags_for_slot(0, true).has("Unequip")).is_true()
+	assert_bool(inv.tags_for_slot(0, true).has("Equip")).is_false()
 	## The other tool still isn't the equipped one — still offers "Equip".
-	assert_bool(inv.tags_for_slot(1).has("Equip")).is_true()
+	assert_bool(inv.tags_for_slot(1, true).has("Equip")).is_true()
 	inv.unequip()
 	assert_that(inv.equipment_id).is_equal(&"")
-	assert_bool(inv.tags_for_slot(0).has("Equip")).is_true()
-	assert_bool(inv.tags_for_slot(0).has("Unequip")).is_false()
+	assert_bool(inv.tags_for_slot(0, true).has("Equip")).is_true()
+	assert_bool(inv.tags_for_slot(0, true).has("Unequip")).is_false()
 
 
 func test_inventory_overlay_unequip_tag_clears_equipment() -> void:
@@ -160,9 +170,11 @@ func test_inventory_overlay_player_slot_unequips_with_empty_hand() -> void:
 	overlay.set("_focus_player", true)
 	overlay.call("_activate_player_cursor")
 	assert_bool(overlay.get("_tag_mode")).is_true()
-	assert_that(overlay.get("_tag_choices")).is_equal(PackedStringArray(["Unequip"]))
-	overlay.call("_run_tag", "Unequip")
+	## `mTG_select_tag_decide_player`: the equipped tool offers Grab / Quit.
+	assert_that(overlay.get("_tag_choices")).is_equal(PackedStringArray(["Grab", "Quit"]))
+	overlay.call("_run_tag", "Grab")
 	assert_that(Game.inventory.equipment_id).is_equal(&"")
+	assert_int(Game.inventory.hand_index).is_equal(0) ## the tool is in the hand now
 
 
 func test_inventory_overlay_player_slot_equips_held_tool() -> void:
@@ -342,11 +354,10 @@ func test_wrap_and_unwrap_round_trip() -> void:
 	var inv := Inventory.new()
 	var apple: ItemData = load("res://data/items/apple.tres")
 	inv.add(apple, 1)
-	assert_bool(inv.tags_for_slot(0).has("Wrap")).is_true()
 	assert_bool(inv.wrap_slot(0)).is_true()
 	assert_that(inv.slot_at(0).item.condition).is_equal(InventoryItem.Condition.PRESENT)
-	## Wrapped items only offer "Open" — nothing else, matching a received gift.
-	assert_that(inv.tags_for_slot(0)).is_equal(PackedStringArray(["Open"]))
+	## A wrapped item offers `mTG_present_item`: Grab, Open, Quit.
+	assert_that(inv.tags_for_slot(0)).is_equal(PackedStringArray(["Grab", "Open", "Quit"]))
 	assert_bool(inv.wrap_slot(0)).is_false() ## already wrapped
 
 
@@ -355,7 +366,6 @@ func test_money_bag_is_not_wrappable() -> void:
 	var inv := Inventory.new()
 	var bag: ItemData = ItemCatalog.get_item(&"money_100")
 	inv.add(bag, 1)
-	assert_bool(inv.tags_for_slot(0).has("Wrap")).is_false()
 	assert_bool(inv.wrap_slot(0)).is_false()
 
 
@@ -465,13 +475,15 @@ func test_plant_tag_for_sapling() -> void:
 	var sapling: ItemData = ItemCatalog.get_item(&"apple_sapling")
 	inv.add(sapling, 1)
 	var tags: PackedStringArray = inv.tags_for_slot(0)
-	assert_bool("Plant" in tags).is_true()
+	assert_that(tags).is_equal(PackedStringArray(["Grab", "Drop", "Plant", "Quit"])) ## `mTG_field_plant`
 	assert_bool("Eat" in tags).is_false()
 	var apple: ItemData = ItemCatalog.get_item(&"apple")
 	inv.add(apple, 1)
-	var eat_tags: PackedStringArray = inv.tags_for_slot(1)
+	var eat_tags: PackedStringArray = inv.tags_for_slot(1, true)
 	assert_bool("Eat" in eat_tags).is_true()
 	assert_bool("Plant" in eat_tags).is_false()
+	## The original has no Eat verb: you Grab the fruit and drop it on the player picture.
+	assert_bool("Eat" in inv.tags_for_slot(1)).is_false()
 
 
 func test_item_catalog() -> void:
@@ -632,14 +644,14 @@ func test_inventory_overlay_mail_discard_needs_confirmation() -> void:
 	Game.inventory.select_mail(0)
 	overlay.set("_focus_mail", true)
 	overlay.call("_activate_mail_cursor") ## enters tag mode with Read/Discard first
-	overlay.call("_run_mail_tag", "Discard")
+	overlay.call("_run_mail_tag", "Throw Away")
 	assert_bool(Game.inventory.mail_at(0).is_empty()).is_false() ## not removed yet
 	assert_bool(overlay.get("_tag_mode")).is_true()
-	assert_that(overlay.get("_tag_choices")).is_equal(PackedStringArray(["Yes", "No"]))
-	overlay.call("_run_mail_tag", "No")
-	assert_bool(Game.inventory.mail_at(0).is_empty()).is_false() ## "No" keeps it
+	assert_that(overlay.get("_tag_choices")).is_equal(PackedStringArray(["Yes", "Quit"])) ## `mTG_dump_mail`
+	overlay.call("_run_mail_tag", "Quit")
+	assert_bool(Game.inventory.mail_at(0).is_empty()).is_false() ## "Quit" keeps it
 	overlay.call("_activate_mail_cursor")
-	overlay.call("_run_mail_tag", "Discard")
+	overlay.call("_run_mail_tag", "Throw Away")
 	overlay.call("_run_mail_tag", "Yes")
 	assert_bool(Game.inventory.mail_at(0).is_empty()).is_true()
 
@@ -650,9 +662,9 @@ func test_inventory_overlay_wallet_withdraw() -> void:
 	overlay.call("_open_wallet_popup")
 	assert_bool(overlay.get("_wallet_tag_mode")).is_true()
 	var choices: PackedStringArray = overlay.get("_tag_choices")
-	assert_bool(choices.has("1000 Bells")).is_true()
-	assert_bool(choices.has("30000 Bells")).is_false() ## can't afford it
-	overlay.call("_run_wallet_tag", "1000 Bells")
+	assert_bool(choices.has("1000")).is_true()
+	assert_bool(choices.has("30000")).is_false() ## can't afford it
+	overlay.call("_run_wallet_tag", "1000")
 	assert_int(Game.inventory.wallet).is_equal(4000)
 	assert_int(Game.inventory.hand_index).is_not_equal(-1)
 	assert_that(Game.inventory.slot_at(Game.inventory.hand_index).item.item_id).is_equal(&"money_1000")
@@ -672,15 +684,43 @@ func test_inventory_overlay_background_slot() -> void:
 	assert_that(Game.inventory.background_id).is_equal(&"")
 
 
-func test_inventory_overlay_page_swing_moves_and_returns() -> void:
+func test_inventory_overlay_pages_shuffle_and_settle() -> void:
+	## `page_move_timer`: the page coming up rises and the pockets drop, the order flips at the
+	## midpoint, everything lands home with the new page on top and the hand back on its tab.
 	var overlay: CanvasLayer = _open_overlay()
 	var shell: Control = overlay.get_node("%ShellStack") as Control
-	var base_y: float = shell.position.y
+	var fish: Control = overlay.get_node("%FishPage") as Control
 	overlay.call("_select_side_tab", 0) ## SideTab.FISH
-	await get_tree().create_timer(0.15).timeout
-	assert_float(shell.position.y).is_not_equal(base_y) ## mid-swing
-	await get_tree().create_timer(0.6).timeout
-	assert_float(shell.position.y).is_equal_approx(base_y, 0.5) ## lands back home
+	assert_bool(overlay.get("_page_moving")).is_true()
+	overlay.call("_step_page_move", 30.0)
+	assert_float(fish.position.y).is_less(0.0) ## up
+	assert_float(shell.position.y).is_greater(0.0) ## down
+	assert_int((overlay.get("_page_order") as Array)[0]).is_equal(1) ## still the pockets on top
+	overlay.call("_step_page_move", 20.0)
+	assert_float(fish.position.y).is_equal_approx(-100.0 * float(overlay.call("_units_to_px")), 0.5)
+	assert_int((overlay.get("_page_order") as Array)[0]).is_equal(0) ## the fish page took the top
+	await get_tree().create_timer(1.0).timeout
+	assert_bool(overlay.get("_page_moving")).is_false()
+	assert_float(shell.position.y).is_equal_approx(0.0, 0.01)
+	assert_float(fish.position.y).is_equal_approx(0.0, 0.01)
+	assert_bool((overlay.get("_hand_root") as Control).visible).is_true()
+
+
+func test_inventory_overlay_ignores_input_while_pages_move() -> void:
+	var overlay: CanvasLayer = _open_overlay()
+	overlay.call("_select_side_tab", 0)
+	overlay.call("_select_side_tab", 2) ## SideTab.BUG: ignored until the pages settle
+	assert_int(overlay.get("_side_tab")).is_equal(0)
+
+
+func test_inventory_overlay_shoulder_turns_pockets_fish_insects() -> void:
+	var overlay: CanvasLayer = _open_overlay()
+	var seen: Array[int] = []
+	for i: int in 3:
+		overlay.call("_turn_page", 1)
+		seen.append(overlay.get("_side_tab"))
+		await get_tree().create_timer(0.9).timeout
+	assert_that(seen).is_equal([0, 2, 1]) ## fish, insects, back to the pockets
 
 
 func test_inventory_overlay_assigns_slot_icons() -> void:

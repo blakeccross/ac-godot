@@ -39,12 +39,26 @@ const NOOK_SPAWN: Array[Vector3] = [
 ## Walkable area and EXIT_DOOR of each upgraded floor, read off its FG template walls
 ## (`fffe`) like the Cranny's: [inner origin, inner size, door cell]. The inner box runs
 ## down to the exit row, as the Cranny's does. Nookington's upstairs has no outdoor exit
-## in the original (stairs only); its door stays on the south row for now.
+## (`door_cell` −1): its only door is the stairs.
 const NOOK_ROOM_BOUNDS: Dictionary = {
 	&"shop1": [Vector2i(1, 1), Vector2i(10, 8), Vector2i(7, 8)],
 	&"shop2": [Vector2i(1, 1), Vector2i(10, 12), Vector2i(7, 12)],
 	&"shop3_1": [Vector2i(1, 3), Vector2i(10, 12), Vector2i(7, 14)],
-	&"shop3_2": [Vector2i(1, 3), Vector2i(10, 10), Vector2i(7, 12)],
+	&"shop3_2": [Vector2i(1, 3), Vector2i(10, 10), Vector2i(-1, -1)],
+}
+## Nookington's stairs (`SHOP04_1F_door_data` → `SCENE_DEPART_2`, `SHOP04_2F_door_data` →
+## `SCENE_DEPART`): a door pair in the middle of each floor's north wall (units (7,1) and
+## (8,1): `0x4000` on the ground floor, the floor's own `EXIT_DOOR` upstairs). You arrive
+## on the other floor just inside it, facing south (the door data's own spot is on the
+## door itself: GX (300, 65) up, (280, 65) down). `sensor` and `spawn` are room positions.
+const STAIRS_SENSOR := Vector3(320.0, 0.0, 60.0) * FieldCatalog.GX_TO_METERS
+const STAIRS_SPAWN_UP := Vector3(300.0, 0.0, 105.0) * FieldCatalog.GX_TO_METERS
+const STAIRS_SPAWN_DOWN := Vector3(280.0, 0.0, 105.0) * FieldCatalog.GX_TO_METERS
+## The pair is two units wide and one deep.
+const STAIRS_BOX := Vector3(4.0, 2.6, 2.0)
+const NOOK_STAIRS: Dictionary = {
+	&"shop3_1": {"to": &"shop3_2", "spawn": STAIRS_SPAWN_UP},
+	&"shop3_2": {"to": &"shop3_1", "spawn": STAIRS_SPAWN_DOWN},
 }
 const CRANNY_SPAWN_FACING := WorldGrid.Facing.NORTH
 
@@ -227,7 +241,8 @@ static func apply_room_bounds(room: Room) -> void:
 	room.inner_origin = row[0] as Vector2i
 	room.inner_size = row[1] as Vector2i
 	room.door_cell = row[2] as Vector2i
-	room.spawn_cell = room.door_cell + Vector2i(0, -1)
+	## No outdoor door (the upstairs): a fallback just inside the stairs.
+	room.spawn_cell = room.door_cell + Vector2i(0, -1) if room.door_cell.x >= 0 else Vector2i(7, 3)
 
 
 ## Where Nook stands (metres from the room's corner): the centre of his unit.

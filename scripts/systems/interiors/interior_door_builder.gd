@@ -46,11 +46,42 @@ static func add_exit_door(root: Node3D, grid: WorldGrid, room: Room) -> void:
 	root.add_child(door)
 
 
+## Nookington's stairs: a walk-on door pair in the north wall to the other floor, arriving just
+## inside the opposite stairs (`SHOP04_1F_door_data` / `SHOP04_2F_door_data`).
+static func _add_nook_stairs(root: Node3D, grid: WorldGrid, room: Room) -> void:
+	var link: Dictionary = ShopDisplay.NOOK_STAIRS[room.id] as Dictionary
+	var to: StringName = link["to"] as StringName
+	var template: Room = InteriorCatalog.room_template(to)
+	var door: Node3D = root.get_node_or_null("Link_%s" % String(to)) as Node3D
+	if door == null:
+		door = DOOR_SCENE.instantiate() as Node3D
+		door.name = "Link_%s" % String(to)
+		root.add_child(door)
+	door.position = WorldGrid.room_point(grid, ShopDisplay.STAIRS_SENSOR)
+	door.set("label", "stairs" if template == null else "the stairs to %s" % template.display_name)
+	door.set("verb", Interaction.ENTER)
+	door.set("linked_room_id", to)
+	door.set("occupy_grid", false)
+	door.set("auto_enter", true)
+	door.set("has_linked_spawn", true)
+	door.set("linked_spawn", link["spawn"] as Vector3)
+	door.set("linked_spawn_yaw", WorldGrid.yaw_for_furniture(WorldGrid.Facing.SOUTH))
+	HostCollision.resize_interact_box(door, ShopDisplay.STAIRS_BOX)
+
+
 static func place_authored_doors(root: Node3D, grid: WorldGrid, room: Room) -> void:
 	## Keep editor-authored door nodes; refresh world position + leave/link flags.
 	if root == null or grid == null or room == null:
 		return
 	if room.kind == Room.Kind.MUSEUM:
+		return
+	if ShopDisplay.NOOK_STAIRS.has(room.id):
+		var shop_exit: Node3D = root.get_node_or_null("Exit") as Node3D
+		if room.door_cell.x < 0 and shop_exit != null:
+			shop_exit.queue_free()
+		elif room.door_cell.x >= 0 and shop_exit == null:
+			add_exit_door(root, grid, room)
+		_add_nook_stairs(root, grid, room)
 		return
 	var exit_door: Node3D = root.get_node_or_null("Exit") as Node3D
 	if exit_door != null:
@@ -88,6 +119,9 @@ static func place_authored_doors(root: Node3D, grid: WorldGrid, room: Room) -> v
 static func add_linked_doors(root: Node3D, grid: WorldGrid, room: Room) -> void:
 	if room.kind == Room.Kind.MUSEUM and room.id == &"museum_entrance":
 		_add_museum_entrance_doors(root, grid)
+		return
+	if ShopDisplay.NOOK_STAIRS.has(room.id):
+		_add_nook_stairs(root, grid, room)
 		return
 	if room.linked_rooms.is_empty():
 		return

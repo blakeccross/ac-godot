@@ -38,7 +38,7 @@ extends Node3D
 ##                     after=10,40,90 grabs at each count in one run (`name_f10.png` …).
 ##   ui=1              Keep the HUD / dialogue layers visible (hidden by default).
 ##   mobile=1          Act as a phone: touch's on-screen buttons show (Android / iOS only).
-##   inventory=1       Open the pockets; inventory=slot:N also opens that slot's actions.
+##   inventory=1       Open the pockets; inventory=slot:N also opens that slot's actions; inventory=fish|bug opens that page.
 ##   out=path          Directory or .png path (default res://.tmp_captures/, gitignored).
 ##   name=label        File stem (default from target + date).
 ## Prints one `CAPTURE <absolute path>` line per image, `CAPTURE_ERROR <msg>` on failure.
@@ -159,7 +159,7 @@ func _capture_date(date: String) -> void:
 				up.position = at
 				up.pressed = false
 				Input.parse_input_event(up)
-	if _args.has("inventory") and not _open_inventory(str(_args["inventory"])):
+	if _args.has("inventory") and not await _open_inventory(str(_args["inventory"])):
 		root.queue_free()
 		await get_tree().process_frame
 		return
@@ -193,6 +193,11 @@ func _open_inventory(value: String) -> bool:
 		return false
 	if value == "1":
 		overlay.open()
+		return true
+	if value == "fish" or value == "bug":
+		overlay.open()
+		await get_tree().create_timer(0.6).timeout
+		overlay._select_side_tab(InventoryOverlay.SideTab.FISH if value == "fish" else InventoryOverlay.SideTab.BUG)
 		return true
 	var index_text := value.trim_prefix("slot:")
 	if not value.begins_with("slot:") or not index_text.is_valid_int():

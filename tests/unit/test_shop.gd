@@ -503,3 +503,43 @@ static func _deps_exist(path: String) -> bool:
 		if not ResourceLoader.exists(dep.get_slice("::", dep.get_slice_count("::") - 1)):
 			return false
 	return true
+
+
+func _nook_floor_doors(room_id: StringName) -> Node3D:
+	var room: Room = Game.interiors.room(room_id)
+	var session := IndoorSession.new()
+	session.bind(room)
+	var doors: Node3D = auto_free(Node3D.new())
+	add_child(doors)
+	InteriorDoorBuilder.add_exit_door(doors, session.grid, room)
+	InteriorDoorBuilder.add_linked_doors(doors, session.grid, room)
+	return doors
+
+
+func test_nookingtons_floors_join_by_stairs_in_the_north_wall() -> void:
+	## `SHOP04_1F_door_data` → the upstairs, `SHOP04_2F_door_data` → back down, both on the
+	## door pair in the middle of the north wall.
+	var down: Node3D = _nook_floor_doors(&"shop3_1")
+	var up_door := down.get_node_or_null("Link_shop3_2") as Node3D
+	assert_that(up_door).is_not_null()
+	assert_bool(bool(up_door.get("auto_enter"))).is_true()
+	assert_bool(bool(up_door.get("has_linked_spawn"))).is_true()
+	assert_that(down.get_node_or_null("Exit")).is_not_null()
+	var up: Node3D = _nook_floor_doors(&"shop3_2")
+	var down_door := up.get_node_or_null("Link_shop3_1") as Node3D
+	assert_that(down_door).is_not_null()
+	assert_bool(bool(down_door.get("auto_enter"))).is_true()
+	var grid := IndoorSession.new()
+	grid.bind(Game.interiors.room(&"shop3_2"))
+	var at: Vector3 = WorldGrid.room_point(grid.grid, ShopDisplay.STAIRS_SENSOR)
+	assert_float(down_door.position.z).is_equal_approx(at.z, 0.01)
+	assert_float(down_door.position.x).is_equal_approx(at.x, 0.01)
+	## The upstairs has no street door.
+	assert_that(up.get_node_or_null("Exit")).is_null()
+
+
+func test_the_stairs_put_you_just_inside_the_other_ones() -> void:
+	assert_float(ShopDisplay.STAIRS_SPAWN_UP.z).is_greater(ShopDisplay.STAIRS_SENSOR.z)
+	assert_float(ShopDisplay.STAIRS_SPAWN_DOWN.z).is_greater(ShopDisplay.STAIRS_SENSOR.z)
+	var upstairs: Room = Game.interiors.room(&"shop3_2")
+	assert_int(upstairs.door_cell.x).is_less(0)

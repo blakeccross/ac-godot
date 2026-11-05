@@ -196,7 +196,7 @@ func test_donate_select_pockets_flow() -> void:
 		var s: InventorySlot = Game.inventory.slot_at(i)
 		if s != null and not s.is_empty() and s.item.item_id == &"carp":
 			slot = i
-	assert_array(Game.inventory.tags_for_slot(slot)).contains(["Donate"])
+	assert_array(Game.inventory.tags_for_slot(slot)).contains(["Give"])
 	var resolved: Array[bool] = []
 	Game.pocket_requests.donation_resolved.connect(func(d: bool) -> void: resolved.append(d))
 	Game.pocket_requests.take_donation(&"carp")

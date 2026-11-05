@@ -109,7 +109,7 @@ func test_cloth_tag_includes_wear() -> void:
 		if slot != null and not slot.is_empty() and slot.item.item_id == FirstJob.UNIFORM_ID:
 			idx = i
 			break
-	var tags: PackedStringArray = inv.tags_for_slot(idx)
+	var tags: PackedStringArray = inv.tags_for_slot(idx, true)
 	assert_bool("Wear" in tags).is_true()
 
 

@@ -12,7 +12,29 @@ const GROUP := &"inventory_ui"
 signal closed
 
 const HND_GLB := "res://assets/generated/characters/other/hnd.glb"
-const HAND_SIZE := 100.0
+## `m_hand_ovl`: the glove is drawn in its own 64 x 64 view (320 x 240 screen units; the
+## shell stack is 3.12 px per unit), `mSM_change_view(80, 0, ..., 64, 64)`: FOV 35, the model
+## 3 units in front of the eye; the model scale is measured off the reference frame (half
+## of what the raw-size arithmetic gives for our GLB).
+const HAND_VIEW_UNITS := 64.0
+const HAND_FOV := 35.0
+const HAND_EYE_DISTANCE := 3.0
+const HAND_MODEL_SCALE := 0.215
+## `mHD_hand_shape_draw` shadow pass: 1.05x, flattened, 0.6 behind, black at alpha 128.
+const HAND_SHADOW_SCALE := 1.05
+const HAND_SHADOW_DEPTH := 0.6
+## `mHD_ROT_X/Y/Z`, applied X then Y then Z. X is +135 here (the decomp's -135): our GLB's
+## axes are mirrored against the ROM's.
+const HAND_ROTATION := Vector3(135.0, 0.0, 70.3125)
+## In-plane roll of the whole glove, measured off the reference frame (cuff upper right, index
+## pointing left, the curled fingers stacked beneath it toward the lower left).
+const HAND_VIEW_ROLL := 232.0
+## Hand view centre from the slot centre (screen units, y up): `mHD_hand_offset*_table`
+## (16, 6) turned by `mHD_ROT`, +(4, -4), then the view's own (+12 + 4, -16); a hand carrying
+## an item also moves (-5, +12) (`mHD_hand_pos_get`). The x is 14.4 units less
+## than that arithmetic: the pose is matched to the reference frame, not the ROM's origin.
+const HAND_CENTER_FREE := Vector2(15.7, -3.4)
+const HAND_CENTER_CARRYING := Vector2(10.7, 8.6)
 ## The ROM UI font (`FONT_nes_tex_font1`, `mFont_SetLineStrings`), same as the
 ## dialogue window; Rodin `.otf` is the vector fallback.
 const UI_FONT_PATHS := [
@@ -25,6 +47,8 @@ const UI_FONT_PATHS := [
 ## FISH ← POCKETS → BUG, flipped with the two right-edge folder tabs or `[` `]`.
 enum SideTab { FISH, POCKETS, BUG }
 const PAGE_ORDER: Array = [SideTab.FISH, SideTab.POCKETS, SideTab.BUG]
+## The order the shoulder button turns the pages in (`mTG_move_change`).
+const PAGE_TURN: Array = [SideTab.POCKETS, SideTab.FISH, SideTab.BUG]
 
 ## `mIV_ANIM_*` (`m_inventory_ovl.c`): the portrait player marches in place (WALK1)
 ## and reacts once to equipping (CHANGE1 + sparkles), eating (EAT1), or opening a
@@ -43,8 +67,21 @@ const PORTRAIT_CLIPS := {
 ## shares y=424.32-499.2) — mail row `r` lines up with item row `r - MAIL_ROW_OFFSET`.
 const MAIL_ROW_OFFSET := 2
 
-const PAGE_SWING_AMPLITUDE := 22.0
-const PAGE_SWING_DURATION := 40.0 / DecompTime.TICK_HZ
+## `page_move_timer` (`m_inventory_ovl.c`): 40 ticks. The page coming up rises and the rest drop by
+## `100 * sin(timer * pi / 40)` units; the stacking order flips when the timer reaches 20.
+const PAGE_MOVE_TICKS := 40
+const PAGE_MOVE_SWAP_TICK := 20
+const PAGE_MOVE_UNITS := 100.0
+const PAGE_MOVE_DURATION := float(PAGE_MOVE_TICKS) / DecompTime.TICK_HZ
+## `mTG_wchange_col_pos` / `mTG_wchange_line_pos`: where the hand sits on each page's tab (y up).
+## The hand rests this far (units, y up) above-left of where the table puts it: measured off the
+## reference frames (fish and insect pages), not derived.
+const TAB_HAND_SHIFT := Vector2(-1.0, 13.4)
+const TAB_HAND_UNITS := {
+	SideTab.FISH: Vector2(105.0, 37.0),
+	SideTab.POCKETS: Vector2(105.0, 0.0),
+	SideTab.BUG: Vector2(105.0, -37.0),
+}
 
 @onready var _root: Control = %Root
 @onready var _mobile: MobileInventory = $Root/MobileInventory
@@ -57,8 +94,7 @@ const PAGE_SWING_DURATION := 40.0 / DecompTime.TICK_HZ
 @onready var _wallet: Label = %WalletLabel
 @onready var _player_name: Label = %PlayerName
 @onready var _town_name: Label = %TownName
-@onready var _player_bar: Panel = %PlayerBar
-@onready var _town_bar: Panel = %TownBar
+@onready var _page_overlay: TextureRect = %PageOverlay
 @onready var _name: Label = %ItemNameLabel
 @onready var _equip: Label = %EquipLabel
 @onready var _hint: Label = %HintLabel
@@ -67,11 +103,12 @@ const PAGE_SWING_DURATION := 40.0 / DecompTime.TICK_HZ
 @onready var _bells_label: TextureRect = %BellsLabel
 @onready var _portrait_frame: TextureRect = %PortraitFrame
 @onready var _portrait_viewport: SubViewport = %SubViewport
-## Page tabs — style / position / glyphs are all authored in `inventory_overlay.tscn`
-## (nodes `TabFish` / `TabPockets` / `TabBug` / `TabDesign` under `ChromeLayer`).
-@onready var _tab_fish: Panel = %TabFish
+## The three stacked pages (`mIV_set_dl` draws them back to front): the pockets are `ShellStack`,
+## the encyclopedia pages their own scenes. Their tabs are authored in the scenes.
+@onready var _pages: Control = %Pages
+@onready var _fish_page: InventoryCollectPage = %FishPage
+@onready var _bug_page: InventoryCollectPage = %BugPage
 @onready var _tab_pockets: Panel = %TabPockets
-@onready var _tab_bug: Panel = %TabBug
 @onready var _tab_design: Panel = %TabDesign
 
 var _open: bool = false
@@ -109,17 +146,19 @@ var _portrait_rest: PortraitAnim = PortraitAnim.WALK
 var _hand_root: Control = null
 var _hand_viewport: SubViewport = null
 var _hand_anim: AnimationPlayer = null
+var _hand_shadow_anim: AnimationPlayer = null
 var _hand_tween: Tween = null
 var _hand_ready: bool = false
 ## `mSM_move_Move`: the pockets slide in from the right and out to the right.
 var _slide: MenuSlide = null
-## Fish / insect encyclopedia page (`mIV_set_collect_dl`): one 8×5 grid, reused.
-var _collect_root: Control = null
-var _collect_slots: Array[TextureRect] = []
-var _collect_banner: TextureRect = null
-var _collect_title: Label = null
-var _collect_count: Label = null
-var _pocket_chrome: Array[CanvasItem] = []
+## What the pockets page draws only while it is up: portrait, names, Bells, item pictures.
+var _pocket_contents: Array[CanvasItem] = []
+## `page_order`: the page on top first. `_page_moving` blocks input while the pages shuffle.
+var _page_order: Array = [SideTab.POCKETS, SideTab.FISH, SideTab.BUG]
+var _page_moving: bool = false
+var _page_swapped: bool = false
+var _page_next: SideTab = SideTab.POCKETS
+var _page_tween: Tween = null
 ## Mail slot index awaiting a Yes/No discard confirmation, or -1 when none is pending.
 var _pending_mail_discard: int = -1
 ## `mTG_TABLE_MONEY`: the wallet's own verb popup (denomination picker), not an item slot.
@@ -128,16 +167,17 @@ var _wallet_tag_mode: bool = false
 var _background_tag_mode: bool = false
 var _background_slot: Control = null
 var _background_icon: TextureRect = null
-## Cream `sen_win` name plate (`draw_no` 0) — floats near the selected slot with a
-## pointer. Stays up while the verb window is open (screenshot: both together).
-var _name_tag: Control = null
-var _name_tag_frame: TextureRect = null
-var _name_tag_shadow: TextureRect = null
-var _name_tag_arrow: TextureRect = null
-var _name_tag_label: Label = null
-## Blue `sen_win` verb window (`draw_no` 1) + kage + magenta `sen_win_cursor`.
-var _tag_popup: Control = null
-var _tag_cursor: TextureRect = null
+## The item name plate (`sen_itemw_*`, tag 0) and the verb window (`sen_win_*`, tag 1), both
+## laid out by `TagLayout` and drawn by `TagWindowView` (`m_tag_ovl.c`).
+var _name_tag: TagWindowView = null
+var _tag_popup: TagWindowView = null
+var _name_layout: TagLayout.Tag = null
+var _name_key: String = ""
+var _name_wait: int = 0
+var _name_open: float = 0.0
+var _verb_open: float = 0.0
+var _verb_closing: bool = false
+var _tag_accum: float = 0.0
 ## `mSM_OVL_HANIWA` (`m_haniwa_ovl`): the house gyroid's 4-slot table beside the pockets.
 ## `_gyroid_house` is set while the pockets were opened from the gyroid; `_gyroid_owner` is
 ## entrust mode (`mSM_IV_OPEN_HANIWA_ENTRUST`), else visitor take mode.
@@ -159,9 +199,6 @@ var _price_digit: int = 4
 ## `mHW_set_interrupt_message`: a status line held for 120 frames.
 var _gyroid_interrupt: String = ""
 var _gyroid_interrupt_left: float = 0.0
-var _tag_shadow: TextureRect = null
-var _tag_frame: TextureRect = null
-var _tag_rows: VBoxContainer = null
 var _ui_font: Font = null
 
 ## `mTG_select_col_type_on/off[mTG_TAG_COLOR_NORMAL]` + `cursol_color[NORMAL]`.
@@ -193,7 +230,6 @@ func _ready() -> void:
 		InputDeviceTracker.layout_changed.connect(_on_layout_changed)
 	_wire_side_tabs()
 	_apply_chrome()
-	_build_encyclopedia_grid()
 	_build_tag_popup()
 	_build_name_tag()
 	_build_background_slot()
@@ -273,38 +309,31 @@ func _set_slot_picture(btn: Button, tex: Texture2D) -> void:
 
 ## Small "pull out" when a tab is the active page — toward the paper on the left
 ## tab, away on the right ones. Everything else about the tabs is in the .tscn.
-const TAB_ACTIVE_NUDGE := 8.0
+## Figure height over the portrait box; the box is ~1.6x the ring, the figure ~1.3x.
+const PORTRAIT_FIGURE_FILL := 0.70
+## Shadow disc diameter over the figure's height (reference frame).
+const PORTRAIT_SHADOW_SPAN := 0.65
 
-var _tab_home: Dictionary = {}
+## Tab -> the page it opens (`-1`: the design book).
+var _tab_pages: Dictionary = {}
 
 
 func _wire_side_tabs() -> void:
 	if _slot_layer != null:
 		_slot_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var mid: float = _shell_stack.custom_minimum_size.x * 0.5 if _shell_stack != null else 374.0
-	for entry: Array in [
-		[_tab_fish, SideTab.FISH], [_tab_pockets, SideTab.POCKETS],
-		[_tab_bug, SideTab.BUG], [_tab_design, -1],
-	]:
+	for entry: Array in [[_tab_pockets, SideTab.POCKETS], [_tab_design, -1]]:
 		var tab: Panel = entry[0]
-		if tab == null:
-			continue
 		tab.mouse_filter = Control.MOUSE_FILTER_STOP
-		if not tab.gui_input.is_connected(_on_side_tab_gui):
-			tab.gui_input.connect(_on_side_tab_gui.bind(tab))
-		## Home position + which way it slides when active (left tab -> right/into paper).
-		_tab_home[tab] = {
-			"pos": tab.position,
-			"dir": TAB_ACTIVE_NUDGE if tab.position.x < mid else -TAB_ACTIVE_NUDGE,
-			"page": entry[1],
-		}
+		_tab_pages[tab] = entry[1]
+		tab.gui_input.connect(_on_side_tab_gui.bind(entry[1]))
+	_fish_page.tab_input.connect(_on_side_tab_gui.bind(SideTab.FISH))
+	_bug_page.tab_input.connect(_on_side_tab_gui.bind(SideTab.BUG))
 
 
-func _on_side_tab_gui(event: InputEvent, tab: Panel) -> void:
-	if not _open or not _click_event(event):
+func _on_side_tab_gui(event: InputEvent, page: int) -> void:
+	if not _open or _page_moving or not _click_event(event):
 		return
 	get_viewport().set_input_as_handled()
-	var page: int = _tab_home.get(tab, {}).get("page", SideTab.POCKETS)
 	if page < 0:
 		_open_design_book()
 	else:
@@ -343,8 +372,14 @@ func _cycle_side_tab(delta: int) -> void:
 	_select_side_tab(PAGE_ORDER[clampi(idx + delta, 0, PAGE_ORDER.size() - 1)])
 
 
+## The R button (`mTG_move_change`): pockets -> fish -> insects -> pockets.
+func _turn_page(step: int) -> void:
+	var idx: int = PAGE_TURN.find(_side_tab)
+	_select_side_tab(PAGE_TURN[posmod(idx + step, PAGE_TURN.size())])
+
+
 func _select_side_tab(page: SideTab) -> void:
-	if page == _side_tab:
+	if page == _side_tab or _page_moving:
 		return
 	_tag_mode = false
 	_pending_mail_discard = -1
@@ -360,17 +395,15 @@ func _select_side_tab(page: SideTab) -> void:
 	Audio.play_se(&"cursol")
 	## `mIV_ANIM_CATCH` on a collection page; WALK back on the pockets.
 	_set_portrait_anim(PortraitAnim.CATCH if page != SideTab.POCKETS else PortraitAnim.WALK)
-	_show_page(page)
+	_start_page_move(page)
 	_refresh()
-	_update_hand_cursor(true)
-	_play_page_swing()
 
 
 func _apply_chrome() -> void:
 	## Fill missing textures only — assigned `.tscn` textures stay editable in the editor.
 	InventoryChrome.clear_cache()
 	## Project default filter is nearest; shell / labels need linear for smooth scallops.
-	for node: CanvasItem in [_window_shell, _shell_shadow, _items_label, _letters_label, _bells_label, _portrait_frame]:
+	for node: CanvasItem in [_window_shell, _shell_shadow, _page_overlay, _items_label, _letters_label, _bells_label, _portrait_frame]:
 		if node != null:
 			node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if _window_shell.texture == null:
@@ -429,20 +462,7 @@ func _setup_player_portrait() -> void:
 	world.name = "PortraitWorld"
 	_portrait_viewport.add_child(world)
 
-	## Light matches `mSM_change_view` Lights0 (warm key from above-front).
-	var light := DirectionalLight3D.new()
-	light.light_color = Color(1.0, 1.0, 0.96)
-	light.light_energy = 1.2
-	light.shadow_enabled = false
-	light.rotation_degrees = Vector3(-35.0, 25.0, 0.0)
-	world.add_child(light)
-
-	var fill := OmniLight3D.new()
-	fill.light_color = Color(0.85, 0.8, 0.8)
-	fill.light_energy = 0.25
-	fill.omni_range = 8.0
-	fill.position = Vector3(-0.8, 1.4, 1.6)
-	world.add_child(fill)
+	_add_menu_lights(world)
 
 	## `mIV_set_player` → `mSM_change_view(330, 25, …, angle=0x900, 256²)`: FOV 20°,
 	## eye 0x900 short-angle (~12.66°) above `y_lookAt`. `eye_dist` / `y_lookAt` are
@@ -475,15 +495,38 @@ func _setup_player_portrait() -> void:
 	_sync_portrait_equipment(true)
 	_sync_portrait_cloth()
 
-	## Frame head → mid-thigh in the circle (`inv_mwin_3Dma` window). Decomp fill was
-	## ~70% of the RT height; bumped to 0.95 so the player reads bigger in the portrait.
+	## The whole figure is drawn over the `inv_mwin_3Dma` ring, not clipped to it: head and
+	## horns stand above the circle and the feet below (reference frame: ~1.3x the ring).
 	await get_tree().process_frame
 	var aabb := _visual_aabb(_portrait_pivot)
 	var ph: float = maxf(aabb.size.y, 0.1)
-	var look_y: float = aabb.position.y + ph * 0.60
-	var eye_dist: float = (ph / 0.95) / (2.0 * tan(deg_to_rad(10.0)))
+	var look_y: float = aabb.position.y + ph * 0.50
+	var eye_dist: float = (ph / PORTRAIT_FIGURE_FILL) / (2.0 * tan(deg_to_rad(10.0)))
 	cam.position = Vector3(0.0, look_y + eye_dist * sin(elev), eye_dist * cos(elev))
 	cam.look_at(Vector3(0.0, look_y, 0.0), Vector3.UP)
+	_add_portrait_shadow(cam.get_parent(), aabb.position.y, ph)
+
+
+## `mIV_pl_shadow_draw`: the player's round ground shadow (`ef_shadow_in_modelT`), drawn
+## under the feet before the figure. About 0.65 of the figure's height across.
+func _add_portrait_shadow(world: Node, ground_y: float, figure_height: float) -> void:
+	var tex: Texture2D = InventoryChrome.load_tex("portrait_shadow")
+	if tex == null:
+		return
+	var quad := PlaneMesh.new()
+	quad.size = Vector2.ONE * figure_height * PORTRAIT_SHADOW_SPAN
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_texture = tex
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	mat.no_depth_test = false
+	var shadow := MeshInstance3D.new()
+	shadow.name = "PortraitShadow"
+	shadow.mesh = quad
+	shadow.material_override = mat
+	shadow.position = Vector3(0.0, ground_y + figure_height * 0.004, 0.0)
+	world.add_child(shadow)
 
 
 func _visual_aabb(root: Node3D) -> AABB:
@@ -507,12 +550,13 @@ func _setup_hand_cursor() -> void:
 	if _hand_ready or _slot_layer == null:
 		return
 	_hand_ready = true
+	var view: float = HAND_VIEW_UNITS * _units_to_px()
 	_hand_root = Control.new()
 	_hand_root.name = "HandCursor"
 	_hand_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	## Above the verb window (z 40) so the kage shadow never paints over the glove.
 	_hand_root.z_index = 55
-	_hand_root.size = Vector2(HAND_SIZE, HAND_SIZE)
+	_hand_root.size = Vector2(view, view)
 	_hand_root.clip_contents = false
 	_hand_root.visible = false
 	## Parent to shell (not SlotLayer) so the tip can overhang slot edges without clipping.
@@ -530,65 +574,127 @@ func _setup_hand_cursor() -> void:
 	_hand_viewport = SubViewport.new()
 	_hand_viewport.transparent_bg = true
 	_hand_viewport.own_world_3d = true
-	## Roomy RT so the whole hand + cuff fits the frustum (was cropping the wrist).
-	_hand_viewport.size = Vector2i(224, 224)
+	_hand_viewport.size = Vector2i(256, 256)
 	_hand_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	host.add_child(_hand_viewport)
 
 	var world := Node3D.new()
 	world.name = "HandWorld"
 	_hand_viewport.add_child(world)
-
-	var light := DirectionalLight3D.new()
-	light.light_energy = 1.15
-	light.rotation_degrees = Vector3(-40.0, 30.0, 0.0)
-	world.add_child(light)
+	_add_menu_lights(world)
 
 	var cam := Camera3D.new()
 	cam.current = true
-	## Pull back + a touch wider so the whole hand (finger to cuff) sits inside the RT.
-	cam.fov = 38.0
-	cam.position = Vector3(0.0, 0.5, 4.6)
+	cam.fov = HAND_FOV
+	cam.near = 0.1
+	cam.far = 50.0
+	cam.position = Vector3(0.0, 0.0, HAND_EYE_DISTANCE)
 	world.add_child(cam)
-	cam.look_at(Vector3(0.05, 0.28, 0.0), Vector3.UP)
 
 	if not ResourceLoader.exists(HND_GLB):
 		return
 	var packed: PackedScene = load(HND_GLB) as PackedScene
 	if packed == null:
 		return
-	var body: Node = packed.instantiate()
-	if not (body is Node3D):
-		body.queue_free()
-		return
-	var pivot := body as Node3D
-	world.add_child(pivot)
-	VisualFit.apply_actor_scale(pivot, &"hnd")
-	GeneratedVisual.apply_preview_materials(pivot)
-	VisualAnimation.stop_autoplay_keep_rest(pivot)
-	pivot.scale *= 1
-	pivot.rotation_degrees = Vector3(-30.0, -113.0, 0.0)
-	_hand_anim = VisualAnimation.find_animation_player(pivot)
+	## Shadow first (it is the farther, flattened copy), then the glove.
+	var shadow_root := Node3D.new()
+	shadow_root.name = "HandShadow"
+	shadow_root.scale = Vector3(HAND_MODEL_SCALE * HAND_SHADOW_SCALE, HAND_MODEL_SCALE * HAND_SHADOW_SCALE, 0.001)
+	shadow_root.position = Vector3(0.0, 0.0, -HAND_SHADOW_DEPTH)
+	shadow_root.rotation_degrees = Vector3(0.0, 0.0, HAND_VIEW_ROLL)
+	world.add_child(shadow_root)
+	var shadow_mat := StandardMaterial3D.new()
+	shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shadow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	shadow_mat.albedo_color = Color(0.0, 0.0, 0.0, 128.0 / 255.0)
+	shadow_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_hand_shadow_anim = _make_hand_model(packed, shadow_root, shadow_mat)
+
+	var hand_root := Node3D.new()
+	hand_root.name = "HandModel"
+	hand_root.scale = Vector3.ONE * HAND_MODEL_SCALE
+	hand_root.rotation_degrees = Vector3(0.0, 0.0, HAND_VIEW_ROLL)
+	world.add_child(hand_root)
+	_hand_anim = _make_hand_model(packed, hand_root, null)
 	_play_hand_clip("hnd_sasu", true)
 
 
+## One copy of the glove under `parent`, turned by `mHD_ROT`. `override` replaces its
+## materials (the flat shadow); otherwise they are the model's own, with back faces culled
+## (`G_CULL_BACK`: the finger-line texture sits on the inside faces).
+func _make_hand_model(packed: PackedScene, parent: Node3D, override: Material) -> AnimationPlayer:
+	var body: Node = packed.instantiate()
+	if not (body is Node3D):
+		body.queue_free()
+		return null
+	var pivot := body as Node3D
+	pivot.rotation_order = EULER_ORDER_XYZ
+	pivot.rotation_degrees = HAND_ROTATION
+	parent.add_child(pivot)
+	GeneratedVisual.apply_preview_materials(pivot)
+	VisualAnimation.stop_autoplay_keep_rest(pivot)
+	for node: Node in pivot.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if override != null:
+			mi.material_override = override
+			continue
+		for surface: int in mi.mesh.get_surface_count():
+			var mat := mi.get_active_material(surface) as BaseMaterial3D
+			if mat == null:
+				continue
+			mat = mat.duplicate() as BaseMaterial3D
+			mat.cull_mode = BaseMaterial3D.CULL_BACK
+			mi.set_surface_override_material(surface, mat)
+	return VisualAnimation.find_animation_player(pivot)
+
+
+## Screen units (320 x 240) to shell-stack pixels.
+func _units_to_px() -> float:
+	return _shell_stack.custom_minimum_size.x / 240.0 if _shell_stack != null else 3.12
+
+
+## `mSM_change_view` Lights0 for the menu's 3D pieces (portrait, glove): ambient (105, 90,
+## 90) and a white-ish key (255, 255, 245) whose vector (0, 60, 60) points up and toward
+## the camera.
+func _add_menu_lights(world: Node3D) -> void:
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color8(105, 90, 90)
+	env.ambient_light_energy = 1.0
+	var env_node := WorldEnvironment.new()
+	env_node.environment = env
+	world.add_child(env_node)
+	var light := DirectionalLight3D.new()
+	light.light_color = Color8(255, 255, 245)
+	light.light_energy = 1.0
+	light.shadow_enabled = false
+	light.rotation_degrees = Vector3(-45.0, 0.0, 0.0)
+	world.add_child(light)
+
+
 func _play_hand_clip(suffix: String, loop: bool) -> void:
-	if _hand_anim == null or suffix.is_empty():
+	_play_hand_clip_on(_hand_anim, suffix, loop)
+	_play_hand_clip_on(_hand_shadow_anim, suffix, loop)
+
+
+func _play_hand_clip_on(player: AnimationPlayer, suffix: String, loop: bool) -> void:
+	if player == null or suffix.is_empty():
 		return
 	var clip := ""
-	if _hand_anim.has_animation(suffix):
+	if player.has_animation(suffix):
 		clip = suffix
 	else:
-		for anim_name: String in _hand_anim.get_animation_list():
+		for anim_name: String in player.get_animation_list():
 			if anim_name.ends_with(suffix) or suffix in anim_name:
 				clip = anim_name
 				break
 	if clip.is_empty():
 		return
-	var animation: Animation = _hand_anim.get_animation(clip)
+	var animation: Animation = player.get_animation(clip)
 	if animation != null:
 		animation.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
-	_hand_anim.play(clip)
+	player.play(clip)
 
 
 ## The verb popup anchors on whatever's under the cursor — usually a pocket/mail slot,
@@ -629,7 +735,7 @@ func _update_hand_cursor(animate: bool = true) -> void:
 		return
 	var on_pockets: bool = _side_tab == SideTab.POCKETS
 	var btn: Control = (_portrait_frame if _focus_player else _selected_slot_button()) if on_pockets else null
-	if btn == null or not _open:
+	if _page_moving or not _open or (btn == null and on_pockets):
 		_hand_root.visible = false
 		if _hand_viewport != null:
 			_hand_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -637,15 +743,23 @@ func _update_hand_cursor(animate: bool = true) -> void:
 	_hand_root.visible = true
 	if _hand_viewport != null:
 		_hand_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	## Tip of `hnd_sasu` sits toward the lower-left of the viewport card.
-	var slot_pos: Vector2 = btn.position
-	if btn.get_parent() != null and _hand_root.get_parent() != null:
-		slot_pos = _hand_root.get_parent().get_global_transform_with_canvas().affine_inverse() * (
-			btn.get_global_transform_with_canvas().origin
-		)
-	## Finger tip aims near slot center; hand body sits slightly above so it isn't sunk.
+	## The 64-unit view is centred up and right of the slot (`HAND_CENTER_*`).
+	var slot_center: Vector2
+	if btn == null:
+		## An encyclopedia page: the hand rests on that page's tab (`mTG_TABLE_WCHANGE`).
+		var tab_at: Vector2 = TAB_HAND_UNITS[_side_tab]
+		tab_at += TAB_HAND_SHIFT
+		slot_center = (Vector2(120.0, 90.0) + Vector2(tab_at.x, -tab_at.y)) * _units_to_px()
+	else:
+		slot_center = btn.position + btn.size * 0.5
+		if btn.get_parent() != null and _hand_root.get_parent() != null:
+			slot_center = _hand_root.get_parent().get_global_transform_with_canvas().affine_inverse() * (
+				btn.get_global_transform_with_canvas() * (btn.size * 0.5)
+			)
+	var carrying: bool = btn != null and _hand_carrying()
+	var shift: Vector2 = HAND_CENTER_CARRYING if carrying else HAND_CENTER_FREE
 	var target: Vector2 = (
-		slot_pos + btn.size * Vector2(0.52, 0.28) - Vector2(HAND_SIZE * 0.3, HAND_SIZE * 0.55)
+		slot_center + Vector2(shift.x, -shift.y) * _units_to_px() - _hand_root.size * 0.5
 	)
 	if animate and _hand_root.visible:
 		if _hand_tween != null:
@@ -657,95 +771,10 @@ func _update_hand_cursor(animate: bool = true) -> void:
 		_hand_root.position = target
 
 
-## `mIV_set_collect_dl`: `{ 8, 5, mTG_collect_col_pos, mTG_collect_line_pos }` — one
-## 8×5 grid for all 40 species, no in-page scroll. Built once, retargeted per page.
-func _build_encyclopedia_grid() -> void:
-	if _collect_root != null or _shell_stack == null:
-		return
-	_collect_root = Control.new()
-	_collect_root.name = "EncyclopediaPage"
-	_collect_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_collect_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_collect_root.visible = false
-	_shell_stack.add_child(_collect_root)
-
-	const CELL := 46.0
-	const SEP := 6
-	var grid_w: float = 8.0 * CELL + 7.0 * float(SEP)
-	var left: float = (_shell_stack.custom_minimum_size.x - grid_w) * 0.5
-	var top: float = 174.0
-
-	## `inv_*_daimeiT_model`: the "Fish"/"Insects" title ribbon. Word itself is a
-	## separate glyph pass (`inv_*_moji_model`) drawn over it, not baked into the art.
-	const BANNER_W := 320.0
-	const BANNER_H := 80.0
-	_collect_banner = TextureRect.new()
-	_collect_banner.position = Vector2((_shell_stack.custom_minimum_size.x - BANNER_W) * 0.5, 78.0)
-	_collect_banner.size = Vector2(BANNER_W, BANNER_H)
-	_collect_banner.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-	_collect_banner.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_collect_banner.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	_collect_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_collect_root.add_child(_collect_banner)
-
-	_collect_title = Label.new()
-	_collect_title.position = Vector2(left, 96.0)
-	_font_label(_collect_title, 26, Color(1.0, 1.0, 1.0))
-	_collect_title.size = Vector2(grid_w, 32.0)
-	_collect_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_collect_root.add_child(_collect_title)
-
-	_collect_count = Label.new()
-	_collect_count.position = Vector2(left, 132.0)
-	_font_label(_collect_count, 16, Color(0.42, 0.34, 0.24))
-	_collect_root.add_child(_collect_count)
-
-	var grid := GridContainer.new()
-	grid.columns = 8
-	grid.name = "Grid"
-	grid.position = Vector2(left, top)
-	grid.add_theme_constant_override("h_separation", SEP)
-	grid.add_theme_constant_override("v_separation", SEP)
-	_collect_root.add_child(grid)
-
-	var ring := StyleBoxFlat.new()
-	ring.bg_color = Color(1.0, 0.99, 0.92, 0.45)
-	ring.set_corner_radius_all(999)
-	ring.set_border_width_all(2)
-	ring.border_color = Color(0.66, 0.55, 0.38, 0.6)
-
-	for i: int in EncyclopediaCatalog.COLLECT_NUM:
-		var cell := Panel.new()
-		cell.custom_minimum_size = Vector2(CELL, CELL)
-		cell.add_theme_stylebox_override("panel", ring)
-		grid.add_child(cell)
-		var pic := TextureRect.new()
-		pic.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, 5)
-		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		cell.add_child(pic)
-		_collect_slots.append(pic)
-
-
-func _populate_encyclopedia(kind: StringName) -> void:
-	if _collect_root == null:
-		return
-	var book: SpeciesLog = Game.species_log
-	_collect_title.text = "Fish" if kind == &"fish" else "Insects"
-	_collect_banner.texture = InventoryChrome.load_tex(
-		"fish_title_banner" if kind == &"fish" else "bug_title_banner"
-	)
-	var have: int = book.page_count(kind) if book != null else 0
-	_collect_count.text = "%d / %d" % [have, EncyclopediaCatalog.COLLECT_NUM]
-	for slot: int in _collect_slots.size():
-		var pic: TextureRect = _collect_slots[slot]
-		var id: StringName = EncyclopediaCatalog.id_for(kind, slot)
-		var caught: bool = book != null and book.has(id)
-		pic.texture = InventoryChrome.load_tex(EncyclopediaCatalog.icon_for(kind, slot))
-		## Caught: full colour `inv_mwin_NN` card. Uncaught: a dark silhouette.
-		pic.modulate = Color.WHITE if caught else Color(0.05, 0.06, 0.09, 0.32)
+## `mHD_hand_pos_get`: the (-5, +12) lift follows `info.item`, the item the hand is carrying,
+## not whatever sits under it, so hovering a filled slot leaves the hand level with its row.
+func _hand_carrying() -> bool:
+	return Game.inventory.hand_index >= 0
 
 
 ## `mTG_TABLE_BG` is navigable in decomp, but the GC pockets screen does **not** draw a
@@ -780,75 +809,81 @@ func _refresh_background() -> void:
 	_apply_paper_scroll_shader(paper_tex)
 
 
-## Cream name plate (`sen_win` NORMAL + cream `p_col`/`e_col`). Built once;
-## `_refresh_name_tag` repositions it each selection change.
+## The two tag windows. Built once; `_refresh_name_tag` / `_show_tag_popup` lay them out.
 func _build_name_tag() -> void:
 	if _name_tag != null or _shell_stack == null:
 		return
-	_name_tag = Control.new()
-	_name_tag.name = "NameTag"
-	_name_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_name_tag.z_index = 35
-	_name_tag.visible = false
-	_shell_stack.add_child(_name_tag)
+	_name_tag = _new_tag_view(35)
 
-	_name_tag_shadow = TextureRect.new()
-	_name_tag_shadow.texture = InventoryChrome.load_tex("tag_shadow")
-	_name_tag_shadow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_name_tag_shadow.stretch_mode = TextureRect.STRETCH_SCALE
-	_name_tag_shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_name_tag_shadow.self_modulate = Color(1, 1, 1, 0.5)
-	_name_tag.add_child(_name_tag_shadow)
 
-	## Uniform stretch: wide short plate turns the figure-8 into the cream pill
-	## with a soft waist (screenshot), not a 9-sliced peanut.
-	_name_tag_frame = TextureRect.new()
-	_name_tag_frame.texture = InventoryChrome.load_tex("tag_name_frame")
-	_name_tag_frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_name_tag_frame.stretch_mode = TextureRect.STRETCH_SCALE
-	_name_tag_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_name_tag.add_child(_name_tag_frame)
+func _build_tag_popup() -> void:
+	if _tag_popup != null or _shell_stack == null:
+		return
+	_tag_popup = _new_tag_view(40)
 
-	_name_tag_arrow = TextureRect.new()
-	_name_tag_arrow.texture = InventoryChrome.load_tex("tag_arrow")
-	_name_tag_arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_name_tag_arrow.stretch_mode = TextureRect.STRETCH_SCALE
-	_name_tag_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_name_tag_arrow.size = Vector2(18, 20)
-	_name_tag.add_child(_name_tag_arrow)
 
-	_name_tag_label = Label.new()
-	_name_tag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_name_tag_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_name_tag_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_name_tag_label.add_theme_color_override("font_color", Color(0.22, 0.18, 0.10, 1.0))
-	_name_tag_label.add_theme_font_size_override("font_size", 18)
-	if _ui_font != null:
-		_name_tag_label.add_theme_font_override("font", _ui_font)
-	_name_tag.add_child(_name_tag_label)
+func _new_tag_view(z: int) -> TagWindowView:
+	var view := TagWindowView.new()
+	view.z_index = z
+	view.px_per_unit = _units_to_px()
+	view.font = _ui_font
+	view.set_centre(_shell_stack.custom_minimum_size)
+	_shell_stack.add_child(view)
+	return view
+
+
+## Screen units (about the centre, y up) for the middle of `ctrl`, which lives in the stack.
+func _units_of(ctrl: Control) -> Vector2:
+	var k: float = _units_to_px()
+	var centre: Vector2 = (ctrl.position + ctrl.size * 0.5) / k
+	return Vector2(centre.x - 120.0, 90.0 - centre.y)
+
+
+## The ROM font's width of `text` at its native 16-unit size (`mFont_GetStringWidth`).
+func _text_units(text: String) -> float:
+	if _ui_font == null:
+		return float(text.length()) * 7.0
+	return _ui_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+
+
+const _TAG_NAME_TEXT := Color8(90, 60, 50)
+const _NAME_MODELS := {
+	"frame": "tag_name_frame", "shadow": "tag_name_shadow", "arrow": "tag_name_arrow", "cursor": ""
+}
+const _NAME_MODELS_RIGHT := {
+	"frame": "tag_name_frame", "shadow": "tag_name_shadow", "arrow": "tag_name_arrow_r", "cursor": ""
+}
+const _VERB_MODELS := {
+	"frame": "tag_frame", "shadow": "tag_shadow", "arrow": "", "cursor": "tag_cursor"
+}
 
 
 func _refresh_name_tag(inv: Inventory) -> void:
 	if _name_tag == null:
 		return
-	## Name plate stays visible in tag mode (GC draws both `mTG_WIN_SELECT` tags).
+	## The name plate stays up while the verb window is open (both are drawn together).
 	if not _open or _side_tab != SideTab.POCKETS or _focus_player or _focus_gyroid:
 		_name_tag.visible = false
+		_name_layout = null
+		_name_key = ""
 		return
 	var text := ""
 	var anchor: Control = null
+	var row: int = 0
 	if _focus_mail:
 		var mail: MailData = inv.mail_at(inv.selected_mail_index)
 		if mail == null or mail.is_empty():
-			_name_tag.visible = false
+			_hide_name_tag()
 			return
 		text = mail.label()
 		if inv.selected_mail_index >= 0 and inv.selected_mail_index < _mail_buttons.size():
 			anchor = _mail_buttons[inv.selected_mail_index]
+			@warning_ignore("integer_division")
+			row = inv.selected_mail_index / Inventory.MAIL_COLUMNS
 	else:
 		var slot: InventorySlot = inv.selected_slot()
 		if slot == null or slot.is_empty():
-			_name_tag.visible = false
+			_hide_name_tag()
 			return
 		var data: ItemData = ItemCatalog.get_item(slot.item.item_id)
 		if slot.item.condition == InventoryItem.Condition.PRESENT:
@@ -859,82 +894,67 @@ func _refresh_name_tag(inv: Inventory) -> void:
 			text = String(slot.item.item_id)
 		if inv.selected_index >= 0 and inv.selected_index < _slot_buttons.size():
 			anchor = _slot_buttons[inv.selected_index]
+			@warning_ignore("integer_division")
+			row = inv.selected_index / Inventory.COLUMNS
 	if anchor == null or text.is_empty():
-		_name_tag.visible = false
+		_hide_name_tag()
 		return
-	_name_tag_label.text = text
-	_name_tag_label.reset_size()
-	var label_sz: Vector2 = _name_tag_label.get_combined_minimum_size()
-	## Wide cream pill (screenshot: elongated oval, soft waist from stretched sen_win).
-	var plate := Vector2(maxf(label_sz.x + 56.0, 170.0), maxf(label_sz.y + 22.0, 40.0))
-	var mid: Vector2 = anchor.position + anchor.size * 0.5
-	## Tag mode screenshot: plate sits just under the hand / above the slot, pointer
-	## on the top-left aiming up at the item.
-	var px: float = mid.x - plate.x * 0.45
-	var py: float = anchor.position.y - plate.y * 0.35
-	_name_tag_frame.position = Vector2(px, py)
-	_name_tag_frame.size = plate
-	_name_tag_shadow.position = Vector2(px, py) + Vector2(5, 6)
-	_name_tag_shadow.size = plate
-	_name_tag_label.position = Vector2(px, py)
-	_name_tag_label.size = plate
-	## `tag_arrow` points left; +90° (clockwise) → up toward the hand/item.
-	_name_tag_arrow.rotation_degrees = 90.0
-	_name_tag_arrow.pivot_offset = _name_tag_arrow.size * 0.5
-	_name_tag_arrow.position = Vector2(px + 20.0, py - _name_tag_arrow.size.y * 0.55)
-	_name_tag.visible = true
+	_name_layout = TagLayout.item_tag(_units_of(anchor), row, _text_units(text))
+	var key: String = "%s/%s/%s" % [text, _focus_mail, row]
+	key += "/%d" % (inv.selected_mail_index if _focus_mail else inv.selected_index)
+	if key != _name_key:
+		## `mTG_get_item_name_wait_time`: the plate pops up a moment after the cursor lands.
+		_name_key = key
+		_name_wait = TagLayout.NAME_WAIT_FRAMES
+		_name_open = 0.0
+	var models: Dictionary = _NAME_MODELS if _name_layout.arrow_dir == 1 else _NAME_MODELS_RIGHT
+	_name_tag.show_tag(_name_layout, models, PackedStringArray([text]), [_TAG_NAME_TEXT], -1)
+	_name_tag.set_open_scale(_name_open)
 
 
-## Blue `sen_win` verb window (`m_tag_ovl` tags[1]): figure-8 frame + kage shadow +
-## magenta triangle cursor. Baked by `inventory_ui._bake_tag_chrome`.
-func _build_tag_popup() -> void:
-	if _tag_popup != null or _shell_stack == null:
-		return
-	_tag_popup = Control.new()
-	_tag_popup.name = "TagPopup"
-	_tag_popup.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_tag_popup.z_index = 40
-	_tag_popup.visible = false
-	_shell_stack.add_child(_tag_popup)
+func _hide_name_tag() -> void:
+	_name_tag.visible = false
+	_name_layout = null
+	_name_key = ""
 
-	## Uniform scale keeps the figure-8 waist (NinePatch would flatten the pinch).
-	_tag_shadow = TextureRect.new()
-	_tag_shadow.texture = InventoryChrome.load_tex("tag_shadow")
-	_tag_shadow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_tag_shadow.stretch_mode = TextureRect.STRETCH_SCALE
-	_tag_shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_tag_shadow.self_modulate = Color(1, 1, 1, 0.55)
-	_tag_popup.add_child(_tag_shadow)
 
-	_tag_frame = TextureRect.new()
-	_tag_frame.texture = InventoryChrome.load_tex("tag_frame")
-	_tag_frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_tag_frame.stretch_mode = TextureRect.STRETCH_SCALE
-	_tag_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_tag_popup.add_child(_tag_frame)
-
-	_tag_rows = VBoxContainer.new()
-	_tag_rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_tag_rows.add_theme_constant_override("separation", 2)
-	_tag_popup.add_child(_tag_rows)
-
-	_tag_cursor = TextureRect.new()
-	_tag_cursor.texture = InventoryChrome.load_tex("tag_cursor")
-	_tag_cursor.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_tag_cursor.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_tag_cursor.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_tag_cursor.size = Vector2(18, 18)
-	_tag_popup.add_child(_tag_cursor)
+## `mTG_normal_move`: the name plate opens 0.125 per game frame after its wait; the verb
+## window opens 0.185 per frame once the plate is up (0.125 otherwise) and closes 0.125.
+func _step_tags(delta: float) -> void:
+	_tag_accum += delta
+	var step: float = 1.0 / DecompTime.FRAME_HZ
+	var steps: int = 0
+	while _tag_accum >= step and steps < 8:
+		_tag_accum -= step
+		steps += 1
+		if _name_layout != null:
+			if _name_wait > 0:
+				_name_wait -= 1
+			elif _name_open < 1.0:
+				_name_open = minf(_name_open + 0.125, 1.0)
+		if _tag_popup != null and _tag_popup.visible:
+			if _verb_closing:
+				_verb_open -= 0.125
+				if _verb_open <= 0.0:
+					_verb_open = 0.0
+					_tag_popup.visible = false
+			elif _verb_open < 1.0:
+				_verb_open = minf(_verb_open + (0.185 if _name_layout != null else 0.125), 1.0)
+	if steps > 0:
+		if _name_tag != null and _name_layout != null:
+			_name_tag.set_open_scale(_name_open)
+		if _tag_popup != null and _tag_popup.visible:
+			_tag_popup.set_open_scale(_verb_open)
 
 
 func _hide_tag_popup() -> void:
 	_mobile.hide_actions()
-	if _tag_popup != null:
-		_tag_popup.visible = false
+	if _tag_popup != null and _tag_popup.visible:
+		_verb_closing = true
 
 
-## Verb list beside the selected slot. `mTG_set_tag_win` / screenshot: blue cloud to
-## the right of the item, magenta ▶ on the selected row, purple/muted verb text.
+## The verb window (`mTG_init_tag_data_select_win_after_item`): hangs off the name plate,
+## selected verb in violet, the rest muted, the magenta cursor on the selected row.
 func _show_tag_popup() -> void:
 	if uses_mobile_layout():
 		if _tag_popup != null:
@@ -949,125 +969,130 @@ func _show_tag_popup() -> void:
 	if btn == null:
 		_hide_tag_popup()
 		return
-	for child: Node in _tag_rows.get_children():
-		child.queue_free()
-	## Indent leaves room for the magenta triangle on the left of each row.
-	var blank := StyleBoxEmpty.new()
-	blank.content_margin_left = 22
-	blank.content_margin_right = 16
-	blank.content_margin_top = 1
-	blank.content_margin_bottom = 1
+	var parent: TagLayout.Tag = _name_layout
+	if parent == null:
+		## No name plate to hang from (player picture, wallet): the window stands alone.
+		parent = TagLayout.Tag.new()
+		parent.base = _units_of(btn)
+		parent.arrow_dir = 0
+	var widest := 0.0
+	for verb: String in _tag_choices:
+		widest = maxf(widest, _text_units(verb))
+	var layout: TagLayout.Tag = TagLayout.verb_tag(parent, _tag_choices.size(), widest)
+	var colors: Array[Color] = []
 	for i: int in _tag_choices.size():
-		var row := Label.new()
-		row.text = _tag_choices[i]
-		var on: bool = i == _tag_index
-		_font_label(row, 18, _TAG_TEXT_ON if on else _TAG_TEXT_OFF)
-		row.add_theme_stylebox_override("normal", blank)
-		_tag_rows.add_child(row)
-	_tag_rows.reset_size()
-	await get_tree().process_frame
-	if _tag_popup == null or not _tag_mode:
+		colors.append(_TAG_TEXT_ON if i == _tag_index else _TAG_TEXT_OFF)
+	var fresh: bool = not _tag_popup.visible or _verb_closing
+	_verb_closing = false
+	if fresh:
+		_verb_open = 0.0
+	_tag_popup.show_tag(layout, _VERB_MODELS, _tag_choices, colors, _tag_index)
+	_tag_popup.set_open_scale(_verb_open)
+
+
+## `mIV_set_dl` draws all three pages every frame, back to front. A page that is up draws in full
+## (`mIV_up_page_draw_check`); the others draw only their frame: the pockets' empty rings and
+## labels, an encyclopedia page's tab (`inv_*_part_model`).
+func _show_pages(up: Array) -> void:
+	var pockets_up: bool = up.has(SideTab.POCKETS)
+	if _pocket_contents.is_empty():
+		for n: CanvasItem in [_town_name, _player_name, _wallet.get_parent() as CanvasItem]:
+			_pocket_contents.append(n)
+		if _portrait_viewport != null:
+			_pocket_contents.append(_portrait_viewport.get_parent() as CanvasItem)
+	for n: CanvasItem in _pocket_contents:
+		n.visible = pockets_up
+	for btn: Button in _slot_buttons + _mail_buttons:
+		var icon: TextureRect = btn.get_node_or_null("ItemIcon") as TextureRect
+		if icon != null:
+			icon.self_modulate.a = 1.0 if pockets_up else 0.0
+	if _portrait_viewport != null and _open:
+		_portrait_viewport.render_target_update_mode = (
+			SubViewport.UPDATE_ALWAYS if pockets_up else SubViewport.UPDATE_DISABLED
+		)
+	for page: SideTab in [SideTab.FISH, SideTab.BUG]:
+		var node: InventoryCollectPage = _collect_page(page)
+		node.set_full(up.has(page))
+		if up.has(page):
+			node.populate(Game.species_log)
+
+
+func _collect_page(page: SideTab) -> InventoryCollectPage:
+	return _fish_page if page == SideTab.FISH else _bug_page
+
+
+func _page_node(page: SideTab) -> Control:
+	return _shell_stack if page == SideTab.POCKETS else _collect_page(page)
+
+
+## Back to the pockets on top, every page home.
+func _reset_pages() -> void:
+	if _page_tween != null:
+		_page_tween.kill()
+	_page_moving = false
+	_page_order = [SideTab.POCKETS, SideTab.FISH, SideTab.BUG]
+	_restack_pages()
+	for page: SideTab in PAGE_ORDER:
+		_page_node(page).position.y = 0.0
+	_show_pages([SideTab.POCKETS])
+
+
+## `page_order[2]` is drawn first, `page_order[0]` last.
+func _restack_pages() -> void:
+	for i: int in _page_order.size():
+		_pages.move_child(_page_node(_page_order[_page_order.size() - 1 - i]), i)
+
+
+## `mIV_move_Play` with `page_move_timer` = 40: the page coming up rises and the others drop, the
+## order flips at the midpoint, then everything settles. The hand is gone until it ends.
+func _start_page_move(next: SideTab) -> void:
+	if _page_tween != null:
+		_page_tween.kill()
+	if uses_mobile_layout():
+		## The phone sheet has its own pages; nothing shuffles.
+		_bring_page_up(next)
+		_show_pages([next])
 		return
-	var content: Vector2 = _tag_rows.get_combined_minimum_size()
-	## Size from content, then bump to native figure-8 aspect (~552×458).
-	var inner := Vector2(maxf(content.x + 48.0, 110.0), maxf(content.y + 40.0, 72.0))
-	var aspect: float = 552.0 / 458.0
-	var fsize: Vector2
-	if inner.x / inner.y > aspect:
-		fsize = Vector2(inner.x, inner.x / aspect)
-	else:
-		fsize = Vector2(inner.y * aspect, inner.y)
-	var slot_c: Vector2 = btn.position + btn.size * 0.5
-	## Keep the cloud clear of the slot (screenshot: sits to the right of the item).
-	var gap: float = btn.size.x * 0.5 + 22.0
-	var right: bool = slot_c.x + gap + fsize.x < _shell_stack.custom_minimum_size.x - 8.0
-	var fx: float = (slot_c.x + gap) if right else (slot_c.x - gap - fsize.x)
-	var fy: float = clampf(
-		slot_c.y - fsize.y * 0.45, 12.0, _shell_stack.custom_minimum_size.y - fsize.y - 12.0
-	)
-	_tag_frame.position = Vector2(fx, fy)
-	_tag_frame.size = fsize
-	_tag_shadow.position = Vector2(fx, fy) + Vector2(5, 6)
-	_tag_shadow.size = fsize
-	_tag_rows.position = Vector2(
-		fx + (fsize.x - content.x) * 0.5 + 6.0,
-		fy + (fsize.y - content.y) * 0.5,
-	)
-	_tag_rows.size = content
-	## Magenta triangle sits left of the selected verb (`sen_win_cursor`).
-	var row_h: float = content.y / float(maxi(_tag_choices.size(), 1))
-	_tag_cursor.visible = true
-	_tag_cursor.position = Vector2(
-		_tag_rows.position.x - _tag_cursor.size.x - 2.0,
-		_tag_rows.position.y + row_h * float(_tag_index) + row_h * 0.5 - _tag_cursor.size.y * 0.5,
-	)
-	_tag_popup.visible = true
-
-
-## Toggle the pockets chrome (portrait / bells / labels / slots / mail) against the
-## encyclopedia grid. `mIV_set_normal_dl` draws the former, `mIV_set_collect_dl` the latter.
-func _show_page(page: SideTab) -> void:
-	var pockets: bool = page == SideTab.POCKETS
-	if _pocket_chrome.is_empty():
-		for n: CanvasItem in [
-			_slot_layer, _items_label, _letters_label, _bells_label, _portrait_frame,
-			_town_bar, _player_bar, _town_name, _player_name,
-		]:
-			if n != null:
-				_pocket_chrome.append(n)
-	for n: CanvasItem in _pocket_chrome:
-		n.visible = pockets
-	var pc: Control = _portrait_viewport.get_parent() if _portrait_viewport != null else null
-	if pc != null:
-		pc.visible = pockets
-	if _wallet != null and _wallet.get_parent() is CanvasItem:
-		(_wallet.get_parent() as CanvasItem).visible = pockets
-	## Background chip stays hidden (no GC equivalent beside Bells).
+	_page_moving = true
+	_page_swapped = false
+	_page_next = next
+	if _hand_tween != null:
+		_hand_tween.kill()
 	if _hand_root != null:
-		_hand_root.visible = pockets and _hand_root.visible
-	if _collect_root != null:
-		_collect_root.visible = not pockets
-		if not pockets:
-			_populate_encyclopedia(&"fish" if page == SideTab.FISH else &"insect")
-	_apply_page_background(page)
+		_hand_root.visible = false
+	_page_tween = create_tween()
+	_page_tween.tween_method(_step_page_move, float(PAGE_MOVE_TICKS), 0.0, PAGE_MOVE_DURATION)
+	_page_tween.tween_callback(_finish_page_move)
 
 
-## `mIV_set_base_frame_dl` scroll_flag branch: the fish/bug collection pages swap
-## the pockets paper for their own cloth pattern (`inv_sakana_scroll_mode` /
-## `inv_mushi_scroll_mode`), still scrolled the same way. Pockets keeps whatever
-## `_refresh_background` picked (chosen shirt, or the default paper).
-func _apply_page_background(page: SideTab) -> void:
-	match page:
-		SideTab.FISH:
-			_apply_paper_scroll_shader(InventoryChrome.load_tex("fish_paper"))
-		SideTab.BUG:
-			_apply_paper_scroll_shader(InventoryChrome.load_tex("bug_paper"))
-		_:
-			_refresh_background()
+## `page_order` after the flip: the new page on top, the others keep their relative order.
+func _bring_page_up(page: SideTab) -> void:
+	if _page_order[2] == page:
+		_page_order[2] = _page_order[1]
+	_page_order[1] = _page_order[0]
+	_page_order[0] = page
+	_restack_pages()
 
 
-## Sine-eased vertical swing over `PAGE_SWING_DURATION` — lands back exactly on the home
-## position (`sin(π) == 0`), so no separate reset-on-finish step is needed.
-func _play_page_swing() -> void:
-	if _shell_stack == null:
-		return
-	var base_y: float = _shell_stack.position.y
-	var tween := create_tween()
-	tween.tween_method(_set_page_swing_offset.bind(base_y), 0.0, PAGE_SWING_DURATION, PAGE_SWING_DURATION)
+func _step_page_move(timer: float) -> void:
+	var y: float = PAGE_MOVE_UNITS * sin(timer * PI / float(PAGE_MOVE_TICKS)) * _units_to_px()
+	for page: SideTab in PAGE_ORDER:
+		_page_node(page).position.y = -y if page == _page_next else y
+	if not _page_swapped and timer <= PAGE_MOVE_SWAP_TICK:
+		_page_swapped = true
+		_bring_page_up(_page_next)
+	if timer > PAGE_MOVE_SWAP_TICK:
+		_show_pages([_page_next, _page_order[0]])
+	else:
+		_show_pages([_page_order[0], _page_order[1]])
 
 
-func _set_page_swing_offset(t: float, base_y: float) -> void:
-	if _shell_stack != null:
-		_shell_stack.position.y = base_y + PAGE_SWING_AMPLITUDE * sin(t * PI / PAGE_SWING_DURATION)
-
-
-func _refresh_side_tab_visuals() -> void:
-	## Active page's tab brightens and slides out a touch from its authored home.
-	for tab: Panel in _tab_home:
-		var home: Dictionary = _tab_home[tab]
-		var on: bool = int(home["page"]) == int(_side_tab)
-		tab.position = home["pos"] + Vector2(float(home["dir"]) if on else 0.0, 0.0)
-		tab.modulate = Color(1.12, 1.12, 1.12) if on else Color(0.86, 0.86, 0.86)
+func _finish_page_move() -> void:
+	for page: SideTab in PAGE_ORDER:
+		_page_node(page).position.y = 0.0
+	_show_pages([_page_order[0]])
+	_page_moving = false
+	_update_hand_cursor(false)
 
 
 ## Mirror field equipment: bind the held tool mesh; the portrait body keeps its
@@ -1178,8 +1203,6 @@ func is_open() -> bool:
 
 func menu_rect() -> Rect2:
 	var rect: Rect2 = MenuFrame.rect_of(_shell_stack)
-	if _tag_popup != null and _tag_popup.visible:
-		rect = rect.merge(MenuFrame.rect_of(_tag_popup))
 	return rect
 
 
@@ -1213,7 +1236,6 @@ func _refresh_mobile_layout() -> void:
 	var mobile := uses_mobile_layout()
 	_mobile.visible = mobile
 	_classic.visible = not mobile
-	($Root/Dim as Control).visible = not mobile
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE if mobile else Control.MOUSE_FILTER_STOP
 	_back_to_items.visible = false
 	if mobile:
@@ -1316,7 +1338,7 @@ func open() -> void:
 	_focus_player = false
 	_side_tab = SideTab.POCKETS
 	_portrait_rest = PortraitAnim.WALK
-	_show_page(SideTab.POCKETS)
+	_reset_pages()
 	Audio.play_se(&"menu_pause")
 	## `mBGMPsComp_pause(PAUSE_1)` (`m_inventory_ovl`).
 	Audio.set_music_pause(Audio.PAUSE_POCKETS)
@@ -1436,6 +1458,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not _open:
 		return
+	if _page_moving:
+		## `page_move_timer != 0`: the menu does nothing until the pages settle.
+		if event.is_pressed():
+			get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("ui_focus_next") or (
 		event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB
 	):
@@ -1467,11 +1494,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key := event as InputEventKey
 		if key.keycode == KEY_BRACKETLEFT:
-			_cycle_side_tab(-1)
+			_turn_page(-1)
 			get_viewport().set_input_as_handled()
 			return
 		if key.keycode == KEY_BRACKETRIGHT:
-			_cycle_side_tab(1)
+			_turn_page(1)
 			get_viewport().set_input_as_handled()
 			return
 	if _price_mode:
@@ -1738,8 +1765,10 @@ func _open_wallet_popup() -> void:
 	if denoms.is_empty():
 		return
 	_tag_choices = PackedStringArray()
+	## `mTG_money_sack1..4`: the amounts you can take out, then Quit.
 	for amount: int in denoms:
-		_tag_choices.append("%d Bells" % amount)
+		_tag_choices.append("%d" % amount)
+	_tag_choices.append("Quit")
 	_tag_index = 0
 	_wallet_tag_mode = true
 	_tag_mode = true
@@ -1768,7 +1797,7 @@ func _deposit_hand_bag() -> void:
 func _run_wallet_tag(tag: String) -> void:
 	_wallet_tag_mode = false
 	_tag_mode = false
-	var amount: int = tag.split(" ")[0].to_int()
+	var amount: int = tag.to_int()
 	if amount > 0:
 		if Game.inventory.withdraw_to_hand(amount):
 			Audio.play_se(&"52")
@@ -1837,7 +1866,7 @@ func _activate_cursor() -> void:
 	var slot: InventorySlot = inv.slot_at(idx)
 	if slot == null or slot.is_empty():
 		return
-	_tag_choices = inv.tags_for_slot(idx)
+	_tag_choices = inv.tags_for_slot(idx, uses_mobile_layout())
 	if _tag_choices.is_empty():
 		return
 	_tag_mode = true
@@ -1857,7 +1886,8 @@ func _activate_player_cursor() -> void:
 		return
 	if inv.equipment_id == &"":
 		return
-	_tag_choices = PackedStringArray(["Unequip"])
+	## `mTG_select_tag_decide_player`: the equipped tool offers `mTG_TYPE_CATCH_ITEM`.
+	_tag_choices = PackedStringArray(["Grab", "Quit"])
 	_tag_index = 0
 	_tag_mode = true
 	Audio.play_se(&"41c")
@@ -1886,6 +1916,15 @@ func _equip_hand_on_player() -> void:
 		inv.clear_hand()
 		if Game.wear_cloth_from_slot(hand_idx):
 			Game.post_notice("Wearing %s" % data.display_name)
+	elif data.usable and data.use_verb == "Eat":
+		## `mIV_ANIM_EAT`: food dropped on the player picture is eaten (EAT1 in the portrait,
+		## the bite on the clip's frame 17).
+		inv.clear_hand()
+		_set_portrait_anim(PortraitAnim.EAT)
+		get_tree().create_timer(17.0 / DecompTime.FRAME_HZ).timeout.connect(func() -> void: Audio.play_se(&"eat"))
+		var eaten: String = inv.use_slot(hand_idx)
+		if eaten != "":
+			Game.post_notice(eaten)
 	else:
 		return
 	_refresh()
@@ -1897,22 +1936,26 @@ func _activate_mail_cursor() -> void:
 	var idx: int = inv.selected_mail_index
 	var mail: MailData = inv.mail_at(idx)
 	_tag_choices = PackedStringArray()
+	## An empty letter slot offers nothing (`mTG_select_tag_decide_mail`); letters are written
+	## from stationery ("Write Letter").
 	if mail == null or mail.is_empty():
-		_tag_choices.append("Write")
-	elif mail.is_received():
+		return
+	if mail.is_received():
+		## `mTG_def_rmail`: Read, Grab, Throw Away, Quit (Grab needs a hand for letters, which
+		## this port does not have, so it is left out).
 		_tag_choices.append("Read")
 		if mail.has_enclosure():
 			_tag_choices.append("Take")
-		_tag_choices.append("Discard")
 	else:
-		## `mTG_present_proc` (`mTG_catch_item_from_table`) — one verb, both directions:
+		## `mTG_present_proc` (`mTG_catch_item_from_table`) - one verb, both directions:
 		## a held item attaches as the gift; with an empty hand and a gift already
 		## attached, the same verb takes it back.
 		if inv.hand_index >= 0 and mail.present_item_id == &"":
 			_tag_choices.append("Present")
 		elif inv.hand_index < 0 and mail.present_item_id != &"":
 			_tag_choices.append("Present")
-		_tag_choices.append("Discard")
+	_tag_choices.append("Throw Away")
+	_tag_choices.append("Quit")
 	_tag_mode = true
 	_tag_index = 0
 	_refresh()
@@ -1934,23 +1977,37 @@ func _run_tag(tag: String) -> void:
 	var inv: Inventory = Game.inventory
 	var idx: int = inv.selected_index
 	match tag:
-		"Place":
-			var player := Player.find(get_tree())
-			if player != null:
-				FurnitureEditing.place_held(player)
+		"Quit":
+			_cancel_tag_mode()
+			return
+		"Grab":
+			_grab_selected()
+			return
+		"Write Letter":
+			## `mTG_write_proc`: out of the pockets and into the letter paper picker.
 			close()
-		"Hang", "Lay":
+			_open_write_letter()
+			return
+		"Put on Wall", "Spread on Floor":
 			var slot: InventorySlot = inv.slot_at(idx)
 			if slot != null and not slot.is_empty():
 				FurnitureEditing.apply_cover(ItemCatalog.get_item(slot.item.item_id))
 			close()
 		"Drop":
-			_drop_selected()
+			## Your own room puts furniture down in the room (`mTG_room_put_proc`); anywhere
+			## else the item lands on the ground (`mTG_field_put_proc`).
+			var drop_slot: InventorySlot = inv.slot_at(idx)
+			var drop_data: ItemData = ItemCatalog.get_item(drop_slot.item.item_id) if drop_slot != null and not drop_slot.is_empty() else null
+			if Game.is_decorating() and drop_data is FurnitureData:
+				var placer := Player.find(get_tree())
+				if placer != null:
+					FurnitureEditing.place_held(placer)
+				close()
+			else:
+				_drop_selected()
 		"Drop All":
 			_drop_all_marked()
-		"Wrap":
-			if inv.wrap_slot(idx):
-				Game.post_notice("Wrapped it up")
+		## Touch shortcuts for the drop-on-the-player-picture gestures (`tags_for_slot`).
 		"Set Background":
 			var cloth_slot: InventorySlot = inv.slot_at(idx)
 			if cloth_slot != null and not cloth_slot.is_empty():
@@ -1972,13 +2029,24 @@ func _run_tag(tag: String) -> void:
 				var worn: ItemData = ItemCatalog.get_item(Game.resident.cloth_id)
 				if worn != null:
 					Game.post_notice("Wearing %s" % worn.display_name)
-				if (
-					Game.first_job != null
-					and Game.first_job.cloth_job_finished()
-				):
+				if Game.first_job != null and Game.first_job.cloth_job_finished():
 					Game.set_interact_prompt("Talk to Tom Nook")
 				close()
-		"Hand over":
+		"Eat":
+			_set_portrait_anim(PortraitAnim.EAT)
+			get_tree().create_timer(17.0 / DecompTime.FRAME_HZ).timeout.connect(func() -> void: Audio.play_se(&"eat"))
+			var eat_msg: String = inv.use_slot(idx)
+			if eat_msg != "":
+				Game.post_notice(eat_msg)
+		"Give":
+			if Game.pocket_requests.donation_pending:
+				## Blathers is waiting (`mTG_tag_hand_over_curator`): book the outcome and let his
+				## dialogue respond.
+				var gift: InventorySlot = inv.slot_at(idx)
+				if gift != null and not gift.is_empty():
+					Game.pocket_requests.take_donation(gift.item.item_id)
+				close()
+				return
 			if Game.pocket_requests.handover_pending:
 				## A villager's quest — the talk plays the hand-over.
 				Game.pocket_requests.take_handover(idx)
@@ -1990,7 +2058,7 @@ func _run_tag(tag: String) -> void:
 			Game.intro.payment_made()
 			_ignore_close_once = false
 			close()
-		"Put in":
+		"Put Away":
 			## A drawer or music player is waiting — hand the pick back to it.
 			var putin_slot: InventorySlot = inv.slot_at(idx)
 			if putin_slot != null and not putin_slot.is_empty():
@@ -1999,21 +2067,11 @@ func _run_tag(tag: String) -> void:
 		"Sell":
 			Game.pocket_requests.take_sell([idx] as Array[int])
 			close()
-		"Sell all":
+		"Sell All":
 			var picked: Array[int] = inv.marked_indices()
 			inv.clear_marks()
 			Game.pocket_requests.take_sell(picked)
 			close()
-		"Donate":
-			## Blathers is waiting — book the outcome and let his dialogue respond.
-			var slot: InventorySlot = inv.slot_at(idx)
-			if slot != null and not slot.is_empty():
-				Game.pocket_requests.take_donation(slot.item.item_id)
-			close()
-		"Move":
-			inv.pick_hand(idx)
-			_play_hand_clip("hnd_catch", false)
-			get_tree().create_timer(0.35).timeout.connect(func() -> void: _play_hand_clip("hnd_side", true))
 		"Open":
 			var slot: InventorySlot = inv.slot_at(idx)
 			if slot == null or slot.is_empty():
@@ -2098,16 +2156,40 @@ func _run_tag(tag: String) -> void:
 					Game.first_job.mark_plant_finished()
 					Game.set_interact_prompt("Talk to Tom Nook")
 		_:
-			## `mIV_ANIM_EAT`: eating fruit / food plays EAT1 in the portrait.
-			if tag == "Eat":
-				_set_portrait_anim(PortraitAnim.EAT)
-				## `mIV_ANIM_EAT`: the bite sounds on the clip's frame 17.
-				get_tree().create_timer(17.0 / DecompTime.FRAME_HZ).timeout.connect(func() -> void: Audio.play_se(&"eat"))
 			var msg: String = inv.use_slot(idx)
 			if msg != "":
 				Game.post_notice(msg)
 	_tag_mode = false
 	_refresh()
+
+
+## "Quit": back out of the verb window to the slot (the B button does the same).
+func _cancel_tag_mode() -> void:
+	_gyroid_tag_mode = false
+	_tag_mode = false
+	_pending_mail_discard = -1
+	_wallet_tag_mode = false
+	_background_tag_mode = false
+	_refresh()
+
+
+## "Grab" (`mTG_catch_proc`): the item goes into the hand. On the player picture it takes the
+## equipped tool off its hook and into the hand.
+func _grab_selected() -> void:
+	var inv: Inventory = Game.inventory
+	if _focus_player:
+		var slot_index: int = inv.equipped_slot_index()
+		if slot_index >= 0:
+			inv.unequip()
+			inv.pick_hand(slot_index)
+		else:
+			inv.unequip()
+	else:
+		inv.pick_hand(inv.selected_index)
+	_play_hand_clip("hnd_catch", false)
+	get_tree().create_timer(0.35).timeout.connect(func() -> void: _play_hand_clip("hnd_side", true))
+	_cancel_tag_mode()
+	_update_hand_cursor(true)
 
 
 func _run_mail_tag(tag: String) -> void:
@@ -2127,18 +2209,19 @@ func _run_mail_tag(tag: String) -> void:
 		_refresh()
 		return
 	match tag:
-		"Write":
-			close()
-			_open_write_letter()
+		"Quit":
+			_cancel_tag_mode()
+			return
 		"Read":
 			_read_letter(inv.mail_at(idx))
 		"Take":
 			_take_letter_enclosure(idx)
 		"Present":
 			_present_on_mail(idx)
-		"Discard":
+		"Throw Away":
 			_pending_mail_discard = idx
-			_tag_choices = PackedStringArray(["Yes", "No"])
+			## `mTG_dump_mail`: Yes / Quit.
+			_tag_choices = PackedStringArray(["Yes", "Quit"])
 			_tag_index = 0
 			_refresh()
 			return
@@ -2378,12 +2461,11 @@ func _refresh() -> void:
 		## Selection cue for the player doll, same idea as the item-slot selected style.
 		_portrait_frame.modulate = Color(1.35, 1.3, 1.0) if _focus_player else Color.WHITE
 	_sync_portrait_equipment()
-	_refresh_side_tab_visuals()
 	_refresh_items(inv)
 	_refresh_mail(inv)
 	_refresh_gyroid()
-	if _side_tab != SideTab.POCKETS:
-		_populate_encyclopedia(&"fish" if _side_tab == SideTab.FISH else &"insect")
+	if _side_tab != SideTab.POCKETS and not _page_moving:
+		_collect_page(_side_tab).populate(Game.species_log)
 	if _tag_mode and _side_tab == SideTab.POCKETS and not _tag_choices.is_empty():
 		_show_tag_popup()
 	else:
@@ -2697,6 +2779,7 @@ func _gyroid_say(text: String) -> void:
 
 
 func _process(delta: float) -> void:
+	_step_tags(delta)
 	if _gyroid_interrupt_left > 0.0:
 		_gyroid_interrupt_left -= delta
 		if _gyroid_interrupt_left <= 0.0:

@@ -740,8 +740,24 @@ func place_hand(target_index: int) -> bool:
 	return true
 
 
-func tags_for_slot(index: int) -> PackedStringArray:
-	## Field-default style verbs from `m_tag_ovl` (simplified).
+## The pocket slot the equipped tool sits in, or -1.
+func equipped_slot_index() -> int:
+	if equipment_id == &"":
+		return -1
+	for i: int in _slots.size():
+		var slot: InventorySlot = _slots[i]
+		if slot != null and not slot.is_empty() and slot.item.item_id == equipment_id:
+			return i
+	return -1
+
+
+func tags_for_slot(index: int, touch: bool = false) -> PackedStringArray:
+	## The verbs `m_tag_ovl` offers on a pocket item (`mTG_select_tag_decide_item_normal`).
+	## They are the original's, in the original's order, ending in "Quit": what is on offer
+	## follows where you are (outdoors, your own room, anywhere else) and what the item is.
+	## Wearing, equipping and eating are not verbs: you Grab the item and drop it on the
+	## player picture (`mHD_open_end_proc_item_type3`). A touch layout has no hand to carry it
+	## there, so with `touch` those come back as shortcut verbs just before "Quit".
 	var tags: PackedStringArray = []
 	var slot: InventorySlot = slot_at(index)
 	if slot == null or slot.is_empty():
@@ -750,20 +766,21 @@ func tags_for_slot(index: int) -> PackedStringArray:
 	if data == null:
 		return tags
 	## A villager is waiting for their item (`mSM_IV_OPEN_QUEST` / `mSM_IV_OPEN_TAKE`): only
-	## what they asked for can be picked.
+	## what they asked for can be picked (`mTG_TYPE_QUEST_ITEM`).
 	if Game != null and Game.pocket_requests.handover_pending:
 		if Game.pocket_requests.handover_allows(index):
-			tags.append("Hand over")
+			tags.append("Give")
+			tags.append("Quit")
 		return tags
-	## Nook is buying (`mSM_IV_OPEN_SELL`): "Sell", or "Sell all" on a marked item
-	## (`mTG_TYPE_SELL_ITEM` / `mTG_TYPE_SELL_ALL_ITEM`).
+	## Nook is buying (`mSM_IV_OPEN_SELL`): `mTG_TYPE_SELL_ITEM` / `SELL_ALL_ITEM`.
 	if Game != null and Game.pocket_requests.sell_pending:
 		if slot.item.condition != InventoryItem.Condition.QUEST:
-			tags.append("Sell all" if is_marked(index) and marked_indices().size() > 1 else "Sell")
+			tags.append("Sell All" if is_marked(index) and marked_indices().size() > 1 else "Sell")
+			tags.append("Quit")
 		return tags
 	if slot.item.condition == InventoryItem.Condition.PRESENT:
-		tags.append("Open")
-		return tags
+		## `mTG_present_item`.
+		return PackedStringArray(["Grab", "Open", "Quit"])
 	if slot.item.condition == InventoryItem.Condition.QUEST:
 		## Intro down payment (`aNRG_menu_open_wait_talk_proc`): the money bag is the
 		## only pocket item Nook will take on the station acre.
@@ -772,56 +789,87 @@ func tags_for_slot(index: int) -> PackedStringArray:
 			and Game.intro.payment_pending
 			and slot.item.item_id == &"money_1000"
 		):
-			tags.append("Hand over")
+			tags.append("Give")
+			tags.append("Quit")
 		return tags
 	## A drawer or music player opened the pockets (`mTG_TYPE_PUTIN_ITEM`).
 	if Game != null and Game.pocket_requests.putin_pending:
 		if putin_allowed(data, Game.pocket_requests.putin_filter):
-			tags.append("Put in")
+			tags.append("Put Away")
+			tags.append("Quit")
 		return tags
-	## Blathers opened the pockets to receive a donation (`mMmd` IV_OPEN).
+	## Blathers opened the pockets to receive a donation (`mTG_tag_hand_over_curator`).
 	if Game != null and Game.pocket_requests.donation_pending and MuseumDialogue.is_offerable(data):
-		tags.append("Donate")
+		tags.append("Give")
+		tags.append("Quit")
 		return tags
+	## Items you can drop on the ground or in your room. Not the tool in hand when it is
+	## the last of its kind, nor anything flagged undroppable.
+	var in_hand: bool = data.category == ItemData.Category.TOOL and slot.item.item_id == equipment_id \
+			and count_of(slot.item.item_id) <= 1
+	var drop: String = "Drop All" if is_marked(index) else "Drop"
+	tags.append("Grab")
+	## Stationery (`ITEM1_CAT_PAPER`: `mTG_field_letter`, `mTG_room_letter`, `mTG_other_letter`)
+	## offers "Write Letter" right after Grab, wherever you are.
+	var stationery: bool = data.id == FirstJob.PAPER_ID
+	if stationery:
+		tags.append("Write Letter")
+	if Game != null and Game.is_indoors() and not Game.is_decorating() and not stationery:
+		## Another room (`mTG_TYPE_CATCH_ITEM`): you can only pick things up.
+		tags.append("Quit")
+		return tags
+	if Game != null and Game.is_indoors() and not Game.is_decorating():
+		tags.append("Quit")
+		return tags
+	if Game != null and Game.is_decorating():
+		## Your own room (`mTG_TYPE_ROOM_*`).
+		if data.droppable:
+			tags.append(drop)
+		if data.category == ItemData.Category.WALL:
+			tags.append("Put on Wall")
+		elif data.category == ItemData.Category.FLOOR:
+			tags.append("Spread on Floor")
+		_append_touch_shortcuts(tags, data, slot, touch)
+		tags.append("Quit")
+		return tags
+	## Outdoors (`mTG_TYPE_FIELD_*`).
+	var creature: bool = data.category == ItemData.Category.BUG or data.category == ItemData.Category.FISH
+	if creature:
+		## Bugs go (`mTG_field_release`); a fish only where there is water (`mTG_catch_item`).
+		if CreatureRelease.can_release(data, release_outdoors, release_water != null):
+			tags.append("Release")
+		tags.append("Quit")
+		return tags
+	var plant_job: bool = Game != null and Game.first_job != null \
+			and Game.first_job.kind == FirstJob.Kind.PLANT_FLOWER \
+			and Game.first_job.progress == FirstJob.PROGRESS_ACTIVE
+	if data.id == ShopGoods.GRAB_BAG:
+		## `mTG_field_hukubukuro`.
+		tags.append("Open")
+	if data.droppable and not (data.plant_id != &"" and plant_job):
+		tags.append(drop)
+	if data.plant_id != &"":
+		## `mTG_field_plant` / `mTG_field_plant_job`.
+		tags.append("Plant")
+	elif bury_ready and data.droppable and not in_hand:
+		## `mTG_field_default_bury`: a hole is in front of you.
+		tags.append("Bury")
+	_append_touch_shortcuts(tags, data, slot, touch)
+	tags.append("Quit")
+	return tags
+
+
+## Touch layouts only: the drop-on-the-player-picture gestures as verbs.
+func _append_touch_shortcuts(tags: PackedStringArray, data: ItemData, slot: InventorySlot, touch: bool) -> void:
+	if not touch:
+		return
 	if data.equippable:
-		## Decomp's equip slot is a swap (drop empty hand on it to clear); this port has no
-		## separate equip slot to drop onto, so offer the reverse verb straight from the
-		## item itself once it's the one currently equipped.
 		tags.append("Unequip" if slot.item.item_id == equipment_id else "Equip")
 	if data.category == ItemData.Category.CLOTH:
 		tags.append("Wear")
-		## `mTG_TABLE_BG` / decomp `backgound_texture`: the menu paper background is any
-		## owned shirt's pattern, not a wallpaper item — simplified from decomp's
-		## hand-drop-on-slot gesture to a tag, matching how this port already offers
-		## "Equip"/"Wear" from the item itself rather than a drop target.
 		tags.append("Set Background")
-	if data.plant_id != &"":
-		tags.append("Plant")
-	elif data.usable:
-		tags.append(data.use_verb if data.use_verb != "" else "Use")
-	## Tools go in too (`ITEM1_CAT_TOOL` is `FIELD_DEFAULT`): a spare shovel in the shine
-	## spot's hole grows the golden tree. Not the one in hand.
-	var in_hand: bool = data.category == ItemData.Category.TOOL and slot.item.item_id == equipment_id \
-			and count_of(slot.item.item_id) <= 1
-	## `mTG_TYPE_FIELD_RELEASE`: grab / let go / quit.
-	if CreatureRelease.can_release(data, release_outdoors, release_water != null):
-		tags.append("Release")
-	if bury_ready and data.plant_id == &"" and data.category != ItemData.Category.BUG and not in_hand:
-		tags.append("Bury")
-	if data is FurnitureData and Game.is_decorating():
-		tags.append("Place")
-	if data.category == ItemData.Category.WALL:
-		if Game.is_decorating():
-			tags.append("Hang")
-	if data.category == ItemData.Category.FLOOR and Game.is_decorating():
-		tags.append("Lay")
-	if data.droppable:
-		## `mTG_TYPE_TAG_PUT_ALL`: a marked slot drops every marked item at once.
-		tags.append("Drop All" if is_marked(index) else "Drop")
-	if data.droppable and data.bell_value <= 0:
-		tags.append("Wrap")
-	tags.append("Move")
-	return tags
+	if data.usable and data.use_verb == "Eat":
+		tags.append("Eat")
 
 
 ## What a furniture "put in" prompt accepts: anything, or only K.K. discs for a music player.

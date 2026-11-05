@@ -685,10 +685,10 @@ func test_sell_mode_pockets_offer_sell_and_sell_all() -> void:
 	inv.add(ItemCatalog.get_item(&"wood_chair"), 1)
 	inv.add(ItemCatalog.get_item(&"wood_table"), 1)
 	Game.pocket_requests.sell_pending = true
-	assert_array(Array(inv.tags_for_slot(0))).contains_exactly(["Sell"])
+	assert_array(Array(inv.tags_for_slot(0))).contains_exactly(["Sell", "Quit"])
 	inv.toggle_mark(0)
 	inv.toggle_mark(1)
-	assert_array(Array(inv.tags_for_slot(0))).contains_exactly(["Sell all"])
+	assert_array(Array(inv.tags_for_slot(0))).contains_exactly(["Sell All", "Quit"])
 	Game.pocket_requests.take_sell(inv.marked_indices())
 	assert_bool(Game.pocket_requests.sell_pending).is_false()
 	assert_int(Game.pocket_requests.sell_slots.size()).is_equal(2)

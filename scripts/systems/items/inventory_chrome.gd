@@ -22,7 +22,26 @@ static func assets_ready() -> bool:
 	) or ResourceLoader.exists(CHROME_DIR + "/inv_mwin_items_tex.png")
 
 
+static var _tag_models: Dictionary = {}
+
+
+## The model bounds a baked tag sprite covers, as `Rect2(x, y_top, w, h)` in screen units
+## with y up (`tag_models.json`, written by the pipeline next to the sprites).
+static func tag_model(stem: String) -> Rect2:
+	if _tag_models.is_empty():
+		var path: String = CHROME_DIR + "/tag_models.json"
+		if FileAccess.file_exists(path):
+			var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+			if parsed is Dictionary:
+				_tag_models = parsed
+	var entry: Dictionary = _tag_models.get(stem, {})
+	if entry.is_empty():
+		return Rect2()
+	return Rect2(float(entry["x"]), float(entry["y"]), float(entry["w"]), float(entry["h"]))
+
+
 static func clear_cache() -> void:
+	_tag_models.clear()
 	_tex_cache.clear()
 	_catalog.clear()
 	_catalog_loaded = false

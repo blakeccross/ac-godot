@@ -85,7 +85,7 @@ func test_mobile_sheet_leaves_the_world_and_bottom_bar_visible() -> void:
 	assert_float(sheet.get_global_rect().end.y).is_less_equal(screen.end.y - 16.0 + 8.0)
 	var safe_area := _mobile.get_node("SafeArea") as Control
 	assert_float(sheet.size.x).is_equal_approx(safe_area.size.x, 1.0)
-	assert_bool((_overlay.get_node("Root/Dim") as Control).visible).is_false()
+	assert_object(_overlay.get_node_or_null("Root/Dim")).is_null()
 
 
 func test_mobile_sheet_slides_up_and_closes_down() -> void:
@@ -189,7 +189,7 @@ func test_wrapped_item_uses_present_icon_and_can_be_opened() -> void:
 	Game.inventory.add(ItemCatalog.get_item(&"apple"), 1, InventoryItem.Condition.PRESENT)
 	assert_str(_name(0).text).is_equal("Wrapped present")
 	_card(0).pressed.emit()
-	assert_int(_mobile.get_node("%ActionList").get_child_count()).is_equal(1)
+	assert_object(_action("Open")).is_not_null() ## Grab, Open, Quit
 	_action("Open").pressed.emit()
 	assert_that(Game.inventory.slot_at(0).item.condition).is_equal(InventoryItem.Condition.NORMAL)
 	assert_str(_name(0).text).is_equal("Apple")
@@ -215,8 +215,8 @@ func test_wallet_updates_and_uses_existing_wallet_actions() -> void:
 	assert_str((_mobile.get_node("%Wallet") as Button).text).is_equal("1000 Bells")
 	(_mobile.get_node("%Wallet") as Button).pressed.emit()
 	assert_str((_mobile.get_node("%ActionName") as Label).text).is_equal("Bells")
-	assert_object(_action("1000 Bells")).is_not_null()
-	_action("1000 Bells").pressed.emit()
+	assert_object(_action("1000")).is_not_null()
+	_action("1000").pressed.emit()
 	assert_int(Game.inventory.wallet).is_equal(0)
 	assert_int(Game.inventory.hand_index).is_equal(0)
 	assert_that(Game.inventory.slot_at(0).item.item_id).is_equal(&"money_1000")
@@ -225,7 +225,7 @@ func test_wallet_updates_and_uses_existing_wallet_actions() -> void:
 func test_move_action_can_place_an_item_in_an_empty_mobile_slot() -> void:
 	Game.inventory.add(ItemCatalog.get_item(&"axe"))
 	_card(0).pressed.emit()
-	_action("Move").pressed.emit()
+	_action("Grab").pressed.emit()
 	assert_int(Game.inventory.hand_index).is_equal(0)
 	_card(14).pressed.emit()
 	assert_int(Game.inventory.hand_index).is_equal(-1)
@@ -247,7 +247,7 @@ func test_letters_fish_and_insects_stay_on_the_portrait_sheet() -> void:
 	assert_bool(_overlay.get_node("Root/Center").visible).is_false()
 	assert_str((_mobile.get_node("%LetterList").get_child(0).get_node("Content/Name") as Label).text).is_equal("To Bob")
 	(_mobile.get_node("%LetterList").get_child(0) as Button).pressed.emit()
-	assert_object(_action("Discard")).is_not_null()
+	assert_object(_action("Throw Away")).is_not_null()
 	(_mobile.get_node("%PageFish") as Button).pressed.emit()
 	assert_bool(_mobile.get_node("%CollectionScroll").visible).is_true()
 	assert_str((_mobile.get_node("%Title") as Label).text).is_equal("Fish")
@@ -283,7 +283,7 @@ func test_desktop_click_outside_closes_like_escape() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	Game.inventory.add(ItemCatalog.get_item(&"axe"))
-	(_overlay.get_node("Root/Center/ShellStack/SlotLayer/ItemSlot0") as Button).pressed.emit()
+	(_overlay.get_node("Root/Center/Pages/ShellStack/SlotLayer/ItemSlot0") as Button).pressed.emit()
 	assert_bool(_overlay._tag_mode).is_true()
 	var rect := _overlay.menu_rect()
 	var outside := Vector2(4, 4)
@@ -371,7 +371,7 @@ func test_house_payment_shows_hand_over_and_ignores_the_opening_close() -> void:
 	_overlay._slide.settle()
 	assert_int(Game.inventory.selected_index).is_equal(0)
 	assert_int(_overlay.layer).is_equal(30)
-	assert_object(_action("Hand over")).is_not_null()
+	assert_object(_action("Give")).is_not_null()
 	(_mobile.get_node("%Close") as Button).pressed.emit()
 	assert_bool(_overlay.is_open()).is_true()
 	_overlay._ignore_close_once = false

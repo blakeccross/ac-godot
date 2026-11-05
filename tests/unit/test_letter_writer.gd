@@ -151,7 +151,7 @@ func test_present_tag_offered_both_ways_and_take_back_returns_item_to_pockets() 
 	overlay.set("_focus_mail", true)
 	Game.inventory.select_mail(0)
 	overlay.call("_activate_mail_cursor")
-	assert_that(overlay.get("_tag_choices")).is_equal(PackedStringArray(["Present", "Discard"]))
+	assert_that(overlay.get("_tag_choices")).is_equal(PackedStringArray(["Present", "Throw Away", "Quit"]))
 
 	overlay.call("_present_on_mail", 0)
 	assert_str(String(mail.present_item_id)).is_equal("")
@@ -176,7 +176,7 @@ func test_present_tag_hidden_when_hand_full_and_letter_already_has_a_gift() -> v
 	overlay.set("_focus_mail", true)
 	Game.inventory.select_mail(0)
 	overlay.call("_activate_mail_cursor")
-	assert_that(overlay.get("_tag_choices")).is_equal(PackedStringArray(["Discard"]))
+	assert_that(overlay.get("_tag_choices")).is_equal(PackedStringArray(["Throw Away", "Quit"]))
 
 
 func test_museum_letter_with_fossil_queues_farway_and_skips_the_desk() -> void:
