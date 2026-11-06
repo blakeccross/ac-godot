@@ -45,12 +45,16 @@ static func manager(villager: VillagerData, state: VillagerState, ctx: DialogueC
 		return null
 	var slot: int = Game.residents.slot_of(villager.id)
 	var guest: bool = ctx != null and ctx.guest != &""
-	if slot < 0 and not guest:
+	## The island's resident isn't one of the town's, but they chat all the same.
+	var islander: bool = villager.islander and Game.island_visit
+	if slot < 0 and not guest and not islander:
 		return null
 	var m := VillagerTalkManager.new(villager, state, ctx)
 	m.slot = slot
 	if guest:
 		m.as_guest()
+	elif islander:
+		m.as_islander()
 	m.hint_count_get = func() -> int: return Game.resident.first_job_hint_count
 	m.hint_count_set = func(v: int) -> void: Game.resident.first_job_hint_count = v
 	m.show_letter = func(letter: Dictionary) -> void: _show_letter(villager, letter)
@@ -61,7 +65,8 @@ static func manager(villager: VillagerData, state: VillagerState, ctx: DialogueC
 	m.field_counts = Game.field_counts
 	if state != null:
 		## `mNpc_GetOverImpatient` for the greeting.
-		state.patience = Game.npc_talk_info.patience(slot, m.looks) as VillagerState.Patience
+		if slot >= 0:
+			state.patience = Game.npc_talk_info.patience(slot, m.looks) as VillagerState.Patience
 	return m
 
 

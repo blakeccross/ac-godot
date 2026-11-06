@@ -582,3 +582,8 @@ static func body_print(bg: Array, pos: Vector3, yaw: float, attr: int) -> void:
 		return
 	var at := _ahead(pos, yaw, 7.0)
 	FieldEffects.spawn(host, FieldEffects.Kind.BODY_PRINT, pos, yaw, attr, 0, _ground_sampler(), _slope(at))
+
+
+## `eEC_EFFECT_DUST` (arg1 4) where a piece of furniture lands or is lifted (`aMR_FtrBirth`, `aMR_FtrBye`).
+static func furniture_dust(host: Node, at: Vector3) -> void:
+	_fx(host, FieldEffects.Kind.DUST, at, 0.0, 0, 4)

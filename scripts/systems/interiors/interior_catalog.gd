@@ -139,6 +139,10 @@ static func resolve_entry(target: StringName) -> StringName:
 	var npc_room: StringName = npc_room_id(target)
 	if _rooms.has(npc_room) or InteriorCatalogNpc.ensure_villager_room(npc_room) != null:
 		return npc_room
+	## The island's second cottage is whoever lives there (`Cottage_npc_*`: the islander's room).
+	if target == &"cottage_npc":
+		var islander: StringName = Islander.id()
+		return resolve_entry(islander) if islander != &"" else &""
 	var house_id: StringName = house_for_building(target)
 	if house_id == &"":
 		return &""

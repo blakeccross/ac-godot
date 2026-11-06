@@ -130,13 +130,19 @@ func wearing_uniform(cloth_id: StringName) -> bool:
 	return cloth_id == UNIFORM_ID
 
 
+## `aNRG2_cloth_check`: past the shirt chore, out of the uniform, and not told off yet. Nook tells
+## them off once (`MSG_2098`, 0x0832) and sets `wrong_cloth` — it only records that he has.
+func scolding_due(cloth_id: StringName) -> bool:
+	return is_active() and kind > Kind.CHANGE_CLOTH and not wrong_cloth and not wearing_uniform(cloth_id)
+
+
+func mark_scolded() -> void:
+	wrong_cloth = true
+
+
 func tick_cloth(cloth_id: StringName) -> void:
 	## `aQMgr_move_own_errand_cloth`: progress 2→0 when worn; 0→2 if changed out.
 	if kind != Kind.CHANGE_CLOTH:
-		if is_active() and kind > Kind.CHANGE_CLOTH and not wrong_cloth:
-			if not wearing_uniform(cloth_id):
-				wrong_cloth = true
-				changed.emit()
 		return
 	var next: int = progress
 	match progress:

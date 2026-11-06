@@ -16,6 +16,8 @@ const WINDOW_COLOR := Color8(185, 60, 40)
 
 func _ready() -> void:
 	add_to_group("interactable")
+	add_to_group(PickupReach.GROUP)
+	add_to_group(PickupReach.SIGNBOARD_GROUP)
 	GeneratedVisual.attach(self, VISUAL)
 	refresh_design()
 

@@ -77,7 +77,12 @@ static func _close_furniture(ctx: InteractionContext, data: FurnitureData) -> vo
 static func _run_music(entry: FurniturePlacement, ctx: InteractionContext) -> void:
 	var inv: Inventory = ctx.inventory if ctx != null and ctx.inventory != null else Game.inventory
 	var session: IndoorSession = Game.interior_session
-	var house: House = Game.interiors.player_house()
+	## The island cottage keeps a music box of its own (`Save_Get(island).cottage.music_box`).
+	var house: House = (
+		Game.interiors.house(&"cottage")
+		if session != null and session.room != null and session.room.kind == Room.Kind.COTTAGE
+		else Game.interiors.player_house()
+	)
 	var is_owner: bool = Game.is_decorating()
 	var events: Array[Dictionary] = await _play(
 		FurnitureMusic.DIALOGUE_ID,

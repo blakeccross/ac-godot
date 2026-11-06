@@ -8,9 +8,7 @@ FG templates (flag, boat landing and both cottages included); Kapp'n and his din
 town wharf and the island landing (`IslandService`, `Boat`, `Kappn`, `KappnTalk`, `IslandRoute`).
 Talk → yes → name the island (first ride) → board → he sings (`0x3091`… lyrics) as the boat sails
 the route in the **town** world (`aBT_chk_point`, 0.625 GX a tick) → wipe to the island world →
-"Island, ho!" → step off. The way home mirrors it. Not done: the cottage interiors, the islander,
-the island climate (always summer), island fish/insects/tune, the shanties' music, the castaway
-(`aBTD_setup_castaway`), and everything GBA. Dev commands: `island [home]`, `ride [fast]`.
+"Island, ho!" → step off. The way home mirrors it. The player's cottage (`COTTAGE_MY`, model `obj_s_myhome_i`) opens into room `cottage`: `aMR_GetSceneRoomKind` gives it the large house's room, entered at (200, 0, 380), with its own wall / floor / furniture and no stairs (`InteriorCatalogPublic._cottage_room`); the door flow is the player house's (`HostCollision.is_player_house` matches `myhome`) and has not been walked through in-game yet. What is in and what is left is under Status at the bottom. Dev commands: `island [home]`, `ride [fast]`.
 
 ## Shape of the system
 
@@ -45,3 +43,47 @@ the island climate (always summer), island fish/insects/tune, the shanties' musi
 
 Slice 2 is the largest (`ac_boat_demo_move` 387 lines, `ac_boat_move` 558, plus the sendo move
 file at 1290 lines of which about a third is GBA).
+
+## Status (2026-11-06)
+
+In: the player's cottage and its room (own wallpaper / floor / furniture / music box / cockroaches);
+the islander (`Islander`: picked once per town from the 18 `islander` villagers by the town seed,
+saved in `TownState.islander_id`), standing in their cottage's yard by their schedule, the cottage a
+villager-style home (`obj_s_house_i`, the room `npc_<id>`; a knock while they sleep is answered with
+`MSG_ISLANDER_NOENTRY_SLEEPING1` + looks), their greeting (the island hello table) and island chat
+(`aQMgr_decide_normal_msg_no_island`, `VillagerTalkManager.as_islander`); the island's summer
+(`Clock.summer_only`, `mFM_toSummer`) and weather (80% clear / 20% heavy rain, `IslandClimate`),
+restored on the way home; `BGM_ISLAND` on the island and Kapp'n's shanty music (`BGM` 92–111 first
+part, 112–121 second) over the voyage; Gulliver floating out at sea (`ac_ev_castaway`) while his
+wash-up is on and unmet; island fish (`f_island`) and insects (`l_insect_island`); and Kapp'n drawn
+with the right skeleton (`wip_1`: `npc_draw_data_tbl[ALL_NPC_NUM + 114]`, not `kab_1`).
+
+Not in, and not GBA: the furniture trade with the islander and the rest of `aQMgr_talk_island_select_talk`
+(its first branch, the player-action / other-player / mail lines), the islander's room as the island's
+own furniture list (`l_island_npc_room_data`, `RSV_ISLAND_FTR*`) instead of the villager default, the
+islander's presents and letters, the hourly-chime instrument (`sAdo_Inst(0xFE)`) and the boat's volume
+duck (`mBGMPsComp_volume_boat`). GBA: [gba_not_implemented.md](../gba_not_implemented.md).
+
+## The furniture trade (not built; what it takes)
+
+Researched 2026-11-06 and left, because it is a multi-player furniture exchange rather than a chat:
+
+- **Room data**: the islander's room is not their villager room. `l_island_npc_best_fg_id[islander]`
+  names an `fgnpcdata` template whose 16 furniture slots (`mNpc_ISLAND_FTR_NUM`) hold either their
+  "best" pieces or reserved `RSV_ISLAND_FTR0..15` markers (0xFEB3…, by size and direction).
+  `tools/asset_pipeline/npc_rooms.py` only decodes each villager's `npc_house_list` template, so the
+  island rooms need a second pass there (the best ids come from `m_npc.c`), with the markers kept as
+  slots.
+- **State** (`Save_Get(island).animal`): per player memory `have_bitfield` (which of the 16 slots they
+  filled), the four-entry `anmuni.island_ftr` trade list (the generic pieces, by size), and the
+  present piece with the player who left it (`mNpc_SetIslandPresentFtr`). A slot shows in the room
+  only once some player has it (`mNpc_ChangeIslandRoom`).
+- **Rules**: `mNpc_CheckFtrIsIslandBestFtr` / `_NormalFtr`, `mNpc_CheckIslandNpcRoomFtrItemNo_keep`,
+  `mNpc_SetIslandGetFtr`, `mNpc_EraseIslandFtr(_keep)`, `mNpc_GetRandomBestFtr`,
+  `mNpc_GetOtherBestFtr`, `mNpc_GetPlayerBestFtr`.
+- **Talk**: `aQMgr_check_trade_0..8` pick the line (most look at another player's memory), then
+  decide-trade orders 18–21 fill the item strings and the trade orders swap items with the pockets.
+  Orders 1–17 and 22–24 are the town's, already in `VillagerTalkManager`.
+
+A single-player port would only need check 0 / 1 / 5 / 7 / 8 and orders 18–20, but the dialogue banks
+(`0x35E0…`) are written against the full set, so it is worth doing together with a second player.

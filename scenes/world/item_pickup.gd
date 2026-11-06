@@ -26,6 +26,7 @@ signal landed
 func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group(GROUP)
+	add_to_group(PickupReach.GROUP)
 	if Game.town.is_removed(persist_id):
 		queue_free()
 		return

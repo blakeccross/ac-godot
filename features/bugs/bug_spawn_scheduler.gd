@@ -96,14 +96,18 @@ static func _day_number(year: int, month: int, day: int) -> int:
 
 ## `aSOI_ins_make_range_data` (town): this month's table at `rate`, the blended-in month
 ## at `1 − rate` while the transition runs, then the 3 always-on additions.
-static func build_pool(rng: RandomNumberGenerator) -> Array[BugSpawnEntry]:
+static func build_pool(rng: RandomNumberGenerator, island: bool = false) -> Array[BugSpawnEntry]:
 	var hour: int = Clock.hour
 	var out: Array[BugSpawnEntry] = []
-	var blend: Dictionary = term_blend(rng)
-	var rate: float = float(blend["rate"])
-	_append(out, BugSpawnTable.entries_for(int(blend["month"]), hour), rate)
-	if rate != 1.0:
-		_append(out, BugSpawnTable.entries_for(int(blend["other_month"]), hour), 1.0 - rate)
+	if island:
+		## `aSOI_SPAWN_TYPE_ISLAND`: the island's own list, no month blend.
+		_append(out, BugSpawnTable.island_entries(hour), 1.0)
+	else:
+		var blend: Dictionary = term_blend(rng)
+		var rate: float = float(blend["rate"])
+		_append(out, BugSpawnTable.entries_for(int(blend["month"]), hour), rate)
+		if rate != 1.0:
+			_append(out, BugSpawnTable.entries_for(int(blend["other_month"]), hour), 1.0 - rate)
 	for add: Dictionary in ADDITIONS:
 		var c := BugSpawnEntry.new()
 		c.type_index = int(add["type_index"])

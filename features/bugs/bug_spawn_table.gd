@@ -8,6 +8,7 @@ const TABLE_PATH := "res://data/bugs/spawn_table.json"
 
 static var _tables: Dictionary = {}
 static var _other: Array = []
+static var _island: Dictionary = {}
 static var _loaded: bool = false
 
 
@@ -16,6 +17,7 @@ static func ensure_loaded() -> void:
 		return
 	_tables.clear()
 	_other.clear()
+	_island.clear()
 	var file := FileAccess.open(TABLE_PATH, FileAccess.READ)
 	if file == null:
 		push_warning("BugSpawnTable: missing %s" % TABLE_PATH)
@@ -32,6 +34,9 @@ static func ensure_loaded() -> void:
 	var other: Variant = parsed.get("other", [])
 	if typeof(other) == TYPE_ARRAY:
 		_other = other
+	var island: Variant = parsed.get("island", {})
+	if typeof(island) == TYPE_DICTIONARY:
+		_island = island
 	_loaded = true
 
 
@@ -41,7 +46,17 @@ static func entries_for(month: int, hour: int) -> Array[BugSpawnEntry]:
 	var month_key: String = str(month)
 	var term_key: String = str(term)
 	var month_tables: Dictionary = _tables.get(month_key, {}) as Dictionary
-	var raw: Variant = month_tables.get(term_key, [])
+	return _to_entries(month_tables.get(term_key, []))
+
+
+## `l_insect_island[aSOI_hour_to_term(hour)]` (`aSOI_ins_make_insect_island_range_data`): the
+## island's list follows the time of day only, in every month.
+static func island_entries(hour: int) -> Array[BugSpawnEntry]:
+	ensure_loaded()
+	return _to_entries(_island.get(str(int(BugData.term_for_hour(hour))), []))
+
+
+static func _to_entries(raw: Variant) -> Array[BugSpawnEntry]:
 	var out: Array[BugSpawnEntry] = []
 	if typeof(raw) == TYPE_ARRAY:
 		for item: Variant in raw:

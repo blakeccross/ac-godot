@@ -15,7 +15,21 @@ const FLOOR_SIZE: Dictionary = {
 	&"player_main": [4, 6, 8, 8],
 	&"player_upper": [6, 6, 6, 6],
 	&"player_basement": [6, 6, 6, 6],
+	## The island cottage is the large house's room (`aMR_RandomMakeIndoorGoki`, `SCENE_COTTAGE_MY`).
+	&"cottage": [8, 8, 8, 8],
 }
+
+
+## The floors that breed them: the player's three and the island cottage (`mCkRh_GetGokiNum`).
+static func is_goki_room(room: Room) -> bool:
+	return room != null and (PlayerHouse.is_player_room(room.id) or room.kind == Room.Kind.COTTAGE)
+
+
+## Whose count a room draws on: the cottage has its own (`Save_Get(island).cottage.goki`).
+static func house_for(room: Room) -> House:
+	if room != null and room.kind == Room.Kind.COTTAGE:
+		return Game.interiors.house(&"cottage")
+	return Game.interiors.player_house()
 
 
 static func stored(house: House) -> int:

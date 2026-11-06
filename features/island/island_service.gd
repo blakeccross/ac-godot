@@ -26,6 +26,8 @@ var state: State = State.IDLE
 var _player: Player = null
 var _on_island: bool = false
 var _rng := RandomNumberGenerator.new()
+## The shanty's music while it plays (`_song_music`).
+var _song_bgm: StringName = &""
 ## Debug (`ride fast`): Kapp'n says nothing, so a trip runs unattended.
 var mute: bool = false
 
@@ -83,7 +85,56 @@ func is_idle() -> bool:
 	return state == State.IDLE
 
 
-func _physics_process(_delta: float) -> void:
+## `ac_ev_castaway`: where Gulliver floats (the `def_pos`, GX), how he lies (0x3060) and the bob
+## (`cycle += 512` a frame, ±4 GX about 4 GX above the water).
+const CASTAWAY_AT := Vector3(3580.0, 0.0, 4670.0) * FieldCatalog.GX_TO_METERS
+const CASTAWAY_YAW := deg_to_rad(68.027344)
+const CASTAWAY_BOB := 4.0 * FieldCatalog.GX_TO_METERS
+const CASTAWAY_BOB_HZ := 512.0 / 65536.0 * DecompTime.TICK_HZ
+const GULLIVER_SCENE := preload("res://features/events/actors/gulliver.tscn")
+
+var _castaway: Gulliver = null
+var _castaway_clock: float = 0.0
+
+
+## `aBTD_setup_castaway`: while Gulliver's wash-up is on and nobody has found him, he drifts in the
+## town's sea for the whole trip.
+func _spawn_castaway() -> void:
+	if _on_island or is_instance_valid(_castaway) or Game.events == null:
+		return
+	if not Game.events.is_active(&"dozaemon") or Game.events.dozaemon_completed:
+		return
+	if bool(Game.events.area(&"dozaemon").get("wakeup", false)):
+		return
+	var parent: Node = world.get_node_or_null("Characters")
+	if parent == null:
+		parent = world
+	_castaway = GULLIVER_SCENE.instantiate() as Gulliver
+	_castaway.castaway = true
+	parent.add_child(_castaway)
+	_castaway.rotation.y = CASTAWAY_YAW
+	_float_castaway()
+
+
+func _float_castaway() -> void:
+	if not is_instance_valid(_castaway):
+		return
+	var at: Vector3 = CASTAWAY_AT
+	var water: float = boat.surface().call(at) if boat != null else 0.0
+	at.y = water + CASTAWAY_BOB + sin(_castaway_clock * TAU * CASTAWAY_BOB_HZ) * CASTAWAY_BOB
+	_castaway.global_position = at
+
+
+## `aBTD_anchor_init`: he is gone once the boat is moored.
+func _remove_castaway() -> void:
+	if is_instance_valid(_castaway):
+		_castaway.queue_free()
+	_castaway = null
+
+
+func _physics_process(delta: float) -> void:
+	_castaway_clock += delta
+	_float_castaway()
 	_seat()
 	if state in [State.SAILING, State.ARRIVING] and _player != null and is_instance_valid(_player):
 		_player.global_position = boat.seat(Boat.PASSENGER_SEAT)
@@ -134,22 +185,50 @@ func _say(talk: KappnTalk) -> void:
 
 # --- the voyage -------------------------------------------------------------------------
 
-## Sail the town's sea out (`out`) or home, singing on the way.
+## Sail the town's sea out (`out`) or home, singing on the way: the first part's music starts as
+## the boat sets off, the second part's under the last lyric (`aBTD_sing_sendo_start_wait_init`,
+## `aBTD_sing_sendo_start_wait2_init`), and it all stops at the landing.
 func _voyage(out: bool) -> void:
 	state = State.SAILING
+	_spawn_castaway()
 	boat.sail(_route(out))
+	var female: bool = Game.resident.player_gender == IntroSequence.GENDER_FEMALE
+	var pattern: int = KappnTalk.pattern_for(not out, female)
+	var first: int = _rng.randi_range(0, 4)
+	var second: int = _rng.randi_range(0, 9)
+	var lyrics: Array[int] = KappnTalk.song_messages(pattern, first, _rng.randi_range(0, 9), second)
+	_song_music(KappnTalk.first_song_bgm(pattern, first))
 	await get_tree().create_timer(SONG_DELAY).timeout
-	for msg: int in _song(out):
+	for i: int in lyrics.size():
 		if not is_instance_valid(kappn):
+			_song_music(-1)
 			return
-		await _say(KappnTalk.new(KappnTalk.Kind.SONG, msg))
+		if i == lyrics.size() - 1:
+			_song_music(KappnTalk.second_song_bgm(second))
+		await _say(KappnTalk.new(KappnTalk.Kind.SONG, lyrics[i]))
 		await get_tree().create_timer(SONG_GAP).timeout
 	if boat.is_sailing():
 		await boat.arrived
+	_song_music(-1)
 	if out:
 		await _travel(true, &"arrive")
 	else:
 		_arrive(false)
+
+
+## Put the shanty's music over the field's (`mBGMPsComp_make_ps_lost_fanfare` / `_demo`);
+## `-1` takes it off.
+func _song_music(bgm_num: int) -> void:
+	if mute:
+		return
+	if _song_bgm != &"":
+		Audio.pop_fanfare(_song_bgm)
+		_song_bgm = &""
+	if bgm_num < 0:
+		return
+	_song_bgm = BgmCatalog.id_for_num(bgm_num)
+	if _song_bgm != &"":
+		Audio.push_fanfare(_song_bgm)
 
 
 func _route(out: bool) -> Array[Vector3]:
@@ -159,18 +238,12 @@ func _route(out: bool) -> Array[Vector3]:
 	return pts
 
 
-## The three lyrics of a trip (`aBTD_sing_sendo_start_wait_init`).
-func _song(out: bool) -> Array[int]:
-	var female: bool = Game.resident.player_gender == IntroSequence.GENDER_FEMALE
-	var pattern: int = KappnTalk.pattern_for(not out, female)
-	return KappnTalk.song_messages(pattern, _rng.randi_range(0, 4), _rng.randi_range(0, 9), _rng.randi_range(0, 9))
-
-
 # --- arriving ---------------------------------------------------------------------------
 
 ## The boat has touched the landing (island) or the wharf (town): Kapp'n calls it, the player steps off.
 func _arrive(island: bool) -> void:
 	state = State.ARRIVING
+	_remove_castaway()
 	if island:
 		boat.moor(_world_point(IslandRoute.point(IslandRoute.LAST, true)), IslandRoute.LANDING_YAW, boat.surface())
 	else:

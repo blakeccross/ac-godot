@@ -206,7 +206,7 @@ const ISLAND_BZ := 8
 const ISLAND_BX_LEFT := 4
 const ISLAND_COLUMNS := 2 * UT
 const ISLAND_BOAT_UNIT := Vector2i(UT + 11, 5)
-static func generate_island(town: WorldData) -> WorldData:
+static func generate_island(town: WorldData, islander: VillagerData = null) -> WorldData:
 	var data := WorldData.new()
 	data.id = &"island"
 	data.display_name = "Island"
@@ -253,6 +253,10 @@ static func generate_island(town: WorldData) -> WorldData:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = town.seed_value
 	_place_from_fg_templates(data, blocks, rng, {}, false, grids)
+	if islander != null:
+		for b: BuildingPlacement in data.buildings:
+			if b.id == &"cottage_npc":
+				data.objects.append(_villager(islander.id, b.cell + Islander.YARD_FROM_COTTAGE, islander))
 	data.spawn_points = [_spawn(&"player", ISLAND_BOAT_UNIT + Vector2i(-2, 1), 0.0)]
 	data.bake()
 	return data

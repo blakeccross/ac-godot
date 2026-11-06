@@ -30,6 +30,11 @@ const SONG_FIRST: Array[int] = [0x3091, 0x3163, 0x3096, 0x3168]
 const SONG_PATTER: Array[int] = [0x309B, 0x316D, 0x30A5, 0x3177]
 const SONG_SECOND: Array[int] = [0x30AF, 0x3181, 0x30AF, 0x3181]
 
+## The shanty's music (`sing_1st_part_bgm_no`, `sing_2nd_part_bgm_no`): BGM numbers by rider
+## pattern and song roll, then the second part by its roll.
+const SONG_FIRST_BGM: Array[int] = [0x5C, 0x66, 0x61, 0x6B]
+const SONG_SECOND_BGM := 0x70
+
 var kind: Kind = Kind.TOWN
 var raining: bool = false
 var female: bool = false
@@ -46,6 +51,16 @@ static func gendered(msg_no: int, is_female: bool) -> int:
 ## The shanty's three messages for rider `pattern` with song rolls `first`, `patter`, `second`.
 static func song_messages(pattern: int, first: int, patter: int, second: int) -> Array[int]:
 	return [SONG_FIRST[pattern] + first, SONG_PATTER[pattern] + patter, SONG_SECOND[pattern] + second]
+
+
+## BGM number of the first part, for song roll `first` (0–4).
+static func first_song_bgm(pattern: int, first: int) -> int:
+	return SONG_FIRST_BGM[pattern] + first
+
+
+## BGM number of the second part, for song roll `second` (0–9).
+static func second_song_bgm(second: int) -> int:
+	return SONG_SECOND_BGM + second
 
 
 ## Rider pattern: leaving (0) or coming home (1), by gender.

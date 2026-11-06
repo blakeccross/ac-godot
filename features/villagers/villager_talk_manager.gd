@@ -133,6 +133,9 @@ var slot: int = -1
 var step: Step = Step.SELECT
 ## Everyday chat has taken over (`aQMgr_TALK_KIND_NORMAL`).
 var _normal: bool = false
+## The islander's talk (`as_islander`) and whether their chat message has been given.
+var _islander: bool = false
+var _island_chatted: bool = false
 ## `manager->choice.talk_action`: the menu pick this step answers, -1 for none.
 var _talk_action: int = -1
 ## `l_normal_info`.
@@ -213,8 +216,19 @@ func as_guest() -> void:
 	step = Step.NORMAL
 
 
+## `aQMgr_talk_island_init`: the island's one resident chats after the greeting — no quests, no
+## menu (`aQMgr_talk_island_select_talk`).
+func as_islander() -> void:
+	_normal = true
+	_islander = true
+	step = Step.NORMAL
+
+
 ## The greeting (or the last message) ended on a continue.
 func next_step() -> Dictionary:
+	if _islander and not _island_chatted:
+		_island_chatted = true
+		return {"msg": island_select_talk()}
 	if _normal:
 		step = Step.DONE
 		return {}
@@ -239,6 +253,30 @@ func _change_normal_or_hint() -> Dictionary:
 	_normal = true
 	step = Step.NORMAL
 	return {"msg": normal_select_talk()}
+
+
+## `aQMgr_decide_normal_msg_no_island`: the first message of each personality's island chat, plus
+## one of ten, never the one said last.
+const ISLAND_CHAT: Array[int] = [0x3631, 0x3654, 0x36BC, 0x36DB, 0x367A, 0x369D]
+const ISLAND_CHAT_COUNT := 10
+static var _last_island_chat: int = 0
+
+
+## `aQMgr_talk_island_select_talk`: what the islander says once the greeting is over. The decomp
+## first offers a furniture trade, then lines about what the player did on the way over, other
+## players and letters; those need island trade / action / mail state that is not here, so it falls
+## through to the plain chat as it does when none of them applies.
+func island_select_talk() -> int:
+	_clear_normal_info()
+	_normal_set_free_str()
+	var base: int = ISLAND_CHAT[clampi(looks, 0, ISLAND_CHAT.size() - 1)]
+	var msg_no: int = base + _rand(ISLAND_CHAT_COUNT)
+	if msg_no == _last_island_chat:
+		msg_no = base + _rand(ISLAND_CHAT_COUNT - 1)
+		if msg_no == _last_island_chat:
+			msg_no += 1
+	_last_island_chat = msg_no
+	return msg_no
 
 
 ## `aQMgr_actor_get_my_msg`.

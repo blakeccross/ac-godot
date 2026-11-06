@@ -90,9 +90,7 @@ static func register() -> void:
 	tent.floor_id = &""
 	tent.shell_ids = PackedStringArray(["rom_tent"])
 	InteriorCatalog.put_room(tent)
-	InteriorCatalog.put_room(
-		InteriorCatalog.make_room(&"cottage", Room.Kind.COTTAGE, "Cottage", Vector2i(5, 5), Vector2i(6, 6), {})
-	)
+	InteriorCatalog.put_room(_cottage_room())
 	InteriorCatalog.put_house(&"post_office", &"", &"post_office", [&"post_office"])
 	InteriorCatalog.put_house(&"police_box", &"", &"police", [&"police_box"])
 	InteriorCatalog.put_house(&"dump", &"", &"buggy", [&"buggy"])
@@ -105,3 +103,27 @@ static func register() -> void:
 	InteriorCatalog.bind_building(&"kamakura", &"kamakura")
 	InteriorCatalog.bind_building(&"lighthouse", &"lighthouse")
 	InteriorCatalog.bind_building(&"tent", &"tent")
+	InteriorCatalog.bind_building(&"cottage_my", &"cottage")
+
+
+## The player's island cottage: `aMR_GetSceneRoomKind` gives `SCENE_COTTAGE_MY` the large house's
+## room (`aMI_ROOM_KIND_L`), entered at the same (200, 0, 380); it keeps its own wallpaper,
+## flooring and furniture (`Save_Get(island).cottage.room`) but has no stairs.
+static func _cottage_room() -> Room:
+	var tier: int = int(House.SizeTier.LARGE)
+	var room := InteriorCatalog.make_room(
+		&"cottage",
+		Room.Kind.COTTAGE,
+		"Cottage",
+		InteriorCatalog.PLAYER_INNER_ORIGIN,
+		PlayerHouse.MAIN_INNER[tier],
+		{
+			"decorate": true,
+			"wall": InteriorStyleCatalog.wall_style_id(InteriorCatalog.PLAYER_START_WALL),
+			"floor": InteriorStyleCatalog.floor_style_id(InteriorCatalog.PLAYER_START_FLOOR),
+			"shells": PackedStringArray(PlayerHouse.MAIN_SHELLS[tier]),
+		}
+	)
+	room.door_cell = PlayerHouse.MAIN_EXIT[tier]
+	room.spawn_cell = PlayerHouse.MAIN_EXIT[tier] + Vector2i(0, -2)
+	return room

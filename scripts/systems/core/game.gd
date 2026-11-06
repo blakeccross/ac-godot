@@ -104,7 +104,12 @@ var interact_prompt: String = ""
 var title_demo_active: bool = false
 ## On Kapp'n's island (`mRF_BLOCKKIND_ISLAND`): the world scene builds the island, not the town. Not saved;
 ## a load starts back in the town.
-var island_visit: bool = false
+var island_visit: bool = false:
+	set(value):
+		if value == island_visit:
+			return
+		island_visit = value
+		_island_climate_changed()
 ## Which half of a boat trip the next world picks up (`IslandService`): `&"arrive"` just landed on the
 ## island, `&"return"` just left it, to sail home across the town's sea.
 var island_ride: StringName = &""
@@ -545,7 +550,7 @@ func resolve_world_data() -> WorldData:
 	data.grass_pattern = town.grass_pattern
 	FieldCatalog.set_grass_pattern(town.grass_pattern)
 	if island_visit:
-		var island: WorldData = WorldGenerator.generate_island(data)
+		var island: WorldData = WorldGenerator.generate_island(data, Islander.data())
 		island.grass_pattern = data.grass_pattern
 		return island
 	return data
@@ -609,6 +614,25 @@ func _villager_moved_out(villager_id: StringName, looks: int, rng: RandomNumberG
 
 
 # --- Weather and events -----------------------------------------------------------------------
+
+
+## The town's weather while the island's is up (`aWeather_RequestChangeWeatherFromIsland` restores it).
+var _town_weather: Dictionary = {}
+
+
+## Arriving brings summer and the island's own weather; leaving puts the town's back
+## (`aBTD_change_season`, `IslandClimate`).
+func _island_climate_changed() -> void:
+	if Clock != null:
+		Clock.summer_only = island_visit
+	if town == null:
+		return
+	if island_visit:
+		_town_weather = {"weather": town.weather, "intensity": town.weather_intensity}
+		apply_weather_roll(IslandClimate.weather_roll(randf()))
+	elif not _town_weather.is_empty():
+		set_weather(StringName(_town_weather["weather"]), int(_town_weather["intensity"]))
+		_town_weather = {}
 
 
 func set_weather(next: StringName, intensity: int = -1) -> void:
@@ -979,6 +1003,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	## `m_start_data_init.c`: a house ordered on an earlier day is built when the game starts.
 	check_rehouse_order()
 	HouseCockroaches.decide_family_count(interiors.player_house())
+	HouseCockroaches.decide_family_count(interiors.house(&"cottage"))
 	shops.apply_snapshot(data.get("shops", {}))
 	museum.apply_snapshot(data.get("museum", {}))
 	species_log.apply_snapshot(data.get("species_log", {}))

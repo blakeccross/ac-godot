@@ -22,6 +22,8 @@ const JOB_PLANT_DONE := &"msg_2041"
 const JOB_PLANT_DONE_FALLBACK := &"nook_job_plant_done"
 const JOB_POCKETS_FULL := &"msg_2032"
 const JOB_POCKETS_FULL_FALLBACK := &"nook_job_pockets_full"
+## `aNRG2_cloth_chk_talk_proc`: "Why did you change out of your uniform, hm?"
+const JOB_CLOTH_SCOLD := &"msg_2098"
 const JOB_ALREADY_UNIFORM := &"msg_2103"
 const JOB_ALREADY_UNIFORM_FALLBACK := &"nook_job_already_uniform"
 const JOB_GOODS_BLOCK := &"msg_2076"
@@ -119,7 +121,8 @@ func _maybe_force_greet() -> void:
 		_force_greet_queued = true
 		await _greet_after_frames()
 		return
-	if Game.first_job.shop_greeted:
+	## He keeps an eye on the shirt: out of the uniform mid-job brings him over (`aNRG2_force_talk_request`).
+	if Game.first_job.shop_greeted and not Game.first_job.scolding_due(Game.resident.cloth_id):
 		return
 	if _force_greet_queued:
 		return
@@ -256,6 +259,11 @@ func _begin_first_job_talk(listener: Node3D) -> bool:
 	var job: FirstJob = Game.first_job
 	_pending_after = &""
 	_refresh_passive_progress(job)
+
+	if job.scolding_due(Game.resident.cloth_id):
+		job.mark_scolded()
+		_pending_after = &"after_scold"
+		return _play_job_line(JOB_CLOTH_SCOLD, &"", null, listener)
 
 	if not job.shop_greeted and job.kind == FirstJob.Kind.START:
 		job.shop_greeted = true
@@ -755,6 +763,9 @@ func _apply_pending_after() -> void:
 		Player.find(get_tree()) if get_tree() != null else null
 	)
 	match op:
+		&"after_scold":
+			## He goes on to the chore at hand (`next_think_idx`: job start / talk start).
+			_begin_first_job_talk(listener)
 		&"after_arrive":
 			_pending_after = &"give_uniform"
 			_play_job_line(JOB_UNIFORM, JOB_UNIFORM_FALLBACK, null, listener)

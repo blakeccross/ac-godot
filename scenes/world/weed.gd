@@ -20,6 +20,7 @@ const FLY_SEC := 0.5
 func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group("weed")
+	add_to_group(PickupReach.GROUP)
 	GeneratedVisual.attach(self, visual_id)
 
 

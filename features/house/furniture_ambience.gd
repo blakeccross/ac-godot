@@ -20,7 +20,7 @@ enum When { ALWAYS, ON, OFF }
 
 ## Visual id → [level SE, when it sounds].
 const LOOPS := {
-	&"int_nog_fan01": [0x01, When.ON],
+	&"int_nog_fan": [0x01, When.ON],
 	&"int_sum_kisha": [0x03, When.ON],
 	&"int_sum_tv02": [0x04, When.ON],
 	&"int_sum_tv01": [0x05, When.ON],
@@ -58,6 +58,8 @@ const STEAM := {
 const PRESS := {
 	## `fIMT_mv`: the cannon makes its own shot sound (`CannonShot`).
 	&"int_iku_mario_taihou": &"",
+	## `aSumSlot_mv`: a use starts one spin; the reels' own sound is the level SE 2 while it runs.
+	&"int_sum_slot": &"",
 	&"int_ike_jny_rosia01": &"7a",
 	&"int_ike_jny_hariko01": &"7b",
 	## `fIPP_mv`: the piggy bank rattles only with bells in the wallet.
@@ -88,7 +90,7 @@ const FRAME_SE := {
 ## Pieces that click on and off themselves (`sAdo_OngenTrgStart(0x16 / 0x17)` on
 ## `switch_changed_flag`); lamps already do through `Kind.TOGGLE`.
 const CLICKS: Array[StringName] = [
-	&"int_nog_fan01", &"int_sum_kisha", &"int_sum_tv01", &"int_sum_tv02", &"int_sum_fruittv01",
+	&"int_nog_fan", &"int_sum_kisha", &"int_sum_tv01", &"int_sum_tv02", &"int_sum_fruittv01",
 	&"int_kon_snowtv", &"int_tak_ice", &"int_nog_sprinkler", &"int_iku_turkey_TV", &"int_nog_nabe",
 ]
 

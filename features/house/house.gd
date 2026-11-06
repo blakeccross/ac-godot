@@ -136,6 +136,17 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 			return true
 		if slot != Game.roster.current:
 			Game.roster.enter_house(slot, Game.interiors)
+	## The islander's cottage answers a knock from inside while they sleep.
+	var sleeping: int = Islander.sleeping_msg(entry_id)
+	if sleeping >= 0:
+		var ui := DialogueOverlay.find(get_tree())
+		var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % sleeping))
+		if ui != null and data != null:
+			var ctx: DialogueContext = DialogueContext.from_game()
+			ctx.speaker_name = ""
+			ctx.window_color = Islander.SLEEPING_WINDOW
+			ui.play(data, ctx)
+			return true
 	## Villager homes: `aHUS_odekake_check` — sleep / not home / enter.
 	var gate: String = VillagerHome.door_notice(entry_id)
 	if gate != "":

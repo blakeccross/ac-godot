@@ -131,6 +131,10 @@ static func toggle(placement_id: StringName, ctx: InteractionContext = null) -> 
 	var press: StringName = FurnitureAmbience.press_se(data, Game.inventory.wallet if Game.inventory != null else 0)
 	if press != &"":
 		Audio.play_se(press)
+	var switched_node: Node = pid_node(placement_id)
+	var spin: Node = switched_node.get_node_or_null("FurnitureSwitchAnim") if switched_node != null else null
+	if spin != null:
+		spin.call("switched")
 	if data != null and data.kind == FurnitureData.Kind.GYROID:
 		_hop(pid_node(placement_id))
 	if data != null:

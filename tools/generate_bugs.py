@@ -252,7 +252,42 @@ def parse_spawn_tables(source: str) -> dict[str, list[tuple[int, int, int, int]]
     return tables
 
 
-def build_spawn_table_json(tables: dict[str, list[tuple[int, int, int, int]]]) -> dict:
+ISLAND_RE = re.compile(r"l_insect_isl_t(\d+)\[")
+
+
+def parse_island_tables(source: str) -> dict[int, list[tuple[int, int, int]]]:
+    """`l_insect_isl_t1..t6` -> {term index: [(type_idx, spawn_area, weight)]}.
+
+    The island's list depends on the time of day only (`aSOI_hour_to_term`), never the month.
+    """
+    out: dict[int, list[tuple[int, int, int]]] = {}
+    current: int | None = None
+    for line in source.splitlines():
+        m = ISLAND_RE.search(line)
+        if m:
+            current = int(m.group(1)) - 1
+            out.setdefault(current, [])
+            continue
+        if current is None:
+            continue
+        if line.strip().startswith("};"):
+            current = None
+            continue
+        for sm in SPAWN_RE.finditer(line):
+            species, area, weight = sm.group(1), sm.group(2), int(sm.group(3))
+            if species in ("NONE", "SPIRIT"):
+                continue
+            hab = HABITAT_MAP.get(area, -1)
+            if hab < 0:
+                continue
+            out[current].append((_type_index(species), hab, weight))
+    return out
+
+
+def build_spawn_table_json(
+    tables: dict[str, list[tuple[int, int, int, int]]],
+    island_tables: dict[int, list[tuple[int, int, int]]] | None = None,
+) -> dict:
     month_map = {
         "m12": 12,
         "m11": 11,
@@ -266,6 +301,13 @@ def build_spawn_table_json(tables: dict[str, list[tuple[int, int, int, int]]]) -
         "m3": 3,
     }
     month_keys = sorted(month_map.keys(), key=len, reverse=True)
+    island: dict[str, list[dict]] = {
+        str(term): [
+            {"type_index": type_idx, "spawn_area": spawn_area, "weight": weight}
+            for type_idx, spawn_area, weight in entries
+        ]
+        for term, entries in sorted((island_tables or {}).items())
+    }
     out_tables: dict[str, dict[str, list[dict]]] = {}
     other: list[dict] = []
     for name, entries in tables.items():
@@ -296,7 +338,7 @@ def build_spawn_table_json(tables: dict[str, list[tuple[int, int, int, int]]]) -
             out_tables[month_key] = {}
             for term in range(6):
                 out_tables[month_key][str(term)] = [dict(entry) for entry in other]
-    return {"tables": out_tables, "other": other}
+    return {"tables": out_tables, "other": other, "island": island}
 
 
 def _enum_name(decomp: str) -> str:
@@ -472,7 +514,7 @@ def main() -> None:
     SPAWN_TABLE_PATH.parent.mkdir(parents=True, exist_ok=True)
     source = fetch_spawn_source()
     tables = parse_spawn_tables(source)
-    spawn_json = build_spawn_table_json(tables)
+    spawn_json = build_spawn_table_json(tables, parse_island_tables(source))
     SPAWN_TABLE_PATH.write_text(
         __import__("json").dumps(spawn_json, indent=2) + "\n", encoding="utf-8"
     )

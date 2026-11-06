@@ -1,3 +1,4 @@
+class_name Gulliver
 extends EventNpc
 
 ## Gulliver (`ac_ev_dozaemon`, `SP_NPC_EV_DOZAEMON`, skeleton `seg_1`): one weekday a week he
@@ -12,6 +13,8 @@ enum Think { ASLEEP, GETTING_UP, WANDER }
 const WANDER_RADIUS := 4
 const WANDER_PAUSE := Vector2(2.0, 5.0)
 
+## Floating out at sea while Kapp'n sails past (`ac_ev_castaway`): he can't be spoken to.
+var castaway: bool = false
 var think_state: Think = Think.ASLEEP
 var _pause: float = 0.0
 var _home_cell: Vector2i
@@ -33,6 +36,10 @@ func _area() -> Dictionary:
 
 func idle_clip() -> String:
 	return "npc_1_getup_wait_seg1" if think_state == Think.ASLEEP else "npc_1_wait1"
+
+
+func can_talk() -> bool:
+	return visible and not castaway
 
 
 func talk_clip() -> String:

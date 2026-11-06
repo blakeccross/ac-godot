@@ -295,10 +295,12 @@ static func placement_for_item(item_id: int) -> Dictionary:
 			}
 		ITEM_COTTAGE_MY, ITEM_COTTAGE_NPC:
 			## `ac_cottage`: the island's summer house (the player's, then the islander's).
+			## The islander's is a home like a villager's (`aHUS_odekake_check`: asleep / not in / enter).
 			return {
 				"kind": &"structure",
-				"building": &"building",
-				"visual": &"obj_s_house_i",
+				"building": &"building" if item_id == ITEM_COTTAGE_MY else &"house",
+				## `Cottage_data`: the player's cottage is `obj_s_myhome_i`, the islander's `obj_s_house_i`.
+				"visual": &"obj_s_myhome_i" if item_id == ITEM_COTTAGE_MY else &"obj_s_house_i",
 				"id": &"cottage_my" if item_id == ITEM_COTTAGE_MY else &"cottage_npc",
 				"label": "Cottage",
 				"foot": Vector2i(3, 3),

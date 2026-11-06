@@ -83,6 +83,9 @@ static func station_visual_for(type: int, season: String = "s") -> StringName:
 var town_name: String = DEFAULT_TOWN_NAME
 ## The island's name, asked for on the first boat ride (`Save_Get(island).name`, `mLE_TYPE_ISLAND_NAME`).
 var island_name: String = ""
+## Who lives in the island's cottage (`Save_Get(island).animal`, `mNpc_DecideIslandNpc`): one of the
+## `islander` villagers, picked once for this town. Empty until `Islander` decides.
+var islander_id: String = ""
 ## This town's identity, so a passport knows its home (`mLd_CheckThisLand`). Random per town.
 var town_id: int = 0
 ## `Save_Get(melody)`: the town tune (`TownTune`), set at the tune board.
@@ -154,6 +157,7 @@ func write_save(out: Dictionary) -> void:
 	out["station_type"] = station_type
 	out["town_name"] = town_name
 	out["island_name"] = island_name
+	out["islander_id"] = islander_id
 	out["num_statues"] = num_statues
 	out["cheated_flag"] = cheated_flag
 	out["town_tune"] = Array(town_tune)
@@ -288,6 +292,7 @@ func read_save(data: Dictionary) -> void:
 					"minute": int(rec.get("minute", 0)), "settled": bool(rec.get("settled", false))})
 	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
 	island_name = str(data.get("island_name", ""))
+	islander_id = str(data.get("islander_id", ""))
 	num_statues = clampi(int(data.get("num_statues", 0)), 0, 3)
 	cheated_flag = bool(data.get("cheated_flag", false))
 	town_tune = TownTune.sanitize(data.get("town_tune", null))
@@ -372,6 +377,7 @@ func take_weed_days() -> int:
 func reset() -> void:
 	town_id = Travel.new_town_id()
 	mask_cat = {}
+	islander_id = ""
 	fish_season_term = 0
 	fish_season_offset = 0
 	fish_records.clear()

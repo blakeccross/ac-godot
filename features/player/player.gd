@@ -1390,11 +1390,20 @@ func _update_focus() -> void:
 func _query_focus(pickup: bool = false) -> InteractionQuery:
 	if _probe == null:
 		return null
+	var areas: Array = _probe.get_overlapping_areas()
+	var reach: PickupReach = null
+	if pickup:
+		## B looks 35 / 20 / 10 GX ahead, past what the probe's box reaches (`PickupReach`).
+		var world := World.find(get_tree()) if get_tree() != null else null
+		reach = PickupReach.new(global_position, _motor.body_yaw, world.grid if world != null else null)
+		for node: Node in get_tree().get_nodes_in_group(PickupReach.GROUP) if get_tree() != null else []:
+			var volume: InteractVolume = InteractVolume.of(node)
+			var at := node as Node3D
+			if volume != null and at != null and not areas.has(volume):
+				if at.global_position.distance_to(global_position) <= PickupReach.CANDIDATE_RANGE:
+					areas.append(volume)
 	return InteractionQuery.best_in_areas(
-		_probe.get_overlapping_areas(),
-		_motor.facing_point(global_position, INTERACT_REACH),
-		_make_context(),
-		pickup
+		areas, _motor.facing_point(global_position, INTERACT_REACH), _make_context(), pickup, reach
 	)
 
 

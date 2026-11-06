@@ -35,6 +35,12 @@ static func place_held(player: Player) -> bool:
 	if host != null:
 		host.spawn_placement(entry)
 		LeafFlight.fly(host, player, _piece_position(host, entry), data)
+		## It drops in once the leaf has come (`aMR_BirthWait` → `aMR_FtrBirth`).
+		var piece := host.furniture_node(entry.id) as Node3D
+		if piece != null:
+			var size: Vector2i = entry.resolved_footprint(data)
+			var cells: Array[Vector2i] = session.grid.footprint_cells(entry.cell, size, entry.facing)
+			FurnitureBirth.birth(piece, FurnitureBirth.corners_of(session.grid, cells))
 	Game.post_notice("Placed %s." % data.display_name)
 	return true
 
@@ -67,7 +73,7 @@ static func pick_up(placement_id: StringName) -> bool:
 	_select(data.id)
 	var host: Interior = Interior.find(Game.get_tree())
 	if host != null:
-		host.despawn_placement(placement_id)
+		host.bye_placement(placement_id)
 	Game.post_notice("Picked up %s." % data.display_name)
 	return true
 

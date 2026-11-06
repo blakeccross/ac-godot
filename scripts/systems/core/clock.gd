@@ -56,6 +56,12 @@ signal time_of_day_changed(tod: TimeOfDay)
 ## Days of 06:00 renew that were crossed. Plants, shops, weather subscribe here.
 signal field_renewed(days: int)
 
+## The island's climate (`mFM_toSummer`): every field term reads as the middle of summer. Set by
+## `Game.island_visit`.
+const ISLAND_TERM_MONTH := 7
+const ISLAND_TERM_DAY := 15
+var summer_only: bool = false
+
 var year: int = DEFAULT_YEAR
 var month: int = DEFAULT_MONTH
 var day: int = DEFAULT_DAY
@@ -243,6 +249,8 @@ func renew_index() -> int:
 
 
 func term_idx() -> int:
+	if summer_only:
+		return _term_idx_at(ISLAND_TERM_MONTH, ISLAND_TERM_DAY)
 	return _term_idx_at(month, day)
 
 

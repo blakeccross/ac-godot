@@ -288,7 +288,7 @@ func _spawn_one_in_acre(bug: BugData, spawn_area: int, acre: Vector2i, raining: 
 func spawn_pool() -> Array[BugSpawnEntry]:
 	var term: int = int(BugData.term_for_hour(Clock.hour))
 	if _keep_pool.is_empty() or _keep_month != Clock.month or _keep_term != term:
-		_keep_pool = BugSpawnScheduler.build_pool(_rng)
+		_keep_pool = BugSpawnScheduler.build_pool(_rng, Game.island_visit)
 		_keep_month = Clock.month
 		_keep_term = term
 	return _keep_pool
@@ -314,9 +314,12 @@ func _birth_count(type_index: int) -> int:
 
 
 func _roll_tree_entry(raining: bool) -> BugSpawnEntry:
-	var pool: Array[BugSpawnEntry] = _filtered_entries(
-		BugSpawnTable.entries_for(Clock.month, Clock.hour), raining, Vector2i(-1, -1), 0
+	var source: Array[BugSpawnEntry] = (
+		BugSpawnTable.island_entries(Clock.hour)
+		if Game.island_visit
+		else BugSpawnTable.entries_for(Clock.month, Clock.hour)
 	)
+	var pool: Array[BugSpawnEntry] = _filtered_entries(source, raining, Vector2i(-1, -1), 0)
 	return BugCatalog.roll_spawn_entry(pool, _rng, false)
 
 

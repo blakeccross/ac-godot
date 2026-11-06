@@ -271,3 +271,18 @@ func test_finishing_the_chores_queues_the_cheer() -> void:
 	job.finish()
 	assert_str(String(Game.complete_payment)).is_equal(String(Game.PAYMENT_ARBEIT))
 	Game.complete_payment = &""
+
+
+func test_nook_scolds_once_for_changing_out_of_the_uniform() -> void:
+	## `aNRG2_cloth_check`: past the shirt chore, out of the uniform, not told off before.
+	var job := FirstJob.new()
+	job.setup_change_cloth()
+	assert_bool(job.scolding_due(FirstJob.DEFAULT_CLOTH_ID)).is_false()  ## still the shirt chore
+	job.kind = FirstJob.Kind.PLANT_FLOWER
+	job.progress = FirstJob.PROGRESS_ACTIVE
+	assert_bool(job.scolding_due(FirstJob.UNIFORM_ID)).is_false()  ## still in it
+	assert_bool(job.scolding_due(FirstJob.DEFAULT_CLOTH_ID)).is_true()
+	job.tick_cloth(FirstJob.DEFAULT_CLOTH_ID)  ## the clock alone never marks it
+	assert_bool(job.wrong_cloth).is_false()
+	job.mark_scolded()
+	assert_bool(job.scolding_due(FirstJob.DEFAULT_CLOTH_ID)).is_false()

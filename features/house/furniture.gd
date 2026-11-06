@@ -25,6 +25,10 @@ func _ready() -> void:
 		GeneratedVisual.mark_missing(self, visual_id)
 	if data != null and data.kind != FurnitureData.Kind.GYROID and FurnitureData.loops_idle(visual_id):
 		play_idle_loop(visual)
+	## A fan or toy train spins up and down with its switch; the slot machine spins once when used.
+	FurnitureSwitchAnim.attach(self, visual, visual_id, occupant_id)
+	## A clock turns its hands to the time (and ticks, or pops its pigeon).
+	FurnitureClock.attach(self, visual, visual_id)
 	if data != null and data.kind == FurnitureData.Kind.GYROID:
 		var dance: Node = GYROID_DANCE.instantiate()
 		add_child(dance)

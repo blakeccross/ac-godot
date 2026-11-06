@@ -180,8 +180,12 @@ func _exit_tree() -> void:
 	MuseumFishLight.clear_glow()
 	Audio.stop_syslev()
 	## Whatever is still scuttling goes back into the walls (`aMR_GokiInfoDt`).
-	if session != null and session.room != null and PlayerHouse.is_player_room(session.room.id):
-		HouseCockroaches.return_survivors(Game.interiors.player_house(), _live_gokis())
+	if session != null and session.room != null and HouseCockroaches.is_goki_room(session.room):
+		var home: House = HouseCockroaches.house_for(session.room)
+		HouseCockroaches.return_survivors(home, _live_gokis())
+		## `mCkRh_SetGoingOutCottageTime`: the cottage's last visit is stamped on the way out.
+		if session.room.kind == Room.Kind.COTTAGE:
+			HouseCockroaches.save_play_time(home)
 	if Game.interior_session == session:
 		Game.bind_interior(null)
 
@@ -212,6 +216,17 @@ func despawn_placement(placement_id: StringName) -> void:
 		node.queue_free()
 
 
+## A piece lifted into the pockets shrinks away (`aMR_FtrBye`) instead of vanishing.
+func bye_placement(placement_id: StringName) -> void:
+	var node := furniture_node(placement_id) as Node3D
+	if node == null:
+		return
+	## Out of the way of the name, in case another piece is put down in its place meanwhile.
+	node.name = "Bye_%s_%d" % [placement_id, Time.get_ticks_msec()]
+	var centre: Vector3 = node.global_position
+	FurnitureBirth.bye(node, centre)
+
+
 func refresh_placement(placement_id: StringName) -> void:
 	if session == null or session.room == null:
 		return
@@ -222,7 +237,7 @@ func refresh_placement(placement_id: StringName) -> void:
 
 ## Cockroaches on entering a player floor (`aMR_GokiInfoCt`).
 func _spawn_gokis(room: Room) -> void:
-	if room == null or not PlayerHouse.is_player_room(room.id):
+	if room == null or not HouseCockroaches.is_goki_room(room):
 		return
 	var player := Player.find(get_tree())
 	if player == null:
@@ -230,7 +245,7 @@ func _spawn_gokis(room: Room) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	var spawns: Array[Dictionary] = HouseCockroaches.entry_spawns(
-		session, Game.interiors.player_house(), player.global_position, rng
+		session, HouseCockroaches.house_for(room), player.global_position, rng
 	)
 	for spawn: Dictionary in spawns:
 		add_goki(spawn["pos"] as Vector3, bool(spawn["fade"]))
@@ -257,11 +272,11 @@ func _live_gokis() -> int:
 
 ## Furniture moved off these cells: a waiting roach may run out (`aMR_MakeGokiburi`).
 func on_furniture_moved(vacated: Array) -> void:
-	if session == null or session.room == null or not PlayerHouse.is_player_room(session.room.id):
+	if session == null or session.room == null or not HouseCockroaches.is_goki_room(session.room):
 		return
 	for entry: Variant in vacated:
 		var spawn: Dictionary = HouseCockroaches.furniture_spawn(
-			session, Game.interiors.player_house(), entry as Vector2i, _live_gokis()
+			session, HouseCockroaches.house_for(session.room), entry as Vector2i, _live_gokis()
 		)
 		if not spawn.is_empty():
 			add_goki(spawn["pos"] as Vector3, true)

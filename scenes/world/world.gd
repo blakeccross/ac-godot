@@ -167,6 +167,7 @@ func _ready() -> void:
 ## only the sea, the sky, the player and the boat are set up (`IslandService`).
 func _ready_island() -> void:
 	fish.configure(grid, 0.0, layout)
+	bugs.configure(grid, layout)
 	_build_navigation()
 	Clock.time_changed.connect(_apply_time_of_day)
 	Clock.hour_changed.connect(_on_hour_changed)
@@ -273,6 +274,11 @@ func play_outdoor_bgm() -> void:
 		return
 	## Fresh station arrival owns `intro_arrive`; after a house exit we keep field BGM.
 	if Game.intro.active and not Game.intro.resume_debt:
+		return
+	## `mBGMFieldSuddenEv` (`BGM_ISLAND`, 91): on the island's blocks its own tune replaces the
+	## hourly field music, rain or shine.
+	if Game.island_visit:
+		Audio.play_bgm(&"island")
 		return
 	var ev: Dictionary = _event_bgm()
 	_event_bgm_now = ev

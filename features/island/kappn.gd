@@ -1,7 +1,7 @@
 class_name Kappn
 extends EventNpc
 
-## Kapp'n (`ac_npc_sendo`, `SP_NPC_SENDO`, skeleton `kab_1`) at the tiller of his dinghy, on the town's
+## Kapp'n (`ac_npc_sendo`, `SP_NPC_SENDO`, skeleton `wip_1`) at the tiller of his dinghy, on the town's
 ## wharf or the island's landing. `IslandService` seats him in the boat and runs what his talks lead to.
 
 signal talked(script: KappnTalk)
@@ -11,7 +11,7 @@ var at_island: bool = false
 
 
 func _init() -> void:
-	species = &"kab"
+	species = &"wip"
 	display_name = "Kapp'n"
 
 
