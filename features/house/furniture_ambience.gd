@@ -16,11 +16,14 @@ extends Node
 
 const VOICES := 4
 
-enum When { ALWAYS, ON, OFF }
+## `SPIN`: only while the piece is running its one-shot (`FurniturePlacement.spinning`).
+enum When { ALWAYS, ON, OFF, SPIN }
 
 ## Visual id → [level SE, when it sounds].
 const LOOPS := {
 	&"int_nog_fan": [0x01, When.ON],
+	## `aSumSlot_mv`: `sAdo_OngenPos(…, 2, …)` every tick the reels turn.
+	&"int_sum_slot": [0x02, When.SPIN],
 	&"int_sum_kisha": [0x03, When.ON],
 	&"int_sum_tv02": [0x04, When.ON],
 	&"int_sum_tv01": [0x05, When.ON],
@@ -154,6 +157,8 @@ static func _active(when: int, entry: FurniturePlacement) -> bool:
 			return entry.on
 		When.OFF:
 			return not entry.on
+		When.SPIN:
+			return entry.spinning
 	return true
 
 

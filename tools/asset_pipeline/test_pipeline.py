@@ -2544,5 +2544,54 @@ class FeelGlyphSoundTests(unittest.TestCase):
         self.assertEqual(LEV_SE_NUMS["lev_29"], 0x29)
 
 
+
+class FlameFurnitureTests(unittest.TestCase):
+    ## The fireplace flame (`int_ike_kama_danrofire_off_model`): XLU, two I4 tiles, colour
+    ## `(PRIM - ENV) * TEXEL0 + ENV`, alpha scaled by PRIM_LOD_FRAC.
+    COMBINE = (0xFC30FE03, 0x5F3AF3F0)
+
+    def test_the_flame_is_classified_from_its_combiner(self) -> None:
+        from asset_pipeline.gfx import classify_flame
+        from asset_pipeline.texbank import G_IM_FMT_I, G_IM_FMT_IA
+
+        kind = classify_flame(
+            coverage="xlu", fmt0=G_IM_FMT_I, fmt1=G_IM_FMT_I, dual=True,
+            combine_w0=self.COMBINE[0], combine_w1=self.COMBINE[1],
+        )
+        self.assertEqual(kind, "flame")
+        self.assertEqual(
+            classify_flame(
+                coverage="opa", fmt0=G_IM_FMT_I, fmt1=G_IM_FMT_I, dual=True,
+                combine_w0=self.COMBINE[0], combine_w1=self.COMBINE[1],
+            ),
+            "",
+        )
+        self.assertEqual(
+            classify_flame(
+                coverage="xlu", fmt0=G_IM_FMT_IA, fmt1=G_IM_FMT_IA, dual=True,
+                combine_w0=self.COMBINE[0], combine_w1=self.COMBINE[1],
+            ),
+            "",
+        )
+        self.assertEqual(
+            classify_flame(coverage="xlu", fmt0=G_IM_FMT_I, fmt1=G_IM_FMT_I, dual=True),
+            "",
+        )
+
+    def test_segment_8_furniture_names_its_rest_picture(self) -> None:
+        from asset_pipeline.texbank import FURNITURE_SEGMENT8
+
+        for prefix, (symbol, width, height) in FURNITURE_SEGMENT8.items():
+            self.assertTrue(prefix.startswith("int_"))
+            self.assertIn("_TA_tex_txt", symbol)
+            self.assertGreater(width * height, 0)
+
+    def test_the_flame_display_list_joins_the_fireplace(self) -> None:
+        from asset_pipeline.convert import EXTRA_STATIC_GFX
+
+        self.assertEqual(
+            EXTRA_STATIC_GFX["int_ike_kama_danro01"], ("int_ike_kama_danrofire_off_model",)
+        )
+
 if __name__ == "__main__":
     unittest.main()

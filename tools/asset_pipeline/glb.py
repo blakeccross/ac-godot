@@ -51,6 +51,8 @@ def _group_parts(parts: list[MeshPart], split_by_gfx: bool = False) -> list[dict
         waterfall_layer = part.waterfall_layer or ""
         base_color = tuple(part.base_color or (1.0, 1.0, 1.0, 1.0))
         beach_prim = part.beach_prim
+        flame_env = part.flame_env
+        flame_lod = part.flame_lod
         if unlit:
             part.unlit_fill = True
             part.texture_png = None
@@ -83,6 +85,9 @@ def _group_parts(parts: list[MeshPart], split_by_gfx: bool = False) -> list[dict
             part.layer1_wrap_s,
             part.layer1_wrap_t,
             base_color,
+            beach_prim if water_kind == "flame" else None,
+            flame_env,
+            flame_lod,
             uses_lighting,
             shade_alpha,
             rgb_prim,
@@ -111,6 +116,8 @@ def _group_parts(parts: list[MeshPart], split_by_gfx: bool = False) -> list[dict
                     "layer1_wrap_t": part.layer1_wrap_t,
                     "base_color": base_color,
                     "beach_prim": beach_prim,
+                    "flame_env": flame_env,
+                    "flame_lod": flame_lod,
                     "uses_lighting": uses_lighting,
                     "shade_alpha": shade_alpha,
                     "rgb_prim": rgb_prim,
@@ -320,6 +327,8 @@ def _material(
     layer1_wrap_t: int = GX_REPEAT,
     base_color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
     beach_prim: tuple[int, int, int, int] | None = None,
+    flame_env: tuple[int, int, int, int] | None = None,
+    flame_lod: int | None = None,
     vertex_shade: bool = False,
     rgb_prim: bool = True,
     runtime_bound: bool = False,
@@ -368,6 +377,10 @@ def _material(
     if beach_prim is not None:
         extras = dict(extras or {})
         extras["beach_prim"] = [int(beach_prim[0]), int(beach_prim[1]), int(beach_prim[2]), int(beach_prim[3])]
+    if water_kind == "flame":
+        extras = dict(extras or {})
+        extras["flame_env"] = [int(c) for c in (flame_env or (255, 255, 255, 255))]
+        extras["flame_lod"] = int(flame_lod or 0)
     if wrap_tiles is not None:
         extras = dict(extras or {})
         extras["wrap_tiles"] = [int(wrap_tiles[0]), int(wrap_tiles[1])]
@@ -558,6 +571,8 @@ def write_glb(
                 layer1_wrap_t=layer1_wrap_t,
                 base_color=tuple(group.get("base_color") or (1.0, 1.0, 1.0, 1.0)),
                 beach_prim=group.get("beach_prim"),
+                flame_env=group.get("flame_env"),
+                flame_lod=group.get("flame_lod"),
                 vertex_shade=vertex_shade,
                 rgb_prim=bool(group.get("rgb_prim", True)),
                 runtime_bound=bool(group.get("runtime_bound")),
@@ -817,6 +832,8 @@ def write_skinned_glb(
                 water_kind=str(group.get("water_kind") or ""),
                 base_color=tuple(group.get("base_color") or (1.0, 1.0, 1.0, 1.0)),
                 beach_prim=group.get("beach_prim"),
+                flame_env=group.get("flame_env"),
+                flame_lod=group.get("flame_lod"),
                 runtime_bound=bool(group.get("runtime_bound")),
                 wrap_tiles=group.get("wrap_tiles"),
             )

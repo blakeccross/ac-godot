@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "cam", "repay", "manpu", "digup", "ball", "xmas", "island", "ride", "cannon", "popper", "costume", "glow", "shine", "reflect", "drop", "bridge", "lighthouse", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "place", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "cam", "repay", "manpu", "digup", "ball", "xmas", "island", "ride", "cannon", "popper", "costume", "glow", "shine", "reflect", "drop", "bridge", "lighthouse", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -357,6 +357,8 @@ func execute(raw: String) -> String:
 			return _cmd_bells(args)
 		"house":
 			return _cmd_house(args)
+		"place":
+			return _cmd_place(args)
 		"event", "events":
 			return _cmd_event(args)
 		"fortune", "destiny":
@@ -1323,6 +1325,41 @@ func _cmd_bells(args: PackedStringArray) -> String:
 	var amount: int = clampi(int(args[0]), 0, Inventory.WALLET_MAX)
 	Game.inventory.set_wallet(amount)
 	return "Bells set to %d." % Game.inventory.wallet
+
+
+## `place <visual id or furniture id> [x z]`: put a piece down in the room you are in, at the given
+## cell or the first free one from (3, 3) — for looking at how a piece behaves.
+func _cmd_place(args: PackedStringArray) -> String:
+	var session: IndoorSession = Game.interior_session
+	if session == null or session.room == null:
+		return "Not in a room."
+	if args.is_empty():
+		return "Usage: place <visual id or furniture id> [x z]"
+	var want := StringName(String(args[0]).to_lower())
+	var data: FurnitureData = null
+	for i: int in FurnitureCatalog.count():
+		var candidate := ItemCatalog.get_item(FurnitureCatalog.item_id(i)) as FurnitureData
+		if candidate != null and (candidate.id == want or candidate.visual_id == want):
+			data = candidate
+			break
+	if data == null:
+		return "No furniture '%s'." % want
+	var cells: Array[Vector2i] = []
+	if args.size() >= 3:
+		cells.append(Vector2i(int(args[1]), int(args[2])))
+	else:
+		for z: int in range(2, session.room.rows - 1):
+			for x: int in range(2, session.room.columns - 1):
+				cells.append(Vector2i(x, z))
+	for cell: Vector2i in cells:
+		var entry: FurniturePlacement = session.place(data, cell, WorldGrid.Facing.SOUTH)
+		if entry == null:
+			continue
+		var host: Interior = Interior.find(Engine.get_main_loop() as SceneTree)
+		if host != null:
+			host.spawn_placement(entry)
+		return "Placed %s at %s." % [data.visual_id, cell]
+	return "No room for %s." % data.visual_id
 
 
 func _cmd_house(args: PackedStringArray) -> String:

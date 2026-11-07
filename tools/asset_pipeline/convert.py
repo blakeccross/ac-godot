@@ -840,6 +840,13 @@ def _owning_vtx_prefix(name: str, prefixes: set[str]) -> str | None:
     return best
 
 
+## Furniture whose second display list is not under its vertex prefix but draws the tail of the same
+## `*_v` array (its `G_VTX` addresses fall inside it): the fireplace's flame, a scrolling XLU card.
+EXTRA_STATIC_GFX: dict[str, tuple[str, ...]] = {
+    "int_ike_kama_danro01": ("int_ike_kama_danrofire_off_model",),
+}
+
+
 def _static_jobs(symbols: list) -> list[dict[str, Any]]:
     skel_prefixes = {s.name.replace("cKF_bs_r_", "") for s in symbols if s.name.startswith("cKF_bs_r_")}
     all_prefixes = {
@@ -912,6 +919,10 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             )
             continue
         model_names = sorted(gfx_by_prefix.get(prefix) or model_by_prefix.get(prefix) or [])
+        ## A display list drawn from this array but named outside its prefix.
+        for extra in EXTRA_STATIC_GFX.get(prefix, ()):
+            if extra in names and extra not in model_names:
+                model_names.append(extra)
         ## Tree-leaf XLU (`ef_s_cedar_modelT`) shares a prefix with numbered shake/cut DLs
         ## (`ef_s_cedar3_*`). Export the leaf card only for the base symbol.
         if prefix.startswith("ef_s_"):

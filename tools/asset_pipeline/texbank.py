@@ -1105,6 +1105,20 @@ def decode_gbi_texture(
     return decode_gx_image(data[:needed], width, height, gx, palette)
 
 
+## Furniture whose draw function binds a picture to segment 8 each frame (`gSPSegment(…,
+## G_MWO_SEGMENT_8, tex)`): the picture it shows at rest, as (texture symbol, width, height). The
+## runtime swaps the rest (`FurnitureTexAnim`, `FurnitureSwitchAnim`); this one is what the model is
+## baked with. Without it the unresolved segment lets the blade ride on the previous part's texture
+## (the fan) or pick a same-size stand-in at random (the snow TV).
+FURNITURE_SEGMENT8: dict[str, tuple[str, int, int]] = {
+    "int_nog_fan": ("int_nog_fan_fan1_TA_tex_txt", 32, 16),
+    "int_sum_tv01": ("int_sum_tv01_front1_TA_tex_txt", 16, 16),
+    "int_sum_tv02": ("int_sum_tv02_front1_TA_tex_txt", 16, 16),
+    "int_sum_fruittv01": ("int_sum_fruittv01_front1_TA_tex_txt", 32, 16),
+    "int_kon_snowtv": ("int_kon_snowtv07a_TA_tex_txt", 16, 16),
+}
+
+
 @dataclass
 class SegmentTex:
     data: bytes
@@ -1142,6 +1156,8 @@ class TextureState:
     prim: tuple[int, int, int, int] = (255, 255, 255, 255)
     ## False until G_SETPRIMCOLOR — facade panes leave default white but are not outdoor-view.
     prim_set: bool = False
+    ## `G_SETPRIMCOLOR` `m` / `l` word: the PRIM_LOD_FRAC some alpha combiners multiply by.
+    prim_lod: int = 0
     env: tuple[int, int, int, int] = (255, 255, 255, 255)
     ## Dual-tile water (river water1+water2, ocean wave1+wave2/3): snapshot on
     ## G_SETTILE_DOLPHIN tile 0 / tile 1 before the next SETTIMG overwrites img_addr.
@@ -1354,9 +1370,25 @@ class TextureBank:
                     self.segment_palettes[0x0A] = pal
                     self.segment_palettes.setdefault(0x0C, pal)
 
+    def _bind_furniture_segment8(self, prefix: str) -> None:
+        """`FURNITURE_SEGMENT8`: the rest picture of a piece that swaps segment 8 as it runs."""
+        row = FURNITURE_SEGMENT8.get(prefix)
+        if row is None:
+            return
+        symbol, width, height = row
+        data = self._symbol_bytes(symbol)
+        if data is None:
+            return
+        pal = self._symbol_bytes(f"{prefix}_pal")
+        if pal:
+            self.segment_palettes[0x08] = pal
+        self.segment_images[0x08] = SegmentTex(data, width, height, palette=pal)
+        self._segment_offset_names.setdefault(0x08, {})[0] = symbol
+
     def bind_static_segments(self, prefix: str) -> None:
         """Bind runtime segment banks needed by static grd_/rom_ display lists."""
         self.current_prefix = prefix
+        self._bind_furniture_segment8(prefix)
         self._apply_seasonal_fg_pals(prefix)
         fg_seg = ACTOR_FG_TLUT_SEGMENTS.get(prefix)
         if fg_seg is not None:
@@ -1430,6 +1462,7 @@ class TextureBank:
             self.segment_images[0x08] = SegmentTex(eye1, 32, 16, palette=pal)
         if mouth1:
             self.segment_images[0x09] = SegmentTex(mouth1, 32, 16, palette=pal)
+        self._bind_furniture_segment8(prefix)
         if tmem:
             bank = SegmentTex(tmem, 0, 0, palette=pal)
             self.segment_images[0x0A] = bank

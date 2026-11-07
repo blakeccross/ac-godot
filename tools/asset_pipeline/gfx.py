@@ -458,6 +458,34 @@ def classify_water_surface(
     return ""
 
 
+def classify_flame(
+    *,
+    coverage: str | None,
+    fmt0: int,
+    fmt1: int | None,
+    dual: bool,
+    combine_w0: int = 0,
+    combine_w1: int = 0,
+) -> str:
+    """XLU dual I-tile fire: colour ``(PRIM-ENV)*TEXEL0+ENV``, alpha ``TEXEL1*PRIM_LOD_FRAC``.
+
+    The fireplace's flame (`int_ike_kama_danrofire_off_model`) scrolls its second tile through
+    segment 9; it is the only dual-tile XLU I4 DL whose combiner lerps PRIM/ENV by tile 0 and
+    takes its alpha from tile 1 scaled by the PRIM_LOD_FRAC. Read from the combiner, not a name.
+    """
+    from .texbank import G_IM_FMT_I
+
+    if not dual or fmt1 is None or coverage != "xlu":
+        return ""
+    if fmt0 != G_IM_FMT_I or fmt1 != G_IM_FMT_I:
+        return ""
+    if not combine_is_prim_env_texel(combine_w0, combine_w1):
+        return ""
+    if not combine_alpha_scaled_by_prim_lod_frac(combine_w0, combine_w1):
+        return ""
+    return "flame"
+
+
 def classify_beach_wet(
     *,
     coverage: str | None,
@@ -686,6 +714,10 @@ class MeshPart:
     ## BG bank, actor `anime_N`), not a fixed REL image. Only these can take a seasons-pack
     ## swap; a fixed-image object (rock, prop) keeps its own CI4 whatever it is named.
     runtime_bound: bool = False
+    ## `flame`: ENV colour and PRIM_LOD_FRAC of the `(PRIM-ENV)*I0+ENV` / `I1*LOD` combiner
+    ## (PRIM rides `beach_prim`); the runtime shader scrolls tile 1.
+    flame_env: tuple[int, int, int, int] | None = None
+    flame_lod: int | None = None
 
 
 @dataclass
@@ -836,6 +868,7 @@ def apply_texture_commands(blob: bytes, bank: TextureBank, state: TextureState, 
             _apply_settile_dolphin(w0, state)
         elif cmd == G_SETPRIMCOLOR:
             state.prim = ((w1 >> 24) & 0xFF, (w1 >> 16) & 0xFF, (w1 >> 8) & 0xFF, w1 & 0xFF)
+            state.prim_lod = w0 & 0xFF
             state.prim_set = True
         elif cmd == G_SETENVCOLOR:
             state.env = ((w1 >> 24) & 0xFF, (w1 >> 16) & 0xFF, (w1 >> 8) & 0xFF, w1 & 0xFF)
@@ -1106,6 +1139,8 @@ def parse_gfx(
         water_kind = ""
         base_color = (1.0, 1.0, 1.0, 1.0)
         beach_prim: tuple[int, int, int, int] | None = None
+        saved_flame_prim = tex_state.prim
+        saved_flame_env = tex_state.env
         waterfall_layer = ""
         wrap_s = tex_state.wrap_s
         wrap_t = tex_state.wrap_t
@@ -1121,19 +1156,30 @@ def parse_gfx(
         if bank is not None and not unlit and texture_on:
             name0 = bank._name_for(int((tex_state.tile0 or {}).get("img_addr") or tex_state.img_addr))
             name1 = bank._name_for(int((tex_state.tile1 or {}).get("img_addr") or 0)) if tex_state.tile1 else ""
-            water_kind = classify_water_surface(
+            ## The flame's combiner is its own (PRIM/ENV lerp by tile 0, alpha from tile 1 × LOD);
+            ## its MIRROR-S tiles would otherwise read as a waterfall below.
+            water_kind = classify_flame(
                 coverage=coverage,
                 fmt0=fmt0,
                 fmt1=fmt1,
-                wrap0_s=wrap0_s,
-                wrap0_t=wrap0_t,
-                wrap1_s=wrap1_s,
-                wrap1_t=wrap1_t,
                 dual=dual,
-                env=tex_state.env,
                 combine_w0=combine_w0,
                 combine_w1=combine_w1,
             )
+            if not water_kind:
+                water_kind = classify_water_surface(
+                    coverage=coverage,
+                    fmt0=fmt0,
+                    fmt1=fmt1,
+                    wrap0_s=wrap0_s,
+                    wrap0_t=wrap0_t,
+                    wrap1_s=wrap1_s,
+                    wrap1_t=wrap1_t,
+                    dual=dual,
+                    env=tex_state.env,
+                    combine_w0=combine_w0,
+                    combine_w1=combine_w1,
+                )
             if not water_kind:
                 water_kind = classify_beach_wet(
                     coverage=coverage,
@@ -1193,6 +1239,7 @@ def parse_gfx(
                     "shrine_water",
                     "shrine_splash",
                     "tank_caustic",
+                    "flame",
                 )
                 and tex_state.tile0
                 and tex_state.tile1
@@ -1210,6 +1257,7 @@ def parse_gfx(
                     "shrine_water",
                     "shrine_splash",
                     "tank_caustic",
+                    "flame",
                 )
                 png, tex_name, _alpha = _decode_snap(
                     bank, tex_state, tex_state.tile0, skip_prim=True, allow_achd=not native_texels
@@ -1226,7 +1274,7 @@ def parse_gfx(
                 ## Tank caustic multiplies the raw I4 level by vertex shade. Park
                 ## that level in alpha (RGB white) so the shader sample is not
                 ## an sRGB-decoded .r.
-                if water_kind == "tank_caustic":
+                if water_kind in ("tank_caustic", "flame"):
                     if png and intensity_format_opaque_alpha(png):
                         png = i4_png_as_alpha(png)
                     if layer1_png and intensity_format_opaque_alpha(layer1_png):
@@ -1416,6 +1464,7 @@ def parse_gfx(
             "shrine_splash",
             "shrine_bubble",
             "tank_caustic",
+            "flame",
         ):
             alpha_mode = "BLEND"
         elif water_kind == "beach_wet":
@@ -1505,7 +1554,9 @@ def parse_gfx(
                 water_kind=water_kind,
                 waterfall_layer=waterfall_layer,
                 base_color=base_color,
-                beach_prim=beach_prim,
+                beach_prim=beach_prim if water_kind != "flame" else saved_flame_prim,
+                flame_env=saved_flame_env if water_kind == "flame" else None,
+                flame_lod=int(tex_state.prim_lod) if water_kind == "flame" else None,
                 uses_lighting=uses_lighting,
                 ## Texture off only: textured SHADE-alpha surfaces (tank water) keep the
                 ## opaque vertex alpha their materials were tuned against.
@@ -1726,6 +1777,7 @@ def parse_gfx(
                     flush()
                     current_key = None
                 tex_state.prim = ((w1 >> 24) & 0xFF, (w1 >> 16) & 0xFF, (w1 >> 8) & 0xFF, w1 & 0xFF)
+                tex_state.prim_lod = w0 & 0xFF
                 tex_state.prim_set = True
             elif cmd == G_SETENVCOLOR and bank is not None:
                 if triangles:

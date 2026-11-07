@@ -62,6 +62,8 @@ static func _apply_node(node: Node, as_decal: bool, mouth_river: bool, visual_id
 					)
 				elif VisualWaterMaterials.is_fall_rainbow_surface(mesh_instance, i, src):
 					mesh_instance.set_surface_override_material(i, VisualWaterMaterials.make_fall_rainbow_material())
+				elif kind == "flame":
+					mesh_instance.set_surface_override_material(i, VisualFlameMaterial.make(std, src))
 				elif kind == "beach_wet":
 					mesh_instance.set_surface_override_material(
 						i, VisualWaterMaterials.make_beach_wet_material(std, src)

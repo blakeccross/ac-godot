@@ -83,3 +83,7 @@ static func from_save(data: Variant) -> FurniturePlacement:
 	placement.display_id = StringName(str(bag.get("di", "")))
 	placement.wrapped = bool(bag.get("wr", 0))
 	return placement
+
+## Not saved: the piece is running a one-shot right now (the slot machine's reels), which the
+## ambience reads for its level sound.
+var spinning: bool = false
