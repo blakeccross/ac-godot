@@ -36,7 +36,7 @@ static func cell_from_persist(id: StringName) -> Vector2i:
 
 
 static func in_season() -> bool:
-	return Game.events != null and Game.events.is_active(SEASON_EVENT)
+	return Game.events.is_active(SEASON_EVENT)
 
 
 ## `mMsr_GetMushroomNum`: how many to set now (0 = none).
@@ -99,7 +99,7 @@ static func advance(world: Node, now_minute: int, hour: int, minute: int, player
 ## Host trees per field acre: block → Array of tree cells with a free spot around them.
 static func hosts(world: Node) -> Dictionary:
 	var out: Dictionary = {}
-	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	var grid: WorldGrid = WorldGrid.of(world)
 	if grid == null or world.get_tree() == null:
 		return out
 	for node: Node in world.get_tree().get_nodes_in_group("plant"):
@@ -137,7 +137,7 @@ static func free_spots(grid: WorldGrid, tree_cell: Vector2i) -> Array[Vector2i]:
 ## `mMsr_SetMushroomNum`: column, then acre, then tree, then spot. The player's acre row and
 ## column are left out.
 static func grow(world: Node, amount: int, player_block: Vector2i, rng: RandomNumberGenerator) -> int:
-	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	var grid: WorldGrid = WorldGrid.of(world)
 	if grid == null:
 		return 0
 	var placed: int = 0
@@ -222,7 +222,7 @@ static func _put(world: Node, grid: WorldGrid, cell: Vector2i) -> bool:
 
 static func _remove(world: Node, pid: StringName) -> void:
 	Game.town.mushrooms.erase(String(pid))
-	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	var grid: WorldGrid = WorldGrid.of(world)
 	if grid != null:
 		grid.remove(pid)
 	if world != null and world.get_tree() != null:

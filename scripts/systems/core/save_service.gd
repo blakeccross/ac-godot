@@ -64,7 +64,7 @@ func save_game(path: String = "") -> Error:
 		"reset_code": 0,
 		## Debug console `resetti off`. Kept beside the reset stamp so a later save
 		## does not drop it.
-		"resetti_disabled": Game.resetti_disabled if Game != null else false,
+		"resetti_disabled": Game.resetti_disabled,
 	}
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
@@ -106,8 +106,7 @@ func load_game(path: String = "", slot: int = -1) -> Error:
 	if data.is_empty():
 		return ERR_FILE_NOT_FOUND if not FileAccess.file_exists(path) else ERR_INVALID_DATA
 	last_reset_code = int(data.get("reset_code", 0))
-	if Game != null:
-		Game.resetti_disabled = bool(data.get("resetti_disabled", false))
+	Game.resetti_disabled = bool(data.get("resetti_disabled", false))
 	Clock.apply_snapshot(data.get("clock", {}))
 	last_elapsed = 0
 	if data.has("os_time"):
@@ -260,10 +259,9 @@ func write_roster(roster: PlayerRoster, path: String = "") -> Error:
 ## Debug console `resetti off` / `resetti on`. Written immediately, so quitting without
 ## saving keeps him disabled. Memory updates even when there is no save file yet.
 func set_resetti_disabled(disabled: bool, path: String = "") -> Error:
-	if Game != null:
-		Game.resetti_disabled = disabled
-		if disabled:
-			Game.reset_flag = false
+	Game.resetti_disabled = disabled
+	if disabled:
+		Game.reset_flag = false
 	path = _path(path)
 	if path == "" or not FileAccess.file_exists(path):
 		return ERR_FILE_NOT_FOUND
@@ -291,7 +289,7 @@ func mark_session_open(reset_count: int, path: String = "") -> Error:
 		if int(data.get("version", 1)) >= 2 and typeof(world.get("roster")) == TYPE_DICTIONARY:
 			var roster: Dictionary = world["roster"]
 			var slots: Array = roster.get("slots", [])
-			var cur: int = Game.roster.current if Game != null and Game.roster != null else int(roster.get("current", 0))
+			var cur: int = Game.roster.current
 			roster["current"] = cur
 			if cur >= 0 and cur < slots.size() and typeof(slots[cur]) == TYPE_DICTIONARY:
 				(slots[cur] as Dictionary)["reset_count"] = reset_count

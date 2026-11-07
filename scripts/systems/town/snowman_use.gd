@@ -31,8 +31,8 @@ static func should_place_balls(now_minute: int) -> bool:
 	return SnowmanRules.balls_allowed(Game.town.snowman_built_minute, now_minute)
 
 
-static func spawn_balls(mgr: EventManager) -> Array[Node3D]:
-	var out: Array[Node3D] = []
+static func spawn_balls(mgr: EventManager) -> Array[Snowball]:
+	var out: Array[Snowball] = []
 	if mgr == null or mgr.world == null or not should_place_balls(Clock.absolute_minute()):
 		return out
 	for p: int in [SnowmanRules.PART_BODY, SnowmanRules.PART_HEAD]:
@@ -48,25 +48,25 @@ static func spawn_balls(mgr: EventManager) -> Array[Node3D]:
 				continue
 			state = {"cell": [cell.x, cell.y], "dist": 0.0}
 			Game.town.snowballs[p] = state
-		var ball: Node3D = spawn_ball(mgr.world, p, cell, float(state.get("dist", 0.0)))
+		var ball: Snowball = spawn_ball(mgr.world, p, cell, float(state.get("dist", 0.0)))
 		if ball != null:
 			out.append(ball)
 	return out
 
 
-static func spawn_ball(world: Node, part: int, cell: Vector2i, dist: float) -> Node3D:
+static func spawn_ball(world: Node, part: int, cell: Vector2i, dist: float) -> Snowball:
 	if world == null or not ResourceLoader.exists(BALL_SCENE):
 		return null
-	var ball: Node3D = (load(BALL_SCENE) as PackedScene).instantiate() as Node3D
-	ball.set("part", part)
-	ball.set("move_dist", dist)
+	var ball := (load(BALL_SCENE) as PackedScene).instantiate() as Snowball
+	ball.part = part
+	ball.move_dist = dist
 	var parent: Node = world.get_node_or_null("Objects")
 	if parent == null:
 		parent = world
 	parent.add_child(ball)
-	var grid: WorldGrid = world.get("grid") as WorldGrid
+	var grid: WorldGrid = WorldGrid.of(world)
 	ball.global_position = grid.cell_to_world(cell) if grid != null else Vector3.ZERO
-	ball.call("_snap_ground")
+	ball.snap_ground()
 	return ball
 
 
@@ -77,23 +77,23 @@ static func ball_gone(part: int) -> void:
 
 ## `aSMAN_snowman_hit_check`: body and head, both past a fifth of full size, at least one
 ## rolling, on an inner unit of the player's acre. Returns true when the combine starts.
-static func try_combine(a: Node3D, b: Node3D) -> bool:
-	var pa: int = int(a.get("part"))
-	var pb: int = int(b.get("part"))
-	var na: float = float(a.call("normalized"))
-	var nb: float = float(b.call("normalized"))
+static func try_combine(a: Snowball, b: Snowball) -> bool:
+	var pa: int = a.part
+	var pb: int = b.part
+	var na: float = a.normalized()
+	var nb: float = b.normalized()
 	if not SnowmanRules.can_combine(pa, na, pb, nb):
 		return false
-	var sa: float = float(a.call("speed"))
-	var sb: float = float(b.call("speed"))
+	var sa: float = a.speed()
+	var sb: float = b.speed()
 	if sa <= 0.0 and sb <= 0.0:
 		return false
 	var world := World.find(a.get_tree())
 	var player := Player.find(a.get_tree())
 	if world == null or world.grid == null:
 		return false
-	var head: Node3D = a if sa >= sb else b
-	var body: Node3D = b if head == a else a
+	var head: Snowball = a if sa >= sb else b
+	var body: Snowball = b if head == a else a
 	var body_cell: Vector2i = world.grid.world_to_cell(body.global_position)
 	var unit := Vector2i(posmod(body_cell.x, 16), posmod(body_cell.y, 16))
 	if unit.x == 0 or unit.x == 15 or unit.y == 0 or unit.y == 15:
@@ -101,8 +101,8 @@ static func try_combine(a: Node3D, b: Node3D) -> bool:
 	@warning_ignore("integer_division")
 	if player != null and world.grid.world_to_cell(player.global_position) / 16 != body_cell / 16:
 		return false
-	var nh: float = float(head.call("normalized"))
-	var nbody: float = float(body.call("normalized"))
+	var nh: float = head.normalized()
+	var nbody: float = body.normalized()
 	var res: int = SnowmanRules.result(SnowmanRules.actor_scale(nh), SnowmanRules.actor_scale(nbody))
 	var center: Vector3 = world.grid.cell_to_world(body_cell)
 	center.y = body.global_position.y
@@ -114,8 +114,8 @@ static func try_combine(a: Node3D, b: Node3D) -> bool:
 	var on_built := func() -> void: _built(world, head, body, nh, nbody, res, body_cell)
 	if player != null:
 		player.set_busy(true)
-	body.call("begin_combine", false, center, center.y, Callable())
-	head.call("begin_combine", true, center, top, on_built)
+	body.begin_combine(false, center, center.y, Callable())
+	head.begin_combine(true, center, top, on_built)
 	## `aSMAN_process_combine_head_jump_init`: the grade, the gift, the date, the quest.
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
@@ -129,7 +129,7 @@ static func try_combine(a: Node3D, b: Node3D) -> bool:
 	return true
 
 
-static func _built(world: World, head: Node3D, body: Node3D, nh: float, nb: float, res: int, cell: Vector2i) -> void:
+static func _built(world: World, head: Snowball, body: Snowball, nh: float, nb: float, res: int, cell: Vector2i) -> void:
 	var player := Player.find(world.get_tree()) if world != null else null
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
@@ -162,7 +162,7 @@ static func fg_cell(world: World, cell: Vector2i) -> Vector2i:
 static func spawn_snowman(world: Node, slot: int, cell: Vector2i, head: float, body: float, score: int) -> Node3D:
 	if world == null or not ResourceLoader.exists(SNOWMAN_SCENE):
 		return null
-	var grid: WorldGrid = world.get("grid") as WorldGrid
+	var grid: WorldGrid = WorldGrid.of(world)
 	if grid == null:
 		return null
 	var node: Node3D = (load(SNOWMAN_SCENE) as PackedScene).instantiate() as Node3D
@@ -175,7 +175,7 @@ static func spawn_snowman(world: Node, slot: int, cell: Vector2i, head: float, b
 		parent = world
 	parent.add_child(node)
 	var pos: Vector3 = grid.cell_to_world(cell)
-	var layout: WorldData = world.get("layout") as WorldData
+	var layout: WorldData = WorldData.of(world)
 	if layout != null:
 		pos.y = FieldCollision.ground_y(layout, cell)
 	node.global_position = pos
@@ -204,7 +204,7 @@ static func restore(world: Node) -> void:
 static func knocked_down(slot: int, cell: Vector2i, world: Node) -> void:
 	if slot >= 0 and slot < Game.town.snowmen.size():
 		Game.town.snowmen[slot] = {}
-	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	var grid: WorldGrid = WorldGrid.of(world)
 	if grid != null and slot >= 0:
 		grid.remove(persist_id(slot))
 	@warning_ignore("integer_division")
@@ -213,7 +213,7 @@ static func knocked_down(slot: int, cell: Vector2i, world: Node) -> void:
 
 ## `aSMAN_SendPresentMail`: the post office holds it until the next delivery.
 static func send_present(rng: RandomNumberGenerator) -> bool:
-	var collected := func(id: StringName) -> bool: return Game.catalog != null and Game.catalog.has(id)
+	var collected := func(id: StringName) -> bool: return Game.catalog.has(id)
 	var gift: Dictionary = SnowmanRules.present(rng, collected)
 	var item: ItemData = ItemCatalog.get_item(gift["id"] as StringName)
 	var name: String = item.display_name if item != null else String(gift["id"])
@@ -228,4 +228,4 @@ static func send_present(rng: RandomNumberGenerator) -> bool:
 	mail.recipient_type = MailData.NameType.PLAYER
 	mail.recipient_name = Game.resident.player_name
 	mail.paper_type = 12
-	return Game.post != null and Game.post.receipt_mail(mail)
+	return Game.post.receipt_mail(mail)

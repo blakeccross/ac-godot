@@ -149,10 +149,7 @@ static func _host_persist(host: Node) -> StringName:
 
 
 static func _grid(ctx: InteractionContext) -> WorldGrid:
-	if ctx == null or ctx.world == null:
-		return null
-	var value: Variant = ctx.world.get("grid")
-	return value as WorldGrid
+	return WorldGrid.of(ctx.world) if ctx != null else null
 
 
 static func _notify_bugs(ctx: InteractionContext, cell: Vector2i) -> void:

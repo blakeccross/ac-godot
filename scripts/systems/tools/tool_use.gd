@@ -323,7 +323,7 @@ static func axe_hits_bank(ctx: InteractionContext) -> bool:
 	var grid: WorldGrid = _grid(ctx)
 	if grid == null or ctx == null or ctx.actor == null or not ("layout" in ctx.world):
 		return false
-	var layout: WorldData = ctx.world.get("layout") as WorldData
+	var layout: WorldData = WorldData.of(ctx.world)
 	var cell: Vector2i = facing_cell(ctx)
 	if layout == null or not grid.is_in_bounds(cell):
 		return false
@@ -347,7 +347,7 @@ static func scoop_outcome(ctx: InteractionContext) -> Scoop:
 	var cell: Vector2i = facing_cell(ctx)
 	var layout: WorldData = null
 	if ctx != null and ctx.world != null and "layout" in ctx.world:
-		layout = ctx.world.get("layout") as WorldData
+		layout = WorldData.of(ctx.world)
 	var attr: int = FieldCollision.unit_attr_at_cell(layout, cell) if layout != null else -1
 	return scoop_for(grid.terrain_at(cell), attr)
 
@@ -378,10 +378,10 @@ static func scoop_for(terrain: WorldGrid.Terrain, attr: int) -> Scoop:
 static func _golden_bells(ctx: InteractionContext, cell: Vector2i) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	if not golden_finds_bells(cell, Game.golden_last_dig, rng.randi_range(0, GOLD_BELLS_CHANCE - 1)):
-		Game.golden_last_dig = cell
+	if not golden_finds_bells(cell, Game.session.golden_last_dig, rng.randi_range(0, GOLD_BELLS_CHANCE - 1)):
+		Game.session.golden_last_dig = cell
 		return
-	Game.golden_last_dig = cell
+	Game.session.golden_last_dig = cell
 	var bag: ItemData = ItemCatalog.get_item(&"money_100")
 	if bag != null and ctx != null and ctx.inventory != null and ctx.inventory.add(bag, 1) == 0:
 		Game.post_notice("You dug up 100 Bells!")
@@ -393,24 +393,17 @@ static func golden_finds_bells(cell: Vector2i, last: Vector2i, roll: int) -> boo
 
 
 static func facing_yaw(ctx: InteractionContext) -> float:
-	if ctx == null or ctx.actor == null or not ctx.actor.has_method("facing_yaw"):
-		return 0.0
-	return float(ctx.actor.call("facing_yaw"))
+	return ActorFacing.yaw_or(ctx.actor, 0.0) if ctx != null else 0.0
 
 
 static func _facing_point(ctx: InteractionContext, distance: float) -> Vector3:
 	var origin: Vector3 = ctx.actor.global_position
-	var yaw: float = 0.0
-	if ctx.actor.has_method("facing_yaw"):
-		yaw = float(ctx.actor.call("facing_yaw"))
+	var yaw: float = ActorFacing.yaw_or(ctx.actor, 0.0)
 	return origin + Vector3(sin(yaw), 0.0, cos(yaw)) * distance
 
 
 static func _grid(ctx: InteractionContext) -> WorldGrid:
-	if ctx == null or ctx.world == null:
-		return null
-	var value: Variant = ctx.world.get("grid")
-	return value as WorldGrid
+	return WorldGrid.of(ctx.world) if ctx != null else null
 
 
 ## `Get_PlayerAnimeIndex_fromItemKind_Tumble(_getup)`: axes / shovels / fans → `_a1`;

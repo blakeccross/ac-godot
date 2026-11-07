@@ -148,7 +148,7 @@ static func paint_canopy(visual: Node3D, design: Texture2D) -> void:
 
 ## The texture for an umbrella `tool`'s design (`Player_Design_Get`), or null for a stock one.
 static func design_texture(tool: ToolData) -> Texture2D:
-	if tool == null or tool.design_slot < 0 or Game == null or Game.designs == null:
+	if tool == null or tool.design_slot < 0:
 		return null
 	if tool.design_slot >= Game.designs.player.size():
 		return null

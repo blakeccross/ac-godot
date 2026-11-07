@@ -174,7 +174,7 @@ func refresh_letters(inv: Inventory) -> void:
 
 
 func refresh_collection(kind: StringName) -> void:
-	var book: SpeciesLog = Game.species_log if Game != null else null
+	var book: SpeciesLog = Game.species_log
 	var have: int = book.page_count(kind) if book != null else 0
 	_collection_count.text = "%d / %d" % [have, EncyclopediaCatalog.COLLECT_NUM]
 	for slot: int in _species.size():

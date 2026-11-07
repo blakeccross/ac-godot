@@ -52,7 +52,7 @@ static func beach_blocks() -> Array[Vector2i]:
 
 ## `mCoBG_CheckWaveAttr`; acres without collision data fall back to sand.
 static func is_wave_cell(world: Node, grid: WorldGrid, cell: Vector2i) -> bool:
-	var layout: WorldData = world.get("layout") as WorldData if world != null and "layout" in world else null
+	var layout: WorldData = WorldData.of(world)
 	var attr: int = FieldCollision.unit_attr_at_cell(layout, cell) if layout != null else -1
 	if attr >= 0:
 		return FieldCatalog.is_wave_attr(attr)
@@ -109,7 +109,7 @@ static func divide(room: Array[int], amount: int, rng: RandomNumberGenerator) ->
 
 ## `mFI_SetShellWave`: set up to `amount`; returns how many landed.
 static func wash_up(world: Node, amount: int, player_block: Vector2i, rng: RandomNumberGenerator) -> int:
-	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	var grid: WorldGrid = WorldGrid.of(world)
 	if grid == null or amount <= 0:
 		return 0
 	var blocks: Array[Vector2i] = []
@@ -142,14 +142,14 @@ static func wash_up(world: Node, amount: int, player_block: Vector2i, rng: Rando
 ## washes up (`mFI_SetShell`).
 static func advance(world: Node, minute: int, player_block: Vector2i, rng: RandomNumberGenerator) -> void:
 	if minute % EVERY_MINUTES == 0:
-		if not Game.shell_minute_counted:
-			Game.shell_minute_counted = true
-			Game.shells_owed += 1
+		if not Game.session.shell_minute_counted:
+			Game.session.shell_minute_counted = true
+			Game.session.shells_owed += 1
 	else:
-		Game.shell_minute_counted = false
-	if Game.shells_owed > 0:
-		wash_up(world, Game.shells_owed, player_block, rng)
-		Game.shells_owed = 0
+		Game.session.shell_minute_counted = false
+	if Game.session.shells_owed > 0:
+		wash_up(world, Game.session.shells_owed, player_block, rng)
+		Game.session.shells_owed = 0
 
 
 static func restore(world: Node, grid: WorldGrid) -> void:

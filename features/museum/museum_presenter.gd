@@ -11,7 +11,7 @@ const SUNSHINE_SCENE := preload("res://features/shops/police_box/police_sunshine
 
 
 func present(root: Node3D, interior: IndoorSession) -> void:
-	if root == null or interior == null or interior.room == null or Game == null:
+	if root == null or interior == null or interior.room == null:
 		return
 	var room: Room = interior.room
 	if room.kind != Room.Kind.MUSEUM:
@@ -121,13 +121,13 @@ func _add_fossil_plaques(root: Node3D, interior: IndoorSession) -> void:
 	var book: MuseumBook = Game.museum
 	for i: int in MuseumBook.FOSSIL_NUM:
 		var row: Array = MuseumDisplay.FOSSIL_TALK[i] as Array
-		var plaque := PLAQUE_SCENE.instantiate() as Node3D
+		var plaque := PLAQUE_SCENE.instantiate() as MuseumPlaque
 		plaque.position = WorldGrid.room_point(
 			interior.grid, Vector3((float(row[0]) + 0.5) * MuseumDisplay.UNIT, 0.0, (float(row[1]) + 0.5) * MuseumDisplay.UNIT)
 		)
 		root.add_child(plaque)
-		plaque.call("setup_cardinal", "Fossil %d" % (i + 1), int(row[2]), MuseumDisplay.FOSSIL_TALK_REACH, false, true)
-		plaque.set("entries", _entries([[_item_name(MuseumDisplay.FOSSIL_VISUALS[i]), book.fossil_info(i)]]))
+		plaque.setup_cardinal("Fossil %d" % (i + 1), int(row[2]), MuseumDisplay.FOSSIL_TALK_REACH, false, true)
+		plaque.entries = _entries([[_item_name(MuseumDisplay.FOSSIL_VISUALS[i]), book.fossil_info(i)]])
 
 
 ## `{"name", "donor"}` for each donated `[name, donator]` pair, in order.
@@ -170,13 +170,13 @@ func present_paintings(root: Node3D, interior: IndoorSession) -> void:
 				node, visual, Color(0.9, 0.85, 0.7) if donated else Color(0.55, 0.38, 0.22), Vector3(1.2, 1.4, 0.08)
 			)
 		## `aMP_CheckTalkAbleDist`: (x·40 + 60, z·40 + 40) GX, read from the south within 33 GX.
-		var plaque: Node3D = PLAQUE_SCENE.instantiate() as Node3D
+		var plaque := PLAQUE_SCENE.instantiate() as MuseumPlaque
 		plaque.position = WorldGrid.room_point(
 			interior.grid, Vector3(float(cell.x) * MuseumDisplay.UNIT, 0.0, float(cell.y) * MuseumDisplay.UNIT) + MuseumDisplay.ART_TALK_OFFSET
 		)
 		root.add_child(plaque)
-		plaque.call("setup_cardinal", "Painting %d" % (i + 1), 0, MuseumDisplay.ART_TALK_REACH, true, false)
-		plaque.set("entries", _entries([[_item_name(MuseumDisplay.ART_VISUALS[i]), book.art_info(i)]]))
+		plaque.setup_cardinal("Painting %d" % (i + 1), 0, MuseumDisplay.ART_TALK_REACH, true, false)
+		plaque.entries = _entries([[_item_name(MuseumDisplay.ART_VISUALS[i]), book.art_info(i)]])
 
 
 func present_fish(root: Node3D, interior: IndoorSession) -> void:
@@ -212,12 +212,12 @@ func present_fish(root: Node3D, interior: IndoorSession) -> void:
 			var idx: int = int(idx_v)
 			var fish: FishData = FishCatalog.get_fish(MuseumDisplay.fish_id_at(idx))
 			pairs.append([fish.display_name if fish != null else "", book.fish_info(idx)])
-		var plaque: Node3D = PLAQUE_SCENE.instantiate() as Node3D
+		var plaque := PLAQUE_SCENE.instantiate() as MuseumPlaque
 		var at: Vector3 = MuseumDisplay.FISH_PLAQUE_POS[gi]
 		plaque.position = WorldGrid.room_point(interior.grid, Vector3(at.x, 0.0, at.z))
 		root.add_child(plaque)
-		plaque.call("setup_sign", "Tank %s" % char(65 + gi), MuseumDisplay.SIGN_TALK_HALF)
-		plaque.set("entries", _entries(pairs))
+		plaque.setup_sign("Tank %s" % char(65 + gi), MuseumDisplay.SIGN_TALK_HALF)
+		plaque.entries = _entries(pairs)
 
 
 func _spawn_fish_tanks(root: Node3D, interior: IndoorSession) -> void:
@@ -332,12 +332,12 @@ func present_insects(root: Node3D, interior: IndoorSession) -> void:
 			var idx: int = int(idx_v)
 			var bug: BugData = BugCatalog.get_by_type(idx)
 			pairs.append([bug.display_name if bug != null else "", book.insect_info(idx)])
-		var plaque: Node3D = PLAQUE_SCENE.instantiate() as Node3D
+		var plaque := PLAQUE_SCENE.instantiate() as MuseumPlaque
 		var at: Vector3 = MuseumDisplay.INSECT_PLAQUE_POS[gi]
 		plaque.position = WorldGrid.room_point(interior.grid, Vector3(at.x, 0.0, at.z))
 		root.add_child(plaque)
-		plaque.call("setup_sign", "Case %d" % (gi + 1), MuseumDisplay.SIGN_TALK_HALF)
-		plaque.set("entries", _entries(pairs))
+		plaque.setup_sign("Case %d" % (gi + 1), MuseumDisplay.SIGN_TALK_HALF)
+		plaque.entries = _entries(pairs)
 
 
 func _attach_museum_art(node: Node3D, visual_id: StringName) -> bool:

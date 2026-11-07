@@ -74,7 +74,7 @@ func dismiss() -> void:
 
 ## `mBN_bank_ovl_init`: `move_drt` 5, in from the top.
 func open() -> void:
-	if _open or Game == null or Game.inventory == null:
+	if _open:
 		return
 	terminal.open_from(Game.inventory)
 	_committed = false

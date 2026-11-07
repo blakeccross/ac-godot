@@ -46,9 +46,8 @@ func _ready() -> void:
 		_anim = VisualAnimation.find_animation_player(self)
 	HostCollision.apply_box(self, footprint, HostCollision.CELL, 1.0)
 	## Connected on every plot: which one is owned can change mid-session (intro house pick).
-	if Game != null and Game.inventory != null:
-		if not Game.inventory.mail_changed.is_connected(_on_mail_changed):
-			Game.inventory.mail_changed.connect(_on_mail_changed)
+	if not Game.inventory.mail_changed.is_connected(_on_mail_changed):
+		Game.inventory.mail_changed.connect(_on_mail_changed)
 	_sync_flag(true)
 
 
@@ -62,7 +61,7 @@ func is_owned() -> bool:
 
 
 func _exit_tree() -> void:
-	if Game != null and Game.inventory != null and Game.inventory.mail_changed.is_connected(_on_mail_changed):
+	if Game.inventory.mail_changed.is_connected(_on_mail_changed):
 		Game.inventory.mail_changed.disconnect(_on_mail_changed)
 
 
@@ -82,7 +81,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 	if not is_owned():
 		return []
 	var label := "Check mailbox"
-	if Game != null and Game.inventory != null and Game.inventory.unread_mail_count() > 0:
+	if Game.inventory.unread_mail_count() > 0:
 		label = "Read mail (%d)" % Game.inventory.unread_mail_count()
 	return [Interaction.of(Interaction.READ, label, 10)]
 
@@ -91,7 +90,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 ## before the Letters menu appears, and plays the same clip in reverse once that menu
 ## closes — the box is never mid-open while the player is browsing mail.
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if not is_owned() or action == null or action.id != Interaction.READ or Game == null or _checking:
+	if not is_owned() or action == null or action.id != Interaction.READ or _checking:
 		return false
 	_checking = true
 	var inv: Inventory = Game.inventory
@@ -100,7 +99,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	var player: Player = ctx.actor as Player if ctx != null else null
 	if player != null:
 		var spot: Array = stand_spot(player.global_position)
-		player.mail_jump(spot[0] as Vector3, float(spot[1]))
+		player.sequences.mail_jump(spot[0] as Vector3, float(spot[1]))
 	await _play_clip(ANIM_OPEN)
 	if not is_instance_valid(self):
 		return true
@@ -117,7 +116,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		return true
 	## `Player_actor_setup_main_Mail_land` runs as the menu closes, under the lid shutting.
 	if player != null and is_instance_valid(player):
-		player.mail_land()
+		player.sequences.mail_land()
 	await _play_clip(ANIM_OPEN, true)
 	if is_instance_valid(self):
 		_sync_flag(true)
@@ -148,7 +147,7 @@ func _on_mail_changed() -> void:
 
 func _sync_flag(instant: bool) -> void:
 	var want_up: bool = (
-		is_owned() and Game != null and Game.inventory != null and Game.inventory.unread_mail_count() > 0
+		is_owned() and Game.inventory.unread_mail_count() > 0
 	)
 	if instant:
 		_flag_up = want_up

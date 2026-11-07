@@ -127,7 +127,7 @@ func _show(texture_name: String) -> void:
 
 
 func _is_on() -> bool:
-	var session: IndoorSession = Game.interior_session if Game != null else null
+	var session: IndoorSession = Game.interior_session
 	if session == null or session.room == null:
 		return true
 	var entry: FurniturePlacement = session.room.placement_by_id(_placement)

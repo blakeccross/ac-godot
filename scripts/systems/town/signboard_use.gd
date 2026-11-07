@@ -41,7 +41,7 @@ static func can_place(grid: WorldGrid, cell: Vector2i) -> bool:
 
 
 static func place(world: Node, cell: Vector2i) -> bool:
-	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	var grid: WorldGrid = WorldGrid.of(world)
 	if not can_place(grid, cell):
 		return false
 	var pid: StringName = persist_id(cell)
@@ -71,7 +71,7 @@ static func post(pid: StringName, design: DesignPattern) -> void:
 ## Back into the pockets: the record and the grid cell are freed.
 static func take(world: Node, pid: StringName) -> void:
 	Game.town.signboards.erase(String(pid))
-	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	var grid: WorldGrid = WorldGrid.of(world)
 	if grid != null:
 		grid.remove(pid)
 

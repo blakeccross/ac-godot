@@ -4,22 +4,14 @@ extends NpcEventPresenter
 ## put on his costume (`mEvMN_GetHalloweenNpcName`, up to five event-NPC slots) where they
 ## stand; their field copies are hidden until the night ends.
 
-const COSTUME_SCENE := "res://features/events/actors/halloween_villager.tscn"
 const MAX_COSTUMES := 5
-
 const SCAN_INTERVAL := 1.0
+
+## A resident in Jack's costume (`HalloweenVillager`).
+@export var costume_scene: PackedScene
 
 var _away: Array[StringName] = []
 var _scan: float = 0.0
-
-
-func _init() -> void:
-	scene_path = "res://features/events/actors/jack.tscn"
-	placement = "free"
-
-
-func start() -> bool:
-	return super.start()
 
 
 ## Residents spawn after the event does, and come out later: dress them as they appear.
@@ -34,7 +26,7 @@ func advance(delta: float) -> void:
 		var v := node as Villager
 		if v == null or v.data == null or not v.visible or v.indoor_resident or v.data.id in _away:
 			continue
-		var costume: Node3D = (load(COSTUME_SCENE) as PackedScene).instantiate() as Node3D
+		var costume: Node3D = costume_scene.instantiate() as Node3D
 		costume.call("assign", v.data)
 		var cell: Vector2i = mgr.world.grid.world_to_cell(v.global_position)
 		mgr.add_actor(id, costume, cell, v.rotation.y, _away.size() + 1)

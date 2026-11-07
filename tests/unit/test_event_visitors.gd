@@ -576,3 +576,33 @@ func test_guest_greetings_follow_the_greeting_game() -> void:
 	var first: int = DialogueGreeting.guest_hello(&"camper", 0, DialogueGreeting.MEET_FIRST, ctx)
 	assert_int(first).is_between(15930, 15930 + 11)
 	assert_int(DialogueGreeting.guest_hello(&"kamakura", 0, DialogueGreeting.MEET_FIRST, ctx)).is_equal(-1)
+
+
+## Every scheduled presenter loads, and a visitor's `.tres` names a scene. Each run is its
+## own copy, so one Tortimer holiday's state never leaks into another's.
+func test_every_presenter_loads() -> void:
+	var mgr: EventManager = auto_free(EventManager.new())
+	for id: Variant in EventManager.PRESENTERS:
+		var p: EventPresenter = mgr._make(id)
+		assert_object(p).override_failure_message("no presenter for %s" % id).is_not_null()
+		assert_that(p.id).is_equal(id)
+		if p is NpcEventPresenter:
+			assert_object((p as NpcEventPresenter).scene).override_failure_message(
+				"%s has no scene" % id
+			).is_not_null()
+	var a: EventPresenter = mgr._make(&"soncho_nature_day")
+	var b: EventPresenter = mgr._make(&"soncho_mothers_day")
+	assert_bool(a == b).is_false()
+	assert_that(a.id).is_equal(&"soncho_nature_day")
+
+
+func test_visitor_presenters_keep_their_spot_rules() -> void:
+	var mgr: EventManager = auto_free(EventManager.new())
+	var kk := mgr._make(&"kk_slider") as NpcEventPresenter
+	assert_int(kk.placement).is_equal(NpcEventPresenter.Placement.FIXED)
+	assert_int(kk.block_kind).is_equal(EventManager.BlockKind.STATION)
+	var gulliver := mgr._make(&"dozaemon") as NpcEventPresenter
+	assert_int(gulliver.placement).is_equal(NpcEventPresenter.Placement.SEASIDE)
+	assert_float(gulliver.yaw).is_equal_approx(PI, 0.0001)
+	assert_int((mgr._make(&"harvest_festival_franklin") as NpcEventPresenter).adjust).is_equal(2)
+	assert_object(mgr._make(&"halloween").get("costume_scene")).is_not_null()

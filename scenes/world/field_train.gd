@@ -125,7 +125,7 @@ func _smoke(delta: float, speed: float) -> void:
 		return
 	var wait_ticks: int = int(12.0 / speed) if speed >= 1.0 else 12
 	_smoke_wait = maxf(_smoke_wait, 0.0) + float(wait_ticks + 1) / DecompTime.TICK_HZ
-	FieldEffects.spawn(_effects(), FieldEffects.Kind.KISHA_KEMURI, _loco.global_position + SMOKE_OFF, 0.0)
+	FieldEffects.spawn(_effects(), FieldEffects.Kind.TRAIN_SMOKE, _loco.global_position + SMOKE_OFF, 0.0)
 
 
 ## `aTR0_steam_work`: piston steam on wheel frames 2–5 (x +15, angle 0xD000) and 13–16
@@ -198,8 +198,8 @@ func _build() -> void:
 
 func _ground_y(world: Vector3) -> float:
 	var host: Node = get_parent()
-	var layout: WorldData = host.get("layout") as WorldData if host != null else null
-	var grid: WorldGrid = host.get("grid") as WorldGrid if host != null else null
+	var layout: WorldData = WorldData.of(host)
+	var grid: WorldGrid = WorldGrid.of(host)
 	if layout == null or grid == null:
 		return world.y
 	var y: float = FieldCollision.ground_y_at(layout, grid, world, 0.0, false)

@@ -264,7 +264,7 @@ static func roof_visual(node_name: String, visual: StringName) -> StringName:
 
 ## Roster slot of whoever lives on plot `node_name` (the player or another resident), or -1.
 static func resident_slot(node_name: String) -> int:
-	if Game == null or Game.roster == null or not node_name.begins_with(String(DEFAULT_PLOT)):
+	if not node_name.begins_with(String(DEFAULT_PLOT)):
 		return -1
 	return Game.roster.slot_on_plot(StringName(node_name))
 
@@ -280,8 +280,6 @@ static func resident_house(node_name: String) -> House:
 ## written there by `Game.intro.claim_house`). "" while the intro has no pick yet — every
 ## plot is vacant then.
 static func owned_building_id() -> StringName:
-	if Game == null:
-		return DEFAULT_PLOT
 	## A visitor from another town has no house here.
 	if Game.foreigner:
 		return &""
@@ -289,7 +287,7 @@ static func owned_building_id() -> StringName:
 		return Game.intro.house_id
 	if Game.intro.active:
 		return &""
-	var house: House = Game.interiors.player_house() if Game.interiors != null else null
+	var house: House = Game.interiors.player_house()
 	if house == null or not String(house.outdoor_building_id).begins_with(String(DEFAULT_PLOT)):
 		return DEFAULT_PLOT
 	return house.outdoor_building_id
@@ -328,7 +326,7 @@ static func apply_exterior_decorations(host: Node3D) -> void:
 	_apply_decoration(visual, "_kazamiB_model", CompleteTalk.talked(CompleteTalk.FISH))
 	_apply_decoration(visual, "_fuda_model", CompleteTalk.talked(CompleteTalk.INSECT))
 	if CompleteTalk.talked(CompleteTalk.FISH):
-		var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+		var house: House = Game.interiors.player_house()
 		HouseWeathervane.attach(visual, tier_of(house), plot_of(String(host.name)))
 	apply_door_pattern(visual)
 
@@ -342,14 +340,14 @@ const NO_DOOR_PATTERN := 0xFF
 
 
 static func door_design(house: House) -> DesignPattern:
-	if house == null or house.door_original == NO_DOOR_PATTERN or Game == null or Game.designs == null:
+	if house == null or house.door_original == NO_DOOR_PATTERN:
 		return null
 	var idx: int = house.door_original & 7
 	return Game.designs.player[idx] if idx < Game.designs.player.size() else null
 
 
 static func apply_door_pattern(visual: Node) -> void:
-	var design: DesignPattern = door_design(Game.interiors.player_house() if Game != null and Game.interiors != null else null)
+	var design: DesignPattern = door_design(Game.interiors.player_house())
 	var tex: Texture2D = DesignTexture.build(design) if design != null else null
 	_paint_door_mark(visual, tex)
 

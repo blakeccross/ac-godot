@@ -64,20 +64,19 @@ func can_talk() -> bool:
 func _areas() -> Array[Dictionary]:
 	var show_area: Dictionary = {}
 	var player_area: Dictionary = {}
-	if Game != null and Game.events != null:
-		show_area = Game.events.area(&"kk_slider")
-		## The save area lives as long as tonight's show (`mEv_reserve_save_area`).
-		var today: String = Game.events.day_key()
-		if str(show_area.get("date", "")) != today:
-			show_area.clear()
-			show_area["date"] = today
-		player_area = Game.events.area(&"kk_player")
+	show_area = Game.events.area(&"kk_slider")
+	## The save area lives as long as tonight's show (`mEv_reserve_save_area`).
+	var today: String = Game.events.day_key()
+	if str(show_area.get("date", "")) != today:
+		show_area.clear()
+		show_area["date"] = today
+	player_area = Game.events.area(&"kk_player")
 	return [show_area, player_area]
 
 
 func make_talk() -> BankTalk:
 	var a: Array[Dictionary] = _areas()
-	var t := KkTalk.new(a[0], a[1], Game.inventory if Game != null else null)
+	var t := KkTalk.new(a[0], a[1], Game.inventory)
 	t.in_front = _player_in_front()
 	return t
 
@@ -116,12 +115,11 @@ func _start_show(song: int) -> void:
 	_held_player = player_node() as Player
 	if _held_player != null:
 		_held_player.set_busy(true)
-	EventManager.demo_bgm = &"_quiet"
+	Game.session.show_bgm = &"_quiet"
 	Audio.stop_bgm()
-	if Game != null:
-		_saved_weather = Game.town.weather
-		_saved_intensity = Game.town.weather_intensity
-		Game.set_weather(&"clear", int(Weather.Intensity.NONE))
+	_saved_weather = Game.town.weather
+	_saved_intensity = Game.town.weather_intensity
+	Game.set_weather(&"clear", int(Weather.Intensity.NONE))
 	var id: StringName = BgmCatalog.id_for_num(192 + song)
 	var stream: AudioStream = BgmCatalog.stream_for(id) if id != &"" else null
 	_song_len = stream.get_length() if stream != null else PAGE_SECONDS * PAGE_COUNT
@@ -140,7 +138,7 @@ func _physics_process(delta: float) -> void:
 				show_state = Show.SONG
 				_show_t = 0.0
 				var id: StringName = get_meta("song_bgm", &"")
-				EventManager.demo_bgm = id
+				Game.session.show_bgm = id
 				if id != &"":
 					Audio.play_bgm(id)
 				_credits = CREDITS_SCENE.instantiate()
@@ -160,9 +158,8 @@ func _tick_song() -> void:
 	while _cue < WEATHER_CUES.size() and frames >= float(WEATHER_CUES[_cue][0]):
 		var cue: Array = WEATHER_CUES[_cue]
 		_cue += 1
-		if Game != null:
-			var intensity: int = int(cue[2])
-			Game.set_weather(cue[1] if intensity != int(Weather.Intensity.NONE) else &"clear", intensity)
+		var intensity: int = int(cue[2])
+		Game.set_weather(cue[1] if intensity != int(Weather.Intensity.NONE) else &"clear", intensity)
 	if _credits != null and is_instance_valid(_credits):
 		## The staff roll starts with the song and runs page by page over it.
 		var page_t: float = _show_t
@@ -176,9 +173,8 @@ func _end_show() -> void:
 	if _credits != null and is_instance_valid(_credits):
 		_credits.queue_free()
 	_credits = null
-	EventManager.demo_bgm = &""
-	if Game != null:
-		Game.set_weather(_saved_weather, _saved_intensity)
+	Game.session.show_bgm = &""
+	Game.set_weather(_saved_weather, _saved_intensity)
 	var world: World = World.find(get_tree())
 	if world != null:
 		world.play_outdoor_bgm()

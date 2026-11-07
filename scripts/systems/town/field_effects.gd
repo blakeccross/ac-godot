@@ -17,15 +17,15 @@ extends Node3D
 ## shared with `FieldParticle`.
 
 enum Kind {
-	DUST, TUMBLE_DUST, SAND, MIZUTAMA, YUKIDAMA, YUKIHANE, SIBUKI, PETAL, TURN_PRINT, BODY_PRINT,
-	KISHA_KEMURI, STEAM, HAMON, KASAMIZU, KASAMIZUTAMA, SOBA_YUGE,
-	DIG_CLOD, DIG_MUD, KIKUZU, AMI_MIZU, TURI_HANE, TURI_SUITEKI, BUBU, GOKI, SLIP_PRINT, HALLOWEEN_SMOKE,
+	DUST, TUMBLE_DUST, SAND, WATER_DROP, SNOW_CLUMP, SNOW_SPLASH, SPLASH, PETAL, TURN_PRINT, BODY_PRINT,
+	TRAIN_SMOKE, STEAM, RIPPLE, UMBRELLA_SPRAY, UMBRELLA_DROP, NOODLE_STEAM,
+	DIG_CLOD, DIG_MUD, WOOD_CHIPS, NET_SPLASH, FISHING_SPLASH, FISHING_DRIP, NO_BUDGE, ROACH, SLIP_PRINT, HALLOWEEN_SMOKE,
 }
 
 const GX := FieldCatalog.GX_TO_METERS
 ## `ef_goki01_01`: `gsDPSetEnvColor(0, 255, 255, 255)` and its texture animation.
-const GOKI_ENV := Color8(0, 255, 255)
-const GOKI_FRAMES: Array[int] = [0, 0, 1, 1, 2, 2, 3, 3]
+const ROACH_ENV := Color8(0, 255, 255)
+const ROACH_FRAMES: Array[int] = [0, 0, 1, 1, 2, 2, 3, 3]
 const SHADER := preload("res://shaders/field_effect.gdshader")
 const EFFECT_DIR := "res://assets/generated/effects/%s.glb"
 const FRAME_DIR := "res://assets/generated/textures/rel/%s.png"
@@ -63,7 +63,7 @@ const YUKI_SPEED: Array[Vector4] = [
 	Vector4(1.5, 1.25, 1.0, 1.75), Vector4(2.0, 1.35, 1.0, 1.6), Vector4(2.0, 1.35, 1.0, 2.0),
 	Vector4(1.5, 1.85, 1.5, 0.0), Vector4(2.0, 2.5, 1.0, 0.0),
 ]
-const YUKI_ANGLE_DEG: Array[float] = [
+const SNOW_ANGLE_DEG: Array[float] = [
 	0.0, 9.997559, 65.994873, 29.998169, 325.00305, 306.002197, 119.998169, 90.0, 280.003052,
 	234.003296,
 ]
@@ -228,9 +228,9 @@ func _construct() -> bool:
 	match kind:
 		Kind.PETAL:
 			_ct_petal()
-		Kind.HAMON:
+		Kind.RIPPLE:
 			_ct_hamon()
-		Kind.KASAMIZU:
+		Kind.UMBRELLA_SPRAY:
 			origin += rot_y(KASAMIZU_FROM, angle) * GX
 			lifetime = _ticks(24)
 			drops_left = 12
@@ -240,13 +240,13 @@ func _construct() -> bool:
 			return _ct_body_print()
 		Kind.DIG_CLOD:
 			_ct_dig_clod()
-		Kind.KIKUZU:
+		Kind.WOOD_CHIPS:
 			_ct_kikuzu()
-		Kind.AMI_MIZU:
+		Kind.NET_SPLASH:
 			_ct_ami_mizu()
-		Kind.GOKI:
-			_ct_goki()
-		Kind.BUBU:
+		Kind.ROACH:
+			_ct_roach()
+		Kind.NO_BUDGE:
 			## `eBubu_init` / `_ct`: the cross 70 GX over the player, for the effect
 			## controller's default 10 ticks, with its buzzer.
 			origin.y += 70.0 * GX
@@ -350,7 +350,7 @@ func _clod_ground(pos: Vector3) -> float:
 ## tick) until the last 80 ticks ease the rock out. It grows in over the first 30 ticks
 ## and, over its last 60, thins to nothing while stretching to twice its height; the last
 ## 20 fade from 255 to 100.
-func _ct_goki() -> void:
+func _ct_roach() -> void:
 	var total: int = 190
 	lifetime = _ticks(total)
 	var y: float = 0.0
@@ -460,7 +460,7 @@ func _ct_body_print() -> bool:
 
 func _start() -> void:
 	_redraw()
-	if kind == Kind.KASAMIZU:
+	if kind == Kind.UMBRELLA_SPRAY:
 		## `eKasamizu_mv`: a drop every other tick while it rains (`game_frame & 1`).
 		var timer := Timer.new()
 		timer.wait_time = _ticks(2)
@@ -489,7 +489,7 @@ func emit_drop() -> void:
 		return
 	drops_left -= 1
 	if Weather.is_raining() and get_parent() != null:
-		FieldParticle.spawn(get_parent(), Kind.KASAMIZUTAMA, origin, angle)
+		FieldParticle.spawn(get_parent(), Kind.UMBRELLA_DROP, origin, angle)
 
 
 ## Petal position relative to its start, `t` seconds in: rising while braked at a twentieth
@@ -530,7 +530,7 @@ func _model_id() -> String:
 			return "ef_turn_footprint"
 		Kind.SLIP_PRINT:
 			return "ef_footprint01_02"
-		Kind.HAMON:
+		Kind.RIPPLE:
 			return "ef_turi_hamon01_00"
 		Kind.BODY_PRINT:
 			return "ef_bodyprint01_00"
@@ -541,22 +541,22 @@ func _model_id() -> String:
 			if FootstepEffects.is_grass(arg0) and CLOD_TYPE[clampi(arg1, 0, 5)] == 0:
 				return "ef_anahori01_00"
 			return "ef_anahori01_01"
-		Kind.KIKUZU:
+		Kind.WOOD_CHIPS:
 			return "ef_kikuzu01_00"
-		Kind.AMI_MIZU:
+		Kind.NET_SPLASH:
 			return "ef_amimizu01_00"
-		Kind.BUBU:
+		Kind.NO_BUDGE:
 			return "ef_peke01_00"
-		Kind.GOKI:
+		Kind.ROACH:
 			return "ef_goki01_01"
 	return ""
 
 
 func _frame_names() -> Array[String]:
 	match kind:
-		Kind.HAMON:
+		Kind.RIPPLE:
 			return ["ef_turi_hamon01_0"]
-		Kind.GOKI:
+		Kind.ROACH:
 			return ["ef_goki01_0_int_i4", "ef_goki01_1_int_i4", "ef_goki01_2_int_i4", "ef_goki01_3_int_i4"]
 		Kind.PETAL:
 			## `mFM_obj_a_01_flower_pal[K * 9 + flower_pal_idx]` rows (pipeline `_pNN`).
@@ -591,8 +591,8 @@ func _attach() -> void:
 		_frames.append(glb_tex)
 	_mat.set_shader_parameter(&"tex0", _frames[0])
 	_mat.set_shader_parameter(&"tex1", _frames[0])
-	_mat.set_shader_parameter(&"intensity_alpha", not (kind in [Kind.PETAL, Kind.DIG_CLOD, Kind.KIKUZU, Kind.BUBU]))
-	_mat.set_shader_parameter(&"mirror_uv", kind == Kind.HAMON)
+	_mat.set_shader_parameter(&"intensity_alpha", not (kind in [Kind.PETAL, Kind.DIG_CLOD, Kind.WOOD_CHIPS, Kind.NO_BUDGE]))
+	_mat.set_shader_parameter(&"mirror_uv", kind == Kind.RIPPLE)
 
 
 func _redraw() -> void:
@@ -608,7 +608,7 @@ func _redraw() -> void:
 	var prim := Color(1, 1, 1, 1)
 	var env := Color(0, 0, 0, 1)
 	match kind:
-		Kind.HAMON:
+		Kind.RIPPLE:
 			global_position = origin + ring_offset(age)
 			s = Vector3.ONE * ring_scale(age)
 			prim = Color(1, 1, 1, ring_opacity(age))
@@ -645,7 +645,7 @@ func _redraw() -> void:
 			basis = ground_basis * Basis(Vector3.UP, angle)
 			prim = Color8(70, 50, 50) if sandy else Color8(0, 50, 100)
 			prim.a = (calc_adjust(ticks, 360, 600, 150.0, 0.0) if sandy else calc_adjust(ticks, 500, 799, 150.0, 0.0)) / 255.0
-		Kind.DIG_CLOD, Kind.KIKUZU:
+		Kind.DIG_CLOD, Kind.WOOD_CHIPS:
 			var k: float = clampf(ticks, 0.0, float(track_pos.size() - 1))
 			var i: int = mini(floori(k), track_pos.size() - 2) if track_pos.size() > 1 else 0
 			var f: float = k - float(i)
@@ -662,20 +662,20 @@ func _redraw() -> void:
 				basis = Basis(Vector3.RIGHT, r.x) * Basis(Vector3.BACK, r.z)
 				prim = Color(KIKUZU_PRIM, track_alpha[i])
 				mode = 6
-		Kind.BUBU:
+		Kind.NO_BUDGE:
 			s = Vector3.ONE * 0.015
 			mode = 4
-		Kind.GOKI:
+		Kind.ROACH:
 			var g: int = clampi(floori(ticks), 0, track_pos.size() - 1)
 			global_position = origin + track_pos[g]
 			s = Vector3(track_scale[g], track_scale_y[g], track_scale[g])
 			prim = Color(1, 1, 1, track_alpha[g])
-			env = GOKI_ENV
+			env = ROACH_ENV
 			mode = 7
 			## `ef_goki01_01_evw_anime`: four frames, two ticks each.
-			_mat.set_shader_parameter(&"tex0", _frames[GOKI_FRAMES[g % GOKI_FRAMES.size()]])
+			_mat.set_shader_parameter(&"tex0", _frames[ROACH_FRAMES[g % ROACH_FRAMES.size()]])
 			_mat.set_shader_parameter(&"billboard_roll", track_rot[g].z)
-		Kind.AMI_MIZU:
+		Kind.NET_SPLASH:
 			var timer: float = maxf(lifetime * 60.0 - ticks, 0.0)
 			var wide: float = ring_size if ticks < 1.0 else calc_adjust(timer, 0, 8, 1.3 * ring_size, 1.1 * ring_size)
 			var tall: float = ring_size if ticks < 1.0 else calc_adjust(timer, 0, 8, 0.5 * ring_size, 1.2 * ring_size)
@@ -683,7 +683,7 @@ func _redraw() -> void:
 			prim = Color(AMI_ENV, calc_adjust(timer, 0, 6, 50.0, 155.0) / 255.0)
 	_holder.basis = basis * Basis.from_scale(s * GX / FieldCatalog.PIPELINE_SCALE)
 	_mat.set_shader_parameter(&"mode", mode)
-	_mat.set_shader_parameter(&"billboard", kind == Kind.BUBU or kind == Kind.GOKI)
+	_mat.set_shader_parameter(&"billboard", kind == Kind.NO_BUDGE or kind == Kind.ROACH)
 	_mat.set_shader_parameter(&"prim_color", prim)
 	_mat.set_shader_parameter(&"env_color", env)
 	_mat.set_shader_parameter(&"lod_frac", 0.0)

@@ -1,5 +1,5 @@
 class_name InteriorBook
-extends RefCounted
+extends SaveBook
 
 ## Runtime rooms and houses. Owned by `Game`, not an autoload.
 

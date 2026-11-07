@@ -11,7 +11,7 @@ const GROUP := &"interior"
 ## refer back to this one, while it compiles).
 @export var player_scene: PackedScene
 const VILLAGER_SCENE := preload("res://features/villagers/villager.tscn")
-const GOKI_SCENE := preload("res://features/house/house_cockroach.tscn")
+const ROACH_SCENE := preload("res://features/house/house_cockroach.tscn")
 
 var grid: WorldGrid
 var session: IndoorSession
@@ -55,7 +55,7 @@ func _ready() -> void:
 	_apply_indoor_light(room)
 	_spawn_player()
 	_spawn_resident(room)
-	_spawn_gokis(room)
+	_spawn_roaches(room)
 	refresh_bgm()
 	_shop_bgm = _room_bgm()
 
@@ -180,9 +180,9 @@ func _exit_tree() -> void:
 	MuseumFishLight.clear_glow()
 	Audio.stop_syslev()
 	## Whatever is still scuttling goes back into the walls (`aMR_GokiInfoDt`).
-	if session != null and session.room != null and HouseCockroaches.is_goki_room(session.room):
+	if session != null and session.room != null and HouseCockroaches.is_roach_room(session.room):
 		var home: House = HouseCockroaches.house_for(session.room)
-		HouseCockroaches.return_survivors(home, _live_gokis())
+		HouseCockroaches.return_survivors(home, _live_roaches())
 		## `mCkRh_SetGoingOutCottageTime`: the cottage's last visit is stamped on the way out.
 		if session.room.kind == Room.Kind.COTTAGE:
 			HouseCockroaches.save_play_time(home)
@@ -236,8 +236,8 @@ func refresh_placement(placement_id: StringName) -> void:
 
 
 ## Cockroaches on entering a player floor (`aMR_GokiInfoCt`).
-func _spawn_gokis(room: Room) -> void:
-	if room == null or not HouseCockroaches.is_goki_room(room):
+func _spawn_roaches(room: Room) -> void:
+	if room == null or not HouseCockroaches.is_roach_room(room):
 		return
 	var player := Player.find(get_tree())
 	if player == null:
@@ -248,21 +248,21 @@ func _spawn_gokis(room: Room) -> void:
 		session, HouseCockroaches.house_for(room), player.global_position, rng
 	)
 	for spawn: Dictionary in spawns:
-		add_goki(spawn["pos"] as Vector3, bool(spawn["fade"]))
-	if not spawns.is_empty() and not Game.goki_shocked:
-		Game.goki_shocked = true
+		add_roach(spawn["pos"] as Vector3, bool(spawn["fade"]))
+	if not spawns.is_empty() and not Game.session.roach_shocked:
+		Game.session.roach_shocked = true
 		player.request_surprise()
 
 
-func add_goki(pos: Vector3, fade: bool) -> Node:
-	var goki: Node3D = GOKI_SCENE.instantiate() as Node3D
-	$Characters.add_child(goki)
-	goki.global_position = pos
-	goki.call("setup", session, fade)
-	return goki
+func add_roach(pos: Vector3, fade: bool) -> Node:
+	var roach: Node3D = ROACH_SCENE.instantiate() as Node3D
+	$Characters.add_child(roach)
+	roach.global_position = pos
+	roach.call("setup", session, fade)
+	return roach
 
 
-func _live_gokis() -> int:
+func _live_roaches() -> int:
 	var n: int = 0
 	for node: Node in get_tree().get_nodes_in_group("house_cockroaches") if get_tree() != null else []:
 		if bool(node.get("alive")):
@@ -272,14 +272,14 @@ func _live_gokis() -> int:
 
 ## Furniture moved off these cells: a waiting roach may run out (`aMR_MakeGokiburi`).
 func on_furniture_moved(vacated: Array) -> void:
-	if session == null or session.room == null or not HouseCockroaches.is_goki_room(session.room):
+	if session == null or session.room == null or not HouseCockroaches.is_roach_room(session.room):
 		return
 	for entry: Variant in vacated:
 		var spawn: Dictionary = HouseCockroaches.furniture_spawn(
-			session, HouseCockroaches.house_for(session.room), entry as Vector2i, _live_gokis()
+			session, HouseCockroaches.house_for(session.room), entry as Vector2i, _live_roaches()
 		)
 		if not spawn.is_empty():
-			add_goki(spawn["pos"] as Vector3, true)
+			add_roach(spawn["pos"] as Vector3, true)
 			return
 
 
@@ -298,7 +298,7 @@ func refresh_bgm() -> void:
 
 
 func _room_bgm() -> StringName:
-	var job: bool = Game.first_job != null and Game.first_job.is_active()
+	var job: bool = Game.first_job.is_active()
 	return BgmCatalog.room_bgm(session.room, Clock.now_sec(), job)
 
 
@@ -441,7 +441,7 @@ func _spawn_resident(room: Room) -> void:
 ## an event guest.
 func _spawn_guest(room: Room) -> void:
 	var event: StringName = &"kamakura" if room.kind == Room.Kind.KAMAKURA else &"summer_camper"
-	if Game == null or Game.events == null or not Game.events.is_active(event):
+	if not Game.events.is_active(event):
 		return
 	var data: VillagerData = VillagerCatalog.get_villager(GuestHousePresenter.guest_of(event))
 	if data == null:

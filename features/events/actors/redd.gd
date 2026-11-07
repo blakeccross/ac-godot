@@ -22,7 +22,7 @@ func _init() -> void:
 
 
 func _area() -> Dictionary:
-	return Game.events.area(&"broker_sale") if Game != null and Game.events != null else {}
+	return Game.events.area(&"broker_sale")
 
 
 func setup() -> void:
@@ -35,7 +35,7 @@ func can_talk() -> bool:
 
 
 func make_talk() -> BankTalk:
-	var t := ReddTalk.new(ReddTalk.Kind.OUTSIDE, _area(), Game.inventory if Game != null else null, rng())
+	var t := ReddTalk.new(ReddTalk.Kind.OUTSIDE, _area(), Game.inventory, rng())
 	t.been_inside = bool(_area().get("entered", false))
 	return t
 

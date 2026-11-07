@@ -1,5 +1,5 @@
 class_name HappyRoomAcademy
-extends RefCounted
+extends SaveBook
 
 ## The Happy Room Academy (`m_mark_room.c`, `m_mark_room_ovl.c`). At game start, outside
 ## Nook's first job: a new member gets the welcome letter (0x1EF); otherwise, once a day, a
@@ -501,12 +501,23 @@ static func _letter(no: int, player: String, free: Dictionary, present: StringNa
 	return mail
 
 
+func clear() -> void:
+	member = false
+	updated = false
+	mark_date = Vector3i.ZERO
+	hint_bits = 0
+	reward0 = false
+	reward1 = false
+	talk = Talk.NONE
+
+
 func to_save() -> Dictionary:
 	return {"member": member, "updated": updated, "date": [mark_date.x, mark_date.y, mark_date.z],
 		"hints": hint_bits, "reward0": reward0, "reward1": reward1, "talk": talk}
 
 
-func apply_snapshot(d: Dictionary) -> void:
+func apply_snapshot(saved: Variant) -> void:
+	var d: Dictionary = saved if saved is Dictionary else {}
 	member = bool(d.get("member", false))
 	updated = bool(d.get("updated", false))
 	var date: Array = d.get("date", [0, 0, 0])

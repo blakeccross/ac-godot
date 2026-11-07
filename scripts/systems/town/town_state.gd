@@ -300,9 +300,9 @@ func read_save(data: Dictionary) -> void:
 	if data.has("weather_intensity"):
 		weather_intensity = int(data["weather_intensity"])
 	elif data.has("weather_packed"):
-		var unpacked: Dictionary = Weather.unpack(int(data["weather_packed"]))
-		weather = Weather.kind_name(unpacked["kind"] as Weather.Kind)
-		weather_intensity = int(unpacked["intensity"])
+		var unpacked: Weather.Roll = Weather.unpack(int(data["weather_packed"]))
+		weather = Weather.kind_name(unpacked.kind)
+		weather_intensity = int(unpacked.intensity)
 	else:
 		weather_intensity = int(Weather.default_intensity_for(Weather.kind_from_name(weather)))
 	## `Save_Get(gyoei_term)`: the fish ramp's next term and its 0–5 day lead.

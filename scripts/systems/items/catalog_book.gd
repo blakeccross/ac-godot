@@ -1,5 +1,5 @@
 class_name CatalogBook
-extends RefCounted
+extends SaveBook
 
 ## The player's catalog (`m_catalog_ovl`, `mSP_CollectCheck`): every furniture, clothing,
 ## wallpaper, carpet, stationery, umbrella and K.K. record that has ever reached the

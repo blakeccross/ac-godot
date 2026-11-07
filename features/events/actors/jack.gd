@@ -15,7 +15,7 @@ func _init() -> void:
 
 
 func _area() -> Dictionary:
-	return Game.events.area(&"halloween") if Game != null and Game.events != null else {}
+	return Game.events.area(&"halloween")
 
 
 func _player_block() -> Vector2i:
@@ -27,7 +27,7 @@ func _player_block() -> Vector2i:
 
 
 func make_talk() -> BankTalk:
-	var t := TrickOrTreatTalk.new(true, 0, Game.inventory if Game != null else null, rng())
+	var t := TrickOrTreatTalk.new(true, 0, Game.inventory, rng())
 	var a: Dictionary = _area()
 	var block: Vector2i = _player_block()
 	t.same_acre = str(a.get("date", "")) == Game.events.day_key() and a.get("block", Vector2i(-2, -2)) == block

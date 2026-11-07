@@ -30,8 +30,6 @@ func _furniture_collision(root: Node3D, interior: IndoorSession) -> void:
 
 
 func _lost_and_found(root: Node3D, interior: IndoorSession) -> void:
-	if Game == null or Game.police == null:
-		return
 	for old: Node in root.get_children():
 		if String(old.name).begins_with("LostFound_"):
 			root.remove_child(old)

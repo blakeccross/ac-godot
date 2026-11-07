@@ -172,12 +172,12 @@ func _run() -> void:
 	print("east    chair ", side_chair.cell)
 
 	## Cockroaches: five waiting → three come out, the player is startled, one gets trodden on.
-	Game.interiors.player_house().goki_count = 5
-	Game.goki_shocked = false
+	Game.interiors.player_house().roach_count = 5
+	Game.session.roach_shocked = false
 	player.global_position = session.grid.cell_to_world(Vector2i(4, 6)) + Vector3(0, 0.1, 0)
-	interior.call("_spawn_gokis", session.room)
+	interior.call("_spawn_roaches", session.room)
 	await _frames(30)
-	print("goki    out=", get_tree().get_nodes_in_group("house_cockroaches").size(), " stored=", Game.interiors.player_house().goki_count, " startled busy=", player._busy)
+	print("goki    out=", get_tree().get_nodes_in_group("house_cockroaches").size(), " stored=", Game.interiors.player_house().roach_count, " startled busy=", player._busy)
 	for g: Node in get_tree().get_nodes_in_group("house_cockroaches"):
 		print("goki    node ", (g as Node3D).position, " children=", g.get_child_count(), " paths=", FieldCatalog.mesh_paths(&"act_m_house_goki"))
 	await _shot("9_goki")

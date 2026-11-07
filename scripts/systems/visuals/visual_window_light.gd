@@ -65,7 +65,7 @@ static func host_lights_on(node: Node) -> Variant:
 	if HostCollision.is_police(vis) or HostCollision.is_post_office(vis):
 		return night  ## `aPBOX_ctrl_light` / `aPOFF_ctrl_light`
 	if HostCollision.is_museum(vis):
-		return Clock != null and Clock.in_hour_window(18, 6)  ## `aMsm_ctrl_light`
+		return Clock.in_hour_window(18, 6)  ## `aMsm_ctrl_light`
 	var entry := StringName(node.get("occupant_id"))
 	var room_id: StringName = InteriorCatalog.resolve_entry(entry) if entry != &"" else &""
 	var room: Room = InteriorCatalog.room_template(room_id) if room_id != &"" else null
@@ -73,8 +73,6 @@ static func host_lights_on(node: Node) -> Variant:
 		return night
 	match room.kind:
 		Room.Kind.SHOP:
-			if Game == null or Game.shops == null:
-				return night
 			## `aSHOP_ctrl_light`: the Cranny lights at night while open; Nook 'n' Go and
 			## up (`aCNV` / `aSPR` / `aDPT`) whenever they're open.
 			var open: bool = Game.shops.nook_is_open()
@@ -96,8 +94,6 @@ static func refresh_room_prim(root: Node, color: Color = Color.WHITE) -> void:
 
 
 static func _window_lights_on() -> bool:
-	if Clock == null:
-		return false
 	return Clock.in_hour_window(18, 5)
 
 

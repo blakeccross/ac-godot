@@ -40,7 +40,7 @@ static func talk_msg(sec: int, weather: StringName, rng: RandomNumberGenerator) 
 
 
 func make_talk() -> BankTalk:
-	return BankTalk.Fixed.new(talk_msg(Clock.now_sec(), Game.town.weather if Game != null else &"clear", rng()))
+	return BankTalk.Fixed.new(talk_msg(Clock.now_sec(), Game.town.weather, rng()))
 
 
 ## `aESS_setup_think_proc` talk requests: none in the minute before 8:00
@@ -58,13 +58,11 @@ static func talk_open(sec: int, speech_done: bool) -> bool:
 
 
 func _speech_done() -> bool:
-	if Game == null or Game.events == null:
-		return true
 	return str(Game.events.area(&"groundhog_day").get("speech", "")) == Game.events.day_key()
 
 
 func think(delta: float) -> void:
-	if Clock.now_sec() < EVENT_SEC or Game == null or Game.events == null:
+	if Clock.now_sec() < EVENT_SEC:
 		return
 	var area: Dictionary = Game.events.area(&"groundhog_day")
 	var today: String = Game.events.day_key()
@@ -93,7 +91,7 @@ func _spawn_groundhog() -> Node3D:
 	var world: World = World.find(get_tree())
 	if mgr == null or world == null or world.grid == null:
 		return null
-	var block: Vector2i = mgr.block_of("shrine")
+	var block: Vector2i = mgr.block_of(EventManager.BlockKind.SHRINE)
 	if block.x < 0:
 		return null
 	var cell: Vector2i = EventManager.block_unit_to_cell(block, GROUNDHOG_UNIT)
@@ -112,5 +110,4 @@ func _spawn_groundhog() -> Node3D:
 func _on_groundhog_done() -> void:
 	_groundhog = null
 	_speech_wait = 0.0
-	if Game != null and Game.events != null:
-		Game.events.area(&"groundhog_day")["majin"] = Game.events.day_key()
+	Game.events.area(&"groundhog_day")["majin"] = Game.events.day_key()

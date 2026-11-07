@@ -39,7 +39,7 @@ static func should_spawn_indoor(occupant_id: StringName) -> bool:
 ## the IN_HOUSE part of their schedule. Night is the caller's half of the rule.
 static func lights_on(occupant_or_entry: StringName) -> bool:
 	var villager_id: StringName = _resolve_villager(occupant_or_entry)
-	if villager_id == &"" or Game == null or Game.villagers == null:
+	if villager_id == &"":
 		return false
 	var data: VillagerData = VillagerCatalog.get_villager(villager_id)
 	if data == null:

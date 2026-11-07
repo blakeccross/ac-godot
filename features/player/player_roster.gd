@@ -161,7 +161,7 @@ func slot_on_plot(building_id: StringName) -> int:
 
 ## Another resident's house record, live for this session (writes go back on `flush_houses`).
 func house_of(slot: int) -> House:
-	if slot == current and Game != null and Game.interiors != null:
+	if slot == current:
 		return Game.interiors.player_house()
 	if slot < 0 or slot >= MAX or not is_resident(slots[slot]):
 		return null

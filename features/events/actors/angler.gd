@@ -14,8 +14,6 @@ func _init() -> void:
 
 
 func area() -> Dictionary:
-	if Game == null or Game.events == null:
-		return {}
 	var id: StringName = event_id if event_id != &"" else &"fishing_tourney_1"
 	var a: Dictionary = Game.events.area(id)
 	var today: String = Game.events.day_key()
@@ -29,10 +27,10 @@ func setup() -> void:
 	var a: Dictionary = area()
 	var had: int = int(a.get("size", 0))
 	AnglerTalk.roll_npc_record(a, Clock.hour, anglers, rng())
-	if Game != null and int(a.get("size", 0)) > had and not bool(a.get("top_player", false)):
+	if int(a.get("size", 0)) > had and not bool(a.get("top_player", false)):
 		FishRecord.set_record(Game.town.fish_records, str(a.get("top", "")), false, int(a["size"]),
 			EventDates.ordinal(Clock.year, Clock.month, Clock.day), Clock.hour * 60 + Clock.minute)
 
 
 func make_talk() -> BankTalk:
-	return AnglerTalk.new(area(), Game.inventory if Game != null else null, rng(), Clock.hour)
+	return AnglerTalk.new(area(), Game.inventory, rng(), Clock.hour)

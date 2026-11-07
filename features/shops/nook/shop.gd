@@ -20,17 +20,13 @@ func _ready() -> void:
 
 
 func _sync_from_shop_book() -> void:
-	if Game == null or Game.shops == null:
-		return
 	visual_id = Game.shops.nook_visual_id()
 	open_hour = Game.shops.nook_open_hour()
 	close_hour = Game.shops.nook_close_hour()
 
 
 func is_open() -> bool:
-	if Game != null and Game.shops != null:
-		return Game.shops.nook_is_open()
-	return Clock.in_hour_window(open_hour, close_hour)
+	return Game.shops.nook_is_open()
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:

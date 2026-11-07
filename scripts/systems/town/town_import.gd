@@ -281,7 +281,7 @@ static func _resident(raw: Dictionary, town: Dictionary, summary: Dictionary) ->
 	var species: Dictionary = _species(raw)
 	var designs: Dictionary = _player_designs(raw)
 	var mail: Array = _resident_mail(raw, summary)
-	var goki: Dictionary = house.get("goki_time", {}) if typeof(house.get("goki_time")) == TYPE_DICTIONARY else {}
+	var roach: Dictionary = house.get("goki_time", {}) if typeof(house.get("goki_time")) == TYPE_DICTIONARY else {}
 	var gyroid: Dictionary = house.get("gyroid", {}) if typeof(house.get("gyroid")) == TYPE_DICTIONARY else {}
 	var sable: Dictionary = raw.get("sable_date", {}) if typeof(raw.get("sable_date")) == TYPE_DICTIONARY else {}
 	var sable_date := ""
@@ -327,7 +327,7 @@ static func _resident(raw: Dictionary, town: Dictionary, summary: Dictionary) ->
 			"has_saved": bool(house.get("has_saved", false)),
 			"music_box": str(int(house.get("music_box", 0))),
 			"goki_count": clampi(int(house.get("goki_count", 0)), 0, 10),
-			"goki_date": [int(goki.get("year", 0)), int(goki.get("month", 0)), int(goki.get("day", 0))],
+			"goki_date": [int(roach.get("year", 0)), int(roach.get("month", 0)), int(roach.get("day", 0))],
 			"gyroid_items": _gyroid_items(gyroid, summary),
 			"gyroid_message": str(gyroid.get("message", "")),
 			"gyroid_bells": maxi(0, int(gyroid.get("bells", 0))),

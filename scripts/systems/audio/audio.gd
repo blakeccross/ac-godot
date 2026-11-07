@@ -323,7 +323,7 @@ func sync_rain_syslev(
 	umbrella: bool = false
 ) -> void:
 	var id: int = Weather.rain_syslev_id(kind, level, umbrella)
-	if id == 0 or basement or (Game != null and Game.title_demo_active):
+	if id == 0 or basement or (Game.title_demo_active):
 		stop_syslev()
 		return
 	start_syslev(id, linear_to_db(Weather.syslev_volume(id, indoors)))

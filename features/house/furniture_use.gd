@@ -85,7 +85,7 @@ static func _diary_open_here(entry: FurniturePlacement = null) -> bool:
 
 ## `mHS_get_pl_no_detail`: whose house the notebook is in (−1 for the player's own).
 static func diary_owner() -> int:
-	return Game.roster.visiting if Game != null else -1
+	return Game.roster.visiting
 
 
 ## The calendar comes up first; picking a day opens the diary on its month
@@ -128,7 +128,7 @@ static func toggle(placement_id: StringName, ctx: InteractionContext = null) -> 
 		entry.on = not entry.on
 	if data != null and (data.kind == FurnitureData.Kind.TOGGLE or data.radio_aerobics or FurnitureAmbience.clicks(data)):
 		Audio.play_se(&"light_on" if entry.on else &"light_off")
-	var press: StringName = FurnitureAmbience.press_se(data, Game.inventory.wallet if Game.inventory != null else 0)
+	var press: StringName = FurnitureAmbience.press_se(data, Game.inventory.wallet)
 	if press != &"":
 		Audio.play_se(press)
 	var switched_node: Node = pid_node(placement_id)

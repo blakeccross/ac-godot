@@ -13,7 +13,7 @@ func before_test() -> void:
 	Clock.paused = true
 	Game.reset_session()
 	VillagerCatalog.reload()
-	VillagerTalkManager.errand_next = PackedByteArray([0, 0, 0, 0, 0])
+	Game.session.errand_next = PackedByteArray([0, 0, 0, 0, 0])
 	var houses: Array[Dictionary] = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
@@ -183,7 +183,7 @@ func test_errand_chain_returns_the_item_to_whoever_lent_it() -> void:
 	assert_that((e["used_ids"] as Array)[0]).is_equal(_id(0))
 	assert_int(int(e["pocket"])).is_equal(-1)
 	## The borrower hands it back straight away (`errand_next` = 1 → final).
-	VillagerTalkManager.errand_next[0] = 1
+	Game.session.errand_next[0] = 1
 	var b: VillagerTalkManager = _manager(Game.residents.slot_of(e["to"]))
 	b.next_step()
 	assert_int(b.step).is_equal(S.RENEW_ERRAND_OR_NORMAL)
@@ -215,7 +215,7 @@ func test_errand_passed_on_goes_to_someone_new() -> void:
 	a.choose(0)
 	var e: Dictionary = Game.quests.errands[0]
 	var first_to: StringName = e["to"]
-	VillagerTalkManager.errand_next[0] = 2
+	Game.session.errand_next[0] = 2
 	var b: VillagerTalkManager = _manager(Game.residents.slot_of(first_to))
 	b.next_step()
 	assert_bool(_in(b.choose(0), 0x03B0, b.looks)).is_true()

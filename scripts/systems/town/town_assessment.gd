@@ -185,8 +185,8 @@ static func survey(world: Node) -> Array:
 	var acres: Array = []
 	if world == null:
 		return acres
-	var grid: WorldGrid = world.get("grid") as WorldGrid
-	var layout: WorldData = world.get("layout") as WorldData
+	var grid: WorldGrid = WorldGrid.of(world)
+	var layout: WorldData = WorldData.of(world)
 	if grid == null:
 		return acres
 	var by_block: Dictionary = {}

@@ -267,10 +267,10 @@ func test_save_roundtrip() -> void:
 func test_finishing_the_chores_queues_the_cheer() -> void:
 	var job := FirstJob.new()
 	job.kind = FirstJob.Kind.CHANGE_CLOTH
-	Game.complete_payment = &""
+	Game.session.complete_payment = &""
 	job.finish()
-	assert_str(String(Game.complete_payment)).is_equal(String(Game.PAYMENT_ARBEIT))
-	Game.complete_payment = &""
+	assert_str(String(Game.session.complete_payment)).is_equal(String(Game.PAYMENT_ARBEIT))
+	Game.session.complete_payment = &""
 
 
 func test_nook_scolds_once_for_changing_out_of_the_uniform() -> void:

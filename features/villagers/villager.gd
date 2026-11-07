@@ -207,7 +207,7 @@ func _ready() -> void:
 		_feel.spawn_at_feel_joint = not skeletons.is_empty()
 		conversation.sync_face_mood(true)
 		_apply_design_wear()
-		if Game != null and Game.designs != null and not Game.designs.changed.is_connected(_apply_design_wear):
+		if not Game.designs.changed.is_connected(_apply_design_wear):
 			Game.designs.changed.connect(_apply_design_wear)
 	if indoor_resident:
 		_motor.facing = rotation.y
@@ -216,7 +216,7 @@ func _ready() -> void:
 		_drawn_cloth = _cloth_key()
 		_drawn_umb = state.umbrella_design if state != null else -1
 		## `aNPC_check_force_use_umbrella`: out in the rain from the start, umbrella up.
-		if state != null and not state.is_home and Game != null and Game.town.weather == &"rain":
+		if state != null and not state.is_home and Game.town.weather == &"rain":
 			_take_out_umbrella(true)
 
 
@@ -242,7 +242,7 @@ func _exit_tree() -> void:
 		Clock.time_changed.disconnect(_sync_from_clock)
 	if ai.action_changed.is_connected(brain.on_action_changed):
 		ai.action_changed.disconnect(brain.on_action_changed)
-	if Game != null and Game.designs != null and Game.designs.changed.is_connected(_apply_design_wear):
+	if Game.designs.changed.is_connected(_apply_design_wear):
 		Game.designs.changed.disconnect(_apply_design_wear)
 
 
@@ -250,9 +250,7 @@ func _exit_tree() -> void:
 ## paint the mannequin's design over the cloth surfaces, or put the villager's own
 ## shirt back when they stop wearing one.
 func _apply_design_wear() -> void:
-	if _visual == null or state == null or Game == null:
-		return
-	if Game.designs == null and state.cloth_design >= 0:
+	if _visual == null or state == null:
 		return
 	var idx: int = state.cloth_design
 	## A shirt they were given or picked up (`Animal_c.cloth` other than their own).
@@ -826,9 +824,7 @@ func _player_crowding() -> bool:
 	if Vector2(to.x, to.z).length() >= ANNOY_CROWD_DIST or absf(to.y) >= ANNOY_CROWD_DIST:
 		return false
 	var want_yaw: float = atan2(to.x, to.z)
-	var player_yaw: float = (
-		float(player.call("facing_yaw")) if player.has_method("facing_yaw") else player.rotation.y
-	)
+	var player_yaw: float = ActorFacing.yaw(player)
 	return absf(angle_difference(player_yaw, want_yaw)) < ANNOY_FACE_CONE
 
 
@@ -847,7 +843,7 @@ func register_net_hit() -> void:
 ## `aNPC_act_react_tool_init_proc`: annoyed feel → the short jump; player in view → jump,
 ## then stare; else just the jump. Head chases 3× faster for the whole act.
 func _begin_react_tool() -> void:
-	if Game != null and Game.title_demo_active:
+	if Game.title_demo_active:
 		return
 	if ai.is_talking() or indoor_resident:
 		return
@@ -944,7 +940,7 @@ func _play_annoyance_scold() -> void:
 ## `mQst_NextSoccer`: the ball the resident asked for reached them — they call the player
 ## over (`force_call_req_proc`, 0x0D8B + looks). True when the ball should stop dead.
 func take_soccer_ball() -> bool:
-	if Game == null or Game.quests == null or Game.residents == null or data == null or get_tree() == null:
+	if data == null or get_tree() == null:
 		return false
 	var slot: int = Game.residents.slot_of(data.id)
 	if not Game.quests.soccer_target(slot):
@@ -968,7 +964,7 @@ func take_soccer_ball() -> bool:
 ## `aNPC_chk_friendship`: on a fortune day the villager keeps away from the player or comes
 ## looking for them (`VillagerFortune`). True while it owns the steering.
 func _tick_fortune() -> bool:
-	if Game == null or Game.title_demo_active or data == null or get_tree() == null:
+	if Game.title_demo_active or data == null or get_tree() == null:
 		return false
 	var destiny: int = Game.destiny()
 	if destiny != Game.Destiny.POPULAR and destiny != Game.Destiny.UNPOPULAR:
@@ -1029,7 +1025,7 @@ func _fortune_call(player: Node3D, looks: int) -> void:
 ## `aNPC_think_chk_interrupt_proc`: umbrella (`aNPC_ctrl_umbrella` + `aNPC_chk_right_hand`),
 ## then a clap while the player shows a catch.
 func _start_outdoor_act() -> bool:
-	if Game == null or Game.title_demo_active:
+	if Game.title_demo_active:
 		return false
 	## `aNPC_COND_DEMO_SKIP_ITEM`: nothing comes out while walking out of the door.
 	if ActivityKind.is_door_demo(ai.kind()):

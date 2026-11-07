@@ -16,15 +16,8 @@ const FIRST_HOUR := 10
 const LAST_HOUR := 16
 
 ## Common `sunburn_time` (seconds) and the player's rank-up / rank-down requests: not saved.
-static var sun_time: float = 0.0
-static var rankup_pending: bool = false
-static var rankdown_pending: bool = false
 
 
-static func reset_session() -> void:
-	sun_time = 0.0
-	rankup_pending = false
-	rankdown_pending = false
 
 
 ## Town dates the sun can burn: July 16 – September 15.
@@ -67,9 +60,9 @@ static func rankdown_interval(state: Dictionary, today: int) -> void:
 
 ## `_rankdown`: days past the hold mean the tan is fading.
 static func check_rankdown(state: Dictionary, today: int) -> void:
-	if int(state.get("rank", 0)) > 0 and not rankdown_pending:
+	if int(state.get("rank", 0)) > 0 and not Game.session.sunburn_rankdown_pending:
 		if today - int(state.get("changed", today)) - int(state.get("hold", 0)) > 0:
-			rankdown_pending = true
+			Game.session.sunburn_rankdown_pending = true
 
 
 ## `_rankup` for `delta` seconds in the sun. `exposed`: outdoors in town, clear sky, no
@@ -77,35 +70,35 @@ static func check_rankdown(state: Dictionary, today: int) -> void:
 static func sun_tick(
 	state: Dictionary, exposed: bool, month: int, day: int, hour: int, delta: float
 ) -> void:
-	if rankup_pending or not exposed or not sunny_hour(hour) or not in_season(month, day):
+	if Game.session.sunburn_rankup_pending or not exposed or not sunny_hour(hour) or not in_season(month, day):
 		return
 	if int(state.get("rank", 0)) > 0 and int(state.get("hold", 0)) >= HOLD_DAYS:
 		return
-	if rankdown_pending:
+	if Game.session.sunburn_rankdown_pending:
 		return
-	sun_time += delta
-	if sun_time > SUN_SEC:
-		rankup_pending = true
+	Game.session.sun_time += delta
+	if Game.session.sun_time > SUN_SEC:
+		Game.session.sunburn_rankup_pending = true
 
 
 ## `_Set_player_sunburn_rankup` / `_rankdown`: apply what is pending. True when the rank
 ## changed (the face needs repainting).
 static func settle(state: Dictionary, today: int) -> bool:
 	var changed := false
-	if rankup_pending:
+	if Game.session.sunburn_rankup_pending:
 		state["rank"] = mini(int(state.get("rank", 0)) + 1, MAX_RANK)
 		state["changed"] = today
 		state["hold"] = HOLD_DAYS
-		sun_time = 0.0
-		rankup_pending = false
+		Game.session.sun_time = 0.0
+		Game.session.sunburn_rankup_pending = false
 		changed = true
-	if rankdown_pending:
+	if Game.session.sunburn_rankdown_pending:
 		var diff: int = today - int(state.get("changed", today)) - int(state.get("hold", 0))
 		if diff > 0:
 			state["rank"] = maxi(int(state.get("rank", 0)) - diff, 0)
 			state["changed"] = today
 			changed = true
-		rankdown_pending = false
+		Game.session.sunburn_rankdown_pending = false
 	return changed
 
 

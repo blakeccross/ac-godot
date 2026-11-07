@@ -20,33 +20,32 @@ const KEY := "museum_comp_mail"
 
 ## `mMsm_SetCompMail`: once, for every resident in town.
 static func schedule() -> bool:
-	if Game == null or Game.museum == null or not Game.museum.is_complete():
+	if not Game.museum.is_complete():
 		return false
 	if Game.resident.museum_comp_mail & SCHEDULED:
 		return false
-	if Game.roster != null:
-		for slot: int in PlayerRoster.MAX:
-			var priv: Dictionary = Game.roster.slots[slot]
-			if slot == Game.roster.current or not PlayerRoster.is_resident(priv):
-				continue
-			if int(priv.get(KEY, 0)) & SCHEDULED:
-				return false
-		for slot: int in PlayerRoster.MAX:
-			var priv: Dictionary = Game.roster.slots[slot]
-			if slot != Game.roster.current and PlayerRoster.is_resident(priv):
-				priv[KEY] = int(priv.get(KEY, 0)) | SCHEDULED
+	for slot: int in PlayerRoster.MAX:
+		var priv: Dictionary = Game.roster.slots[slot]
+		if slot == Game.roster.current or not PlayerRoster.is_resident(priv):
+			continue
+		if int(priv.get(KEY, 0)) & SCHEDULED:
+			return false
+	for slot: int in PlayerRoster.MAX:
+		var priv: Dictionary = Game.roster.slots[slot]
+		if slot != Game.roster.current and PlayerRoster.is_resident(priv):
+			priv[KEY] = int(priv.get(KEY, 0)) | SCHEDULED
 	Game.resident.museum_comp_mail |= SCHEDULED
 	return true
 
 
 ## `mMsm_SendCompMail` at the start of play: the letter, if it is due and not had yet.
 static func send() -> bool:
-	if Game == null or Game.foreigner or Game.inventory == null:
+	if Game.foreigner:
 		return false
 	if Game.resident.museum_comp_mail & SCHEDULED == 0 or Game.resident.museum_comp_mail & RECEIVED:
 		return false
 	var mail: MailData = letter(Game.resident.player_name, Game.town.town_name)
-	if Game.inventory.add_received_mail(mail) < 0 and (Game.post == null or not Game.post.receipt_mail(mail)):
+	if Game.inventory.add_received_mail(mail) < 0 and (not Game.post.receipt_mail(mail)):
 		return false
 	Game.resident.museum_comp_mail |= RECEIVED
 	return true

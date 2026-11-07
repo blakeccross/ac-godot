@@ -101,8 +101,7 @@ static func from_game(villager: VillagerData = null, state: VillagerState = null
 	ctx.weather = Game.town.weather
 	ctx.inventory = Game.inventory
 	ctx.vars = Game.town.dialogue_vars
-	if Game.inventory != null:
-		ctx.held_item = Game.inventory.equipment_id
+	ctx.held_item = Game.inventory.equipment_id
 	ctx.bee_chase = Game.bees.chasing
 	if villager != null:
 		ctx.bee_stung = Game.bees.remark_pending(villager.id)
@@ -135,7 +134,7 @@ static func from_game(villager: VillagerData = null, state: VillagerState = null
 		ctx.days_since_talk = _days_since(bond.last_spoke_day, ctx.year, ctx.month, ctx.day)
 		if ctx.voice_status < 0:
 			ctx.voice_status = int(DialogueVoice.status_for_mood(state.mood))
-	if Game.first_job != null and Game.first_job.is_active() and Game.first_job.recipient_id != &"":
+	if Game.first_job.is_active() and Game.first_job.recipient_id != &"":
 		ctx.recipient = Game.first_job.recipient_name()
 	return ctx
 

@@ -43,7 +43,7 @@ func _physics_process(delta: float) -> void:
 	if _field.take_bite():
 		var player := Player.find(get_tree())
 		if player != null:
-			player.run_stung_mosquito()
+			player.sequences.run_stung_mosquito()
 	_sync(delta, Player.find(get_tree()))
 
 

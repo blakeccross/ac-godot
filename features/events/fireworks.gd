@@ -246,7 +246,7 @@ func _step_shell(sh: Dictionary, delta: float) -> void:
 	if before < FLASH_FRAME and t >= FLASH_FRAME:
 		var tones: Array = data["light"]
 		_flash(tones[mini(int(sh["tone"]), tones.size() - 1)], sh["pos"])
-	if before < BANG_FRAME and t >= BANG_FRAME and Audio != null:
+	if before < BANG_FRAME and t >= BANG_FRAME:
 		Audio.play_se(data["se"])
 	sh["scale"] = Motion.approach(
 		float(sh["scale"]), float(data["size"]), EASE_HALF_LIFE, EASE_MAX_SPEED, 0.0, delta

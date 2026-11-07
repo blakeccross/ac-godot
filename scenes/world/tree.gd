@@ -152,8 +152,7 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 	## `Player_actor_SetEffectHit_axe_common` frame 15: chips fly off the trunk.
 	var chopper := ctx.actor as Node3D if ctx != null else null
 	if chopper != null:
-		var yaw: float = chopper.call("facing_yaw") if chopper.has_method("facing_yaw") else chopper.rotation.y
-		FootstepEffects.axe_chips(FootstepEffects.bg_of(ctx), chopper.global_position, yaw)
+		FootstepEffects.axe_chips(FootstepEffects.bg_of(ctx), chopper.global_position, ActorFacing.yaw(chopper))
 	ToolUse.wear_axe(ctx, false)
 	_emit_drops(out, ctx)
 	if out.dropped_fruit > 0:
@@ -611,7 +610,7 @@ func _stress_bugs_at(ctx: InteractionContext) -> void:
 	var field: BugField = ctx.world.get("bugs") as BugField
 	if field == null:
 		return
-	var grid: WorldGrid = ctx.world.get("grid") as WorldGrid
+	var grid: WorldGrid = WorldGrid.of(ctx.world)
 	if grid == null:
 		return
 	## `aINS_PL_ACT_SHAKE_TREE` — wakes bagworms and scares tree cicadas / beetles.

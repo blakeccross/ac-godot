@@ -166,10 +166,10 @@ func test_the_island_is_summer_in_midwinter_and_gives_the_towns_weather_back() -
 
 
 func test_the_islands_weather_is_clear_four_days_in_five() -> void:
-	assert_int(int(IslandClimate.weather_roll(0.79)["kind"])).is_equal(int(Weather.Kind.CLEAR))
-	var rain: Dictionary = IslandClimate.weather_roll(0.81)
-	assert_int(int(rain["kind"])).is_equal(int(Weather.Kind.RAIN))
-	assert_int(int(rain["intensity"])).is_equal(int(Weather.Intensity.HEAVY))
+	assert_int(int(IslandClimate.weather_roll(0.79).kind)).is_equal(int(Weather.Kind.CLEAR))
+	var rain: Weather.Roll = IslandClimate.weather_roll(0.81)
+	assert_int(int(rain.kind)).is_equal(int(Weather.Kind.RAIN))
+	assert_int(int(rain.intensity)).is_equal(int(Weather.Intensity.HEAVY))
 
 
 func test_the_shanty_music_follows_the_riders_pattern_and_rolls() -> void:
@@ -247,7 +247,7 @@ func test_the_cottage_keeps_its_own_music_box_and_cockroaches() -> void:
 	assert_object(cottage).is_not_null()
 	assert_bool(cottage != Game.interiors.player_house()).is_true()
 	var room: Room = InteriorCatalog.room_template(&"cottage")
-	assert_bool(HouseCockroaches.is_goki_room(room)).is_true()
+	assert_bool(HouseCockroaches.is_roach_room(room)).is_true()
 	assert_object(HouseCockroaches.house_for(room)).is_same(cottage)
 	assert_object(HouseCockroaches.house_for(InteriorCatalog.room_template(&"player_main"))).is_same(
 		Game.interiors.player_house()

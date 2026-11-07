@@ -50,19 +50,13 @@ const WAIT_SECONDS := 2.0
 const STUCK_SECONDS := 2.0
 const _BLOCK_STAND: Array[StringName] = [&"tree", &"rock", &"house", &"shop", &"building"]
 
-static var _walkers: Dictionary = {}
 ## Cells that block standing (houses, trees, rocks). Rebuilt when layout changes.
 static var _blocked_data_id: int = 0
 static var _blocked_sig: int = 0
 static var _blocked_cells: Dictionary = {}
 
 
-static func reset() -> void:
-	_walkers.clear()
-	_clear_blocked_cache()
-
-
-static func _clear_blocked_cache() -> void:
+static func clear_blocked_cache() -> void:
 	_blocked_data_id = 0
 	_blocked_sig = 0
 	_blocked_cells.clear()
@@ -80,23 +74,23 @@ static func claim(villager_id: StringName, want_town: bool, field_count: int) ->
 	if villager_id == &"":
 		return false
 	if not want_town:
-		_walkers.erase(villager_id)
+		Game.session.walkers.erase(villager_id)
 		return false
-	if _walkers.has(villager_id):
+	if Game.session.walkers.has(villager_id):
 		return true
-	if _walkers.size() >= walker_cap(field_count):
+	if Game.session.walkers.size() >= walker_cap(field_count):
 		return false
-	_walkers[villager_id] = true
+	Game.session.walkers[villager_id] = true
 	return true
 
 
 static func release(villager_id: StringName) -> void:
-	_walkers.erase(villager_id)
+	Game.session.walkers.erase(villager_id)
 
 
 ## Test-only: no in-game callers; kept for tests.
 static func is_claimed(villager_id: StringName) -> bool:
-	return _walkers.has(villager_id)
+	return Game.session.walkers.has(villager_id)
 
 
 static func can_town_walk(looks: VillagerPersonality.Looks, now_sec: int) -> bool:

@@ -318,7 +318,7 @@ static func unit_limit(layout: WorldData, cell: Vector2i) -> int:
 static func _layout(ctx: InteractionContext) -> WorldData:
 	if ctx == null or ctx.world == null:
 		return null
-	return ctx.world.get("layout") as WorldData
+	return WorldData.of(ctx.world)
 
 
 static func can_plant(ctx: InteractionContext, plant: PlantData, cell: Vector2i) -> bool:
@@ -700,7 +700,7 @@ static func dig_up_flower(ctx: InteractionContext, cell: Vector2i) -> bool:
 	## `mFI_CheckDigRemoveItem` for flowers: scoop clears the plant and writes a hole.
 	var grid: WorldGrid = null
 	if ctx != null and ctx.world != null:
-		grid = ctx.world.get("grid") as WorldGrid
+		grid = WorldGrid.of(ctx.world)
 	if grid == null or not grid.is_in_bounds(cell):
 		return false
 	var occupant: StringName = grid.occupant_at(cell)
@@ -944,10 +944,7 @@ static func _hole_at(world: Node, pid: StringName) -> Node:
 
 
 static func _grid(ctx: InteractionContext) -> WorldGrid:
-	if ctx == null or ctx.world == null:
-		return null
-	var value: Variant = ctx.world.get("grid")
-	return value as WorldGrid
+	return WorldGrid.of(ctx.world) if ctx != null else null
 
 
 static func _ensure_plants() -> void:

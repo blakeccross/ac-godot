@@ -231,7 +231,7 @@ static func settle_on_cedar(a: BugActor, sense: BugActor.Sense) -> bool:
 
 
 static func raining() -> bool:
-	return Game != null and Game.town.weather == &"rain"
+	return Game.town.weather == &"rain"
 
 
 # ---- player tool checks (`mPlib_Check_*`) --------------------------------

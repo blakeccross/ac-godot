@@ -56,7 +56,7 @@ static func conversation(villager: VillagerData, state: VillagerState, ctx: Dial
 	var snap: DialogueContext = ctx if ctx != null else DialogueContext.from_game(villager, state)
 	_ensure_rng(snap)
 	var msg_no: int = hello_msg_no(villager, state, snap)
-	if villager != null and Game != null:
+	if villager != null:
 		Game.bees.note_greeting(villager.id)
 	## A finished fish / insect collection is worth a word — once per villager per collection.
 	if snap.mood != VillagerState.Mood.PITFALL and not snap.bee_chase and meet_type(state, snap) != MEET_FIRST:
@@ -91,7 +91,7 @@ static func hello_msg_no(villager: VillagerData, state: VillagerState, ctx: Dial
 		if ctx.mood == VillagerState.Mood.SLEEPY:
 			return SLEEPY[looks] + _roll(5, ctx)
 	## `mPr_DESTINY_UNPOPULAR`: Katrina said nobody would like you today, and they don't.
-	if meet != MEET_FIRST and Game != null and Game.destiny() == Game.Destiny.UNPOPULAR:
+	if meet != MEET_FIRST and Game.destiny() == Game.Destiny.UNPOPULAR:
 		return _random_looks(UNPOPULAR_HELLO, looks, KIND, ctx)
 	## `aQMgr_get_thanks_cloth_msg`: wearing the shirt the player mailed — thanks, once.
 	if meet != MEET_FIRST and state != null and state.wearing_present_cloth:
@@ -102,7 +102,7 @@ static func hello_msg_no(villager: VillagerData, state: VillagerState, ctx: Dial
 		return THANKS_CLOTH + looks * 3 + _roll(3, ctx)
 	## `aQMgr_get_hello_msg_how_do_you_do`: a villager who moved in (`Animal_c.moved_in`)
 	## introduces themself as the new neighbour on first meeting.
-	if meet == MEET_FIRST and villager != null and Game != null and Game.residents != null:
+	if meet == MEET_FIRST and villager != null:
 		if Game.residents.moved_in(villager.id):
 			return msg_offset(MOVED_IN_HELLO, looks, ctx.hour, _roll(KIND, ctx), KIND)
 	if meet == MEET_TODAY:
@@ -125,8 +125,6 @@ static func hello_msg_no(villager: VillagerData, state: VillagerState, ctx: Dial
 
 ## The holiday first-hello base for today, or -1 (`aQMgr_get_hello_msg_npc_feel_normal`).
 static func holiday_hello(islander: bool) -> int:
-	if Game == null or Game.events == null:
-		return -1
 	if Game.events.is_active(&"spring_cleaning"):
 		return ISLAND_SPRING_CLEANING_HELLO if islander else SPRING_CLEANING_HELLO
 	if Game.events.is_active(&"aprilfools_day"):

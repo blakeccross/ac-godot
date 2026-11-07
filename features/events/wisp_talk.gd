@@ -66,8 +66,7 @@ func start_msg() -> int:
 		return MSG_NONE + rng.randi_range(0, VARIANTS - 1)
 	if n >= WispEvent.SPIRITS:
 		## `event_save_common.ghost_day = 0`: the next visit is rolled afresh.
-		if Game != null and Game.events != null:
-			Game.events.ghost_day = 0
+		Game.events.ghost_day = 0
 		return MSG_ALL
 	return MSG_SOME + n
 
@@ -99,7 +98,7 @@ func picked(msg_no: int, index: int) -> int:
 				wish = Wish.ROOF
 			2:
 				wish = Wish.ITEM
-				var owned: Array = Game.catalog.owned_ids() if Game != null and Game.catalog != null else []
+				var owned: Array = Game.catalog.owned_ids()
 				item = WispEvent.wish_item(owned, rng)
 				var data: ItemData = ItemCatalog.get_item(item)
 				context.set_item_str(0, PoliceTalk.with_article(data.display_name) if data != null else "")
@@ -112,8 +111,6 @@ func picked(msg_no: int, index: int) -> int:
 
 ## The new colour shows straight away, and stays unless a coat from Nook's is on order.
 static func _paint_roof(palette: int) -> void:
-	if Game == null or Game.interiors == null:
-		return
 	var house: House = Game.interiors.player_house()
 	if house == null:
 		return
@@ -124,5 +121,5 @@ static func _paint_roof(palette: int) -> void:
 
 ## `Save_Set(clear_grass, TRUE)`: the weeds go with the next growth.
 func finish() -> void:
-	if wish == Wish.WEEDS and Game != null:
+	if wish == Wish.WEEDS:
 		Game.town.clear_grass = true

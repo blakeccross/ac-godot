@@ -1,5 +1,5 @@
 class_name FirstJob
-extends RefCounted
+extends SaveBook
 
 ## Part-time job after the house (`mQst` FIRSTJOB + `ac_npc_rcn_guide2`).
 ## Full chore chain: cloth → plant → [hello] → furniture → letter → open →
@@ -108,10 +108,9 @@ func clear() -> void:
 func finish() -> void:
 	## `mEv_UnSetFirstJob` + clear errand when chores end; outside, the player cheers
 	## (`aID_first_job` → `mPlayer_COMPLETE_PAYMENT_TYPE_ARBEIT`).
-	if kind != Kind.DONE and Game != null:
-		Game.complete_payment = Game.PAYMENT_ARBEIT
-		if Game.hra != null:
-			Game.hra.first_job_done()
+	if kind != Kind.DONE:
+		Game.session.complete_payment = Game.PAYMENT_ARBEIT
+		Game.happy_room_academy.first_job_done()
 	kind = Kind.DONE
 	progress = 0
 	wrong_cloth = false
@@ -251,8 +250,6 @@ func intros_complete() -> bool:
 		return false
 	var ids: Array[StringName] = resident_ids()
 	if ids.is_empty():
-		return false
-	if Game == null or Game.relationships == null:
 		return false
 	for id: StringName in ids:
 		var bond: Relationship = Game.relationships.get_or_create(id)
@@ -395,8 +392,7 @@ func advance_after_finished(inventory: Inventory) -> bool:
 			if not setup_deliver_furniture(inventory):
 				return false
 		Kind.DELIVER_FTR:
-			if Game != null:
-				Game.unlock_map()
+			Game.unlock_map()
 			if not can_start_delivery(inventory):
 				return false
 			if not setup_send_letter(inventory):
@@ -538,7 +534,7 @@ func to_save() -> Dictionary:
 	}
 
 
-func from_save(data: Variant) -> void:
+func apply_snapshot(data: Variant) -> void:
 	clear()
 	if typeof(data) != TYPE_DICTIONARY:
 		return
@@ -563,15 +559,14 @@ func from_save(data: Variant) -> void:
 static func resident_ids() -> Array[StringName]:
 	var out: Array[StringName] = []
 	var seen: Dictionary = {}
-	if Game != null and Game.villagers != null:
-		var snap: Dictionary = Game.villagers.to_save()
-		for key: Variant in snap.keys():
-			var id := StringName(str(key))
-			if id == &"" or seen.has(id):
-				continue
-			seen[id] = true
-			out.append(id)
-	if out.is_empty() and Game != null:
+	var snap: Dictionary = Game.villagers.to_save()
+	for key: Variant in snap.keys():
+		var id := StringName(str(key))
+		if id == &"" or seen.has(id):
+			continue
+		seen[id] = true
+		out.append(id)
+	if out.is_empty():
 		var world: WorldData = Game.resolve_world_data()
 		if world != null:
 			for b: BuildingPlacement in world.buildings:

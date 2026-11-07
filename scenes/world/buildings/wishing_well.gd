@@ -75,7 +75,7 @@ func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 		return []
 	## With villagers queueing, a wish is made by taking a place in the line
 	## (`aHTC_wait` only starts on the queue's signal).
-	if ShrineQueue.find(get_tree()) != null and Game.events != null and Game.events.is_active(NEW_YEAR):
+	if ShrineQueue.find(get_tree()) != null and Game.events.is_active(NEW_YEAR):
 		return []
 	if _talk != null or (ctx != null and not _in_front(ctx.actor as Node3D)):
 		return []
@@ -88,7 +88,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	var ui := DialogueOverlay.find(get_tree())
 	if ui == null:
 		return false
-	if Game.events != null and Game.events.is_active(NEW_YEAR):
+	if Game.events.is_active(NEW_YEAR):
 		return await _new_year_visit(ui, ctx)
 	var world: Node = ctx.world if ctx != null and ctx.world != null else World.find(get_tree())
 	_talk = WishingWellTalk.new(world, Game.inventory)
@@ -156,10 +156,11 @@ func offer_wish(ui: DialogueOverlay, player: Player) -> bool:
 	var toss: bool = can_pay and runner != null and runner.last_choice_index == 0
 	if toss:
 		inv.set_wallet(inv.wallet - OFFERING)
-	if player != null and is_instance_valid(player):
+	var visitor := player as Player
+	if visitor != null and is_instance_valid(visitor):
 		var stand: Array = visit_stand()
 		var at: Vector3 = stand[0]
-		at.y = player.global_position.y
-		await player.shrine_visit(at, float(stand[1]), toss, global_position.y)
+		at.y = visitor.global_position.y
+		await visitor.sequences.shrine_visit(at, float(stand[1]), toss, global_position.y)
 	_visiting = false
 	return true

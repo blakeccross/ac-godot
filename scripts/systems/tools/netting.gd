@@ -116,7 +116,7 @@ static func begin_catch(caught: Object) -> Catch:
 	out.completes_record = completes_record(actor.bug.type_index)
 	if actor.bug.type_index == WispEvent.TYPE_SPIRIT:
 		## `Player_actor_Pull_net_demo_ct`: the count, and its acre is empty from now on.
-		out.spirits_before = WispEvent.spirit_count(Game.inventory if Game != null else null)
+		out.spirits_before = WispEvent.spirit_count(Game.inventory)
 		WispEvent.caught_in(actor.block)
 	actor.catch()
 	return out
@@ -124,7 +124,7 @@ static func begin_catch(caught: Object) -> Catch:
 
 ## `mSM_CHECK_LAST_INSECT_GET`: every other insect is on the record and this one is not.
 static func completes_record(type_index: int) -> bool:
-	var book: CatalogBook = Game.catalog if Game != null else null
+	var book: CatalogBook = Game.catalog
 	if book == null or type_index < 0 or type_index >= INSECT_RECORD_NUM:
 		return false
 	if book.has_insect(type_index):
@@ -141,7 +141,7 @@ static func bank(catch_: Catch, inventory: Inventory) -> bool:
 		and inventory.has_space_for(catch_.bug, 1)
 		and inventory.add(catch_.bug, 1) == 0
 	)
-	if Game != null and Game.catalog != null and catch_.spirits_before < 0:
+	if catch_.spirits_before < 0:
 		Game.catalog.record_insect(catch_.bug.type_index)
 	return catch_.banked
 
@@ -253,8 +253,8 @@ static func line_bits(ctx: InteractionContext, start: Vector3, end: Vector3) -> 
 	var world: Object = ctx.world if ctx != null else null
 	if world == null:
 		return 0
-	var layout := world.get("layout") as WorldData
-	var grid := world.get("grid") as WorldGrid
+	var layout := WorldData.of(world)
+	var grid := WorldGrid.of(world)
 	if layout == null or grid == null:
 		return 0
 	var bits: int = 0

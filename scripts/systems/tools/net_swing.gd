@@ -203,7 +203,7 @@ static func net_point(hand: Transform3D, along: float) -> Vector3:
 
 ## The net head's own reach: `CATCH_REACH`, or `GOLDEN_REACH` for the golden net.
 static func reach() -> float:
-	var golden: bool = Game != null and Game.inventory != null and Game.inventory.equipment_id == GOLDEN_NET
+	var golden: bool = Game.inventory.equipment_id == GOLDEN_NET
 	return GOLDEN_REACH if golden else CATCH_REACH
 
 

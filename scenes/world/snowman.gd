@@ -64,7 +64,7 @@ func _ready() -> void:
 
 
 func message() -> int:
-	return SnowmanRules.snowman_msg(Game.snowman_msg_id, maxi(slot, 0), score)
+	return SnowmanRules.snowman_msg(Game.session.snowman_msg_id, maxi(slot, 0), score)
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:

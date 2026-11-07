@@ -87,13 +87,11 @@ func _ready() -> void:
 			visual, visual_id, MissingModel.DEFAULT_TINT, Vector3.ONE * RADIUS * 2.0
 		)
 		marker.grounded = false
-	_snap_ground()
+	snap_ground()
 
 
 ## `aBALL_actor_dt`: where it is, unless it was lost or is lying in a hole.
 func _exit_tree() -> void:
-	if Game == null:
-		return
 	if dead or in_hole:
 		Game.town.ball = {}
 	else:
@@ -136,7 +134,7 @@ func advance(delta: float) -> void:
 		return
 	_check_hole()
 	_spin(delta)
-	if Game != null and (speed > 0.0 or not on_ground):
+	if (speed > 0.0 or not on_ground):
 		Game.town.ball = {"x": global_position.x, "y": global_position.y, "z": global_position.z, "type": type}
 
 
@@ -315,7 +313,7 @@ func _spin(delta: float) -> void:
 	_roll.rotate(axis, speed * delta * ROLL_PER_METRE)
 
 
-func _snap_ground() -> void:
+func snap_ground() -> void:
 	var world := _world()
 	if world == null or world.layout == null or world.grid == null:
 		return

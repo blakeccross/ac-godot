@@ -114,15 +114,10 @@ func dismiss() -> void:
 
 ## `beside_inventory`: opened from the pockets' pencil tab (`mNW_OPEN_INV`) — the book
 ## sits 46 right of centre over the pockets' letter column instead of 10, with no dim.
-func open(mode: String, callback: Callable = Callable(), beside_inventory: bool = false) -> void:
+func open(mode: ListMode, callback: Callable = Callable(), beside_inventory: bool = false) -> void:
 	if _open:
 		return
-	if Game == null or Game.designs == null:
-		return
-	match mode:
-		"pick_edit": _mode = ListMode.PICK_EDIT
-		"pick_trade": _mode = ListMode.PICK_TRADE
-		_: _mode = ListMode.MANAGE
+	_mode = mode
 	_cb = callback
 	_book.position.x = 160.0 + (46.0 if beside_inventory else 10.0) - BOOK_SIZE.x * 0.5
 	var dim := _root.get_node("Dim") as ColorRect
@@ -194,8 +189,6 @@ func _wrap(i: int) -> int:
 ## `cloth.idx >= CLOTH_NUM + 1` — wear this design as a shirt, or take it off if
 ## it is already the worn one.
 func _wear_selected() -> void:
-	if Game == null:
-		return
 	Game.resident.worn_design_slot = -1 if Game.resident.worn_design_slot == _sel else _sel
 	Game.design_changed.emit()
 	Audio.play_se(&"cursol")
@@ -204,8 +197,6 @@ func _wear_selected() -> void:
 
 ## `mTG_nw_st_umbrella_proc`: this design as an umbrella (`ITM_MY_ORG_UMBRELLA0 + n`).
 func _umbrella_selected() -> void:
-	if Game == null or Game.inventory == null:
-		return
 	var msg: String = DesignUmbrella.make(Game.inventory, _sel)
 	if msg != "":
 		Game.post_notice(msg)
@@ -277,7 +268,7 @@ func _refresh() -> void:
 		_thumbs.append(ImageTexture.create_from_image(DesignTexture.image(dp)) if dp != null else null)
 	var d: DesignPattern = Game.designs.player[Game.designs.resolved_index(_sel)]
 	var label := d.name if d != null else ""
-	if _mode == ListMode.MANAGE and Game != null and Game.resident.worn_design_slot == _sel and label != "":
+	if _mode == ListMode.MANAGE and Game.resident.worn_design_slot == _sel and label != "":
 		label += "  (wearing)"
 	_name.text = label
 	_slots.queue_redraw()

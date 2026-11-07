@@ -87,7 +87,7 @@ static func decide(
 
 
 static func record() -> Dictionary:
-	return Game.events.area(&"soncho_record") if Game != null and Game.events != null else {}
+	return Game.events.area(&"soncho_record")
 
 
 static func has_trophy(trophy: int) -> bool:
@@ -104,8 +104,6 @@ static func set_trophy(trophy: int) -> void:
 ## `aPST_check_first_present`: true the first time anyone in town is given `bit`, which it
 ## then marks.
 static func check_first_present(bit: int) -> bool:
-	if Game == null or Game.events == null:
-		return true
 	var area: Dictionary = Game.events.area(&"present_npc")
 	var bits: int = int(area.get("first_present", 0))
 	if bits & bit != 0:
@@ -125,8 +123,6 @@ static func retire(kind: int) -> void:
 
 ## The visit for the game being continued now. Sets the year it was celebrated.
 static func decide_now() -> int:
-	if Game == null or Game.inventory == null:
-		return Kind.NONE
 	var bd: Vector2i = VillagerTalkManager.birthday()
 	var friend: StringName = birthday_npc(Game.residents, Game.relationships)
 	var today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
@@ -170,7 +166,7 @@ static func present_for(kind: int) -> StringName:
 		Kind.GOLDEN_NET:
 			return GOLDEN_NET
 		Kind.LIGHTHOUSE_CONTRIBUTED:
-			return Game.lighthouse.present_item() if Game != null else &""
+			return Game.lighthouse.present_item()
 	return &""
 
 
@@ -259,7 +255,7 @@ class Talk extends BankTalk:
 		looks = p_looks
 		present = PresentVisit.present_for(kind)
 		rng = p_rng
-		inventory = Game.inventory if Game != null else null
+		inventory = Game.inventory
 
 	## `aPST_set_talk_info`.
 	func start_msg() -> int:
@@ -271,16 +267,15 @@ class Talk extends BankTalk:
 			Kind.GOLDEN_NET:
 				return MSG_NET if PresentVisit.check_first_present(FIRST_NET) else MSG_NET_AGAIN
 			Kind.LIGHTHOUSE_CONTRIBUTED:
-				var jan: bool = Game == null or Game.lighthouse.start_month == 1
+				var jan: bool = Game.lighthouse.start_month == 1
 				if inventory == null or not inventory.has_space(1):
 					present = &""
 					return MSG_LIGHTHOUSE_JAN_FULL if jan else MSG_LIGHTHOUSE_FEB_FULL
 				Game.lighthouse.event_clear()
 				return MSG_LIGHTHOUSE_JAN if jan else MSG_LIGHTHOUSE_FEB
 			Kind.LIGHTHOUSE_STARTED:
-				var started_jan: bool = Game == null or Game.lighthouse.start_month == 1
-				if Game != null:
-					Game.lighthouse.event_clear()
+				var started_jan: bool = Game.lighthouse.start_month == 1
+				Game.lighthouse.event_clear()
 				return MSG_LIGHTHOUSE_JAN_MISSED if started_jan else MSG_LIGHTHOUSE_FEB_MISSED
 		return -1
 

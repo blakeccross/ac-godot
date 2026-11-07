@@ -95,7 +95,7 @@ func dismiss() -> void:
 func open(p_month: int = -1, p_owner: int = -1) -> void:
 	if _open:
 		return
-	owner_slot = p_owner if Game != null and Game.roster != null and p_owner != Game.roster.current else -1
+	owner_slot = p_owner if p_owner != Game.roster.current else -1
 	month = clampi(p_month if p_month > 0 else Clock.month, 1, 12)
 	scroll = 0.0
 	writing = false
@@ -126,9 +126,7 @@ func _on_slid_out() -> void:
 
 
 static func entry(m: int, slot: int = -1) -> String:
-	if Game == null:
-		return ""
-	if slot >= 0 and Game.roster != null and slot < PlayerRoster.MAX and slot != Game.roster.current:
+	if slot >= 0 and slot < PlayerRoster.MAX and slot != Game.roster.current:
 		var book: Variant = Game.roster.slots[slot].get("diary", {})
 		if typeof(book) != TYPE_DICTIONARY:
 			return ""
@@ -202,8 +200,6 @@ func _write() -> void:
 
 
 func _on_written(text: String) -> void:
-	if Game == null:
-		return
 	var kept: String = clip(text)
 	if kept.strip_edges() == "":
 		Game.resident.diary.erase(month)

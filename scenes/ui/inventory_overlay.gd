@@ -347,7 +347,7 @@ func _open_design_book() -> void:
 	if list_ui == null:
 		Game.post_notice("The design book isn't available here.")
 		return
-	list_ui.open("manage", Callable(), true)
+	list_ui.open(DesignListOverlay.ListMode.MANAGE, Callable(), true)
 	if list_ui.is_open():
 		_set_design_book_open(true)
 		list_ui.closed.connect(_set_design_book_open.bind(false), CONNECT_ONE_SHOT)
@@ -1101,8 +1101,7 @@ func _sync_portrait_equipment(force: bool = false) -> void:
 	if _portrait_pivot == null:
 		return
 	var eq_id: StringName = &""
-	if Game.inventory != null:
-		eq_id = Game.inventory.equipment_id
+	eq_id = Game.inventory.equipment_id
 	if not force and eq_id == _portrait_equipment_id:
 		return
 	var equip_changed: bool = (not force) and eq_id != _portrait_equipment_id
@@ -1128,9 +1127,9 @@ func _sync_portrait_equipment(force: bool = false) -> void:
 ## portrait doll — previously the doll only ever wore its base skin, regardless of
 ## what shirt/design the player actually had on.
 func _sync_portrait_cloth() -> void:
-	if _portrait_pivot == null or Game == null:
+	if _portrait_pivot == null:
 		return
-	if Game.resident.worn_design_slot >= 0 and Game.designs != null:
+	if Game.resident.worn_design_slot >= 0:
 		var design: DesignPattern = Game.designs.resolved(Game.resident.worn_design_slot)
 		if design != null:
 			VisualCloth.apply_design(_portrait_pivot, DesignTexture.build(design))
@@ -2029,7 +2028,7 @@ func _run_tag(tag: String) -> void:
 				var worn: ItemData = ItemCatalog.get_item(Game.resident.cloth_id)
 				if worn != null:
 					Game.post_notice("Wearing %s" % worn.display_name)
-				if Game.first_job != null and Game.first_job.cloth_job_finished():
+				if Game.first_job.cloth_job_finished():
 					Game.set_interact_prompt("Talk to Tom Nook")
 				close()
 		"Eat":
@@ -2099,7 +2098,7 @@ func _run_tag(tag: String) -> void:
 			inv.remove_from_slot(idx, 1)
 			close()
 			if rel_player != null:
-				rel_player.release_from_pocket(rel_data, rel_water)
+				rel_player.sequences.release_from_pocket(rel_data, rel_water)
 		"Bury":
 			## `mTG_TYPE_FIELD_DEFAULT_BURY`: put it in the hole and scoop it shut.
 			var bury_ctx: InteractionContext = _field_context()
@@ -2152,7 +2151,7 @@ func _run_tag(tag: String) -> void:
 					else:
 						PlantGrowth.play_grow_in(PlantGrowth.host_at(ctx.world, pid))
 						Game.post_notice(str(taken.get("msg", "")))
-				if Game.first_job != null and Game.first_job.plant_job_finished(Game.inventory):
+				if Game.first_job.plant_job_finished(Game.inventory):
 					Game.first_job.mark_plant_finished()
 					Game.set_interact_prompt("Talk to Tom Nook")
 		_:

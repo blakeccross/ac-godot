@@ -131,7 +131,7 @@ static func spawn(parent: Node, player: Node3D) -> Node3D:
 	Game.resident.reset_count = ResettiVisit.normalized(Game.resident.reset_count)
 	npc.set("visit", v)
 	npc.set("species", v[0])
-	var yaw: float = player.call("facing_yaw") if player.has_method("facing_yaw") else 0.0
+	var yaw: float = ActorFacing.yaw_or(player, 0.0)
 	npc.set("home_yaw", yaw + PI)
 	parent.add_child(npc)
 	(npc as Node3D).global_position = player.global_position + Vector3(sin(yaw), 0.0, cos(yaw)) * 2.5

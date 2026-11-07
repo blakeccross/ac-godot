@@ -10,7 +10,7 @@ extends RefCounted
 
 func present(root: Node3D, _interior: IndoorSession) -> void:
 	var piles: Node = root.get_node_or_null("MailPiles") if root != null else null
-	if piles == null or Game == null or Game.post == null:
+	if piles == null:
 		return
 	var shown: int = Game.post.get_keep_mail_sum()
 	for i: int in piles.get_child_count():

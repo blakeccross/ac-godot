@@ -35,10 +35,10 @@ static func pick_item(rng: RandomNumberGenerator) -> StringName:
 
 ## `mFI_SetTreasure`: a random acre with room, then a random unit in it. Returns the cell.
 static func bury(world: Node, item: StringName, rng: RandomNumberGenerator) -> Vector2i:
-	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	var grid: WorldGrid = WorldGrid.of(world)
 	if grid == null or item == &"":
 		return Vector2i(-1, -1)
-	var layout: WorldData = world.get("layout") as WorldData
+	var layout: WorldData = WorldData.of(world)
 	var by_block: Dictionary = {}
 	for z: int in grid.rows:
 		for x: int in grid.columns:

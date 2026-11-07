@@ -180,7 +180,7 @@ static func play_emerge(host: Node, from_start: bool = false) -> void:
 		player.doors.end_door_leave()
 	_DoorCamera.end(host.get_tree() if host != null else null)
 	## `Player_actor_request_proc_index_fromOutdoor`: a debt paid / the chores done → cheer.
-	if player != null and is_instance_valid(player) and Game.complete_payment != &"":
+	if player != null and is_instance_valid(player) and Game.session.complete_payment != &"":
 		player.reports.run_complete_payment()
 
 

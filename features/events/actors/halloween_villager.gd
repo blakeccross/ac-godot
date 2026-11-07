@@ -28,7 +28,7 @@ func _looks() -> int:
 
 func make_context() -> DialogueContext:
 	var state: VillagerState = null
-	if Game != null and villager != null and Game.villagers.has_id(villager.id):
+	if villager != null and Game.villagers.has_id(villager.id):
 		state = Game.villagers.get_or_create(villager.id)
 	var ctx: DialogueContext = DialogueContext.from_game(villager, state)
 	ctx.speaker_name = display_name
@@ -39,7 +39,7 @@ func make_context() -> DialogueContext:
 
 
 func make_talk() -> BankTalk:
-	var t := TrickOrTreatTalk.new(false, _looks(), Game.inventory if Game != null else null, rng())
+	var t := TrickOrTreatTalk.new(false, _looks(), Game.inventory, rng())
 	t.met = _met
 	_met = true
 	return t

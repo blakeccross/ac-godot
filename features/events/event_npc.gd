@@ -256,7 +256,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if action == null or action.id != Interaction.TALK or Game == null or talking or not can_talk():
+	if action == null or action.id != Interaction.TALK or talking or not can_talk():
 		return false
 	var listener: Node3D = ctx.actor as Node3D if ctx != null else null
 	return begin_talk(listener)
@@ -357,7 +357,7 @@ func _on_talk_closed() -> void:
 ## After the window closes. Default: turn back to the home facing.
 func talk_ended(_script: BankTalk) -> void:
 	_turning_home = true
-	if Game != null and Game.events != null and event_id != &"":
+	if event_id != &"":
 		Game.events.mark_talked(event_id)
 
 

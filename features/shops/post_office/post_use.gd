@@ -23,8 +23,6 @@ const BODY_PRESETS: Array[String] = [
 
 ## `amount < 0` deposits the whole wallet.
 static func deposit_amount(amount: int) -> String:
-	if Game == null or Game.inventory == null:
-		return ""
 	var inv: Inventory = Game.inventory
 	if amount < 0:
 		amount = inv.wallet
@@ -40,8 +38,6 @@ static func deposit_amount(amount: int) -> String:
 
 ## `amount < 0` withdraws as much as the wallet can hold.
 static func withdraw_amount(amount: int) -> String:
-	if Game == null or Game.inventory == null:
-		return ""
 	var inv: Inventory = Game.inventory
 	if amount < 0:
 		amount = inv.savings
@@ -70,8 +66,6 @@ const REPAY_HAND_OVER_ITEM := &"money_10000"
 ## The authored menu's payment, when the loan screen isn't there: `amount < 0` pays as much
 ## as the wallet and money bags allow, through the same rules (`RepayCounter.pay`).
 static func repay_amount(amount: int) -> String:
-	if Game == null or Game.inventory == null:
-		return ""
 	var inv: Inventory = Game.inventory
 	if inv.loan <= 0:
 		return "You don't owe anything."
@@ -88,14 +82,12 @@ static func repay_amount(amount: int) -> String:
 	inv.changed.emit()
 	if inv.loan <= 0:
 		## `aPG_ACTION_REPAY_*`: the cheer comes on walking back out (`COMPLETE_PAYMENT_TYPE_HOUSE`).
-		Game.complete_payment = Game.PAYMENT_HOUSE
+		Game.session.complete_payment = Game.PAYMENT_HOUSE
 		return "Paid off %d Bells. Your loan is clear!" % paid
 	return "Paid %d Bells. Still owing %d." % [paid, inv.loan]
 
 
 static func send_mail_at(index: int) -> String:
-	if Game == null or Game.inventory == null or Game.post == null:
-		return ""
 	var letter: MailData = Game.inventory.mail_at(index)
 	if letter == null or not letter.is_sendable():
 		return "That isn't a finished letter."
@@ -103,7 +95,7 @@ static func send_mail_at(index: int) -> String:
 	## the post office desk; the attached fossil (`mTG_present_proc`) is queued for
 	## identification and returns via the mailbox the next in-game day.
 	if letter.recipient_id == MUSEUM_RECIPIENT_ID:
-		if letter.present_item_id == &"" or Game.travel_book == null:
+		if letter.present_item_id == &"":
 			return "Attach a fossil before mailing this to the Museum."
 		Game.travel_book.queue_fossil()
 		Game.inventory.remove_mail(index)
@@ -132,7 +124,7 @@ static func send_mail_at(index: int) -> String:
 	Game.inventory.remove_mail(index)
 	_refresh_mail_piles()
 	_deliver_to_villager(copy)
-	if Game.first_job != null and Game.first_job.is_active():
+	if Game.first_job.is_active():
 		Game.first_job.note_letter_mailed(copy.recipient_id)
 		if Game.first_job.chore_finished():
 			Game.set_interact_prompt("Talk to Tom Nook")
@@ -142,16 +134,16 @@ static func send_mail_at(index: int) -> String:
 ## `mPO_receipt_check_mail` → `mNpc_SendMailtoNpc`: a letter to a resident reaches them now.
 ## During the first job the letter is kept but moves no friendship (`mEv_CheckFirstJob`).
 static func _deliver_to_villager(mail: MailData) -> void:
-	if mail.recipient_type != MailData.NameType.NPC or Game.residents == null:
+	if mail.recipient_type != MailData.NameType.NPC:
 		return
 	if not Game.residents.has_resident(mail.recipient_id):
 		return
 	var bond: Relationship = Game.relationships.get_or_create(mail.recipient_id)
 	var before: int = bond.friendship
-	if bond.has_memory and mail.present_item_id != &"" and Game.villagers != null:
+	if bond.has_memory and mail.present_item_id != &"":
 		Game.villagers.get_or_create(mail.recipient_id).receive_present_cloth(mail.present_item_id)
 	VillagerLetters.receive(bond, mail, Clock.day_number())
-	if Game.first_job != null and Game.first_job.is_active():
+	if Game.first_job.is_active():
 		bond.set_friendship(before)
 		bond.send_reply = false
 		return
@@ -166,8 +158,6 @@ static func _deliver_to_villager(mail: MailData) -> void:
 
 
 static func save_mail_at(index: int) -> String:
-	if Game == null or Game.inventory == null or Game.post == null:
-		return ""
 	if Game.post.is_desk_full():
 		return "There's no room to save another letter."
 	var letter: MailData = Game.inventory.mail_at(index)
@@ -182,8 +172,6 @@ static func save_mail_at(index: int) -> String:
 
 
 static func write_letter(to_id: StringName, body_index: int = 0) -> String:
-	if Game == null or Game.inventory == null:
-		return ""
 	if Game.inventory.empty_mail_slot_count() <= 0:
 		return "Your letter slots are full."
 	var villager: VillagerData = VillagerCatalog.get_villager(to_id)
@@ -205,8 +193,6 @@ static func write_letter(to_id: StringName, body_index: int = 0) -> String:
 ## The town's other human residents (`mPr_*` address entries for `private_data[]`).
 static func resident_candidates() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	if Game == null or Game.roster == null:
-		return out
 	for slot: int in Game.roster.resident_slots():
 		if slot != Game.roster.current:
 			out.append({"id": StringName("%s%d" % [RESIDENT_PREFIX, slot]), "name": Game.roster.name_of(slot)})
@@ -219,15 +205,13 @@ static func resident_slot_of(recipient_id: StringName) -> int:
 	if not raw.begins_with(RESIDENT_PREFIX) or not raw.substr(RESIDENT_PREFIX.length()).is_valid_int():
 		return -1
 	var slot: int = int(raw.substr(RESIDENT_PREFIX.length()))
-	if Game == null or Game.roster == null or slot < 0 or slot >= PlayerRoster.MAX:
+	if slot < 0 or slot >= PlayerRoster.MAX:
 		return -1
 	return slot if PlayerRoster.is_resident(Game.roster.slots[slot]) else -1
 
 
 static func met_villager_candidates() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	if Game == null or Game.villagers == null:
-		return out
 	var snap: Dictionary = Game.villagers.to_save()
 	for key: Variant in snap.keys():
 		var id := StringName(str(key))
@@ -248,8 +232,8 @@ static func met_villager_candidates() -> Array[Dictionary]:
 static func fill_bank_frees(ctx: DialogueContext) -> void:
 	if ctx == null:
 		return
-	var savings: int = Game.inventory.savings if Game != null and Game.inventory != null else 0
-	var loan: int = Game.inventory.loan if Game != null and Game.inventory != null else 0
+	var savings: int = Game.inventory.savings
+	var loan: int = Game.inventory.loan
 	ctx.frees = PackedStringArray(["", "", "", ""])
 	ctx.frees[0] = ""
 	## `aPG_set_loan_balance`: {free1} is the millions and a comma, {free2} the rest.
@@ -292,7 +276,7 @@ static func save_mail_conversation() -> DialogueData:
 
 ## Hand dug fossils to the desk for the Farway Museum. One choice per stack quantity.
 static func farway_send_conversation() -> DialogueData:
-	var have: int = Game.inventory.count_of(&"fossil") if Game != null and Game.inventory != null else 0
+	var have: int = Game.inventory.count_of(&"fossil")
 	var nodes := {
 		"ask": {"type": "choice", "prompt": "How many fossils shall we send?", "options": []},
 		"done": {"type": "line", "text": "Off they go! Watch your\nmailbox tomorrow."},
@@ -332,7 +316,7 @@ static func _mail_pick_conversation(
 		"cancel": {"type": "line", "text": "Oh, really? Come back\nanytime."},
 		"empty": {"type": "line", "text": "You don't have a letter for that."},
 	}
-	var inv: Inventory = Game.inventory if Game != null else null
+	var inv: Inventory = Game.inventory
 	var indices: Array[int] = []
 	if inv != null:
 		if sendable_only:
@@ -367,7 +351,7 @@ static func _mail_pick_conversation(
 
 
 static func _refresh_mail_piles() -> void:
-	if Game == null or Game.get_tree() == null:
+	if Game.get_tree() == null:
 		return
 	var interior: Interior = Interior.find(Game.get_tree())
 	if interior != null:

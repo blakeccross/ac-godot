@@ -9,11 +9,11 @@ const DIALOGUE_ID := &"rover_intro"
 ## The car's light this ride: tunnel, then the sun coming up.
 var _lighting := IntroTrainPresentation.new()
 @onready var _world_env: WorldEnvironment = $WorldEnvironment
-@onready var _door_host: Node3D = %TrainDoor
-@onready var _rover_host: Node3D = %Rover
+@onready var _door_host: IntroTrainDoor = %TrainDoor
+@onready var _rover_host: IntroTrainRoverAnim = %Rover
 @onready var _sleep_npc: IntroTrainSleepNpc = %SleepPassenger
-@onready var _keitai_host: Node3D = %Keitai
-@onready var _camera_rig: Node3D = %IntroCameraRig
+@onready var _keitai_host: IntroTrainKeitai = %Keitai
+@onready var _camera_rig: IntroTrainCameraRig = %IntroCameraRig
 @onready var _missing_banner: Label = %MissingBanner
 @onready var _dialogue: DialogueOverlay = %DialogueOverlay
 @onready var _clock_label: Label = %ClockLabel
@@ -92,8 +92,6 @@ func _process(delta: float) -> void:
 
 ## `aNPC_tex_anm_ctrl_fix_seq`: the clip's eye / mouth sequences follow its frame.
 func _sync_rover_clip_face() -> void:
-	if not _rover_host.has_method("body_animation_player"):
-		return
 	var anim: AnimationPlayer = _rover_host.body_animation_player()
 	if anim == null:
 		return
@@ -143,11 +141,7 @@ func _bootstrap_stage() -> void:
 	_lighting.set_prim_roots([_train_car, _door_host] as Array[Node])
 	if not preview_seated_daylight:
 		_lighting.apply_tunnel(_world_env, _train_car)
-	var rover_anim: AnimationPlayer = (
-		_rover_host.body_animation_player()
-		if _rover_host.has_method("body_animation_player")
-		else VisualAnimation.find_animation_player(_rover_host)
-	)
+	var rover_anim: AnimationPlayer = _rover_host.body_animation_player()
 	_rover_look.bind(_rover_host)
 	_stage.bind(
 		_rover_host, rover_anim, _door_host, _keitai_host, _camera_rig, _rover_look, _stage_sync
@@ -165,9 +159,7 @@ func _bootstrap_seated_preview() -> void:
 	_stage._yaw = 0.0
 	_stage.action = IntroTrainStage.Action.SEATED
 	_stage._apply_rover_pose()
-	if _stage._play_rover(IntroTrainStage.ANIM_SIT_WAIT, true, 1.0) and _rover_host.has_method(
-		"snap_intro_clip_to_end"
-	):
+	if _stage._play_rover(IntroTrainStage.ANIM_SIT_WAIT, true, 1.0):
 		_rover_host.snap_intro_clip_to_end()
 	_stage._cam.lock_on_rover(_stage.shadow_gx(), true)
 	_stage._refresh_camera(0.0)

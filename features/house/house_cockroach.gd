@@ -119,7 +119,7 @@ func _enter(next: Act) -> void:
 			speed_units = 0.0
 			Audio.play_se(&"goki_dead", self)
 			## `aHG_dead_init`: `eEC_EFFECT_GOKI`, its soul rising from where it lay.
-			FieldEffects.spawn(_effects_host(), FieldEffects.Kind.GOKI, global_position, 0.0)
+			FieldEffects.spawn(_effects_host(), FieldEffects.Kind.ROACH, global_position, 0.0)
 			died.emit()
 
 

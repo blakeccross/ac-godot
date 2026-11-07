@@ -1,3 +1,4 @@
+class_name IntroTrainDoor
 extends Node3D
 
 ## Vestibule door — gateway alignment on ready; `open_door()` driven by `StageSync` method tracks.

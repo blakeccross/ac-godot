@@ -93,7 +93,7 @@ func _on_spin_finished(_name: StringName) -> void:
 
 
 func _set_spinning(on: bool) -> void:
-	var session: IndoorSession = Game.interior_session if Game != null else null
+	var session: IndoorSession = Game.interior_session
 	if session == null or session.room == null:
 		return
 	var entry: FurniturePlacement = session.room.placement_by_id(_placement)
@@ -144,7 +144,7 @@ func _apply() -> void:
 
 
 func _is_on() -> bool:
-	var session: IndoorSession = Game.interior_session if Game != null else null
+	var session: IndoorSession = Game.interior_session
 	if session == null or session.room == null:
 		return true
 	var entry: FurniturePlacement = session.room.placement_by_id(_placement)

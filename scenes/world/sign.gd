@@ -63,8 +63,6 @@ func is_notice_board() -> bool:
 
 
 func _needs_first_job_notice() -> bool:
-	if Game == null or Game.first_job == null:
-		return false
 	## Towns without a community board (the test acre) keep the chore on any sign.
 	if not is_notice_board() and is_inside_tree() and get_tree().has_group(NOTICE_BOARD_GROUP):
 		return false
@@ -78,7 +76,7 @@ func _needs_first_job_notice() -> bool:
 func _post_first_job_notice() -> bool:
 	## `mNT_finish_notice_first_job` on confirmed write.
 	var body: String = "Hello, town! — %s" % (
-		Game.resident.player_name if Game != null and Game.resident.player_name != "" else "a new neighbor"
+		Game.resident.player_name if Game.resident.player_name != "" else "a new neighbor"
 	)
 	message = body
 	Game.first_job.mark_notice_posted()

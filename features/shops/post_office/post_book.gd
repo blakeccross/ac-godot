@@ -1,5 +1,5 @@
 class_name PostBook
-extends RefCounted
+extends SaveBook
 
 ## Post office mail desk (`PostOffice_c` / `m_post_office.c`). Owned by `Game`.
 ## Desk holds up to 5 letters (`mPO_MAIL_STORAGE_SIZE`) for delivery / save-keep.

@@ -5,11 +5,6 @@ extends NpcEventPresenter
 ## weeds (`aEGH_actor_ct`).
 
 
-func _init() -> void:
-	scene_path = "res://features/events/actors/wisp.tscn"
-	placement = "free"
-
-
 func start() -> bool:
 	if not WispEvent.shows_up(WispEvent.state(), WeedUse.count()):
 		return true

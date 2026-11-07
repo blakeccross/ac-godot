@@ -39,7 +39,7 @@ func _process(delta: float) -> void:
 
 
 func _is_on() -> bool:
-	var session: IndoorSession = Game.interior_session if Game != null else null
+	var session: IndoorSession = Game.interior_session
 	if session == null or session.room == null:
 		return true
 	var entry: FurniturePlacement = session.room.placement_by_id(StringName(get_parent().name))

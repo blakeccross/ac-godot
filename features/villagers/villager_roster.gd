@@ -1,5 +1,5 @@
 class_name VillagerRoster
-extends RefCounted
+extends SaveBook
 
 ## Town animals[] analog: id → VillagerState. Owned by Game, not an autoload.
 

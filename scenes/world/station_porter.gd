@@ -77,7 +77,7 @@ func _town_talk() -> void:
 	var ui := DialogueOverlay.find(get_tree())
 	if ui == null:
 		return
-	var house: House = Game.interiors.player_house() if Game.interiors != null else null
+	var house: House = Game.interiors.player_house()
 	var trick: DialogueData = AprilFools.conversation(&"porter")
 	if trick != null:
 		speaking = true

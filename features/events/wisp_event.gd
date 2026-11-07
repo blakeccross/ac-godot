@@ -28,8 +28,6 @@ const END_HOUR := 4
 
 
 static func state() -> Dictionary:
-	if Game == null or Game.events == null:
-		return {}
 	var s: Dictionary = Game.events.area(AREA)
 	var today: String = Game.events.day_key()
 	if str(s.get("day", "")) != today:
@@ -82,7 +80,7 @@ static func boss_name(s: Dictionary) -> String:
 ## The Wisp stays away from a well-kept town until he has been found (`aEGH_actor_ct`).
 static func shows_up(s: Dictionary, weeds: int) -> bool:
 	## `aEGH_actor_ct`: never for a visitor from another town.
-	if Game != null and Game.foreigner:
+	if Game.foreigner:
 		return false
 	if bool(s.get("returned", false)):
 		return false

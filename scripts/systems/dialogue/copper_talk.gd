@@ -88,13 +88,13 @@ static func fill(ctx: DialogueContext, exit_greeting: bool) -> void:
 	if ctx == null:
 		return
 	ctx.set_var(VAR_ENTRY, "exit" if exit_greeting else "menu")
-	ctx.set_var("copper_foreign", "yes" if Game != null and Game.foreigner else "no")
+	ctx.set_var("copper_foreign", "yes" if Game.foreigner else "no")
 	ctx.set_var(VAR_TIME, TIME_KEYS[time_index(ctx.hour)])
-	var events: EventCalendar = Game.events if Game != null else null
-	var first_job: bool = Game != null and Game.first_job != null and Game.first_job.is_active()
+	var events: EventCalendar = Game.events
+	var first_job: bool = Game.first_job.is_active()
 	var h: Dictionary = hint(events, first_job, ctx.month, ctx.day, ctx.hour)
 	ctx.set_var(VAR_HINT, str(h["key"]))
-	var sum: int = Game.police.keep_item_sum() if Game != null and Game.police != null else 0
+	var sum: int = Game.police.keep_item_sum()
 	ctx.set_var(VAR_LOST, "some" if sum > 0 else "none")
 	var frees := PackedStringArray(["", "", "", "", "", ""])
 	frees[0] = str(sum)

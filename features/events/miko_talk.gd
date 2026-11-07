@@ -55,8 +55,7 @@ func picked(msg_no: int, index: int) -> int:
 func next_step() -> Dictionary:
 	if current_msg == MSG_CHANT and fortune >= 0:
 		inventory.set_wallet(inventory.wallet - PRICE)
-		if Game != null:
-			Game.set_destiny(DESTINY[fortune])
+		Game.set_destiny(DESTINY[fortune])
 		return msg(MSG_READING + fortune)
 	return {}
 

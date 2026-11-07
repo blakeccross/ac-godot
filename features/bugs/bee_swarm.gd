@@ -105,8 +105,8 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	## Gone (stung, or the scene changed): the chase is over, and so is its music.
 	Game.bees.chasing = false
-	if EventManager.demo_bgm == CHASE_BGM:
-		EventManager.demo_bgm = &""
+	if Game.session.show_bgm == CHASE_BGM:
+		Game.session.show_bgm = &""
 		var world: World = World.find(get_tree())
 		if world != null and is_instance_valid(world) and not world.is_queued_for_deletion():
 			world.play_outdoor_bgm()
@@ -253,4 +253,4 @@ func _sting() -> void:
 		return
 	phase = Phase.ATTACK
 	_elapsed = 0.0
-	player.run_stung_bee()
+	player.sequences.run_stung_bee()

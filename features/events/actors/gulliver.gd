@@ -31,7 +31,7 @@ func setup() -> void:
 
 
 func _area() -> Dictionary:
-	return Game.events.area(&"dozaemon") if Game != null and Game.events != null else {}
+	return Game.events.area(&"dozaemon")
 
 
 func idle_clip() -> String:
@@ -48,7 +48,7 @@ func talk_clip() -> String:
 
 func make_talk() -> BankTalk:
 	var mode: GulliverTalk.Mode = GulliverTalk.Mode.ASLEEP if think_state == Think.ASLEEP else GulliverTalk.Mode.WANDER
-	return GulliverTalk.new(mode, _area(), Game.inventory if Game != null else null, rng())
+	return GulliverTalk.new(mode, _area(), Game.inventory, rng())
 
 
 func _turn_towards_player(delta: float) -> void:
@@ -75,7 +75,7 @@ func think(delta: float) -> void:
 			if clip_done():
 				think_state = Think.WANDER
 				play_clip("npc_1_wait1", true)
-				begin_talk(player_node(), GulliverTalk.new(GulliverTalk.Mode.WOKEN, _area(), Game.inventory if Game != null else null, rng()))
+				begin_talk(player_node(), GulliverTalk.new(GulliverTalk.Mode.WOKEN, _area(), Game.inventory, rng()))
 		Think.WANDER:
 			_pause -= delta
 			if _pause <= 0.0:

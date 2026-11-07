@@ -32,7 +32,7 @@ func think(_delta: float) -> void:
 		return
 	_spoke = true
 	var axe: ItemData = ItemCatalog.get_item(GOLDEN_AXE)
-	if axe != null and Game.inventory != null:
+	if axe != null:
 		Game.inventory.add(axe, 1)
 	Game.town.golden_axe_got = true
 	Game.town.perfect_streak = 0

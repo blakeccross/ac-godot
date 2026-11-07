@@ -256,7 +256,7 @@ func _steam(host: Node, session: IndoorSession, delta: float) -> void:
 			continue
 		var rule: Array = STEAM[data.visual_id]
 		var at: Vector3 = node.global_position + Vector3(0.0, float(rule[0]) * FieldCatalog.GX_TO_METERS, 0.0)
-		FieldEffects.spawn(host, FieldEffects.Kind.SOBA_YUGE, at, 0.0, int(rule[1]), 0)
+		FieldEffects.spawn(host, FieldEffects.Kind.NOODLE_STEAM, at, 0.0, int(rule[1]), 0)
 
 
 ## Whether a looping clip passed `at` (seconds) between two reads (`prev` → `now`, wrapping).

@@ -25,7 +25,7 @@ static func _talked() -> Array:
 		area["day"] = today
 		area["talked"] = {}
 	var talked: Dictionary = area["talked"]
-	var slot: String = str(Game.roster.current if Game.roster != null else 0)
+	var slot: String = str(Game.roster.current)
 	if not talked.has(slot):
 		talked[slot] = []
 	return talked[slot]
@@ -33,7 +33,7 @@ static func _talked() -> Array:
 
 ## `aAPC_talk_chk_proc` == FALSE: this NPC still has a trick for the player today.
 static func pending(npc: StringName) -> bool:
-	if Game == null or Game.events == null or Game.foreigner or not MSG.has(npc):
+	if Game.foreigner or not MSG.has(npc):
 		return false
 	if not Game.events.is_active(EVENT):
 		return false

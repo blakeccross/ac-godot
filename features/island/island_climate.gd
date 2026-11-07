@@ -13,7 +13,7 @@ const CLEAR_CHANCE := 0.8
 
 
 ## `roll` is a 0..1 random number. Returns `Game.apply_weather_roll`'s argument.
-static func weather_roll(roll: float) -> Dictionary:
+static func weather_roll(roll: float) -> Weather.Roll:
 	if roll < CLEAR_CHANCE:
-		return {"kind": Weather.Kind.CLEAR, "intensity": Weather.Intensity.NONE}
-	return {"kind": Weather.Kind.RAIN, "intensity": Weather.Intensity.HEAVY}
+		return Weather.Roll.new(Weather.Kind.CLEAR, Weather.Intensity.NONE)
+	return Weather.Roll.new(Weather.Kind.RAIN, Weather.Intensity.HEAVY)

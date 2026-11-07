@@ -37,11 +37,11 @@ static func conversation(villager: VillagerData, state: VillagerState, ctx: Dial
 ## The quest manager for a talk with a town villager, or null when the talk is a scripted
 ## one (authored dialogue, the first job, or someone who doesn't live here).
 static func manager(villager: VillagerData, state: VillagerState, ctx: DialogueContext) -> VillagerTalkManager:
-	if villager == null or villager.dialogue != null or Game == null or Game.residents == null:
+	if villager == null or villager.dialogue != null:
 		return null
 	## During the first job villagers only take quest talk once Nook says to ask around
 	## (`mEv_SAVED_FJOPENQUEST`); the rest of the job is scripted.
-	if Game.first_job != null and Game.first_job.is_active() and not Game.first_job.open_quest:
+	if Game.first_job.is_active() and not Game.first_job.open_quest:
 		return null
 	var slot: int = Game.residents.slot_of(villager.id)
 	var guest: bool = ctx != null and ctx.guest != &""

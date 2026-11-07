@@ -84,8 +84,7 @@ func _hand_over() -> Dictionary:
 	if item != null and inventory != null:
 		inventory.add(item, 1)
 	area["give"] = true
-	if Game != null and Game.events != null:
-		Game.events.dozaemon_completed = true
+	Game.events.dozaemon_completed = true
 	var bye: int = MSG_BYE_FIRST if bool(area.get("gave_first", false)) else MSG_BYE_LATE
 	if gift == &"":
 		return msg(bye)

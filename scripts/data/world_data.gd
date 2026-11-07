@@ -47,6 +47,11 @@ const GRASS_PATTERN_COUNT := 3
 var collision: FieldCollision.Overlay
 
 
+
+## The layout of a field host (`World`, `Interior`), or null.
+static func of(host: Object) -> WorldData:
+	return host.get(&"layout") as WorldData if host != null else null
+
 static func clamp_grass_pattern(value: int) -> int:
 	return clampi(value, 0, GRASS_PATTERN_COUNT - 1)
 

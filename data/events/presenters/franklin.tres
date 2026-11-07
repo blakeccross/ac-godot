@@ -1,0 +1,9 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://bw3orf8ihkmq0" path="res://features/events/franklin_presenter.gd" id="1"]
+[ext_resource type="PackedScene" path="res://features/events/actors/franklin.tscn" id="2"]
+
+[resource]
+script = ExtResource("1")
+scene = ExtResource("2")
+adjust = 2

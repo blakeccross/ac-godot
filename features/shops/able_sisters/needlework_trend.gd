@@ -30,8 +30,6 @@ const MAX_CATCHUP_DAYS := 7
 ## Town residents' states (the `Save_Get(animals)` scan in `aNNW_trend_check_*`).
 static func town_states() -> Array[VillagerState]:
 	var out: Array[VillagerState] = []
-	if Game == null or Game.villagers == null:
-		return out
 	for id: StringName in FirstJob.resident_ids():
 		out.append(Game.villagers.get_or_create(id))
 	return out

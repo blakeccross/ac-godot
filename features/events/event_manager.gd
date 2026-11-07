@@ -20,41 +20,42 @@ const UT := 16
 const BLOCK_X_MAX := 5
 const BLOCK_Z_MAX := 6
 
-## `schedule_event[]` rows that have a presenter here, `id → script`.
+## `schedule_event[]` rows that have a presenter here: `id →` a presenter `.tres` (copied per
+## run) or a presenter script with nothing to set up.
 const PRESENTERS: Dictionary = {
-	&"kabu_peddler": "res://features/events/joan_presenter.gd",
-	&"kk_slider": "res://features/events/kk_presenter.gd",
-	&"dozaemon": "res://features/events/gulliver_presenter.gd",
-	&"mask_npc": "res://features/events/blanca_presenter.gd",
-	&"soncho_bridge_make": "res://features/events/tortimer_bridge_presenter.gd",
-	&"ghost": "res://features/events/wisp_presenter.gd",
+	&"kabu_peddler": "res://data/events/presenters/joan.tres",
+	&"kk_slider": "res://data/events/presenters/kk.tres",
+	&"dozaemon": "res://data/events/presenters/gulliver.tres",
+	&"mask_npc": "res://data/events/presenters/blanca.tres",
+	&"soncho_bridge_make": "res://data/events/presenters/tortimer_bridge.tres",
+	&"ghost": "res://data/events/presenters/wisp.tres",
 	&"broker_sale": "res://features/events/redd_presenter.gd",
-	&"carpet_peddler": "res://features/events/saharah_presenter.gd",
-	&"artist": "res://features/events/wendell_presenter.gd",
+	&"carpet_peddler": "res://data/events/presenters/saharah.tres",
+	&"artist": "res://data/events/presenters/wendell.tres",
 	&"designer": "res://features/events/gracie_presenter.gd",
 	&"gypsy": "res://features/events/katrina_presenter.gd",
-	&"soncho_groundhog_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_aprilfools_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_nature_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_spring_cleaning": "res://features/events/tortimer_presenter.gd",
-	&"soncho_mothers_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_graduation_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_fathers_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_fishing_tourney_1": "res://features/events/tortimer_presenter.gd",
-	&"soncho_town_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_fireworks_show": "res://features/events/tortimer_presenter.gd",
-	&"soncho_founders_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_labor_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_explorers_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_halloween": "res://features/events/tortimer_presenter.gd",
-	&"soncho_mayors_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_officers_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_fishing_tourney_2": "res://features/events/tortimer_presenter.gd",
-	&"soncho_sale_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_snow_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_toy_day": "res://features/events/tortimer_presenter.gd",
-	&"soncho_vacation_january": "res://features/events/tortimer_presenter.gd",
-	&"soncho_vacation_february": "res://features/events/tortimer_presenter.gd",
+	&"soncho_groundhog_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_aprilfools_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_nature_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_spring_cleaning": "res://data/events/presenters/tortimer.tres",
+	&"soncho_mothers_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_graduation_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_fathers_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_fishing_tourney_1": "res://data/events/presenters/tortimer.tres",
+	&"soncho_town_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_fireworks_show": "res://data/events/presenters/tortimer.tres",
+	&"soncho_founders_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_labor_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_explorers_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_halloween": "res://data/events/presenters/tortimer.tres",
+	&"soncho_mayors_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_officers_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_fishing_tourney_2": "res://data/events/presenters/tortimer.tres",
+	&"soncho_sale_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_snow_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_toy_day": "res://data/events/presenters/tortimer.tres",
+	&"soncho_vacation_january": "res://data/events/presenters/tortimer.tres",
+	&"soncho_vacation_february": "res://data/events/presenters/tortimer.tres",
 	&"fireworks_show": "res://features/events/festival_presenter.gd",
 	&"cherry_blossom_festival": "res://features/events/festival_presenter.gd",
 	&"sports_fair_foot_race": "res://features/events/festival_presenter.gd",
@@ -70,26 +71,32 @@ const PRESENTERS: Dictionary = {
 	&"new_years_eve_countdown": "res://features/events/festival_presenter.gd",
 	&"groundhog_day": "res://features/events/festival_presenter.gd",
 	&"meteor_shower": "res://features/events/festival_presenter.gd",
-	&"harvest_festival_franklin": "res://features/events/franklin_presenter.gd",
-	&"halloween": "res://features/events/halloween_presenter.gd",
-	&"toy_day_jingle": "res://features/events/jingle_presenter.gd",
+	&"harvest_festival_franklin": "res://data/events/presenters/franklin.tres",
+	&"halloween": "res://data/events/presenters/halloween.tres",
+	&"toy_day_jingle": "res://data/events/presenters/jingle.tres",
 	&"kamakura": "res://features/events/guest_house_presenter.gd",
 	&"snowman_season": "res://features/events/snowman_presenter.gd",
 	&"summer_camper": "res://features/events/guest_house_presenter.gd",
 }
 
-## A show owns the music (`mBGMPsComp_make_ps_demo`): the field keeps its hands off.
-static var demo_bgm: StringName = &""
 ## A title card is on screen (`event_title_flags`).
 var _titling: bool = false
 ## Seconds until a card held back by a busy player is tried again (0 = none waiting).
 var _title_retry: float = 0.0
 const TITLE_RETRY_SEC := 0.5
-static var _places: Dictionary = {}
-static var _places_day: String = ""
 
 var world: World
-var blocks: Dictionary = {}
+## The town's special acres (`schedule_init`).
+enum BlockKind { POOL, STATION, SHRINE, PLAYER, DOCK }
+## Block kind names as the event data writes them (`event_map.json`, `EventBgm`).
+const BLOCK_NAMES: Dictionary[String, BlockKind] = {
+	"pool": BlockKind.POOL, "station": BlockKind.STATION, "shrine": BlockKind.SHRINE,
+	"player": BlockKind.PLAYER, "dock": BlockKind.DOCK,
+}
+
+var blocks: Dictionary[BlockKind, Vector2i] = {}
+## Which of the pond acre shapes this town has (`mFI_GetPuleIdx`), for `map_actors`.
+var pool_index: int = 0
 var _running: Dictionary = {}
 var _nodes: Dictionary = {}
 var _structures: Dictionary = {}
@@ -109,21 +116,19 @@ func _ready() -> void:
 func setup(p_world: World) -> void:
 	world = p_world
 	_find_blocks()
-	if Game == null or Game.events == null:
-		return
 	if not Game.events.event_started.is_connected(_on_event_changed):
 		Game.events.event_started.connect(_on_event_changed)
 		Game.events.event_ended.connect(_on_event_changed)
-	if Clock != null and not Clock.hour_changed.is_connected(_on_hour):
+	if not Clock.hour_changed.is_connected(_on_hour):
 		Clock.hour_changed.connect(_on_hour)
 	refresh()
 
 
 func _exit_tree() -> void:
-	if Game != null and Game.events != null and Game.events.event_started.is_connected(_on_event_changed):
+	if Game.events.event_started.is_connected(_on_event_changed):
 		Game.events.event_started.disconnect(_on_event_changed)
 		Game.events.event_ended.disconnect(_on_event_changed)
-	if Clock != null and Clock.hour_changed.is_connected(_on_hour):
+	if Clock.hour_changed.is_connected(_on_hour):
 		Clock.hour_changed.disconnect(_on_hour)
 
 
@@ -147,7 +152,7 @@ func _physics_process(delta: float) -> void:
 
 ## `event_at_oclock`: start what went active, stop what ended.
 func refresh() -> void:
-	if world == null or Game == null or Game.events == null:
+	if world == null:
 		return
 	_roll_day()
 	if _titling:
@@ -220,10 +225,12 @@ func _make(id: StringName) -> EventPresenter:
 	var path: String = str(PRESENTERS.get(id, ""))
 	if path.is_empty():
 		return null
-	var script: GDScript = load(path) as GDScript
-	if script == null:
-		return null
-	var p: EventPresenter = script.new() as EventPresenter
+	var res: Resource = load(path)
+	var p: EventPresenter
+	if res is GDScript:
+		p = (res as GDScript).new() as EventPresenter
+	elif res is EventPresenter:
+		p = res.duplicate() as EventPresenter
 	if p == null:
 		return null
 	p.id = id
@@ -233,9 +240,9 @@ func _make(id: StringName) -> EventPresenter:
 
 func _roll_day() -> void:
 	var key: String = Game.events.day_key()
-	if key != _places_day:
-		_places_day = key
-		_places.clear()
+	if key != Game.session.event_places_day:
+		Game.session.event_places_day = key
+		Game.session.event_places.clear()
 
 
 ## --- Spawning ------------------------------------------------------------------------------
@@ -285,14 +292,14 @@ func spawn_structure(
 	var packed: PackedScene = load(BUILDING_SCENE) as PackedScene
 	if packed == null:
 		return null
-	var node: Node3D = packed.instantiate() as Node3D
+	var node := packed.instantiate() as Building
 	## `tag` tells apart the props of one event (`event_fireworks_show_FIREWORKS_STALL1`).
 	var occupant := StringName("event_%s" % id if tag.is_empty() else "event_%s_%s" % [id, tag])
 	node.name = String(occupant)
-	node.set("occupant_id", interior_id if interior_id != &"" else occupant)
-	node.set("visual_id", visual)
-	node.set("footprint", size)
-	node.set("label", label)
+	node.occupant_id = interior_id if interior_id != &"" else occupant
+	node.visual_id = visual
+	node.footprint = size
+	node.label = label
 	if interior_id == &"":
 		var door: Node = node.get_node_or_null("Door")
 		if door != null:
@@ -373,38 +380,38 @@ func acre_type(block: Vector2i) -> int:
 ## `schedule_init`: `mFI_BlockKind2BkNum` for the pool, station, shrine, player houses, dock.
 func _find_blocks() -> void:
 	blocks.clear()
+	pool_index = 0
 	for bz: int in range(1, BLOCK_Z_MAX + 1):
 		for bx: int in range(1, BLOCK_X_MAX + 1):
 			var b := Vector2i(bx, bz)
 			var t: int = acre_type(b)
-			if TownFieldGenerator.is_pool(t) and not blocks.has("pool"):
-				blocks["pool"] = b
-				blocks["pool_idx"] = t - 69
+			if TownFieldGenerator.is_pool(t) and not blocks.has(BlockKind.POOL):
+				blocks[BlockKind.POOL] = b
+				pool_index = t - 69
 			elif t == TownFieldGenerator.T_TRACKS_STATION:
-				blocks["station"] = b
+				blocks[BlockKind.STATION] = b
 			elif t == TownFieldGenerator.T_SHRINE:
-				blocks["shrine"] = b
+				blocks[BlockKind.SHRINE] = b
 			elif t == TownFieldGenerator.T_PLAYER_HOUSE:
-				blocks["player"] = b
+				blocks[BlockKind.PLAYER] = b
 			elif t == TownFieldGenerator.T_PORT:
-				blocks["dock"] = b
-	if not blocks.has("player"):
-		blocks["player"] = WorldGenerator.PLAYER_HOUSE_BLOCK
+				blocks[BlockKind.DOCK] = b
+	if not blocks.has(BlockKind.PLAYER):
+		blocks[BlockKind.PLAYER] = WorldGenerator.PLAYER_HOUSE_BLOCK
 
 
-func block_of(kind: String) -> Vector2i:
-	return blocks.get(kind, Vector2i(-1, -1)) as Vector2i
+## The acre of that kind, x < 0 when the town has none.
+func block_of(kind: BlockKind) -> Vector2i:
+	return blocks.get(kind, Vector2i(-1, -1))
 
 
-func has_block(kind: String) -> bool:
-	return blocks.has(kind)
+## `block_of` by the name the event data uses; x < 0 for an unknown name.
+func block_named(kind_name: String) -> Vector2i:
+	return block_of(BLOCK_NAMES[kind_name]) if BLOCK_NAMES.has(kind_name) else Vector2i(-1, -1)
 
 
 func _reserved_block(block: Vector2i) -> bool:
-	for kind: String in ["pool", "station", "shrine", "player", "dock"]:
-		if blocks.has(kind) and blocks[kind] == block:
-			return true
-	return false
+	return block in blocks.values()
 
 
 ## `mFI_CheckBgDma`: acres the player can see — theirs and the neighbours on the near sides.
@@ -425,8 +432,8 @@ func is_block_in_view(block: Vector2i) -> bool:
 
 ## `mEv_use_block_by_other_event`.
 func block_used_by_other(id: StringName, block: Vector2i) -> bool:
-	for key: Variant in _places:
-		var place: Dictionary = _places[key]
+	for key: Variant in Game.session.event_places:
+		var place: Dictionary = Game.session.event_places[key]
 		if StringName(place.get("event", "")) != id and cell_to_block(place["cell"]) == block:
 			return true
 	return false
@@ -542,7 +549,7 @@ func search_empty_unit(id: StringName, seed_value: int) -> Vector2i:
 func search_seaside_unit(seed_value: int) -> Vector2i:
 	var n: int = BLOCK_X_MAX
 	var bx: int = 1 + posmod(seed_value + Clock.day + Clock.minute, n)
-	var dock: Vector2i = block_of("dock")
+	var dock: Vector2i = block_of(BlockKind.DOCK)
 	if Vector2i(bx, BLOCK_Z_MAX) == dock:
 		@warning_ignore("integer_division")
 		bx = bx - 1 if bx > (BLOCK_X_MAX + 2) / 2 else bx + 1
@@ -626,24 +633,24 @@ func free_lot(seed_value: int) -> Vector2i:
 
 
 func place(id: StringName, index: int = 0) -> Dictionary:
-	return _places.get("%s:%d" % [id, index], {})
+	return Game.session.event_places.get("%s:%d" % [id, index], {})
 
 
 func remember(id: StringName, index: int, cell: Vector2i, extra: Dictionary = {}) -> Dictionary:
 	var rec: Dictionary = extra.duplicate()
 	rec["event"] = String(id)
 	rec["cell"] = cell
-	_places["%s:%d" % [id, index]] = rec
+	Game.session.event_places["%s:%d" % [id, index]] = rec
 	return rec
 
 
 func forget(id: StringName, index: int = 0) -> void:
-	_places.erase("%s:%d" % [id, index])
+	Game.session.event_places.erase("%s:%d" % [id, index])
 
 
 ## `mEv_get_event_place`: the block an event's actor is in (Copper's hint), or (-1, -1).
 static func event_block(id: StringName) -> Vector2i:
-	var rec: Dictionary = _places.get("%s:0" % id, {})
+	var rec: Dictionary = Game.session.event_places.get("%s:0" % id, {})
 	if rec.is_empty():
 		return Vector2i(-1, -1)
 	return cell_to_block(rec["cell"])
@@ -684,11 +691,11 @@ func map_actors(id: StringName) -> Array:
 	if data.is_empty():
 		return []
 	var kind: String = str(data.get("block_kind", "none"))
-	var block: Vector2i = block_of(kind) if kind != "none" else Vector2i(-1, -1)
+	var block: Vector2i = block_named(kind)
 	if block.x < 0:
 		return []
 	var maps: Array = data.get("maps", [])
-	var variant: int = int(blocks.get("pool_idx", 0)) if kind == "pool" else 0
+	var variant: int = pool_index if kind == "pool" else 0
 	var entries: Array = maps[clampi(variant, 0, maps.size() - 1)]
 	var out: Array = []
 	for e: Variant in entries:

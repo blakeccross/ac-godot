@@ -61,8 +61,6 @@ func _bind(node: Node) -> void:
 
 
 func _process(delta: float) -> void:
-	if Clock == null:
-		return
 	_t += delta
 	if _furi != null:
 		## Gentle 1 Hz pendulum swing (`obj_clock_tailor_furi` anim).

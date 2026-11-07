@@ -1,5 +1,5 @@
 class_name PoliceBook
-extends RefCounted
+extends SaveBook
 
 ## Police-box lost and found (`PoliceBox_c` / `m_police_box.c`). Owned by `Game`.
 ##
@@ -225,6 +225,17 @@ static func is_keepable(item_id: StringName) -> bool:
 
 static func is_ticket(item_id: StringName) -> bool:
 	return String(item_id).begins_with("ticket_")
+
+
+## A new town starts with three items in the box.
+func start_new() -> void:
+	init_town()
+	topup_waiting = false
+
+
+## Saves from before the lost and found was stored: treat as a new town's box.
+func apply_missing() -> void:
+	init_town()
 
 
 func to_save() -> Dictionary:

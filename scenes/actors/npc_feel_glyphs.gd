@@ -29,13 +29,13 @@ const HA_X := 0.8  ## 16 GX
 const HA_TILT_DEG := 45.0
 
 ## Lightbulb bolt (`ef_hirameki_den`) + brief glow (`ef_hirameki_hikari`).
-const HIRAMEKI_DEN_VISUAL := &"ef_hirameki01_den"
-const HIRAMEKI_HIKARI_VISUAL := &"ef_hirameki01_hikari"
-const HIRAMEKI_DEN_MATRIX_SCALE := 0.007
-const HIRAMEKI_HIKARI_MATRIX_SCALE := 0.014
-const HIRAMEKI_LIFE_FRAMES := 72
-const HIRAMEKI_HIKARI_FRAMES := 12
-const HIRAMEKI_Y := 1.2  ## 24 GX
+const IDEA_BULB_VISUAL := &"ef_hirameki01_den"
+const IDEA_GLOW_VISUAL := &"ef_hirameki01_hikari"
+const IDEA_BULB_MATRIX_SCALE := 0.007
+const IDEA_GLOW_MATRIX_SCALE := 0.014
+const IDEA_LIFE_FRAMES := 72
+const IDEA_GLOW_FRAMES := 12
+const IDEA_Y := 1.2  ## 24 GX
 
 ## `eGM_*` / `eKT_*`: the question and exclamation marks pop in through this squash table
 ## (two ticks a row, rows past the sixth 1:1), hold to tick 64 and fade by 72.
@@ -190,10 +190,10 @@ func play(kind: StringName) -> void:
 			_mesh_host.rotation = Vector3(0.0, 0.0, deg_to_rad(HA_TILT_DEG if left else -HA_TILT_DEG))
 		&"hirameki":
 			Audio.play_se(&"2e", self)  ## `eHiramekiD_mv` first tick
-			_set_visual(HIRAMEKI_DEN_VISUAL, HIRAMEKI_DEN_MATRIX_SCALE)
-			_mesh_host.position = Vector3(0.0, HIRAMEKI_Y, 0.0)
+			_set_visual(IDEA_BULB_VISUAL, IDEA_BULB_MATRIX_SCALE)
+			_mesh_host.position = Vector3(0.0, IDEA_Y, 0.0)
 			_tint_mesh(Color(1.0, 1.0, 0.39))
-			_set_glow_visual(HIRAMEKI_HIKARI_VISUAL, HIRAMEKI_HIKARI_MATRIX_SCALE)
+			_set_glow_visual(IDEA_GLOW_VISUAL, IDEA_GLOW_MATRIX_SCALE)
 			_glow_host.position = _mesh_host.position
 		&"gimonhu", &"kantanhu":
 			var question: bool = kind == &"gimonhu"
@@ -452,7 +452,7 @@ func _tick_ha() -> void:
 
 func _tick_hirameki() -> void:
 	var t: int = int(_frame)
-	if t >= HIRAMEKI_LIFE_FRAMES:
+	if t >= IDEA_LIFE_FRAMES:
 		clear()
 		return
 	## Den fades from frame 64→72 (`eHiramekiD_dw`); hikari is only the first 12 frames.
@@ -461,12 +461,12 @@ func _tick_hirameki() -> void:
 		den_fade = clampf(1.0 - float(t - 64) / 8.0, 0.0, 1.0)
 	_set_mesh_alpha(den_fade)
 	if _glow_host != null and _glow_host.get_child_count() > 0:
-		if t >= HIRAMEKI_HIKARI_FRAMES:
+		if t >= IDEA_GLOW_FRAMES:
 			for child: Node in _glow_host.get_children():
 				child.free()
 		else:
 			## `eHiramekiH_dw`: scale 0.014→0.0175, alpha ramp then fade.
-			var hs: float = lerpf(0.014, 0.0175, float(t) / float(HIRAMEKI_HIKARI_FRAMES))
+			var hs: float = lerpf(0.014, 0.0175, float(t) / float(IDEA_GLOW_FRAMES))
 			var g: float = _node_scale_for(hs)
 			_glow_host.scale = Vector3(g, g, g)
 			var ha: float = 1.0

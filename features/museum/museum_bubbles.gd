@@ -211,7 +211,7 @@ func _ripple(bubble: Bubble) -> void:
 	var at := room_origin + Vector3(
 		bubble.pos.x * GX, MuseumDisplay.tank_world_y(SURFACE_GX), bubble.pos.z * GX
 	)
-	FieldEffects.spawn(self, FieldEffects.Kind.HAMON, at, 0.0, 6, 0)
+	FieldEffects.spawn(self, FieldEffects.Kind.RIPPLE, at, 0.0, 6, 0)
 
 
 func _clamp_tank2(bubble: Bubble) -> void:

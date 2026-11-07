@@ -120,7 +120,7 @@ static func pull(host: Node, ctx: InteractionContext) -> bool:
 	if pid == &"" or not is_weed(pid):
 		return false
 	Game.town.weeds.erase(String(pid))
-	var grid: WorldGrid = ctx.world.get("grid") as WorldGrid if ctx != null and ctx.world != null else null
+	var grid: WorldGrid = WorldGrid.of(ctx.world)
 	if grid != null:
 		grid.remove(pid)
 	if ctx != null:

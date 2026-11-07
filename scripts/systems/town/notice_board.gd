@@ -1,5 +1,5 @@
 class_name NoticeBoard
-extends RefCounted
+extends SaveBook
 
 ## The community board (`m_notice.c`): up to 15 posts, oldest first, each a 192-character
 ## body and the time it went up. A full board drops its oldest post (`mNtc_notice_write`).
@@ -44,6 +44,21 @@ const AUTO_DATES: Array = [
 var posts: Array[Dictionary] = []
 ## `saved_auto_nwrite_time` as y/m/d/h; year 0 until the first check.
 var checked := Vector4i.ZERO
+
+
+func clear() -> void:
+	posts.clear()
+	checked = Vector4i.ZERO
+
+
+## A new town, or a save from before the board was kept: the first handbills.
+func start_new() -> void:
+	## `self.`: a bare `seed()` is the global RNG seed.
+	self.seed(Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute)
+
+
+func apply_missing() -> void:
+	start_new()
 
 
 ## `mNtc_SetInitData`: the four handbills, dated now.
@@ -162,7 +177,8 @@ func to_save() -> Dictionary:
 	return {"posts": posts.duplicate(true), "checked": [checked.x, checked.y, checked.z, checked.w]}
 
 
-func apply_snapshot(data: Dictionary) -> void:
+func apply_snapshot(saved: Variant) -> void:
+	var data: Dictionary = saved if saved is Dictionary else {}
 	posts.clear()
 	for p: Variant in data.get("posts", []):
 		if p is Dictionary:

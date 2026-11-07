@@ -110,7 +110,7 @@ func _roam_step(delta: float) -> void:
 ## Think 8 / 9 is the state she spawns in: its force talk fires as soon as the player
 ## can be spoken to, wherever they stand (no range check).
 func _greet_on_entry() -> void:
-	if _auto_greeted or _talking or _talked_today or Game == null:
+	if _auto_greeted or _talking or _talked_today:
 		return
 	var player := Player.find(get_tree())
 	if player != null and not player.is_busy():
@@ -147,7 +147,7 @@ func _walk_to_trade(delta: float) -> void:
 ## turning the player (`mDemo_Set_talk_turn(FALSE)`, normal camera) and the talk ends
 ## by leaving the shop (`aNNW_talk_byebye` → `aNNW_talk_exit`).
 func _check_goodbye() -> bool:
-	if _bye_said or Game == null or Game.block_auto_enter_doors or get_tree() == null:
+	if _bye_said or Game.block_auto_enter_doors or get_tree() == null:
 		return false
 	var dlg := DialogueOverlay.find(get_tree())
 	if dlg != null and dlg.is_open():
@@ -201,7 +201,7 @@ func _leave_shop() -> void:
 	var host: Interior = Interior.find(get_tree())
 	if host != null:
 		host.leave_through_exit()
-	elif Game != null:
+	else:
 		Game.exit_interior()
 
 
@@ -210,7 +210,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if action == null or action.id != Interaction.TALK or Game == null:
+	if action == null or action.id != Interaction.TALK:
 		return false
 	return _begin_talk(ctx)
 
@@ -219,8 +219,6 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 ## stand (decomp `player_buy` sets `buy_ut_idx` → `aNNW_THINK_OMATIKUDASI`, then force
 ## talk 3 / 4 opens `aNNW_TALK_TRADE_CHECK`). `slot` is the shop display slot.
 func begin_trade(slot: int, ctx: InteractionContext) -> bool:
-	if Game == null or Game.designs == null:
-		return false
 	## `player_buy` is only polled in `aNNW_THINK_IKAGADESYOU`: not mid-talk, not while
 	## she's turned to Sable for a story (`sister_state`), not after the goodbye.
 	if _talking or _chiming != null or _bye_said:
@@ -263,7 +261,7 @@ func _begin_talk(ctx: InteractionContext = null) -> bool:
 		_talked_today = true
 		return true
 	var lead: Array[String] = NeedleworkTalk.pages(NeedleworkTalk.GREETING_REPEAT, NeedleworkTalk.TEXT_MENU)
-	if Game.designs != null and not Game.designs.listened_flag:
+	if not Game.designs.listened_flag:
 		lead = NeedleworkTalk.pages(NeedleworkTalk.GREETING_FIRST, NeedleworkTalk.TEXT_MENU_FIRST)
 	_play_menu(lead)
 	_talked_today = true
@@ -273,9 +271,8 @@ func _begin_talk(ctx: InteractionContext = null) -> bool:
 ## `aNNW_set_force_talk_info` talk_idx 0 / 1 → msg 0x2FD1 (first ever visit) /
 ## 0x2FD2 (repeat), then `aNNW_TALK_END_WAIT` — line only, no menu.
 func _auto_greet(listener: Node3D) -> bool:
-	var first := Game.designs != null and not Game.designs.first_talk_done
-	if Game.designs != null:
-		Game.designs.first_talk_done = true
+	var first := not Game.designs.first_talk_done
+	Game.designs.first_talk_done = true
 	var said: Array[String] = (
 		NeedleworkTalk.pages(NeedleworkTalk.MSG_WELCOME_FIRST, "Hi there! Come on in.\nWelcome to Able Sisters,\nwhere YOU are the famous\nfashion designer!")
 		if first else NeedleworkTalk.pages(NeedleworkTalk.MSG_WELCOME, "Oh, hi! Come on in!")
@@ -286,7 +283,7 @@ func _auto_greet(listener: Node3D) -> bool:
 		_start_talk_session(listener)
 		_bind_end(ui)
 		ui.play(_pages_data("mabel_welcome", said), _make_ctx())
-	elif Game != null:
+	else:
 		Game.post_notice("Mabel: %s" % line.replace("\n", " "))
 	_talked_today = true
 	return true
@@ -300,8 +297,7 @@ func _play_menu(lead: Variant) -> void:
 	var base: DialogueData = DialogueCatalog.conversation(MENU_ID)
 	var ui := DialogueOverlay.find(get_tree())
 	if ui == null:
-		if Game != null:
-			Game.post_notice("Mabel: %s" % last.replace("\n", " "))
+		Game.post_notice("Mabel: %s" % last.replace("\n", " "))
 		return
 	var menu: Dictionary = {}
 	var bye: Dictionary = {}
@@ -395,8 +391,7 @@ func _on_dialogue_event(event: Dictionary) -> void:
 				"listen":
 					_pending = Pending.LISTEN
 					## `aNNW_first_talk_end(0x40)` on picking "What's this?".
-					if Game != null and Game.designs != null:
-						Game.designs.listened_flag = true
+					Game.designs.listened_flag = true
 				"gba": _pending = Pending.GBA
 		"needlework_trade":
 			_trade_act = str(event.get("act", ""))
@@ -519,7 +514,7 @@ func _run_act(act: String) -> void:
 				return
 			var list_ui: DesignListOverlay = DesignListOverlay.find(get_tree())
 			if list_ui != null:
-				list_ui.open("pick_edit", _on_design_slot_chosen)
+				list_ui.open(DesignListOverlay.ListMode.PICK_EDIT, _on_design_slot_chosen)
 		"open_album":
 			var album_ui: DesignAlbumOverlay = DesignAlbumOverlay.find(get_tree())
 			if album_ui != null:
@@ -533,7 +528,7 @@ func _run_act(act: String) -> void:
 
 
 func _player_name() -> String:
-	if Game != null and Game.resident.player_name != "":
+	if Game.resident.player_name != "":
 		return Game.resident.player_name
 	return "friend"
 
@@ -552,7 +547,7 @@ func _on_design_slot_chosen(slot: int) -> void:
 ## `aNNW_talk_design_close2`: saved → 0x2FEA, then the name entry
 ## (`aNNW_talk_design_open3`); quit without saving → 0x2FE9, no charge.
 func _on_editor_done(slot: int, saved: bool) -> void:
-	if not saved or slot < 0 or Game.designs == null:
+	if not saved or slot < 0:
 		_edit_slot = -1
 		_rom_menu(NeedleworkTalk.MSG_DESIGN_NOT_BLANK, NeedleworkTalk.TEXT_DESIGN_CANCEL)
 		return
@@ -574,7 +569,7 @@ func _open_name_entry() -> void:
 ## `aNNW_talk_design_close3`: pay (`mSP_get_sell_price`), store the name, change the
 ## player's shirt if they're wearing this slot (`CLOTH_CHANGE2`), then 0x2FEB.
 func _on_name_entered(text: String) -> void:
-	if _edit_slot < 0 or Game.designs == null:
+	if _edit_slot < 0:
 		return
 	ShopBook.pay(Game.inventory, NeedleworkTalk.DESIGN_PRICE)
 	var d: DesignPattern = Game.designs.player[Game.designs.resolved_index(_edit_slot)]
@@ -598,8 +593,6 @@ func _on_album_closed() -> void:
 ## `aNNW_talk_trend_cloth` — reports the most-worn shirt, then umbrella
 ## (`aNNW_set_trend_cloth_message` / `_umbrella_message`), then ends.
 func _flow_trend() -> void:
-	if Game == null or Game.designs == null:
-		return
 	var cloth: Array = Game.designs.trend_top(false, _rng)
 	var umb: Array = Game.designs.trend_top(true, _rng)
 	var cloth_name: String = Game.designs.shop[int(cloth[0]) & 7].name
@@ -637,7 +630,7 @@ func _flow_listen() -> void:
 ## `aNNW_talk_trade_check` — msg `0x2FF2` (cloth) / `0x2FF3` (umbrella), the 4-way
 ## display menu, then the `GIVE_ADMISSION` confirm sub-step (`0x2FF4` / `0x2FFB`).
 func _flow_trade_menu() -> void:
-	if _trade_fixture < 0 or Game.designs == null:
+	if _trade_fixture < 0:
 		return
 	var nm: String = Game.designs.shop[_trade_fixture & 7].name
 	var ask := "Yes! Um, sure thing! I like\nto call that design the\n\"%s.\"\nCan I help you with it?" % nm
@@ -682,7 +675,7 @@ func _flow_trade_menu() -> void:
 func _flow_trade_pick() -> void:
 	var list_ui: DesignListOverlay = DesignListOverlay.find(get_tree())
 	if list_ui != null:
-		list_ui.open("pick_trade", _on_trade_slot_chosen)
+		list_ui.open(DesignListOverlay.ListMode.PICK_TRADE, _on_trade_slot_chosen)
 		return
 	_trade_fixture = -1
 
@@ -693,7 +686,7 @@ func _on_trade_slot_chosen(player_slot: int) -> void:
 	var act := _trade_act
 	_trade_fixture = -1
 	_trade_act = ""
-	if fixture < 0 or Game.designs == null:
+	if fixture < 0:
 		return
 	if player_slot < 0:
 		_say_line(NeedleworkTalk.pages(NeedleworkTalk.MSG_TRADE_WRONG_ITEM, NeedleworkTalk.TEXT_TRADE_CANCEL)[0])

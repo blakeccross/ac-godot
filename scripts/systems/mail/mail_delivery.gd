@@ -134,7 +134,7 @@ static func send_academy_mark() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	var busy: bool = Game.first_job.is_active()
-	var letter: MailData = Game.hra.mark(
+	var letter: MailData = Game.happy_room_academy.mark(
 		house, Game.interiors.room(PlayerHouse.MAIN), Game.interiors.room(PlayerHouse.UPPER),
 		Vector3i(Clock.year, Clock.month, Clock.day), busy, Game.resident.player_name, rng
 	)

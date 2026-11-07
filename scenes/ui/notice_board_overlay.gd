@@ -97,7 +97,7 @@ func dismiss() -> void:
 
 
 func board() -> NoticeBoard:
-	return Game.notice_board if Game != null else null
+	return Game.notice_board
 
 
 ## `mNT_notice_ovl_init`: from the top, on the latest post.
@@ -275,7 +275,7 @@ func _on_written(text: String) -> void:
 	_new_post["text"] = text.substr(0, NoticeBoard.BODY_LEN)
 	board().write(_new_post)
 	_posted = true
-	if Game != null and Game.first_job != null and Game.first_job.kind == FirstJob.Kind.POST_NOTICE \
+	if Game.first_job.kind == FirstJob.Kind.POST_NOTICE \
 			and Game.first_job.progress == FirstJob.PROGRESS_ACTIVE:
 		Game.first_job.mark_notice_posted()
 

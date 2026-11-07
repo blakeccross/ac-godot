@@ -134,8 +134,8 @@ func _ready() -> void:
 	if not Game.title_demo_active and not Game.intro.active:
 		CalendarBook.note_today()
 		TownUpkeep.try_treasure(self)
-		if not Game.mushrooms_session_cleared:
-			Game.mushrooms_session_cleared = true
+		if not Game.session.mushrooms_session_cleared:
+			Game.session.mushrooms_session_cleared = true
 			MushroomUse.first_clear(self, Clock.absolute_minute(), _field_rng())
 		_tick_mushrooms()
 	## `aNPS2_make_door_data`: someone with a present outside the door, else Resetti
@@ -268,7 +268,7 @@ func play_outdoor_bgm() -> void:
 	if Game.title_demo_active:
 		Audio.play_bgm(&"title")
 		return
-	if EventManager.demo_bgm != &"":
+	if Game.session.show_bgm != &"":
 		return
 	if _time_signal_quiet:
 		return
@@ -292,11 +292,11 @@ func play_outdoor_bgm() -> void:
 func _event_bgm() -> Dictionary:
 	var mgr: EventManager = get_node_or_null("EventManager") as EventManager
 	var player := Player.find(get_tree())
-	if mgr == null or player == null or grid == null or Game.events == null:
+	if mgr == null or player == null or grid == null:
 		return {}
 	var block: Vector2i = EventManager.cell_to_block(grid.world_to_cell(player.global_position))
 	return EventBgm.pick(Game.events.is_active, block, func(kind: String) -> Vector2i:
-		return mgr.block_of(kind) if mgr.has_block(kind) else Vector2i(-1, -1))
+		return mgr.block_named(kind))
 
 
 func _spawn_player() -> void:

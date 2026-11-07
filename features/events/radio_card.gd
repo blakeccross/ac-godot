@@ -206,8 +206,7 @@ func _set_prize_name() -> void:
 func start_msg() -> int:
 	var marked: bool = _calendar_marked()
 	record[CALENDAR_KEY] = EventDates.ordinal(year, month, day)
-	if Game != null:
-		CalendarBook.event_on(Game.resident.calendar, EventDates.ordinal(year, month, day))
+	CalendarBook.event_on(Game.resident.calendar, EventDates.ordinal(year, month, day))
 	if foreigner:
 		return MSG_FOREIGNER
 	var time: int = time_check(card, year, month, day)

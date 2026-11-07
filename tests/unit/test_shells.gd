@@ -75,7 +75,7 @@ func test_one_more_every_tenth_minute() -> void:
 	var rng := RandomNumberGenerator.new()
 	var none := Vector2i(-1, -1)
 	ShellUse.advance(world, 3, none, rng)
-	assert_int(Game.shells_owed).is_equal(0)
+	assert_int(Game.session.shells_owed).is_equal(0)
 	var before: int = Game.town.shells.size()
 	## Pick one up so there is room again.
 	var first: String = str(Game.town.shells.keys()[0])
@@ -108,4 +108,4 @@ func test_prices_and_saves() -> void:
 	Game.reset_session()
 	Game.apply_snapshot(data)
 	assert_str(str(Game.town.shells.get("shell_20_90", ""))).is_equal("conch")
-	assert_int(Game.shells_owed).is_equal(ShellUse.FIRST_NUM)
+	assert_int(Game.session.shells_owed).is_equal(ShellUse.FIRST_NUM)

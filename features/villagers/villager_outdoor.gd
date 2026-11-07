@@ -33,30 +33,24 @@ const UMBRELLA_NUM := 32
 
 enum ChaseStep { WAIT, WALK, RUN, TURN }
 
-## `umbrella_open_actor` / the window `umbrella_open_timer` opens (0.5–1 s, then one frame at 0).
-static var _umbrella_holder: Object = null
-static var _umbrella_ready_at: float = 0.0
 
 
-static func reset() -> void:
-	_umbrella_holder = null
-	_umbrella_ready_at = 0.0
 
 
 ## `aNPC_ctrl_umbrella` rain branch: may `who` take their umbrella out now?
 static func claim_umbrella(who: Object, now: float, rng: RandomNumberGenerator) -> bool:
-	if now < _umbrella_ready_at:
+	if now < Game.session.umbrella_ready_at:
 		return false
-	_umbrella_holder = who
-	_umbrella_ready_at = now + _window(rng)
+	Game.session.umbrella_holder = who
+	Game.session.umbrella_ready_at = now + _window(rng)
 	return true
 
 
 ## `aNPC_reset_umb_open_flg` once the umbrella is open.
 static func release_umbrella(who: Object, now: float, rng: RandomNumberGenerator) -> void:
-	if _umbrella_holder == who:
-		_umbrella_holder = null
-		_umbrella_ready_at = now + _window(rng)
+	if Game.session.umbrella_holder == who:
+		Game.session.umbrella_holder = null
+		Game.session.umbrella_ready_at = now + _window(rng)
 
 
 static func _window(rng: RandomNumberGenerator) -> float:
@@ -79,7 +73,7 @@ static func umbrella_visual(villager: VillagerData, state: VillagerState) -> Str
 ## `aTUMB_actor_draw` for a villager's design umbrella: the shop's umbrella stand
 ## `design & 3` (`Able_Sisters_Umbrella_Design_Get`, shop slots 4-7).
 static func umbrella_design_texture(state: VillagerState) -> Texture2D:
-	if state == null or state.umbrella_design < 0 or Game == null or Game.designs == null:
+	if state == null or state.umbrella_design < 0:
 		return null
 	var slot: int = DesignBook.CLOTH_SLOTS + (state.umbrella_design & 3)
 	if slot >= Game.designs.shop.size():

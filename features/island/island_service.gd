@@ -100,7 +100,7 @@ var _castaway_clock: float = 0.0
 ## `aBTD_setup_castaway`: while Gulliver's wash-up is on and nobody has found him, he drifts in the
 ## town's sea for the whole trip.
 func _spawn_castaway() -> void:
-	if _on_island or is_instance_valid(_castaway) or Game.events == null:
+	if _on_island or is_instance_valid(_castaway):
 		return
 	if not Game.events.is_active(&"dozaemon") or Game.events.dozaemon_completed:
 		return

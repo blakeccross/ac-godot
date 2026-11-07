@@ -112,11 +112,14 @@ const ACCEL_PER_SECOND := 0.5 * DecompTime.TICK_HZ * DecompTime.FRAME_HZ
 var action: Action = Action.ENTER
 
 var _rover: Node3D
+## `_rover` when it is the real actor (tests bind a bare `Node3D`).
+var _rover_actor: IntroTrainRoverAnim
 var _rover_anim: AnimationPlayer
-var _door: Node3D
+var _door: IntroTrainDoor
 var _keitai: Node3D
+var _keitai_actor: IntroTrainKeitai
 var _cam: IntroTrainCamera
-var _stage_sync: Node
+var _stage_sync: IntroTrainStageSync
 var _pos_gx: Vector3 = ROVER_START_GX
 var _yaw: float = 0.0
 ## `actor.speed` and `movement.speed` max (GX a second) and accel / decel (GX a second²).
@@ -134,7 +137,7 @@ var _pending_next: Action = Action.DONE
 var _pending_ready: bool = false
 ## Manpu attack → hold (`*1`/`*_d1` then `*2`/`*_d2`), polled in `tick`.
 var _manpu_hold_clip: String = ""
-var _rover_look: RefCounted
+var _rover_look: IntroTrainRoverLook
 var _phone_dialogue_done: bool = false
 var _phone_tilt_reset_armed: bool = false
 var _phone_trip_started: bool = false
@@ -200,21 +203,24 @@ func bind(
 	rover_anim: AnimationPlayer,
 	door: Node3D,
 	keitai: Node3D,
-	camera_host: Variant,
-	rover_look: RefCounted = null,
-	stage_sync: Node = null
+	camera_host: Node,
+	rover_look: IntroTrainRoverLook = null,
+	stage_sync: IntroTrainStageSync = null
 ) -> void:
 	_rover = rover
+	_rover_actor = rover as IntroTrainRoverAnim
 	_rover_anim = rover_anim
-	if _rover_anim == null and rover != null and rover.has_method("body_animation_player"):
-		_rover_anim = rover.body_animation_player()
-	_door = door
+	if _rover_anim == null and _rover_actor != null:
+		_rover_anim = _rover_actor.body_animation_player()
+	_door = door as IntroTrainDoor
 	_keitai = keitai
+	_keitai_actor = keitai as IntroTrainKeitai
 	_rover_look = rover_look
 	_stage_sync = stage_sync
 	_cam = IntroTrainCamera.new()
-	if camera_host != null and camera_host.has_method("eye_gx"):
-		_cam.setup(camera_host.camera, camera_host.eye_gx(), camera_host.look_gx())
+	var rig := camera_host as IntroTrainCameraRig
+	if rig != null:
+		_cam.setup(rig.camera, rig.eye_gx(), rig.look_gx())
 	elif camera_host is Camera3D:
 		_cam.setup(camera_host as Camera3D)
 	_pos_gx = ROVER_START_GX
@@ -604,8 +610,8 @@ func _step_lean(delta: float) -> void:
 ## (`cKF_SkeletonInfo_R_AnimationMove_CulcTransToWorld`). Floor-relative Y.
 func shadow_gx() -> Vector3:
 	var out: Vector3 = _pos_gx
-	if _rover != null and _rover.has_method("root_motion_offset_gx"):
-		out += _rover.call("root_motion_offset_gx") as Vector3
+	if _rover_actor != null:
+		out += _rover_actor.root_motion_offset_gx()
 	return out
 
 
@@ -617,14 +623,14 @@ func _apply_rover_pose() -> void:
 
 
 func _play_door_sync(sync_name: StringName) -> void:
-	if _door != null and _door.has_method("reset_door_pulse"):
-		_door.call("reset_door_pulse")
-	if _stage_sync != null and _stage_sync.has_method("play"):
-		_stage_sync.call("play", sync_name)
+	if _door != null:
+		_door.reset_door_pulse()
+	if _stage_sync != null:
+		_stage_sync.play(sync_name)
 
 
 func _set_rover_eyes(active: bool) -> void:
-	if _rover_look != null and _rover_look.has_method("set_camera_eyes"):
+	if _rover_look != null:
 		_rover_look.set_camera_eyes(active)
 
 
@@ -661,10 +667,10 @@ static func yaw_toward_player(from_gx: Vector3) -> float:
 func _play_rover(
 	suffix: String, loop: bool, speed_scale: float = 1.0, blend_override: float = -1.0
 ) -> bool:
-	if _rover != null and _rover.has_method("play_intro_clip"):
-		var ok: bool = _rover.play_intro_clip(suffix, loop, speed_scale, blend_override)
-		if ok and _rover.has_method("current_intro_clip"):
-			_clip = _rover.current_intro_clip()
+	if _rover_actor != null:
+		var ok: bool = _rover_actor.play_intro_clip(suffix, loop, speed_scale, blend_override)
+		if ok:
+			_clip = _rover_actor.current_intro_clip()
 		return ok
 	if _rover_anim == null:
 		return false
@@ -696,8 +702,8 @@ func _play_rover(
 func _reset_keitai() -> void:
 	if _keitai == null:
 		return
-	if _keitai.has_method("hide_phone"):
-		_keitai.hide_phone()
+	if _keitai_actor != null:
+		_keitai_actor.hide_phone()
 	else:
 		_keitai.visible = false
 
@@ -705,8 +711,8 @@ func _reset_keitai() -> void:
 func _play_keitai_on() -> void:
 	if _keitai == null:
 		return
-	if _keitai.has_method("play_on"):
-		_keitai.play_on(KEITAI_ON_ANIM_SPEED)
+	if _keitai_actor != null:
+		_keitai_actor.play_on(KEITAI_ON_ANIM_SPEED)
 	else:
 		_keitai.visible = true
 
@@ -714,8 +720,8 @@ func _play_keitai_on() -> void:
 func _play_keitai_off() -> void:
 	if _keitai == null:
 		return
-	if _keitai.has_method("play_off"):
-		_keitai.play_off()
+	if _keitai_actor != null:
+		_keitai_actor.play_off()
 	else:
 		_keitai.visible = true
 
@@ -752,8 +758,8 @@ func _resolve_clip(suffix: String) -> String:
 
 
 func _anim_playing() -> bool:
-	if _rover != null and _rover.has_method("intro_clip_playing"):
-		return _rover.intro_clip_playing()
+	if _rover_actor != null:
+		return _rover_actor.intro_clip_playing()
 	if _rover_anim == null:
 		return false
 	return _rover_anim.is_playing()
@@ -775,9 +781,9 @@ func _await_then(next: Action, wait_suffix: String = "") -> void:
 
 
 func _connect_anim_finished() -> void:
-	if _rover != null and _rover.has_method("connect_intro_clip_finished"):
+	if _rover_actor != null:
 		_disconnect_anim_finished()
-		_rover.connect_intro_clip_finished(_on_anim_finished)
+		_rover_actor.connect_intro_clip_finished(_on_anim_finished)
 		return
 	if _rover_anim != null:
 		if _rover_anim.animation_finished.is_connected(_on_anim_finished):
@@ -786,8 +792,8 @@ func _connect_anim_finished() -> void:
 
 
 func _disconnect_anim_finished() -> void:
-	if _rover != null and _rover.has_method("disconnect_intro_clip_finished"):
-		_rover.disconnect_intro_clip_finished(_on_anim_finished)
+	if _rover_actor != null:
+		_rover_actor.disconnect_intro_clip_finished(_on_anim_finished)
 	if _rover_anim != null and _rover_anim.animation_finished.is_connected(_on_anim_finished):
 		_rover_anim.animation_finished.disconnect(_on_anim_finished)
 

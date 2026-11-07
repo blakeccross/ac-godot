@@ -63,13 +63,13 @@ func make_talk() -> BankTalk:
 	if leader != &"ttl":
 		var base: int = COPPER_MSG_MORNING if morning() else COPPER_MSG_FAIR
 		return BankTalk.Fixed.new(base + rng().randi_range(0, 2))
-	var record: Dictionary = Game.events.area(&"soncho_record") if Game != null and Game.events != null else {}
+	var record: Dictionary = Game.events.area(&"soncho_record")
 	if morning():
-		var card := RadioCard.new(Game.inventory if Game != null else null, Game.resident.radio_card if Game != null else {}, record, rng())
-		card.foreigner = Game != null and Game.foreigner
+		var card := RadioCard.new(Game.inventory, Game.resident.radio_card, record, rng())
+		card.foreigner = Game.foreigner
 		return card
-	var t := TortimerHoliday.new(holiday, record, Game.inventory if Game != null else null, rng())
-	t.female = Game != null and String(Game.resident.player_gender) == "female"
+	var t := TortimerHoliday.new(holiday, record, Game.inventory, rng())
+	t.female = String(Game.resident.player_gender) == "female"
 	return t
 
 

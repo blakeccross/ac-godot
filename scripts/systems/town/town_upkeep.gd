@@ -11,7 +11,7 @@ extends RefCounted
 static func on_day_changed() -> void:
 	Game.shops.stalk_market.update(Clock.year, Clock.month, Clock.day)
 	## `mEv_RenewalDataEveryDay`: the Academy sign-up comes due the day after the job.
-	Game.hra.renew_day()
+	Game.happy_room_academy.renew_day()
 	## One roll for the new date (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
 	var previous_weather: StringName = Game.town.weather
 	Game.apply_weather_roll(Weather.roll())
@@ -71,15 +71,15 @@ static func update_notice_board() -> void:
 	if sent > 0:
 		Game.post_notice(MailDelivery.NEW_MAIL_NOTICE)
 	## `mNtc_check_treasure` when nothing seasonal went up.
-	Game.treasure_due = written == 0
+	Game.session.treasure_due = written == 0
 	try_treasure(World.find(Game.get_tree()) if Game.get_tree() != null else null)
 
 
 ## A villager may bury treasure once the field is up (`BuriedTreasure`).
 static func try_treasure(world: Node) -> void:
-	if not Game.treasure_due or world == null or world.get("grid") == null:
+	if not Game.session.treasure_due or WorldGrid.of(world) == null:
 		return
-	Game.treasure_due = false
+	Game.session.treasure_due = false
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	BuriedTreasure.check(world, rng)

@@ -1,9 +1,11 @@
 class_name EventPresenter
-extends RefCounted
+extends Resource
 
 ## One row of `ac_event_manager`'s `schedule_event[]`: what an active event puts in town.
 ## `start()` places its actors through `EventManager` (true = done, false = retry at the next
-## check); `stop()` takes them away. Most presenters are one NPC scene at one spot.
+## check); `stop()` takes them away. Most presenters are one NPC scene at one spot, set up in
+## a `.tres` under `data/events/presenters/`; `EventManager` runs a copy of it per event, so
+## the fields below (not exported) are per-run state.
 
 var id: StringName = &""
 var mgr: EventManager

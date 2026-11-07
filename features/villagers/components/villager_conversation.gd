@@ -18,7 +18,7 @@ var _villager: Villager:
 
 
 func try_first_job_talk(ctx: InteractionContext) -> bool:
-	if Game == null or Game.first_job == null or not Game.first_job.is_active():
+	if not Game.first_job.is_active():
 		return false
 	if _villager.data == null or _villager.data.id == &"":
 		return false
@@ -31,12 +31,11 @@ func try_first_job_talk(ctx: InteractionContext) -> bool:
 			await HandOver.player_gives_to_npc(player, _villager, delivered_id)
 		if not job.try_deliver_to(_villager.data.id, Game.inventory):
 			return false
-		if Game.relationships != null:
-			Game.relationships.record_gift(
-				_villager.data.id,
-				delivered_id if delivered_id != &"" else &"delivery",
-				VillagerTalk.day_key()
-			)
+		Game.relationships.record_gift(
+			_villager.data.id,
+			delivered_id if delivered_id != &"" else &"delivery",
+			VillagerTalk.day_key()
+		)
 		_play_first_job_line(&"nook_job_deliver_ok", who, player)
 		Game.set_interact_prompt("Talk to Tom Nook")
 		if _villager.state != null:
@@ -48,7 +47,7 @@ func try_first_job_talk(ctx: InteractionContext) -> bool:
 
 
 func note_first_job_talk() -> void:
-	if Game == null or Game.first_job == null or _villager.data == null:
+	if _villager.data == null:
 		return
 	Game.first_job.note_villager_talked(_villager.data.id)
 	if Game.first_job.kind == FirstJob.Kind.INTRODUCTIONS and Game.first_job.chore_finished():
@@ -119,7 +118,7 @@ func _dialogue_uttering() -> bool:
 
 ## `mMld_ActorMakeMelody` as a talk starts: the town tune in this villager's voice.
 func sing_town_tune(talk_ctx: DialogueContext) -> void:
-	if Game != null and talk_ctx != null:
+	if talk_ctx != null:
 		Audio.play_melody(Game.town.town_tune, DialogueVoice.melody_voice(talk_ctx.sound_spec))
 
 
@@ -210,10 +209,10 @@ func _on_talk_closed() -> void:
 	if _villager.state != null and _villager._cloth_key() != _villager._drawn_cloth:
 		_villager._apply_design_wear()
 		_villager._drawn_cloth = _villager._cloth_key()
-	if Game != null and Game.first_job != null and Game.first_job.kind == FirstJob.Kind.OPEN and Game.first_job.chore_finished():
+	if Game.first_job.kind == FirstJob.Kind.OPEN and Game.first_job.chore_finished():
 		Game.set_interact_prompt("Talk to Tom Nook")
 	## `mNpc_TalkEndMove` (from `aQMgr_move_talk` when the talk demo ends).
-	if _villager._talk_manager != null and Game != null and _villager.data != null:
+	if _villager._talk_manager != null and _villager.data != null:
 		Game.npc_talk_info.talk_end(_villager._talk_manager.slot, _villager._talk_manager.looks)
 	_villager._talk_manager = null
 

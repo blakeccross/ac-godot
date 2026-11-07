@@ -49,7 +49,7 @@ func power() -> float:
 
 
 func _koinobori() -> bool:
-	return Game != null and Game.events != null and Game.events.is_today(&"koinobori")
+	return Game.events.is_today(&"koinobori")
 
 
 ## `mEnv_GetWindPowerTableTerm`.

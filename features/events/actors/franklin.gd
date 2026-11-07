@@ -21,12 +21,12 @@ func idle_clip() -> String:
 
 
 func area() -> Dictionary:
-	return Game.events.area(&"harvest_festival_franklin") if Game != null and Game.events != null else {}
+	return Game.events.area(&"harvest_festival_franklin")
 
 
 func _day_area() -> Dictionary:
 	var a: Dictionary = area()
-	var today: String = Game.events.day_key() if Game != null and Game.events != null else ""
+	var today: String = Game.events.day_key()
 	if str(a.get("date", "")) != today:
 		a["date"] = today
 		a["talks"] = 0
@@ -38,7 +38,7 @@ func setup() -> void:
 
 
 func make_talk() -> BankTalk:
-	var t := FranklinTalk.new(_day_area(), Game.inventory if Game != null else null, rng(), _present)
+	var t := FranklinTalk.new(_day_area(), Game.inventory, rng(), _present)
 	t.spoke_this_visit = _spoke
 	_spoke = true
 	return t

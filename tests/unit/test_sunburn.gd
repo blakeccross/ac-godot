@@ -4,11 +4,11 @@ extends GdUnitTestSuite
 
 
 func before_test() -> void:
-	Sunburn.reset_session()
+	Game.session.reset_load()
 
 
 func after_test() -> void:
-	Sunburn.reset_session()
+	Game.session.reset_load()
 
 
 func test_only_midsummer_middays() -> void:
@@ -26,20 +26,20 @@ func test_fifteen_minutes_in_the_sun_is_a_rank() -> void:
 	var state: Dictionary = {"rank": 0, "changed": -1, "hold": 0}
 	Sunburn.sun_tick(state, true, 8, 1, 12, 14.0 * 60.0)
 	Sunburn.sun_tick(state, true, 8, 1, 12, 59.0)
-	assert_bool(Sunburn.rankup_pending).is_false()
+	assert_bool(Game.session.sunburn_rankup_pending).is_false()
 	Sunburn.sun_tick(state, true, 8, 1, 12, 2.0)
-	assert_bool(Sunburn.rankup_pending).is_true()
+	assert_bool(Game.session.sunburn_rankup_pending).is_true()
 	assert_bool(Sunburn.settle(state, 100)).is_true()
 	assert_int(int(state["rank"])).is_equal(1)
 	assert_int(int(state["hold"])).is_equal(Sunburn.HOLD_DAYS)
 	## Freshly tanned: no more today.
 	Sunburn.sun_tick(state, true, 8, 1, 12, Sunburn.SUN_SEC + 2.0)
-	assert_bool(Sunburn.rankup_pending).is_false()
+	assert_bool(Game.session.sunburn_rankup_pending).is_false()
 	## Shade, rain or an umbrella stop the count.
-	Sunburn.reset_session()
+	Game.session.reset_load()
 	var fresh: Dictionary = {"rank": 0, "changed": -1, "hold": 0}
 	Sunburn.sun_tick(fresh, false, 8, 1, 12, Sunburn.SUN_SEC + 2.0)
-	assert_float(Sunburn.sun_time).is_equal(0.0)
+	assert_float(Game.session.sun_time).is_equal(0.0)
 
 
 func test_the_tan_holds_then_fades_a_rank_a_day() -> void:

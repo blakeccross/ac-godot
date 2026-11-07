@@ -41,14 +41,14 @@ func test_the_player_can_tread_on_every_roach() -> void:
 	room.placements.clear()
 	Game.current_room_id = &"player_main"
 	Game.arrival.at_room_door = true
-	Game.goki_shocked = true
+	Game.session.roach_shocked = true
 	var interior: Node = auto_free(INTERIOR.instantiate())
 	add_child(interior)
 	await await_millis(1)
 	for _i: int in 10:
 		await get_tree().physics_frame
-	Game.interiors.player_house().goki_count = 3
-	interior.call("_spawn_gokis", room)
+	Game.interiors.player_house().roach_count = 3
+	interior.call("_spawn_roaches", room)
 	assert_int(_alive(interior).size()).is_greater(0)
 	var player := Player.find(get_tree())
 	var source := PlayerInput.new()

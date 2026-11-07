@@ -42,7 +42,7 @@ func test_water_ring_grows_fades_and_drifts() -> void:
 	## drifting 0.125 GX a tick along the flow.
 	var host := Node3D.new()
 	add_child(host)
-	var ring: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.HAMON, Vector3.ZERO, 0.0, 3, 0)
+	var ring: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.RIPPLE, Vector3.ZERO, 0.0, 3, 0)
 	assert_object(ring).is_not_null()
 	assert_float(ring.lifetime).is_equal_approx(32.0 / 60.0, 0.0001)
 	assert_float(ring.ring_alpha).is_equal(150.0)
@@ -52,9 +52,9 @@ func test_water_ring_grows_fades_and_drifts() -> void:
 	assert_float(ring.ring_opacity(half)).is_equal_approx(150.0 / 255.0 * 0.5, 0.001)
 	assert_float(ring.ring_offset(half).z / FieldCatalog.GX_TO_METERS).is_equal_approx(16.0 * 0.125, 0.0001)
 	## The big ones (arg 0) start brighter; arg 4 is the slow 52-tick one.
-	var big: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.HAMON, Vector3.ZERO, 0.0, 0, 0)
+	var big: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.RIPPLE, Vector3.ZERO, 0.0, 0, 0)
 	assert_float(big.ring_alpha).is_equal(200.0)
-	var slow: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.HAMON, Vector3.ZERO, 0.0, 4, 0)
+	var slow: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.RIPPLE, Vector3.ZERO, 0.0, 4, 0)
 	assert_float(slow.lifetime).is_equal_approx(52.0 / 60.0, 0.0001)
 	host.queue_free()
 
@@ -79,7 +79,7 @@ func test_umbrella_twirl_sprays_only_in_rain() -> void:
 	add_child(host)
 	var was: StringName = Game.town.weather
 	Game.town.weather = &"rain"
-	var spray: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.KASAMIZU, Vector3.ZERO, 0.0)
+	var spray: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.UMBRELLA_SPRAY, Vector3.ZERO, 0.0)
 	assert_float(spray.lifetime).is_equal_approx(24.0 / 60.0, 0.0001)
 	assert_vector(spray.origin / FieldCatalog.GX_TO_METERS).is_equal_approx(Vector3(0.0, 45.0, -20.0), Vector3.ONE * 0.001)
 	for i: int in 13:
@@ -87,12 +87,12 @@ func test_umbrella_twirl_sprays_only_in_rain() -> void:
 	assert_int(host.get_child_count()).is_equal(1 + 12)
 	assert_object(host.get_child(1) as FieldParticle).is_not_null()
 	var at: Array[Vector3] = [Vector3.ZERO]
-	var drop: FieldParticle.Style = FieldParticle.style_for(FieldEffects.Kind.KASAMIZUTAMA, 0.0, 0, 0, at)
+	var drop: FieldParticle.Style = FieldParticle.style_for(FieldEffects.Kind.UMBRELLA_DROP, 0.0, 0, 0, at)
 	assert_float(drop.lifetime).is_equal_approx(20.0 / 60.0, 0.0001)
 	assert_float(drop.accel.y).is_equal_approx(-0.105 * FieldCatalog.GX_TO_METERS * 3600.0, 0.0001)
 	assert_float(drop.launch.length()).is_equal_approx(2.5 * FieldCatalog.GX_TO_METERS * 60.0, 0.0001)
 	Game.town.weather = &"clear"
-	var dry: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.KASAMIZU, Vector3.ZERO, 0.0)
+	var dry: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.UMBRELLA_SPRAY, Vector3.ZERO, 0.0)
 	var before: int = host.get_child_count()
 	for i: int in 12:
 		dry.emit_drop()
@@ -129,7 +129,7 @@ func test_wood_chips_fly_back_over_the_shoulder_and_bounce() -> void:
 	## the start height they land and stay above it.
 	var host := Node3D.new()
 	add_child(host)
-	var chip: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.KIKUZU, Vector3.ZERO, 0.0, 0, 0,
+	var chip: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.WOOD_CHIPS, Vector3.ZERO, 0.0, 0, 0,
 		func(_p: Vector3) -> float: return -0.5)
 	assert_object(chip).is_not_null()
 	assert_float(chip.lifetime * 60.0).is_between(59.9, 78.1)
@@ -149,7 +149,7 @@ func test_mud_and_fishing_drops_are_particles() -> void:
 	assert_int(mud.tile0[0]).is_equal(0)
 	assert_int(mud.tile0[mud.tile0.size() - 1]).is_equal(3)
 	## A drop off a hooked fish comes back down to the water it left.
-	var drop: FieldParticle.Style = FieldParticle.style_for(FieldEffects.Kind.TURI_SUITEKI, 0.0, 0, 4, at)
+	var drop: FieldParticle.Style = FieldParticle.style_for(FieldEffects.Kind.FISHING_DRIP, 0.0, 0, 4, at)
 	var end: Vector3 = FieldParticle.offset_at(drop, drop.lifetime)
 	assert_float(end.y).is_equal_approx(0.0, 0.002)
 	assert_float(FieldParticle.offset_at(drop, drop.lifetime * 0.5).y).is_greater(0.0)

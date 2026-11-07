@@ -44,7 +44,7 @@ static func env_rate() -> float:
 	return ENV_RATE[clampi(field_rank(), 0, ENV_RATE.size() - 1)]
 
 
-## `aSOI_ins_chk_term_info`. `Game.insect_term_month` is the save's `insect_term`: the
+## `aSOI_ins_chk_term_info`. `Game.session.insect_term_month` is the save's `insect_term`: the
 ## 0-based month the table is heading into, and `insect_term_offset` how many days before
 ## that month's 1st the blend starts. Inside the 5-day window from there, the current
 ## month weighs `NOW_RATE[day]` and the saved month the rest (so the next month fades in
@@ -55,7 +55,7 @@ static func env_rate() -> float:
 static func term_blend(rng: RandomNumberGenerator) -> Dictionary:
 	var now_term: int = Clock.month - 1
 	var next_term: int = 0 if now_term == 11 else now_term + 1
-	var saved: int = Game.insect_term_month
+	var saved: int = Game.session.insect_term_month
 	var pure := {"month": Clock.month, "other_month": Clock.month, "rate": 1.0}
 	if absi(saved - now_term) > 1 and saved != 0 and now_term != 11:
 		_renew_term(next_term, rng)
@@ -63,7 +63,7 @@ static func term_blend(rng: RandomNumberGenerator) -> Dictionary:
 	var year: int = Clock.year
 	if saved != now_term and now_term == 11:
 		year += 1
-	var start: int = _day_number(year, saved + 1, 1) - Game.insect_term_offset
+	var start: int = _day_number(year, saved + 1, 1) - Game.session.insect_term_offset
 	var today: int = _day_number(Clock.year, Clock.month, Clock.day)
 	if today >= start + TRANSITION_DAYS:
 		_renew_term(next_term, rng)
@@ -79,8 +79,8 @@ static func term_blend(rng: RandomNumberGenerator) -> Dictionary:
 
 ## `aSOI_ins_renew_term_info`.
 static func _renew_term(term: int, rng: RandomNumberGenerator) -> void:
-	Game.insect_term_month = term
-	Game.insect_term_offset = (
+	Game.session.insect_term_month = term
+	Game.session.insect_term_offset = (
 		int(rng.randf() * float(TRANSITION_DAYS + 1)) if rng != null else 0
 	)
 

@@ -4,10 +4,6 @@ extends NpcEventPresenter
 ## `make_actor_in_select_block(…, 2)`), two units in from its edge.
 
 
-func _init() -> void:
-	scene_path = "res://features/events/actors/tortimer_bridge.tscn"
-
-
 ## `aESC_actor_ct`: once the bridge is ordered he has gone (from the next time town loads).
 func start() -> bool:
 	if bool(SecondBridge.state().get("pending", false)):

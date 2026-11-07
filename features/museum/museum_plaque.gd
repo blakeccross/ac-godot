@@ -1,3 +1,4 @@
+class_name MuseumPlaque
 extends StaticBody3D
 
 ## One museum exhibit's talk point. The original has no sign object here: each wing's actor
@@ -100,9 +101,9 @@ func can_talk(at: Vector3, yaw: float) -> bool:
 
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 	var actor := ctx.actor as Node3D if ctx != null else null
-	if actor == null or not actor.has_method("facing_yaw"):
+	if actor == null or not ActorFacing.has_facing(actor):
 		return []
-	if not can_talk(actor.global_position, float(actor.call("facing_yaw"))):
+	if not can_talk(actor.global_position, ActorFacing.yaw(actor)):
 		return []
 	return [Interaction.of(Interaction.TALK, "Read", 20)]
 

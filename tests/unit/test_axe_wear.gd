@@ -29,7 +29,7 @@ func test_nine_trees_chip_the_axe_once() -> void:
 	assert_str(String(inv.equipment_id)).is_equal("axe_use_1")
 	assert_int(inv.count_of(&"axe_use_1")).is_equal(1)
 	assert_int(inv.count_of(&"axe")).is_equal(0)
-	assert_int(AxeWear.damage).is_equal(0)
+	assert_int(Game.session.axe_damage).is_equal(0)
 
 
 func test_bouncing_wears_it_three_times_as_fast() -> void:
@@ -41,7 +41,7 @@ func test_bouncing_wears_it_three_times_as_fast() -> void:
 
 func test_the_seventh_stage_breaks_and_leaves_the_hand_empty() -> void:
 	var inv := _equip(&"axe_use_7")
-	AxeWear.damage = 8
+	Game.session.axe_damage = 8
 	assert_str(String(AxeWear.apply(inv, false))).is_equal("")
 	assert_str(String(inv.equipment_id)).is_equal("")
 	assert_int(inv.count_of(&"axe_use_7")).is_equal(0)

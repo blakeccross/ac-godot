@@ -19,8 +19,6 @@ static func guest_kind(event: StringName) -> StringName:
 
 ## The villager inside (`kamakura` / `summer_camper` save area), chosen once per year.
 static func guest_of(event: StringName) -> StringName:
-	if Game == null or Game.events == null:
-		return &""
 	var a: Dictionary = Game.events.area(event)
 	if int(a.get("year", 0)) == Clock.year and str(a.get("villager", "")) != "":
 		return StringName(str(a["villager"]))

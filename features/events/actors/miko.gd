@@ -13,7 +13,7 @@ func _init() -> void:
 
 
 func make_talk() -> BankTalk:
-	var t := MikoTalk.new(Game.inventory if Game != null else null, rng())
+	var t := MikoTalk.new(Game.inventory, rng())
 	var p: Node3D = player_node()
 	if p != null:
 		var to: Vector3 = p.global_position - global_position

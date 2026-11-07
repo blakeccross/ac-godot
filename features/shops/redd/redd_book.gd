@@ -1,5 +1,5 @@
 class_name ReddBook
-extends RefCounted
+extends SaveBook
 
 ## Crazy Redd (`ac_npc_black` / `aBRS_open_check`). Owned by `Game`. The tent shows up
 ## one day a week once unlocked; stock is a mix of genuine and forged art plus the odd
@@ -33,8 +33,8 @@ func clear() -> void:
 func check_unlock() -> void:
 	if unlocked:
 		return
-	var by_art: bool = Game != null and Game.museum != null and Game.museum.count_art() > 0
-	var by_age: bool = Clock != null and Clock.day >= 14
+	var by_art: bool = Game.museum.count_art() > 0
+	var by_age: bool = Clock.day >= 14
 	if by_art or by_age:
 		unlocked = true
 		_seed_schedule()
@@ -43,20 +43,18 @@ func check_unlock() -> void:
 func _seed_schedule() -> void:
 	if open_weekday >= 0:
 		return
-	var seed_src: int = hash("redd_%s" % (Game.town.town_name if Game != null else "town"))
+	var seed_src: int = hash("redd_%s" % (Game.town.town_name))
 	open_weekday = int(abs(seed_src)) % 7
 
 
 func is_open_today() -> bool:
 	check_unlock()
-	if not unlocked or open_weekday < 0 or Clock == null:
+	if not unlocked or open_weekday < 0:
 		return false
 	return Clock.weekday() == open_weekday
 
 
 func _day_key() -> String:
-	if Clock == null:
-		return ""
 	return "%04d-%02d-%02d" % [Clock.year, Clock.month, Clock.day]
 
 
@@ -72,7 +70,7 @@ func _roll_stock(today: String) -> void:
 	_stock_day = today
 	_stock.clear()
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("redd_stock_%s_%s" % [Game.town.town_name if Game != null else "town", today])
+	rng.seed = hash("redd_stock_%s_%s" % [Game.town.town_name, today])
 	var used: Dictionary = {}
 	## Slot 0 is a coin-flip furniture piece; the rest are paintings.
 	if rng.randf() < 0.35:

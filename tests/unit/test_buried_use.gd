@@ -254,4 +254,4 @@ func test_paying_off_the_loan_queues_the_cheer() -> void:
 	Game.inventory.set_loan(100)
 	Game.inventory.set_wallet(500)
 	PostUse.repay_amount(-1)
-	assert_str(String(Game.complete_payment)).is_equal(String(Game.PAYMENT_HOUSE))
+	assert_str(String(Game.session.complete_payment)).is_equal(String(Game.PAYMENT_HOUSE))

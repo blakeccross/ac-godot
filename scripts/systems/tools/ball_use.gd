@@ -76,13 +76,13 @@ static func restore(world: Node, layout: WorldData, grid: WorldGrid) -> Node3D:
 	else:
 		pos = Vector3(float(Game.town.ball.get("x", 0.0)), float(Game.town.ball.get("y", 0.0)), float(Game.town.ball.get("z", 0.0)))
 		type = int(Game.town.ball.get("type", 0))
-	var ball: Node3D = (load(SCENE) as PackedScene).instantiate() as Node3D
-	ball.set("type", type)
+	var ball := (load(SCENE) as PackedScene).instantiate() as FieldBall
+	ball.type = type
 	var parent: Node = world.get_node_or_null("Objects")
 	if parent == null:
 		parent = world
 	parent.add_child(ball)
 	ball.global_position = pos
-	ball.call("_snap_ground")
+	ball.snap_ground()
 	Game.town.ball = {"x": ball.global_position.x, "y": ball.global_position.y, "z": ball.global_position.z, "type": type}
 	return ball

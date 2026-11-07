@@ -15,19 +15,19 @@ const DEFAULT_PATH := "user://config.cfg"
 const MONO_EFFECT := &"config_mono"
 
 ## `mVibctl_VIB_PROG_*` → strength.
-enum Prog { NON, FFF, F, MF, MP, P, FUNBARI, ANAHORI, ANAUME, IMPACT, KI_GA_TAORERU, KI_WO_YUSURU, KORONODA, SURPRISE }
+enum Prog { NON, FFF, F, MF, MP, P, STRAIN, DIG_HOLE, FILL_HOLE, IMPACT, TREE_FALLS, TREE_SHAKE, TUMBLE, SURPRISE }
 const PROG_STRENGTH: Array[float] = [0.0, 1.0, 0.8, 0.6, 0.45, 0.3, 0.9, 0.6, 0.5, 1.0, 0.85, 0.6, 0.9, 1.0]
 
 ## `Player_actor_set_viblation_*`: [power, sustain prog, attack, sustain, release].
-const DIG := [100, Prog.ANAHORI, 0, 18, 0]
-const DIG_STUMP := [100, Prog.KI_WO_YUSURU, 1, 60, 0]
-const FILL := [80, Prog.ANAUME, 6, 60, 0]
+const DIG := [100, Prog.DIG_HOLE, 0, 18, 0]
+const DIG_STUMP := [100, Prog.TREE_SHAKE, 1, 60, 0]
+const FILL := [80, Prog.FILL_HOLE, 6, 60, 0]
 const REFLECT_HARD := [100, Prog.IMPACT, 3, 9, 0]
 const REFLECT_SOFT := [90, Prog.FFF, 2, 4, 0]
 const SWING_NET := [100, Prog.FFF, 2, 4, 0]
-const SHAKE_TREE := [100, Prog.KI_WO_YUSURU, 0, 34, 0]
-const AXE_CUT := [100, Prog.KI_GA_TAORERU, 3, 36, 0]
-const TUMBLE := [100, Prog.KORONODA, 3, 14, 0]
+const SHAKE_TREE := [100, Prog.TREE_SHAKE, 0, 34, 0]
+const AXE_CUT := [100, Prog.TREE_FALLS, 3, 36, 0]
+const TUMBLE := [100, Prog.TUMBLE, 3, 14, 0]
 const REMOVE_GRASS := [90, Prog.FFF, 0, 1, 10]
 ## `aUKI_cast`: the bobber lands.
 const BOBBER_LAND := [50, Prog.FFF, 0, 1, 15]

@@ -156,15 +156,14 @@ func _log(kind: String) -> void:
 		var top := -INF
 		for fx: Node in World.find(get_tree()).get_node("Effects").get_children():
 			if fx is FieldParticle:
-				if (fx as FieldParticle).kind == FieldEffects.Kind.KISHA_KEMURI:
+				if (fx as FieldParticle).kind == FieldEffects.Kind.TRAIN_SMOKE:
 					smoke += 1
 					top = maxf(top, _decomp_gx((fx as FieldParticle).global_position).y)
 				elif (fx as FieldParticle).kind == FieldEffects.Kind.STEAM:
 					steam += 1
 		print("AUDIT fx smoke=", smoke, " steam=", steam, " smoke_top_y_gx=", top)
-	if Game.inventory != null:
-		print("AUDIT bag=", Game.inventory.count_of(&"money_1000"), " pockets_open=", Game.intro.payment_pending,
-			" window_visible=", DialogueOverlay.find(get_tree()).visible if DialogueOverlay.find(get_tree()) else null)
+	print("AUDIT bag=", Game.inventory.count_of(&"money_1000"), " pockets_open=", Game.intro.payment_pending,
+		" window_visible=", DialogueOverlay.find(get_tree()).visible if DialogueOverlay.find(get_tree()) else null)
 	print("AUDIT %s t=%.2f stage=%s player=(%.1f, %.1f, %.1f) yaw=%.0f busy=%s door=%s demo=%s nook=(%.1f, %.1f) porter=(%.1f, %.1f) train=%s x=%.1f v=%.3f" % [
 		kind, (Time.get_ticks_msec() - _t0) / 1000.0, _stage_name, p.x, p.y, p.z,
 		rad_to_deg((player.get_node("MeshPivot") as Node3D).rotation.y) if player != null else 0.0,

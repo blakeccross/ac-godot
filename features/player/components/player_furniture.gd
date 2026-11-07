@@ -113,7 +113,7 @@ func _on_grip_event(event: Dictionary) -> void:
 			_sync_furniture(FURNITURE_TURN_SEC)
 		"bubu":
 			## `aMR_SetBubu`: the cross over the player when the piece will not budge.
-			FieldEffects.spawn(_effects_host(), FieldEffects.Kind.BUBU, _player.global_position, 0.0)
+			FieldEffects.spawn(_effects_host(), FieldEffects.Kind.NO_BUDGE, _player.global_position, 0.0)
 
 
 func _notify_moved(event: Dictionary) -> void:

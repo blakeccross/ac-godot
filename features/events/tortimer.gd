@@ -29,12 +29,12 @@ func _ready() -> void:
 	super._ready()
 	_home = global_position
 	_refresh_presence()
-	if Game != null and Game.first_job != null and not Game.first_job.changed.is_connected(_refresh_presence):
+	if not Game.first_job.changed.is_connected(_refresh_presence):
 		Game.first_job.changed.connect(_refresh_presence)
 
 
 func _exit_tree() -> void:
-	if Game != null and Game.first_job != null and Game.first_job.changed.is_connected(_refresh_presence):
+	if Game.first_job.changed.is_connected(_refresh_presence):
 		Game.first_job.changed.disconnect(_refresh_presence)
 
 
@@ -51,10 +51,9 @@ func make_talk() -> BankTalk:
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if not super.interact(action, ctx):
 		return false
-	if Game.first_job != null:
-		Game.first_job.mark_met_tortimer()
-		if Game.first_job.kind == FirstJob.Kind.INTRODUCTIONS and Game.first_job.chore_finished():
-			Game.set_interact_prompt("Talk to Tom Nook")
+	Game.first_job.mark_met_tortimer()
+	if Game.first_job.kind == FirstJob.Kind.INTRODUCTIONS and Game.first_job.chore_finished():
+		Game.set_interact_prompt("Talk to Tom Nook")
 	return true
 
 
@@ -85,16 +84,16 @@ func _wander_dest() -> Vector3:
 
 
 func _met() -> bool:
-	return Game != null and Game.first_job != null and Game.first_job.tortimer_met
+	return Game.first_job.tortimer_met
 
 
 func _away() -> bool:
-	return Game != null and Game.lighthouse.in_nights(Clock.year, Clock.month, Clock.day)
+	return Game.lighthouse.in_nights(Clock.year, Clock.month, Clock.day)
 
 
 func _refresh_presence() -> void:
 	## `mFM_SetMoveActor`: only during the first job, and not once met while he's away.
-	var show: bool = Game != null and Game.first_job != null and Game.first_job.is_active() \
+	var show: bool = Game.first_job.is_active() \
 		and not (_met() and _away())
 	visible = show
 	collision_layer = 1 if show else 0

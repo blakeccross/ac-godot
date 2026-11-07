@@ -70,10 +70,10 @@ func test_say_code_needs_room_and_your_own_town() -> void:
 	Game.reset_session()
 	var ctx := DialogueContext.new()
 	assert_str(String(NookShopTalk.apply_event({"op": "nook_shop", "action": "code_say"}, ctx)["open"])).is_equal("code_say")
-	Game.nook_code_gifts = NookShopTalk.CODE_GIFTS_MAX
+	Game.session.nook_code_gifts = NookShopTalk.CODE_GIFTS_MAX
 	NookShopTalk.apply_event({"op": "nook_shop", "action": "code_say"}, ctx)
 	assert_str(str(ctx.get_var(NookShopTalk.VAR_CODE, ""))).is_equal("out")
-	Game.nook_code_gifts = 0
+	Game.session.nook_code_gifts = 0
 	Game.foreigner = true
 	NookShopTalk.apply_event({"op": "nook_shop", "action": "code_say"}, ctx)
 	assert_str(str(ctx.get_var(NookShopTalk.VAR_CODE, ""))).is_equal("foreign")

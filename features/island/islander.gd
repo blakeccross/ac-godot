@@ -26,8 +26,6 @@ static func decide(seed_value: int) -> StringName:
 
 ## This town's islander, decided (and kept in the save) the first time it is asked for.
 static func id() -> StringName:
-	if Game == null or Game.town == null:
-		return &""
 	if Game.town.islander_id.is_empty():
 		Game.town.islander_id = String(decide(Game.town.world_seed))
 	return StringName(Game.town.islander_id)

@@ -48,7 +48,7 @@ func _strike_bugs(ctx: InteractionContext) -> void:
 	if ctx == null or ctx.world == null:
 		return
 	var field: BugField = ctx.world.get("bugs") as BugField
-	var grid: WorldGrid = ctx.world.get("grid") as WorldGrid
+	var grid: WorldGrid = WorldGrid.of(ctx.world)
 	if field == null or grid == null:
 		return
 	field.notify_field_action(BugActor.PlAct.REFLECT_SCOOP, grid.world_to_cell(global_position))
@@ -63,7 +63,7 @@ func _pay_out(ctx: InteractionContext) -> void:
 	if not was_open:
 		_arm_window_end()
 	var world: Node = ctx.world if ctx != null else null
-	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	var grid: WorldGrid = WorldGrid.of(world)
 	var objects: Node = world.get_node_or_null("Objects") if world != null else null
 	if grid == null or objects == null:
 		return
@@ -91,8 +91,4 @@ func _arm_window_end() -> void:
 	var wait: float = DecompTime.ticks_to_sec(
 		MoneyRock.window_frames(MoneyRock.money_power(), Game.destiny() == Game.Destiny.MONEY_LUCK)
 	)
-	get_tree().create_timer(wait).timeout.connect(
-		func() -> void:
-			if MoneyRock.is_money_rock(id) and not MoneyRock.window_open():
-				MoneyRock.finish()
-	)
+	get_tree().create_timer(wait).timeout.connect(MoneyRock.finish_if_expired.bind(id))

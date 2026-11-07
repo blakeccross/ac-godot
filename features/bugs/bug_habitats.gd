@@ -209,7 +209,7 @@ static func _weather(raining: bool, weather: StringName) -> StringName:
 		return &"rain"
 	if weather != &"":
 		return weather
-	var w: StringName = Game.town.weather if Game != null else &"clear"
+	var w: StringName = Game.town.weather
 	## A caller that says "not raining" wins over a rainy session.
 	return &"clear" if w == &"rain" else w
 
@@ -322,18 +322,17 @@ static func _fg_cells(layout: WorldData) -> Dictionary:
 			for dx: int in maxi(obj.footprint.x, 1):
 				for dz: int in maxi(obj.footprint.y, 1):
 					out[obj.cell + Vector2i(dx, dz)] = true
-	if Game != null:
-		for key: Variant in Game.town.plant_states.keys():
-			var pid := StringName(str(key))
-			if Game.town.is_removed(pid):
-				continue
-			var cell: Vector2i = _record_cell(pid)
-			if cell.x >= 0:
-				out[cell] = true
-		for key: String in Game.town.hole_interactables:
-			var parts: PackedStringArray = key.split("_")
-			if parts.size() >= 3 and parts[1].is_valid_int() and parts[2].is_valid_int():
-				out[Vector2i(int(parts[1]), int(parts[2]))] = true
+	for key: Variant in Game.town.plant_states.keys():
+		var pid := StringName(str(key))
+		if Game.town.is_removed(pid):
+			continue
+		var cell: Vector2i = _record_cell(pid)
+		if cell.x >= 0:
+			out[cell] = true
+	for key: String in Game.town.hole_interactables:
+		var parts: PackedStringArray = key.split("_")
+		if parts.size() >= 3 and parts[1].is_valid_int() and parts[2].is_valid_int():
+			out[Vector2i(int(parts[1]), int(parts[2]))] = true
 	return out
 
 
@@ -478,16 +477,15 @@ static func _item_sites(
 		out.append(_site_at(cell, &"item", layout, grid, spawn_area, BugData.Habitat.GROUND))
 	## And the saved drops (`FieldItems`), whether or not their pickups are loaded yet; a
 	## wrapped present is not bait.
-	if Game != null:
-		for pid: Variant in Game.town.field_items:
-			var rec: Variant = Game.town.field_items[pid]
-			if not (rec is Dictionary) or StringName(str(rec.get("id", ""))) != item_id or bool(rec.get("wrapped", false)):
-				continue
-			var cell: Vector2i = FieldItems.cell_from_persist(StringName(str(pid)))
-			if seen.has(cell) or not _in_inner(cell, bounds, acre):
-				continue
-			seen[cell] = true
-			out.append(_site_at(cell, &"item", layout, grid, spawn_area, BugData.Habitat.GROUND))
+	for pid: Variant in Game.town.field_items:
+		var rec: Variant = Game.town.field_items[pid]
+		if not (rec is Dictionary) or StringName(str(rec.get("id", ""))) != item_id or bool(rec.get("wrapped", false)):
+			continue
+		var cell: Vector2i = FieldItems.cell_from_persist(StringName(str(pid)))
+		if seen.has(cell) or not _in_inner(cell, bounds, acre):
+			continue
+		seen[cell] = true
+		out.append(_site_at(cell, &"item", layout, grid, spawn_area, BugData.Habitat.GROUND))
 	return out
 
 
@@ -530,16 +528,12 @@ static func _object_persist(obj: ObjectPlacement) -> StringName:
 
 
 static func _object_removed(obj: ObjectPlacement) -> bool:
-	if Game == null:
-		return false
 	var pid: StringName = _object_persist(obj)
 	return Game.town.is_removed(pid) or Game.town.is_stump(pid)
 
 
 static func _plant_record_ids(kind: PlantData.Kind) -> Array[StringName]:
 	var out: Array[StringName] = []
-	if Game == null:
-		return out
 	for key: Variant in Game.town.plant_states.keys():
 		var pid := StringName(str(key))
 		if Game.town.is_removed(pid) or Game.town.is_stump(pid):

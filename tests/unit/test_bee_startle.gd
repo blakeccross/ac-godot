@@ -13,8 +13,8 @@ func before_test() -> void:
 
 func after_test() -> void:
 	Game.bees.chasing = false
-	if EventManager.demo_bgm == BeeSwarm.CHASE_BGM:
-		EventManager.demo_bgm = &""
+	if Game.session.show_bgm == BeeSwarm.CHASE_BGM:
+		Game.session.show_bgm = &""
 
 
 func _player() -> Player:
@@ -44,9 +44,9 @@ func test_the_chase_music_starts_as_the_startle_ends() -> void:
 	await get_tree().process_frame
 	var swarm: BeeSwarm = BeeSwarm.spawn(self, player.global_position + Vector3(6, 2.5, 0), player)
 	auto_free(swarm)
-	assert_that(EventManager.demo_bgm).is_not_equal(BeeSwarm.CHASE_BGM)
+	assert_that(Game.session.show_bgm).is_not_equal(BeeSwarm.CHASE_BGM)
 	await player.request_shock(0.0, 0.0, true)
-	assert_that(EventManager.demo_bgm).is_equal(BeeSwarm.CHASE_BGM)
+	assert_that(Game.session.show_bgm).is_equal(BeeSwarm.CHASE_BGM)
 
 
 func test_the_swarm_waits_then_runs_the_player_down() -> void:

@@ -47,7 +47,7 @@ static func build(root: Node3D, interior: IndoorSession) -> void:
 	InteriorDoorBuilder.add_linked_doors(doors_root, grid, room)
 	add_player_steps(terrain, grid, room)
 	## Villager homes and the player's floors (`ROOM_SUNSHINE` in their scene actor lists).
-	var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+	var house: House = Game.interiors.player_house()
 	WindowSunshine.add(terrain, grid, room, house)
 
 
@@ -56,7 +56,7 @@ static func build(root: Node3D, interior: IndoorSession) -> void:
 static func add_player_steps(root: Node3D, grid: WorldGrid, room: Room) -> void:
 	if root == null or grid == null or room == null or not PlayerHouse.is_player_room(room.id):
 		return
-	var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+	var house: House = Game.interiors.player_house()
 	for step: Dictionary in PlayerHouse.step_draws(room, house):
 		var holder := Node3D.new()
 		holder.name = "Step_%s" % String(step["visual"])

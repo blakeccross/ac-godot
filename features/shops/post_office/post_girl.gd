@@ -40,7 +40,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if action == null or action.id != Interaction.TALK or Game == null:
+	if action == null or action.id != Interaction.TALK:
 		return false
 	return begin_talk(ctx)
 
@@ -50,7 +50,7 @@ func begin_talk(ctx: InteractionContext) -> bool:
 	var listener: Node3D = ctx.actor as Node3D if ctx != null else null
 	_face_toward(listener.global_position if listener != null else global_position)
 	var speaker: String = PostDisplay.post_girl_name(_species)
-	var desk_full: bool = Game.post != null and Game.post.is_desk_full()
+	var desk_full: bool = Game.post.is_desk_full()
 	var data: DialogueData = PostDisplay.talk_conversation(_species, desk_full)
 	## `aPG_set_talk_info`: April Fools' Day's trick instead of the counter.
 	var trick: DialogueData = AprilFools.conversation(&"phyllis" if _species == PostDisplay.PHYLLIS_SPECIES else &"pelly")
@@ -79,7 +79,7 @@ func begin_talk(ctx: InteractionContext) -> bool:
 
 
 func _greeting_line() -> String:
-	if Game != null and Game.post != null and Game.post.is_desk_full():
+	if Game.post.is_desk_full():
 		return "The desk is full — we'll deliver as soon as we can!"
 	if _species == PostDisplay.PHYLLIS_SPECIES:
 		return "Mmm... huh?\nWel-come!"
@@ -205,7 +205,7 @@ func _open_bank() -> void:
 ## the cheer on walking back out). Without the screen the authored menu stands in.
 func _open_repay() -> void:
 	var repay: RepayOverlay = RepayOverlay.find(get_tree())
-	if repay == null or Game.inventory == null:
+	if repay == null:
 		_open_followup(DialogueCatalog.conversation(PostDisplay.REPAY_AMOUNT_ID))
 		return
 	var loan_before: int = Game.inventory.loan
@@ -220,7 +220,7 @@ func _open_repay() -> void:
 			msg = PostUse.REPAY_NOT_READY_MSG
 		elif Game.inventory.loan <= 0:
 			msg = PostUse.REPAY_PAID_OFF_MSG
-			Game.complete_payment = Game.PAYMENT_HOUSE
+			Game.session.complete_payment = Game.PAYMENT_HOUSE
 		var after: DialogueData = DialogueCatalog.conversation(
 			StringName("msg_%d" % (msg + PostDisplay.draw_type(_species))))
 		if after != null:

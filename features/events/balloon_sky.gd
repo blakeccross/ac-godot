@@ -38,7 +38,7 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if state == State.SPAWNED:
 		return
-	if Game != null and Game.first_job != null and Game.first_job.is_active() and not Game.first_job.open_quest:
+	if Game.first_job.is_active() and not Game.first_job.open_quest:
 		return
 	var minute: int = Clock.minute
 	if minute % 5 != 3 or minute == _last_min:
@@ -61,15 +61,7 @@ func roll() -> void:
 
 ## `mPr_GetGoodsPower`: feng shui and the day's fortune.
 static func goods_power() -> float:
-	if Game == null:
-		return 0.0
 	return float(Game.goods_power_now())
-	match Game.destiny():
-		Game.Destiny.GOODS_LUCK:
-			return 30.0
-		Game.Destiny.BAD_LUCK:
-			return -30.0
-	return 0.0
 
 
 ## `Balloon_make_fuusen`.

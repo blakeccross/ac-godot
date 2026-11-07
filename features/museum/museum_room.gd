@@ -14,7 +14,7 @@ func _ready() -> void:
 
 ## Fill Terrain collision + this room's exhibits (`MuseumBook`).
 func populate() -> void:
-	if room_id == &"" or Game == null:
+	if room_id == &"":
 		return
 	var room: Room = Game.interiors.room(room_id)
 	if room == null:

@@ -8,12 +8,12 @@ func before_test() -> void:
 	Clock.reset_to_default()
 	Clock.paused = true
 	Game.reset_session()
-	VillagerWalk.reset()
+	Game.session.walkers.clear()
 
 
 func after_test() -> void:
 	Game.reset_session()
-	VillagerWalk.reset()
+	Game.session.walkers.clear()
 	Clock.reset_to_default()
 	Clock.paused = false
 
@@ -865,7 +865,7 @@ func test_peppy_walks_all_day_and_cranky_prefers_alone() -> void:
 
 
 func test_walk_slots_match_decomp_cap() -> void:
-	VillagerWalk.reset()
+	Game.session.walkers.clear()
 	assert_int(VillagerWalk.walker_cap(6)).is_equal(2)
 	assert_int(VillagerWalk.walker_cap(15)).is_equal(5)
 	assert_int(VillagerWalk.walker_cap(1)).is_equal(1)

@@ -58,54 +58,54 @@ func test_pieces_outside_the_room_do_not_count() -> void:
 func test_letters_reward_first_then_grade() -> void:
 	if not HRA.available():
 		return
-	var hra := HRA.new()
+	var happy_room_academy := HRA.new()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1
-	assert_int(int(hra.decide_letter(75000, 0, 1, rng)[0])).is_equal(HRA.REWARD0_LETTER)
-	hra.reward0 = true
-	assert_int(int(hra.decide_letter(75000, 0, 1, rng)[0])).is_equal(0x47)
-	assert_int(int(hra.decide_letter(0, 0, 1, rng)[0])).is_equal(0x42)
-	assert_int(int(hra.decide_letter(5000, 0, 0, rng)[0])).is_equal(0x43)
-	assert_int(int(hra.decide_letter(5000, 0, 3, rng)[0])).is_equal(0x220)
+	assert_int(int(happy_room_academy.decide_letter(75000, 0, 1, rng)[0])).is_equal(HRA.REWARD0_LETTER)
+	happy_room_academy.reward0 = true
+	assert_int(int(happy_room_academy.decide_letter(75000, 0, 1, rng)[0])).is_equal(0x47)
+	assert_int(int(happy_room_academy.decide_letter(0, 0, 1, rng)[0])).is_equal(0x42)
+	assert_int(int(happy_room_academy.decide_letter(5000, 0, 0, rng)[0])).is_equal(0x43)
+	assert_int(int(happy_room_academy.decide_letter(5000, 0, 3, rng)[0])).is_equal(0x220)
 
 
 func test_welcome_then_score_only_on_a_later_day_after_a_change() -> void:
 	if not HRA.available():
 		return
-	var hra := HRA.new()
+	var happy_room_academy := HRA.new()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var house := House.new()
 	var room := Room.new()
 	var day1 := Vector3i(2001, 7, 15)
-	var first: MailData = hra.mark(house, room, null, day1, false, "Pat", rng)
+	var first: MailData = happy_room_academy.mark(house, room, null, day1, false, "Pat", rng)
 	assert_object(first).is_not_null()
-	assert_bool(hra.member).is_true()
+	assert_bool(happy_room_academy.member).is_true()
 	## Same day: nothing more.
-	assert_object(hra.mark(house, room, null, day1, false, "Pat", rng)).is_null()
+	assert_object(happy_room_academy.mark(house, room, null, day1, false, "Pat", rng)).is_null()
 	## A change dated day 2 waits for day 3.
-	hra.report_change(2001, 7, 16)
-	assert_object(hra.mark(house, room, null, Vector3i(2001, 7, 16), false, "Pat", rng)).is_null()
-	var graded: MailData = hra.mark(house, room, null, Vector3i(2001, 7, 17), false, "Pat", rng)
+	happy_room_academy.report_change(2001, 7, 16)
+	assert_object(happy_room_academy.mark(house, room, null, Vector3i(2001, 7, 16), false, "Pat", rng)).is_null()
+	var graded: MailData = happy_room_academy.mark(house, room, null, Vector3i(2001, 7, 17), false, "Pat", rng)
 	assert_object(graded).is_not_null()
-	assert_bool(hra.updated).is_false()
+	assert_bool(happy_room_academy.updated).is_false()
 	assert_int(graded.paper_type).is_equal(HRA.PAPER)
 
 
 func test_first_job_skips_the_academy() -> void:
-	var hra := HRA.new()
+	var happy_room_academy := HRA.new()
 	var rng := RandomNumberGenerator.new()
-	assert_object(hra.mark(House.new(), Room.new(), null, Vector3i(2001, 7, 15), true, "Pat", rng)).is_null()
-	assert_bool(hra.member).is_false()
+	assert_object(happy_room_academy.mark(House.new(), Room.new(), null, Vector3i(2001, 7, 15), true, "Pat", rng)).is_null()
+	assert_bool(happy_room_academy.member).is_false()
 
 
 func test_nook_brings_up_the_academy_the_day_after_the_first_job() -> void:
-	var hra := HappyRoomAcademy.new()
-	hra.first_job_done()
-	assert_bool(hra.take_nook_talk()).is_false()
-	hra.renew_day()
-	assert_int(hra.talk).is_equal(HappyRoomAcademy.Talk.DUE)
-	var saved: Dictionary = hra.to_save()
+	var happy_room_academy := HappyRoomAcademy.new()
+	happy_room_academy.first_job_done()
+	assert_bool(happy_room_academy.take_nook_talk()).is_false()
+	happy_room_academy.renew_day()
+	assert_int(happy_room_academy.talk).is_equal(HappyRoomAcademy.Talk.DUE)
+	var saved: Dictionary = happy_room_academy.to_save()
 	var back := HappyRoomAcademy.new()
 	back.apply_snapshot(saved)
 	assert_bool(back.take_nook_talk()).is_true()
@@ -115,10 +115,10 @@ func test_nook_brings_up_the_academy_the_day_after_the_first_job() -> void:
 func test_no_marks_until_nook_has_told_you() -> void:
 	if not HappyRoomAcademy.available():
 		return
-	var hra := HappyRoomAcademy.new()
-	hra.first_job_done()
+	var happy_room_academy := HappyRoomAcademy.new()
+	happy_room_academy.first_job_done()
 	var rng := RandomNumberGenerator.new()
-	assert_object(hra.mark(House.new(), Room.new(), null, Vector3i(2002, 1, 2), false, "Ann", rng)).is_null()
-	hra.renew_day()
-	hra.take_nook_talk()
-	assert_object(hra.mark(House.new(), Room.new(), null, Vector3i(2002, 1, 2), false, "Ann", rng)).is_not_null()
+	assert_object(happy_room_academy.mark(House.new(), Room.new(), null, Vector3i(2002, 1, 2), false, "Ann", rng)).is_null()
+	happy_room_academy.renew_day()
+	happy_room_academy.take_nook_talk()
+	assert_object(happy_room_academy.mark(House.new(), Room.new(), null, Vector3i(2002, 1, 2), false, "Ann", rng)).is_not_null()

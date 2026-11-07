@@ -19,12 +19,12 @@ var _anim: AnimationPlayer
 
 func _ready() -> void:
 	_attach()
-	if Clock != null and not Clock.day_changed.is_connected(_sync_flower):
+	if not Clock.day_changed.is_connected(_sync_flower):
 		Clock.day_changed.connect(_sync_flower)
 
 
 func _exit_tree() -> void:
-	if Clock != null and Clock.day_changed.is_connected(_sync_flower):
+	if Clock.day_changed.is_connected(_sync_flower):
 		Clock.day_changed.disconnect(_sync_flower)
 
 
@@ -51,7 +51,7 @@ func _attach_done() -> void:
 
 
 func _sync_flower() -> void:
-	var shown: bool = flower_in_bloom(Clock.month if Clock != null else 6, Clock.day if Clock != null else 1)
+	var shown: bool = flower_in_bloom(Clock.month, Clock.day)
 	var flower: Node = _find_named(self, FLOWER_MESH)
 	if flower is MeshInstance3D:
 		(flower as MeshInstance3D).visible = shown

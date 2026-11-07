@@ -10,5 +10,5 @@ func _init() -> void:
 
 
 func make_talk() -> BankTalk:
-	var area: Dictionary = Game.events.area(&"carpet_peddler") if Game != null and Game.events != null else {}
-	return SaharahTalk.new(area, Game.inventory if Game != null else null, rng())
+	var area: Dictionary = Game.events.area(&"carpet_peddler")
+	return SaharahTalk.new(area, Game.inventory, rng())

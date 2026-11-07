@@ -111,7 +111,7 @@ func enter(mode: LighthouseBook.SwitchMode) -> void:
 		LighthouseBook.SwitchMode.AUTO_ON:
 			on = true
 		LighthouseBook.SwitchMode.MANUAL:
-			on = Game != null and Game.lighthouse != null and Game.lighthouse.is_night_lit(
+			on = Game.lighthouse.is_night_lit(
 				EventDates.ordinal(Clock.year, Clock.month, Clock.day)
 			)
 	lever_on = on
@@ -164,9 +164,9 @@ func at_panel(actor: Node3D) -> bool:
 	var local: Vector3 = to_local(actor.global_position)
 	if Vector2(local.x, local.z).length() >= PANEL_REACH:
 		return false
-	if not actor.has_method("facing_yaw"):
+	if not ActorFacing.has_facing(actor):
 		return true
-	var yaw: float = float(actor.call("facing_yaw"))
+	var yaw: float = ActorFacing.yaw(actor)
 	var dir: Vector3 = global_basis.inverse() * Vector3(sin(yaw), 0.0, cos(yaw))
 	var local_yaw: float = atan2(dir.x, dir.z)
 	return local_yaw > PANEL_FACING_MIN and local_yaw < PANEL_FACING_MAX
@@ -180,8 +180,7 @@ func can_throw() -> bool:
 func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.TOGGLE or not can_throw():
 		return false
-	if Game != null and Game.lighthouse != null:
-		Game.lighthouse.switch_on_now()
+	Game.lighthouse.switch_on_now()
 	request_lever_on()
 	return true
 
@@ -217,8 +216,7 @@ func _lever_move(delta: float) -> void:
 	var before: float = lever_frame
 	lever_frame += LEVER_SPEED * delta * TICK_HZ
 	if lever_on and (before - LEVER_SE_FRAME) * (lever_frame - LEVER_SE_FRAME) <= 0.0 and before != lever_frame:
-		if Audio != null:
-			Audio.play_se(LEVER_SE, self)
+		Audio.play_se(LEVER_SE, self)
 	var last: float = _clip_frames(_lever_anim, lever_clip)
 	if lever_frame >= last:
 		lever_frame = last
@@ -305,7 +303,7 @@ func _apply() -> void:
 
 
 func _mode() -> LighthouseBook.SwitchMode:
-	if not follow_clock or Game == null or Game.lighthouse == null or Clock == null:
+	if not follow_clock:
 		return LighthouseBook.SwitchMode.OFF if not lever_on else LighthouseBook.SwitchMode.AUTO_ON
 	return Game.lighthouse.switch_mode_now()
 

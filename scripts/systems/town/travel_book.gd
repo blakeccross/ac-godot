@@ -1,5 +1,5 @@
 class_name TravelBook
-extends RefCounted
+extends SaveBook
 
 ## Fossils mailed to the Farway Museum for identification (`m_museum.c` mail-in).
 ## Owned by `Game`. Each in-transit entry returns identified on the next 06:00 renew as
@@ -27,8 +27,6 @@ func clear() -> void:
 
 ## Ordinal day for scheduling (calendar day, not play session).
 static func today_ordinal() -> int:
-	if Clock == null:
-		return 0
 	var unix: int = int(
 		Time.get_unix_time_from_datetime_dict(
 			{"year": Clock.year, "month": Clock.month, "day": Clock.day, "hour": 12}
@@ -82,7 +80,7 @@ func _identified_letter() -> MailData:
 	mail.sender_name = SENDER_NAME
 	mail.sender_type = MailData.NameType.NPC
 	mail.recipient_type = MailData.NameType.PLAYER
-	mail.recipient_name = Game.resident.player_name if Game != null else "Resident"
+	mail.recipient_name = Game.resident.player_name
 	mail.font = MailData.LetterFont.RECV_PRESENT
 	mail.present_item_id = StringName(str(row.get("id", "")))
 	mail.header = "Dear %s," % mail.recipient_name
@@ -100,7 +98,7 @@ func _intro_letter() -> MailData:
 	mail.sender_name = SENDER_NAME
 	mail.sender_type = MailData.NameType.NPC
 	mail.recipient_type = MailData.NameType.PLAYER
-	mail.recipient_name = Game.resident.player_name if Game != null else "Resident"
+	mail.recipient_name = Game.resident.player_name
 	mail.font = MailData.LetterFont.RECV
 	mail.header = "Dear %s," % mail.recipient_name
 	mail.body = (

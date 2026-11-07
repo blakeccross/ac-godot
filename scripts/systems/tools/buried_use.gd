@@ -152,7 +152,7 @@ static func _plant_in_shine_hole(ctx: InteractionContext, cell: Vector2i, item_i
 		rng.randomize()
 		var luck: bool = Game.resident.destiny_type == Game.Destiny.MONEY_LUCK
 		var content: TreeUse.Content = TreeUse.Content.NONE
-		if PlantGrowth.money_tree_takes(rng.randf(), Game.money_power, luck):
+		if PlantGrowth.money_tree_takes(rng.randf(), Game.session.money_power, luck):
 			content = money[item_id]
 		return PlantGrowth.plant_special(ctx, cell, content, false) != &""
 	if item_id == &"shovel":
@@ -188,7 +188,7 @@ static func spring_pitfall(world: Node, grid: WorldGrid, cell: Vector2i) -> Node
 		func() -> void:
 			if is_instance_valid(hole):
 				Audio.play_se(&"13c", hole)
-				FootstepEffects.otosiana([world.get("layout"), grid], hole.global_position)
+				FootstepEffects.otosiana([WorldData.of(world), grid], hole.global_position)
 	)
 	return hole
 
@@ -207,7 +207,7 @@ static func close_pit(world: Node, cell: Vector2i) -> void:
 			grid.remove(pid)
 		return
 	Audio.play_se(&"15b", hole)
-	FootstepEffects.otosiana([world.get("layout"), world.get("grid")], hole.global_position)
+	FootstepEffects.otosiana([WorldData.of(world), WorldGrid.of(world)], hole.global_position)
 	var opening: Variant = hole.get_meta(&"pit_tween") if hole.has_meta(&"pit_tween") else null
 	if opening is Tween and (opening as Tween).is_valid():
 		(opening as Tween).kill()
@@ -246,8 +246,7 @@ static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 		Game.town.shine_hole = HoleUse.persist_id(cell)
 	elif kind != KIND_ITEM and kind != KIND_PITFALL:
 		## First fossil triggers the Farway Museum's introductory letter (`mMsm` mail-in).
-		if Game.travel_book != null:
-			Game.travel_book.request_intro_letter()
+		Game.travel_book.request_intro_letter()
 	## Digging a buried spot leaves an open hole (`DIG_SCOOP` after get).
 	HoleUse.dig(ctx, cell, false)
 	last_find = {"item": item_id, "banked": banked, "cell": cell}
@@ -281,7 +280,7 @@ static func can_bury(grid: WorldGrid, cell: Vector2i, layout: WorldData = null) 
 
 ## Buries `item_id` under a crack mark at `cell` (`mMsm_DepositItemBlock`).
 static func bury_item(world: Node, cell: Vector2i, item_id: StringName) -> bool:
-	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	var grid: WorldGrid = WorldGrid.of(world)
 	if grid == null:
 		return false
 	return _deposit(world, grid, _layout(world), cell, KIND_ITEM, item_id)
@@ -498,7 +497,7 @@ static func _layout(world: Node) -> WorldData:
 static func _grid(ctx: InteractionContext) -> WorldGrid:
 	if ctx == null or ctx.world == null:
 		return null
-	return ctx.world.get("grid") as WorldGrid
+	return WorldGrid.of(ctx.world)
 
 
 static func _host_for(world: Node, pid: StringName) -> Node:

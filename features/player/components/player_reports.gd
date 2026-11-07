@@ -256,10 +256,10 @@ const PAYMENT_REPORT_SEC := 42.0 * DecompTime.TICK_SEC
 
 
 func run_complete_payment() -> void:
-	var kind: StringName = Game.complete_payment
+	var kind: StringName = Game.session.complete_payment
 	if kind == &"" or _player._busy:
 		return
-	Game.complete_payment = &""
+	Game.session.complete_payment = &""
 	_player._busy = true
 	_player._motor.facing = Netting.SHOW_YAW
 	_player._mesh.rotation.y = Netting.SHOW_YAW
@@ -320,7 +320,7 @@ func run_dig_get(item_id: StringName, banked: bool, cell: Vector2i, ctx: Interac
 
 ## `PUTAWAY_SCOOP` with `submenu_flag` → the exchange pockets, or `PUTIN_SCOOP` with the find.
 func _dig_swap_or_bury(item_id: StringName, swap: bool, cell: Vector2i, ctx: InteractionContext) -> void:
-	if swap and Game.inventory != null:
+	if swap:
 		Game.pocket_requests.request_handover(-1, "take")
 		var picked: Array = await Game.pocket_requests.handover_resolved
 		var pocket: int = int(picked[1])

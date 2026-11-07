@@ -4,10 +4,6 @@ extends RefCounted
 ## Slash-command parser for the play HUD debug overlay (weather, season, give, …).
 ## Not an autoload — the overlay owns one instance. Logic stays testable without UI.
 
-const COMMANDS: PackedStringArray = [
-	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "place", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "leave", "cam", "repay", "manpu", "digup", "ball", "xmas", "island", "ride", "cannon", "popper", "costume", "glow", "shine", "reflect", "drop", "bridge", "lighthouse", "clear"
-]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
 const HOUSE_ARGS: PackedStringArray = ["size", "basement", "build", "loan", "statue", "goki", "neglect", "roof"]
@@ -19,6 +15,102 @@ const RESETTI_ARGS: PackedStringArray = ["off", "on", "disable", "enable", "1", 
 const SEASON_ARGS: PackedStringArray = ["spring", "summer", "autumn", "fall", "winter", "next"]
 
 var history: PackedStringArray = []
+
+## Every command: its name (and aliases) → the `_cmd_*` that runs it with the words after it.
+var _commands: Dictionary[String, Callable]
+
+
+func _init() -> void:
+	_commands = {
+		"help": _cmd_help,
+		"?": _cmd_help,
+		"weather": _cmd_weather,
+		"season": _cmd_season,
+		"give": _cmd_give,
+		"equip": _cmd_equip,
+		"bridge": _cmd_bridge,
+		"drop": _cmd_drop,
+		"reflect": _cmd_reflect,
+		"xmas": _cmd_xmas,
+		"ball": _cmd_ball,
+		"digup": _cmd_digup,
+		"throwfish": _cmd_throwfish,
+		"mailbox": _cmd_mailbox,
+		"fx": _cmd_fx,
+		"twirl": _cmd_twirl,
+		"wish": _cmd_wish,
+		"feel": _cmd_feel,
+		"cam": _cmd_cam,
+		"leave": _cmd_leave,
+		"manpu": _cmd_manpu,
+		"axebreak": _cmd_axebreak,
+		"release": _cmd_release,
+		"time": _cmd_time,
+		"bells": _cmd_bells,
+		"house": _cmd_house,
+		"place": _cmd_place,
+		"event": _cmd_event,
+		"events": _cmd_event,
+		"fortune": _cmd_fortune,
+		"destiny": _cmd_fortune,
+		"bug": _cmd_bug,
+		"insect": _cmd_bug,
+		"shop": _cmd_shop,
+		"lighthouse": _cmd_lighthouse,
+		"balloon": _cmd_balloon,
+		"rainbow": _cmd_rainbow,
+		"tune": _cmd_tune,
+		"map": _cmd_map,
+		"catalog": _cmd_catalog,
+		"abd": _cmd_abd,
+		"repay": _cmd_repay,
+		"board": _cmd_board,
+		"sting": _cmd_sting,
+		"town": _cmd_town,
+		"moneyrock": _cmd_moneyrock,
+		"fengshui": _cmd_fengshui,
+		"wisp": _cmd_wisp,
+		"blanca": _cmd_blanca,
+		"golden": _cmd_golden,
+		"treasure": _cmd_treasure,
+		"calendar": _cmd_calendar,
+		"mom": _cmd_mom,
+		"birthday": _cmd_birthday,
+		"diary": _cmd_diary,
+		"tan": _cmd_tan,
+		"snowballs": _cmd_snowballs,
+		"snowman": _cmd_snowman,
+		"mushrooms": _cmd_mushrooms,
+		"signboard": _cmd_signboard,
+		"meteor": _cmd_meteor,
+		"shells": _cmd_shells,
+		"weeds": _cmd_weeds,
+		"resetti": _cmd_resetti,
+		"exercise": _cmd_exercise,
+		"pitfall": _cmd_pitfall,
+		"island": _cmd_island,
+		"ride": _cmd_ride,
+		"cannon": _cmd_cannon,
+		"popper": _cmd_popper,
+		"shine": _cmd_shine,
+		"costume": _cmd_costume,
+		"glow": _cmd_glow,
+		"clear": _cmd_clear,
+	}
+
+
+## Command names for tab completion (aliases like `?` left out).
+func command_names() -> PackedStringArray:
+	var out := PackedStringArray()
+	for name: String in _commands:
+		if name.is_valid_identifier():
+			out.append(name)
+	return out
+
+
+## The running tree; the console is a `RefCounted` the overlay owns, so it asks the engine.
+static func _tree() -> SceneTree:
+	return Engine.get_main_loop() as SceneTree
 
 
 func execute(raw: String) -> String:
@@ -33,831 +125,10 @@ func execute(raw: String) -> String:
 		return ""
 	var cmd: String = String(parts[0]).to_lower()
 	var args: PackedStringArray = parts.slice(1)
-	match cmd:
-		"help", "?":
-			return _cmd_help()
-		"weather":
-			return _cmd_weather(args)
-		"season":
-			return _cmd_season(args)
-		"give":
-			return _cmd_give(args)
-		"equip":
-			## Give a tool and hold it (`equip red_pinwheel`).
-			var eq_msg: String = _cmd_give(args)
-			var eq_id := StringName(String(args[0]).to_lower()) if not args.is_empty() else &""
-			for i: int in Inventory.POCKET_SLOTS:
-				var eq_slot: InventorySlot = Game.inventory.slot_at(i)
-				if eq_slot != null and not eq_slot.is_empty() and eq_slot.item.item_id == eq_id:
-					return "%s Equipped: %s." % [eq_msg, Game.inventory.equip_slot(i)]
-			return eq_msg
-		"bridge":
-			## `bridge` sends Tortimer to the river for the second bridge; `bridge build` puts it
-			## up now in the first river acre with a spot.
-			var br_tree := Engine.get_main_loop() as SceneTree
-			var br_world: World = World.find(br_tree) if br_tree != null else null
-			if br_world == null:
-				return "No field here."
-			if not args.is_empty() and String(args[0]) == "build":
-				var br_blocks: Array[Vector2i] = SecondBridge.blocks(br_world.layout)
-				if br_blocks.is_empty():
-					return "No bridge spot in this town."
-				var br_today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
-				SecondBridge.order(br_blocks[br_blocks.size() - 1], br_today - 1)
-				SecondBridge.build_if_due(br_today, Clock.hour)
-				SecondBridge.restore(br_world, br_world.layout, br_world.grid)
-				return "Bridge built in acre %s." % br_blocks[br_blocks.size() - 1]
-			SecondBridge.note_day(EventDates.ordinal(Clock.year, Clock.month, Clock.day))
-			Game.events.force(&"soncho_bridge_make")
-			_sync_events()
-			return "Tortimer is by the river (%d acres with a bridge spot)." % SecondBridge.blocks(br_world.layout).size()
-		"drop":
-			## Lay an item on the unit in front of the player (`drop turnips_10`), as dropping does.
-			var dr_tree := Engine.get_main_loop() as SceneTree
-			var dr_world: Node = World.find(dr_tree) if dr_tree != null else null
-			var dr_player: Node3D = Player.find(dr_tree) if dr_tree != null else null
-			if dr_world == null or dr_player == null or args.is_empty():
-				return "Usage: drop <item_id> (outdoors)."
-			var dr_ctx := InteractionContext.new()
-			dr_ctx.actor = dr_player
-			dr_ctx.world = dr_world
-			var dr_grid: WorldGrid = dr_world.get("grid") as WorldGrid
-			var dr_front: Vector2i = ToolUse.facing_cell(dr_ctx)
-			var dr_cell: Vector2i = FieldItems.drop_cell(dr_grid, dr_front, dr_front - dr_grid.world_to_cell(dr_player.global_position))
-			if dr_cell.x < 0 or FieldItems.put(dr_world, dr_cell, StringName(String(args[0]).to_lower())) == null:
-				return "Can't drop here."
-			return "Dropped %s at %s." % [args[0], dr_cell]
-		"reflect":
-			## The shovel bouncing off something hard: the step back and the impact stars.
-			var rf_tree := Engine.get_main_loop() as SceneTree
-			var rf_player := rf_tree.get_first_node_in_group(Player.GROUP) as Player if rf_tree != null else null
-			if rf_player == null:
-				return "No player in this scene."
-			var rf_ctx := InteractionContext.new()
-			rf_ctx.actor = rf_player
-			rf_ctx.world = World.find(rf_tree)
-			ToolUse._reflect_scoop_fx(rf_ctx)
-			return "Bounced."
-		"xmas":
-			## Walk up to a tree with December lights (Dec 10–25).
-			var xm_tree := Engine.get_main_loop() as SceneTree
-			var xm_player := xm_tree.get_first_node_in_group(Player.GROUP) as Player if xm_tree != null else null
-			if xm_player == null:
-				return "No player in this scene."
-			for xm_node: Node in xm_tree.get_nodes_in_group("plant"):
-				if xm_node.find_child("XmasLights", true, false) != null:
-					var xm_pos: Vector3 = (xm_node as Node3D).global_position
-					xm_player.global_position = xm_pos + Vector3(0.0, 0.0, 2.5)
-					return "Lit tree at %s." % xm_pos
-			return "No lit trees."
-		"ball":
-			## Bring the town's ball in front of the player (`ball`), or kick it (`ball kick`).
-			var bl_tree := Engine.get_main_loop() as SceneTree
-			var bl_player := bl_tree.get_first_node_in_group(Player.GROUP) as Player if bl_tree != null else null
-			var bl_ball: FieldBall = FieldBall.find(bl_tree)
-			if bl_player == null or bl_ball == null:
-				return "No ball here."
-			var bl_yaw: float = bl_player.facing_yaw()
-			if not args.is_empty() and String(args[0]) == "kick":
-				bl_ball.kick(Vector2(sin(bl_yaw), cos(bl_yaw)), Vector2(sin(bl_yaw), cos(bl_yaw)) * 7.5 * FieldBall.FRAME)
-				return "Kicked."
-			bl_ball.in_hole = false
-			bl_ball.dead = false
-			bl_ball.global_position = bl_player.global_position + Vector3(sin(bl_yaw), 0.0, cos(bl_yaw)) * 2.0
-			bl_ball.call("_snap_ground")
-			return "Ball at %s." % bl_ball.global_position
-		"digup":
-			## Play the dig-up report for an item (`digup conch`), or the loan cheer (`digup paid`).
-			var du_tree := Engine.get_main_loop() as SceneTree
-			var du_player := du_tree.get_first_node_in_group(Player.GROUP) as Player if du_tree != null else null
-			if du_player == null:
-				return "No player in this scene."
-			if not args.is_empty() and String(args[0]) == "paid":
-				Game.complete_payment = Game.PAYMENT_HOUSE
-				du_player.reports.run_complete_payment()
-				return "Debt paid."
-			var du_item := StringName(String(args[0]) if not args.is_empty() else "conch")
-			du_player.reports.run_dig_get(du_item, true, Vector2i(-1, -1), null)
-			return "Dug up %s." % du_item
-		"throwfish":
-			## `throwfish [fish id]`: stand at the nearest bank facing the water and let a fish go.
-			var tf_tree := Engine.get_main_loop() as SceneTree
-			var tf_player := Player.find(tf_tree) if tf_tree != null else null
-			var tf_world := World.find(tf_tree) if tf_tree != null else null
-			if tf_player == null or tf_world == null:
-				return "No field."
-			var tf_fish := ItemCatalog.get_item(StringName(str(args[0])) if args.size() >= 1 else &"crucian_carp") as FishData
-			if tf_fish == null:
-				return "No such fish."
-			var tf_is_water := func(at: Vector3) -> bool:
-				var attr: int = FieldCollision.unit_attr_at(tf_world.layout, tf_world.grid, at)
-				return attr >= 0 and FieldCatalog.is_water_attr(attr)
-			var tf_cells: Array[Vector2i] = []
-			for body: WaterBodies.Body in tf_world.fish.bodies:
-				tf_cells.append_array(body.cells)
-			var tf_from: Vector2i = tf_world.grid.world_to_cell(tf_player.global_position)
-			tf_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.distance_squared_to(tf_from) < b.distance_squared_to(tf_from))
-			for cell: Vector2i in tf_cells.slice(0, 80):
-				for dir: Vector2i in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
-					var stand: Vector3 = tf_world.grid.cell_to_world(cell - dir * 2)
-					if tf_is_water.call(stand):
-						continue
-					var yaw: float = atan2(float(dir.x), float(dir.y))
-					var water: Variant = CreatureRelease.search_water(tf_is_water, stand, yaw)
-					if water == null:
-						continue
-					var ground: float = FieldCollision.ground_y_at(tf_world.layout, tf_world.grid, stand)
-					stand.y = ground if FieldCollision.has_floor(ground) else tf_player.global_position.y
-					tf_player.global_position = stand
-					tf_player.set_facing(yaw)
-					var w: Vector3 = water as Vector3
-					w.y = tf_world.fish.surface_at(w)
-					tf_player.release_from_pocket(tf_fish, w)
-					return "Threw %s." % tf_fish.display_name
-			return "No bank found."
-		"mailbox":
-			## Walk up to the player's own mailbox and check it, as the A button would.
-			var mb_tree := Engine.get_main_loop() as SceneTree
-			var mb_player := Player.find(mb_tree) if mb_tree != null else null
-			if mb_player == null:
-				return "No player."
-			for node: Node in mb_tree.get_nodes_in_group("interactable"):
-				if node.has_method("stand_spot") and bool(node.call("is_owned")):
-					var mb_box := node as Node3D
-					mb_player.global_position = mb_box.global_position + Vector3(0.3, 0.0, 1.6)
-					var mb_ctx := InteractionContext.new()
-					mb_ctx.actor = mb_player
-					mb_box.call("interact", Interaction.of(Interaction.READ, "Check mailbox"), mb_ctx)
-					return "Checking the mailbox."
-			return "No mailbox."
-		"fx":
-			## Tool effects in front of the player: `fx dig`, `fx fill`, `fx chips`, `fx splash 3`
-			## (an `eTM_CallEffect` arg), `fx net`, `fx soul`.
-			var fx_player := Player.find(Engine.get_main_loop() as SceneTree)
-			if fx_player == null:
-				return "No player."
-			var fx_bg: Array = fx_player._bg()
-			var fx_yaw: float = fx_player.facing_yaw()
-			var fx_at: Vector3 = fx_player.global_position + Vector3(sin(fx_yaw), 0.0, cos(fx_yaw)) * 2.0
-			var fx_attr: int = FootstepEffects.attr_at(fx_bg, fx_at)
-			match String(args[0]) if not args.is_empty() else "dig":
-				"dig":
-					FootstepEffects.dig_sequence(fx_bg, fx_at, fx_player, fx_attr, false)
-				"fill":
-					for i: int in range(3, 6):
-						FootstepEffects.dig_hole(fx_bg, fx_at, fx_player.global_position, fx_yaw, fx_attr, i)
-					FootstepEffects.dig_scoop(fx_bg, fx_at, fx_player.global_position, fx_yaw, fx_attr, 2)
-				"chips":
-					FootstepEffects.axe_chips(fx_bg, fx_player.global_position, fx_yaw)
-				"splash":
-					FootstepEffects.bobber_splash(fx_at, int(args[1]) if args.size() > 1 else 3)
-				"net":
-					FootstepEffects.net_splash(fx_bg, fx_at, fx_yaw)
-				"soul":
-					## A trodden roach's soul (`ef_goki`).
-					FieldEffects.spawn(fx_player.get_parent(), FieldEffects.Kind.GOKI, fx_at, 0.0)
-				_:
-					return "fx dig | fill | chips | splash N | net | soul"
-			return "Spawned."
-		"twirl":
-			## The umbrella twirl's spray at the player (`ef_kasamizu`; drops only in rain).
-			var tw_player := Player.find(Engine.get_main_loop() as SceneTree)
-			if tw_player == null:
-				return "No player."
-			FootstepEffects.umbrella_spray(tw_player.global_position, tw_player.facing_yaw())
-			return "Twirled."
-		"wish":
-			## The New Year's visit at the wishing well, coin and all (no question asked).
-			var ws_tree := Engine.get_main_loop() as SceneTree
-			var ws_player := Player.find(ws_tree)
-			var ws_well: WishingWell = WishingWell.find(ws_tree)
-			if ws_player == null or ws_well == null:
-				return "No well."
-			if not args.is_empty() and args[0] == "queue":
-				## `wish queue`: the villager at the front of a column lets the player in, as if
-				## they'd said Yes (`aHN0_talk_saisen_suru`).
-				var ws_queue: ShrineQueue = ShrineQueue.find(ws_tree)
-				for ws_v: Node in ws_tree.get_nodes_in_group("event_npc"):
-					if ws_queue != null and ws_v.get("_well") != null and int(ws_v.get("_sq_state")) == 1 \
-							and ws_queue.can_offer(int(ws_v.get("slot"))):
-						ws_player.global_position = (ws_v as Node3D).global_position + Vector3(0.0, 0.0, 1.2)
-						ws_queue.queue_player(int(ws_v.get("slot")))
-						ws_v.set("_sq_let_in", true)
-						return "Queued behind slot %d." % int(ws_v.get("slot"))
-				return "Nobody at the front."
-			var ws_stand: Array = ws_well.visit_stand()
-			var ws_at: Vector3 = ws_stand[0]
-			ws_player.global_position = ws_at
-			ws_player.shrine_visit(ws_at, float(ws_stand[1]), true, ws_well.global_position.y)
-			return "Wishing."
-		"feel":
-			## `feel <happy|angry|sad|sleepy|normal>`: the villager nearest the camera falls into
-			## that mood for an hour (`mNpc_FEEL_*`).
-			var fl_tree := Engine.get_main_loop() as SceneTree
-			var fl_cam: Camera3D = fl_tree.root.get_viewport().get_camera_3d() if fl_tree != null else null
-			var fl_names: PackedStringArray = ["normal", "happy", "angry", "sad", "sleepy"]
-			if fl_cam == null or args.is_empty() or not fl_names.has(args[0]):
-				return "Usage: feel <normal|happy|angry|sad|sleepy>"
-			var fl_best: Node3D = null
-			for v: Node in fl_tree.get_nodes_in_group("villagers"):
-				if not (v is Node3D and v.get("state") != null and (v as Node3D).is_visible_in_tree()):
-					continue
-				var fl_d: float = (v as Node3D).global_position.distance_to(fl_cam.global_position)
-				if fl_best == null or fl_d < fl_best.global_position.distance_to(fl_cam.global_position):
-					fl_best = v as Node3D
-			if fl_best == null:
-				return "No villager."
-			(fl_best.get("state") as VillagerState).set_feel(fl_names.find(args[0]), 60)
-			return "%s feels %s." % [fl_best.name, args[0]]
-		"cam":
-			## `cam <closer|farther|left|right>`: step the indoor camera index as C-stick would.
-			var cam_tree := Engine.get_main_loop() as SceneTree
-			var cam_node := cam_tree.root.get_viewport().get_camera_3d() as FollowCamera if cam_tree != null else null
-			if cam_node == null:
-				return "No follow camera."
-			var cam_steps := {"closer": Vector2i(-1, 0), "farther": Vector2i(1, 0), "left": Vector2i(0, -1), "right": Vector2i(0, 1)}
-			if args.is_empty() or not cam_steps.has(String(args[0])):
-				return "Usage: cam <closer|farther|left|right>"
-			var cam_step: Vector2i = cam_steps[String(args[0])]
-			cam_node.step_indoor(cam_step.x, cam_step.y)
-			return "Camera index %s." % [cam_node.indoor_index()]
-		"leave":
-			## `leave`: the villager nearest the camera pops back indoors and walks out of its
-			## door again (`aNPC_think_leave_house`).
-			var lv_tree := Engine.get_main_loop() as SceneTree
-			var lv_cam: Camera3D = lv_tree.root.get_viewport().get_camera_3d() if lv_tree != null else null
-			if lv_cam == null:
-				return "No camera."
-			var lv_best: Villager = null
-			for v: Node in lv_tree.get_nodes_in_group("villagers"):
-				if not (v is Villager) or (v as Villager).indoor_resident:
-					continue
-				var lv_d: float = (v as Node3D).global_position.distance_to(lv_cam.global_position)
-				if lv_best == null or lv_d < lv_best.global_position.distance_to(lv_cam.global_position):
-					lv_best = v as Villager
-			if lv_best == null:
-				return "No villager."
-			lv_best.replay_leave_home()
-			return "%s leaves home." % lv_best.name
-		"manpu":
-			## `manpu <clip|code>`: the villager nearest the camera reacts as if a talk line
-			## called for it.
-			var mp_tree := Engine.get_main_loop() as SceneTree
-			var mp_cam: Camera3D = mp_tree.root.get_viewport().get_camera_3d() if mp_tree != null else null
-			if mp_cam == null or args.is_empty():
-				return "Usage: manpu <clip|code>"
-			var mp_best: Node3D = null
-			for v: Node in mp_tree.get_nodes_in_group("villagers"):
-				if not (v is Node3D and v.get("conversation") != null and (v as Node3D).is_visible_in_tree()):
-					continue
-				var mp_d: float = (v as Node3D).global_position.distance_to(mp_cam.global_position)
-				if mp_best == null or mp_d < mp_best.global_position.distance_to(mp_cam.global_position):
-					mp_best = v as Node3D
-			if mp_best == null:
-				return "No villager."
-			## Reactions only come in a talk: hold the villager still as a talk would.
-			var mp_ai: Variant = mp_best.get("ai")
-			if mp_ai != null and not mp_ai.is_talking():
-				mp_ai.begin_talk()
-			(mp_best.get("conversation") as VillagerConversation).cue_manpu(str(args[0]))
-			return "%s: %s" % [mp_best.name, NpcManpu.clip_for(str(args[0]))]
-		"axebreak":
-			## Hold a seventh-stage axe one hit from breaking, and break it now (`BROKEN_AXE`).
-			_cmd_give(["axe_use_7"])
-			for i: int in Inventory.POCKET_SLOTS:
-				var ab_slot: InventorySlot = Game.inventory.slot_at(i)
-				if ab_slot != null and not ab_slot.is_empty() and ab_slot.item.item_id == &"axe_use_7":
-					Game.inventory.equip_slot(i)
-			AxeWear.damage = AxeWear.LIMIT - 1
-			var ab_tree := Engine.get_main_loop() as SceneTree
-			var ab_player: Player = Player.find(ab_tree) if ab_tree != null else null
-			if ab_player != null and AxeWear.apply(Game.inventory, false, ab_player) == &"":
-				ab_player.reports.broken_axe()
-				return "The axe broke."
-			return "Axe at stage 7, one swing from breaking."
-		"release":
-			## Watch something drift off up and to the left, as after letting a bug go.
-			var rl_tree := Engine.get_main_loop() as SceneTree
-			var rl_player := Player.find(rl_tree) if rl_tree != null else null
-			if rl_player == null:
-				return "No player."
-			## Parented to the player so it keeps its offset wherever the player is put.
-			var mark := Node3D.new()
-			rl_player.add_child(mark)
-			var rl_yaw: float = rl_player.facing_yaw()
-			## `release [turn° [height m]]`: where the thing goes, from the player's facing.
-			var rl_turn: float = deg_to_rad(float(args[0]) if args.size() >= 1 else 50.0)
-			var rl_up: float = float(args[1]) if args.size() >= 2 else 3.0
-			mark.position = Vector3(sin(rl_yaw + rl_turn), 0.0, cos(rl_yaw + rl_turn)) * 2.5 + Vector3(0.0, rl_up, 0.0)
-			rl_player.call("_watch_release", mark, HeldTool.find_skeleton(rl_player.get("_mesh")))
-			return "Watching."
-		"time":
-			return _cmd_time(args)
-		"bells":
-			return _cmd_bells(args)
-		"house":
-			return _cmd_house(args)
-		"place":
-			return _cmd_place(args)
-		"event", "events":
-			return _cmd_event(args)
-		"fortune", "destiny":
-			return _cmd_fortune(args)
-		"bug", "insect":
-			return _cmd_bug(args)
-		"shop":
-			return _cmd_shop(args)
-		"lighthouse":
-			return _cmd_lighthouse(args)
-		"balloon":
-			return _cmd_balloon(args)
-		"rainbow":
-			## Show the waterfall rainbow now (`rainbow_opacity` 1), or `rainbow off`.
-			var on: bool = args.is_empty() or String(args[0]).to_lower() != "off"
-			Game.rainbow.opacity = 1.0 if on else 0.0
-			return "Rainbow %s." % ("on" if on else "off")
-		"tune":
-			return _cmd_tune(args)
-		"map":
-			## Open the town map (`mSM_OVL_MAP`) as the sight-map board does.
-			var map_tree := Engine.get_main_loop() as SceneTree
-			var map_ui: MapOverlay = MapOverlay.find(map_tree)
-			if map_ui == null:
-				return "No map UI in this scene."
-			map_ui.open(true)
-			return "Map open."
-		"catalog":
-			## Open the catalog, optionally on page 0-8 (1 wallpaper, 2 carpet).
-			var clg_tree := Engine.get_main_loop() as SceneTree
-			var clg: CatalogOverlay = CatalogOverlay.find(clg_tree)
-			if clg == null:
-				return "No catalog UI in this scene."
-			if args.size() >= 2 and String(args[1]).to_lower() == "fill" and Game.catalog != null:
-				## Every wallpaper and carpet as if collected.
-				for kind: String in ["wall", "carpet"]:
-					for i: int in 67:
-						var goods: StringName = FurnitureCatalog.goods_id(kind, i)
-						if goods != &"":
-							Game.catalog.record(goods)
-			clg.open()
-			if not args.is_empty() and String(args[0]).is_valid_int():
-				clg.show_page(int(args[0]))
-			return "Catalog open."
-		"abd":
-			## Open the post office bank terminal (`mSM_OVL_BANK`).
-			var abd_tree := Engine.get_main_loop() as SceneTree
-			var abd: BankOverlay = BankOverlay.find(abd_tree)
-			if abd == null:
-				return "No bank UI in this scene."
-			abd.open()
-			return "Bank terminal open."
-		"repay":
-			## Open the post office's loan screen (`mSM_OVL_REPAY`).
-			var rp_tree := Engine.get_main_loop() as SceneTree
-			var rp: RepayOverlay = RepayOverlay.find(rp_tree)
-			if rp == null:
-				return "No loan screen in this scene."
-			rp.open()
-			return "Loan screen open."
-		"board":
-			## Open the community board's posts (`mSM_OVL_NOTICE`).
-			var tree := Engine.get_main_loop() as SceneTree
-			var ui: NoticeBoardOverlay = NoticeBoardOverlay.find(tree)
-			if ui == null:
-				return "No notice board UI in this scene."
-			ui.open()
-			return "%d posts on the board." % Game.notice_board.count()
-		"sting":
-			## Bee sting: `sting` plays it, `sting off` / `sting on` sets the swollen face,
-			## `sting swarm` lets a swarm loose, `sting tree` hides a nest in the nearest tree.
-			var sting_tree := Engine.get_main_loop() as SceneTree
-			var mode: String = String(args[0]).to_lower() if not args.is_empty() else ""
-			if mode == "off" or mode == "on":
-				Game.bees.set_swollen(mode == "on")
-				return "Face %s." % ("swollen" if Game.bees.swollen else "normal")
-			var who := sting_tree.get_first_node_in_group(Player.GROUP) as Player if sting_tree != null else null
-			if who == null:
-				return "No player in this scene."
-			if mode == "swarm":
-				BeeSwarm.spawn(who.get_parent(), who.global_position + Vector3(4.0, 2.5, 4.0), who)
-				return "A swarm is after you."
-			if mode == "mosquito":
-				who.run_stung_mosquito()
-				return "Itchy."
-			if mode == "tree":
-				## The nearest tree hides a nest: shake it for the startle and the chase.
-				var near_tree: Node3D = null
-				for node: Node in sting_tree.get_nodes_in_group("plant"):
-					if node is Node3D and node.has_method("can_bump"):
-						if near_tree == null or (node as Node3D).global_position.distance_to(who.global_position) < near_tree.global_position.distance_to(who.global_position):
-							near_tree = node as Node3D
-				if near_tree == null:
-					return "No tree nearby."
-				PlantGrowth.set_shake_content(near_tree.call("_persist"), TreeUse.Content.BEES)
-				return "%s has a nest. Shake it." % near_tree.name
-			PlayerSe.bee_sting(who)
-			who.run_stung_bee()
-			return "Ouch."
-		"town":
-			## The town assessment now (`mFAs_GetFieldRank_Condition`); `town perfect` also sets
-			## fifteen perfect days so the well's spirit can come.
-			var tw_tree := Engine.get_main_loop() as SceneTree
-			var tw_world := World.find(tw_tree) if tw_tree != null else null
-			if tw_world == null:
-				return "The assessment needs the outdoor field."
-			if not args.is_empty() and String(args[0]).to_lower() == "perfect":
-				Game.town.perfect_streak = TownAssessment.PERFECT_STREAK_MAX
-				Game.town.perfect_streak_day = Clock.day_number()
-			var r: Dictionary = TownAssessment.rate(tw_world)
-			return "Rank %d (score %d: %d perfect, %d good acres); condition %d at %s; trees %d, flowers %d, weeds %d, trash %d; streak %d." % [
-				int(r["rank"]), int(r["score"]), int(r["perfect"]), int(r["good"]), int(r["condition"]),
-				r["block"], int(r["trees"]), int(r["flowers"]), int(r["weeds"]), int(r["dust"]), Game.town.perfect_streak,
-			]
-		"moneyrock":
-			## Where today's money rock is (`moneyrock new` picks another now).
-			var mr_tree := Engine.get_main_loop() as SceneTree
-			var mr_world := World.find(mr_tree) if mr_tree != null else null
-			if mr_world == null:
-				return "The money rock needs the outdoor field."
-			if not args.is_empty() and String(args[0]).to_lower() == "new":
-				Game.town.money_rock = ""
-				Game.town.money_rock_day = -1
-				var mr_rng := RandomNumberGenerator.new()
-				mr_rng.randomize()
-				MoneyRock.renew(mr_world, mr_rng, Clock.day_number())
-			if Game.town.money_rock == "":
-				return "No money rock today."
-			var mr_rocks: Dictionary = MoneyRock.field_rocks(mr_world)
-			return "Money rock: %s in acre %s." % [Game.town.money_rock, mr_rocks.get(StringName(Game.town.money_rock), "?")]
-		"fengshui":
-			## The house's feng shui now (`mHsRm_GetHuusuiRoom`) and Nook's tier odds from it.
-			Game.refresh_feng_shui()
-			var fs_cut: Vector2i = ShopGoods.tier_cutoffs(Game.goods_power)
-			return "Money power %d, goods power %d (Nook: rare %d%%, uncommon %d%%)." % [
-				Game.money_power, Game.goods_power, fs_cut.x, fs_cut.y - fs_cut.x]
-		"wisp":
-			## The Wisp's night: `wisp` brings him out, `wisp found` as if he had been found,
-			## `wisp spirits 5` puts spirits in the pockets.
-			var wi_state: Dictionary = WispEvent.state()
-			var wi_sub: String = String(args[0]) if not args.is_empty() else ""
-			if wi_sub == "found":
-				wi_state["found"] = true
-				wi_state["active"] = true
-				return "Wisp found; spirits in acres %s." % [wi_state.get("acres", [])]
-			if wi_sub == "spirits":
-				var wi_n: int = clampi(int(args[1]) if args.size() > 1 else WispEvent.SPIRITS, 1, WispEvent.SPIRITS)
-				var wi_bug: ItemData = BugCatalog.get_by_type(WispEvent.TYPE_SPIRIT)
-				if wi_bug == null or Game.inventory.add(wi_bug, wi_n) != 0:
-					return "No room for spirits."
-				return "%d spirit(s) in the pockets." % wi_n
-			Game.events.ghost_tonight = true
-			Game.events.force(&"ghost")
-			_sync_events()
-			return "The Wisp is out tonight."
-		"blanca":
-			## Blanca in town with a test face (a smile) from "Tester".
-			var bl_face := MaskCat.blank_face()
-			for bl_i: int in 32:
-				bl_face.pixels[8 * 32 + bl_i] = 1
-				bl_face.pixels[22 * 32 + bl_i] = 1
-				bl_face.pixels[bl_i * 32 + 8] = 4
-				bl_face.pixels[bl_i * 32 + 23] = 4
-			MaskCat.store(bl_face, "Tester", EventDates.ordinal(Clock.year, Clock.month, Clock.day))
-			Game.events.force(&"mask_npc")
-			_sync_events()
-			return "Blanca is in town."
-		"golden":
-			## Hold up a golden tool (`golden net|rod|axe`), as after Tortimer's visit or the well.
-			var go_ids: Dictionary = {"net": &"golden_net", "rod": &"golden_fishing_rod", "axe": &"golden_axe"}
-			var go_id: StringName = go_ids.get(String(args[0]) if not args.is_empty() else "rod", &"golden_fishing_rod")
-			var go_tree := Engine.get_main_loop() as SceneTree
-			var go_player := Player.find(go_tree) as Player if go_tree != null else null
-			if go_player == null:
-				return "No player here."
-			go_player.reports.get_golden_item(go_id)
-			return "Holding up %s." % go_id
-		"treasure":
-			## A villager buries something now and posts where (`mNtc_check_treasure`).
-			var tr_tree := Engine.get_main_loop() as SceneTree
-			var tr_world: World = World.find(tr_tree) if tr_tree != null else null
-			if tr_world == null:
-				return "No field here."
-			var tr_rng := RandomNumberGenerator.new()
-			tr_rng.randomize()
-			var tr_cell: Vector2i = BuriedTreasure.check(tr_world, tr_rng, true)
-			if tr_cell.x < 0:
-				return "Nothing buried."
-			var tr_rec: Dictionary = BuriedUse.record(BuriedUse.persist_id(tr_cell))
-			return "%s buried at %s (acre %s): %s" % [tr_rec.get("item_id", "?"), tr_cell,
-				VillagerWalk.block_from_cell(tr_cell), str(Game.notice_board.posts[-1]["text"]).replace("\n", " ")]
-		"calendar":
-			## The calendar (`calendar day 31` opens on a day); `calendar played 2026-9-14` /
-			## `calendar tortimer 2026-9-14` mark a day.
-			var ca_tree := Engine.get_main_loop() as SceneTree
-			if args.size() > 1 and String(args[0]) == "day":
-				var ca_day_ui: CalendarOverlay = CalendarOverlay.find(ca_tree)
-				if ca_day_ui == null:
-					return "No calendar here."
-				ca_day_ui.open_on_day(int(args[1]))
-				return "Calendar on day %s." % args[1]
-			if args.size() > 1:
-				var ca_d: PackedStringArray = String(args[1]).split("-")
-				if ca_d.size() != 3:
-					return "Date as Y-M-D."
-				var ca_n: int = EventDates.ordinal(int(ca_d[0]), int(ca_d[1]), int(ca_d[2]))
-				var ca_today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
-				CalendarBook.trim(Game.resident.calendar, ca_today)
-				var ca_key: String = "events" if String(args[0]) == "tortimer" else "played"
-				if not (Game.resident.calendar[ca_key] as Array).has(ca_n):
-					(Game.resident.calendar[ca_key] as Array).append(ca_n)
-				return "Marked %s as %s." % [args[1], ca_key]
-			var ca_ui: CalendarOverlay = CalendarOverlay.find(ca_tree)
-			if ca_ui == null:
-				return "No calendar here."
-			ca_ui.open()
-			return "Calendar."
-		"mom":
-			## Mom writes now: today's dated letter if there is one, else an everyday letter
-			## (`mom 0x151` for a given one).
-			var mm_rng := RandomNumberGenerator.new()
-			mm_rng.randomize()
-			var mm_pick: Dictionary = MotherMail.dated(Clock.month, Clock.day, VillagerTalkManager.birthday(),
-				MotherMail.holiday(Clock.year, Clock.month, Clock.day), mm_rng)
-			if not args.is_empty():
-				var mm_no: int = String(args[0]).hex_to_int() if String(args[0]).begins_with("0x") else int(args[0])
-				var mm_idx: int = mm_no - MotherMail.MSG_NORMAL
-				mm_pick = {"msg": mm_no, "present": MotherMail.normal_present(mm_idx, mm_rng) if mm_idx >= 0 and mm_idx < MotherMail.NORMAL_COUNT else &""}
-			elif mm_pick.is_empty():
-				var mm_left: Array[int] = MotherMail.normal_left(Game.resident.mother_mail)
-				var mm_n: int = mm_left[mm_rng.randi_range(0, mm_left.size() - 1)] if not mm_left.is_empty() else 0
-				mm_pick = {"msg": MotherMail.MSG_NORMAL + mm_n, "present": MotherMail.normal_present(mm_n, mm_rng)}
-			var mm_mail: MailData = MotherMail.letter(int(mm_pick["msg"]), StringName(mm_pick["present"]),
-				MotherMail.paper(Clock.month, Clock.day, VillagerTalkManager.birthday()), Game.resident.player_name)
-			if mm_mail == null or not MailDelivery.to_mailbox(mm_mail):
-				return "Mom couldn't write (no mail bank or the mailbox is full)."
-			var mm_tree := Engine.get_main_loop() as SceneTree
-			var mm_reader: LetterReaderOverlay = LetterReaderOverlay.find(mm_tree)
-			if mm_reader != null:
-				mm_reader.open(mm_mail)
-			return "Letter 0x%X from Mom in the mailbox%s." % [int(mm_pick["msg"]),
-				(" with %s" % mm_mail.present_item_id) if mm_mail.present_item_id != &"" else ""]
-		"birthday":
-			## `birthday` opens the "When's your birthday?" picker; `birthday visit [rod|net]`
-			## sends the present visitor to the player now; `birthday cards` mails the cards.
-			var bd_tree := Engine.get_main_loop() as SceneTree
-			var bd_sub: String = String(args[0]).to_lower() if not args.is_empty() else ""
-			if bd_sub == "cards":
-				var bd_rng := RandomNumberGenerator.new()
-				bd_rng.randomize()
-				var bd_sent: int = PresentVisit.send_cards(Game.residents, Game.relationships, &"",
-					Game.resident.player_name, bd_rng, MailDelivery.to_mailbox)
-				return "%d birthday card(s) sent." % bd_sent
-			if bd_sub == "visit":
-				var bd_kind: int = PresentVisit.Kind.BIRTHDAY
-				if args.size() > 1:
-					bd_kind = PresentVisit.Kind.GOLDEN_NET if String(args[1]) == "net" else PresentVisit.Kind.GOLDEN_ROD
-				else:
-					Game.resident.birthday_present_npc = PresentVisit.birthday_npc(Game.residents, Game.relationships)
-					if Game.resident.birthday_present_npc == &"" and not Game.residents.resident_ids().is_empty():
-						Game.resident.birthday_present_npc = Game.residents.resident_ids()[0]
-				var bd_player := Player.find(bd_tree) as Node3D if bd_tree != null else null
-				var bd_world: Node = World.find(bd_tree) if bd_tree != null else null
-				if bd_player == null or bd_world == null:
-					return "No field here."
-				var bd_yaw: float = float(bd_player.call("facing_yaw"))
-				var bd_npc: Node3D = load("res://features/events/present_npc.gd").spawn(
-					bd_world.get_node("Characters"), bd_kind, bd_player.global_position, bd_yaw)
-				return "Present visit." if bd_npc != null else "Nobody to send."
-			var bd_ui: BirthdayOverlay = BirthdayOverlay.find(bd_tree)
-			if bd_ui == null:
-				return "No birthday screen here."
-			bd_ui.open()
-			return "Birthday: pick a date."
-		"diary":
-			## Open the diary on a month (`diary 4`), or write a line into one first
-			## (`diary 4 Went fishing all day.`).
-			var di_tree := Engine.get_main_loop() as SceneTree
-			var di_ui: DiaryOverlay = DiaryOverlay.find(di_tree)
-			if di_ui == null:
-				return "No diary screen here."
-			var di_month: int = clampi(int(args[0]), 1, 12) if not args.is_empty() and String(args[0]).is_valid_int() else Clock.month
-			if args.size() > 1:
-				Game.resident.diary[di_month] = DiaryOverlay.clip(" ".join(args.slice(1)))
-			di_ui.open(di_month)
-			return "Diary: month %d." % di_month
-		"tan":
-			## Set the sunburn rank 0–8 (`mPr_sunburn_c`) and repaint the face.
-			if args.is_empty() or not String(args[0]).is_valid_int():
-				return "Tan rank %d (hold %d days)." % [int(Game.resident.sunburn.get("rank", 0)), int(Game.resident.sunburn.get("hold", 0))]
-			Game.resident.sunburn["rank"] = clampi(int(args[0]), 0, Sunburn.MAX_RANK)
-			Game.resident.sunburn["changed"] = Clock.day_number()
-			Game.resident.sunburn["hold"] = Sunburn.HOLD_DAYS if int(Game.resident.sunburn["rank"]) > 0 else 0
-			Game.bees.face_changed.emit()
-			return "Tan rank %d." % int(Game.resident.sunburn["rank"])
-		"snowballs":
-			## The body and head balls a few units ahead of the player, at size 0–1
-			## (`snowballs 0.5`; default 0.4, big enough to push).
-			var sb_tree := Engine.get_main_loop() as SceneTree
-			var sb_world := World.find(sb_tree) if sb_tree != null else null
-			var sb_player := Player.find(sb_tree) if sb_tree != null else null
-			if sb_world == null or sb_player == null:
-				return "Snowballs need the outdoor field."
-			var sb_collide: bool = not args.is_empty() and String(args[0]).to_lower() == "collide"
-			var sb_args: PackedStringArray = args.slice(1) if sb_collide else args
-			var sb_n: float = clampf(float(sb_args[0]), 0.0, 1.0) if not sb_args.is_empty() and String(sb_args[0]).is_valid_float() else 0.4
-			var sb_cell: Vector2i = sb_world.grid.world_to_cell(sb_player.global_position)
-			var sb_fwd := Vector3(sin(sb_player.facing_yaw()), 0.0, cos(sb_player.facing_yaw()))
-			var sb_dir := Vector2i(roundi(sb_fwd.x), roundi(sb_fwd.z))
-			if sb_dir == Vector2i.ZERO:
-				sb_dir = Vector2i(0, 1)
-			var sb_side := Vector2i(-sb_dir.y, sb_dir.x)
-			SnowmanUse.spawn_ball(sb_world, SnowmanRules.PART_BODY, sb_cell + sb_dir * 2, sb_n * SnowmanRules.MOVE_DIST_MAX)
-			## `snowballs collide`: the head starts against the body, rolling into it.
-			var sb_gap: int = 1 if sb_collide else 3
-			var sb_head: Node3D = SnowmanUse.spawn_ball(sb_world, SnowmanRules.PART_HEAD, sb_cell + sb_dir * 2 + sb_side * sb_gap, sb_n * 0.85 * SnowmanRules.MOVE_DIST_MAX)
-			if sb_collide and sb_head != null:
-				sb_head.set("vel", Vector2(-sb_side.x, -sb_side.y) * 1.0)
-			return "Two snowballs at size %.2f%s." % [sb_n, ", the head rolling in" if sb_collide else ""]
-		"snowman":
-			## A finished snowman two units ahead (`snowman [score 0-3]`).
-			var sm_tree := Engine.get_main_loop() as SceneTree
-			var sm_world := World.find(sm_tree) if sm_tree != null else null
-			var sm_player := Player.find(sm_tree) if sm_tree != null else null
-			if sm_world == null or sm_player == null:
-				return "A snowman needs the outdoor field."
-			var sm_score: int = clampi(int(args[0]), 0, 3) if not args.is_empty() and String(args[0]).is_valid_int() else 0
-			var sm_fwd := Vector3(sin(sm_player.facing_yaw()), 0.0, cos(sm_player.facing_yaw()))
-			var sm_cell: Vector2i = SnowmanUse.fg_cell(sm_world, sm_world.grid.world_to_cell(sm_player.global_position + sm_fwd * 4.0))
-			if sm_cell.x < 0:
-				return "No room for a snowman there."
-			var sm_slot: int = SnowmanRules.free_slot(Game.town.snowmen)
-			if sm_slot >= 0:
-				Game.town.snowmen[sm_slot] = {"head": 0.6, "body": 0.7, "score": sm_score, "cell": [sm_cell.x, sm_cell.y], "age": 0}
-			SnowmanUse.spawn_snowman(sm_world, sm_slot, sm_cell, 0.6, 0.7, sm_score)
-			return "Snowman (score %d) in slot %d." % [sm_score, sm_slot]
-		"mushrooms":
-			## Set N mushrooms under trees now (`mMsr_SetMushroomNum`), or `mushrooms clear`.
-			var ms_tree := Engine.get_main_loop() as SceneTree
-			var ms_world := World.find(ms_tree) if ms_tree != null else null
-			if ms_world == null:
-				return "Mushrooms need the outdoor field."
-			var ms_rng := RandomNumberGenerator.new()
-			ms_rng.randomize()
-			if not args.is_empty() and String(args[0]).to_lower() == "clear":
-				MushroomUse.clear(ms_world, Game.town.mushrooms.size(), Vector2i(-1, -1), ms_rng)
-				return "Mushrooms cleared."
-			var ms_n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else MushroomUse.NUM
-			var ms_set: int = MushroomUse.grow(ms_world, ms_n, Vector2i(-1, -1), ms_rng)
-			return "%d mushrooms set (%d in town)." % [ms_set, Game.town.mushrooms.size()]
-		"signboard":
-			## Put up a signboard in front of the player, showing design slot N if given.
-			var sb_tree := Engine.get_main_loop() as SceneTree
-			var sb_world := World.find(sb_tree) if sb_tree != null else null
-			var sb_player: Node3D = Player.find(sb_tree) if sb_tree != null else null
-			if sb_world == null or sb_player == null:
-				return "Signboards need the outdoor field."
-			var sb_ctx := InteractionContext.new()
-			sb_ctx.world = sb_world
-			sb_ctx.actor = sb_player
-			var sb_cell: Vector2i = ToolUse.facing_cell(sb_ctx)
-			if not SignboardUse.place(sb_world, sb_cell):
-				return "Can't put a signboard there."
-			if not args.is_empty() and String(args[0]).is_valid_int() and Game.designs != null:
-				SignboardUse.post(SignboardUse.persist_id(sb_cell), Game.designs.player[clampi(int(args[0]), 0, 7)])
-				for n: Node in sb_tree.get_nodes_in_group(SignboardUse.GROUP):
-					n.call("refresh_design")
-			return "Signboard up at %s." % sb_cell
-		"meteor":
-			## Send a shooting star across the pond now (Meteor Shower only, `ef_shooting`).
-			var mt_tree := Engine.get_main_loop() as SceneTree
-			var mt_node: Node = mt_tree.get_first_node_in_group(MeteorShower.GROUP) if mt_tree != null else null
-			if mt_node == null:
-				return "No meteor shower tonight (event meteor_shower)."
-			(mt_node as MeteorShower).launch_now()
-			return "Shooting star."
-		"shells":
-			## Wash N shells up on the beach now (`mFI_SetShellWave`), with free wave units per acre.
-			var sh_tree := Engine.get_main_loop() as SceneTree
-			var sh_world := World.find(sh_tree) if sh_tree != null else null
-			if sh_world == null:
-				return "Shells need the outdoor field."
-			var sh_rng := RandomNumberGenerator.new()
-			sh_rng.randomize()
-			var sh_n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else ShellUse.FIRST_NUM
-			var sh_free: Array[String] = []
-			for b: Vector2i in ShellUse.beach_blocks():
-				sh_free.append("%d,%d:%d" % [b.x, b.y, ShellUse.free_cells(sh_world, sh_world.grid, b).size()])
-			var sh_set: int = ShellUse.wash_up(sh_world, sh_n, Vector2i(-1, -1), sh_rng)
-			return "%d shells set (%d on the beach; free %s)." % [sh_set, Game.town.shells.size(), " ".join(sh_free)]
-		"weeds":
-			## Sow N weeds now (`mAGrw_SetGrass`), or `weeds clear`.
-			var wd_tree := Engine.get_main_loop() as SceneTree
-			var wd_world := World.find(wd_tree) if wd_tree != null else null
-			if wd_world == null:
-				return "Weeds need the outdoor field."
-			if not args.is_empty() and String(args[0]).to_lower() == "clear":
-				WeedUse.clear_all(wd_world, wd_world.grid)
-				return "Weeds cleared."
-			var wd_rng := RandomNumberGenerator.new()
-			wd_rng.randomize()
-			var wd_n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else WeedUse.PER_DAY
-			var grown: int = WeedUse.grow(wd_world, wd_world.grid, wd_world.layout, wd_n, wd_rng)
-			return "%d weeds sown (%d in town)." % [grown, WeedUse.count()]
-		"resetti":
-			return _cmd_resetti(args)
-		"exercise":
-			## Play radio exercise move 0-17 (`mPlayer_RADIO_EXERCISE_CMD*`).
-			var ex_tree := Engine.get_main_loop() as SceneTree
-			var ex_player := ex_tree.get_first_node_in_group(Player.GROUP) as Player if ex_tree != null else null
-			if ex_player == null:
-				return "No player in this scene."
-			var ex_cmd: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else 0
-			ex_player.run_radio_exercise(ex_cmd)
-			return "Exercise %d." % ex_cmd
-		"pitfall":
-			## Bury a pitfall under the player; `pitfall auto` also struggles for you.
-			var pit_tree := Engine.get_main_loop() as SceneTree
-			var pit_player := pit_tree.get_first_node_in_group(Player.GROUP) as Player if pit_tree != null else null
-			var pit_world := World.find(pit_tree) if pit_tree != null else null
-			if pit_player == null or pit_world == null:
-				return "Pitfalls need the outdoor field."
-			var pit_ctx := InteractionContext.new()
-			pit_ctx.world = pit_world
-			pit_ctx.actor = pit_player
-			var pit_at: Vector3 = pit_player.global_position
-			if not args.is_empty() and String(args[0]).to_lower() == "villager":
-				var best: Node3D = null
-				for v: Node in pit_tree.get_nodes_in_group("villagers"):
-					var v3 := v as Node3D
-					if v3 != null and v3.is_visible_in_tree() and (best == null or v3.global_position.distance_to(pit_at) < best.global_position.distance_to(pit_at)):
-						best = v3
-				if best == null:
-					return "No villager nearby."
-				pit_at = best.global_position
-			var pit_cell: Vector2i = pit_world.grid.world_to_cell(pit_at)
-			if not HoleUse.dig(pit_ctx, pit_cell, false) or not BuriedUse.bury(pit_ctx, pit_cell, BuriedUse.PITFALL_ITEM):
-				return "Can't bury a pitfall here."
-			if not args.is_empty() and String(args[0]).to_lower() == "auto":
-				pit_player.struggle_assist = 0.1
-			return "Pitfall buried at %s." % pit_cell
-		"island":
-			## `island [home]`: swap to Kapp'n's island (or back to the town) without the boat.
-			Game.island_visit = args.is_empty() or String(args[0]) != "home"
-			Game.island_ride = &""
-			Game.travel_to_world()
-			return "Island." if Game.island_visit else "Town."
-		"ride":
-			## Take Kapp'n's boat now, as if the talk had ended on yes.
-			var rd_tree := Engine.get_main_loop() as SceneTree
-			var rd_service: IslandService = rd_tree.root.find_child("IslandService", true, false) as IslandService
-			if rd_service == null:
-				return "No boat here."
-			var rd_talk := KappnTalk.new()
-			rd_talk.ride = true
-			rd_service.mute = not args.is_empty() and String(args[0]) == "fast"
-			rd_service._on_talked(rd_talk)
-			return "All aboard."
-		"cannon":
-			## The cannon furniture's shell, fired away from the camera over the player's ground.
-			var cn_player: Node3D = Player.find(Engine.get_main_loop() as SceneTree)
-			if cn_player == null:
-				return "No player."
-			var cn_at: Vector3 = cn_player.global_position + Vector3(0.0, 0.8, 0.0)
-			CannonShot.fire(cn_player.get_parent(), cn_at, 0.0, Rect2(cn_at.x - 30.0, cn_at.z - 30.0, 60.0, 60.0))
-			return "Bang."
-		"popper":
-			## A New Year's party popper going off beside the player (`eEC_EFFECT_CLACKER`).
-			var pp_player: Node3D = Player.find(Engine.get_main_loop() as SceneTree)
-			if pp_player == null:
-				return "No player."
-			PartyPopper.fire(pp_player.get_parent(), pp_player.global_position + Vector3(0.0, 0.6, 1.0))
-			return "Pop."
-		"shine":
-			## A washed car glittering where the player stands (`eEC_EFFECT_CAR_BLIGHT`).
-			var sh_player: Node3D = Player.find(Engine.get_main_loop() as SceneTree)
-			if sh_player == null:
-				return "No player."
-			CarBlight.start(sh_player.get_parent(), sh_player.global_position + Vector3(0.0, 0.0, 1.0), true)
-			return "Glitter."
-		"costume":
-			## The puff after a trick changes the player's clothes (`eEC_EFFECT_HALLOWEEN`).
-			return "Puff." if CostumePuff.at_player() != null else "No player."
-		"glow":
-			## `glow [vanish]`: the well spirit's glow in front of the player (`eEC_EFFECT_MAKE_HEM`).
-			var gl_player: Node3D = Player.find(Engine.get_main_loop() as SceneTree)
-			if gl_player == null:
-				return "No player."
-			var gl_vanish: bool = not args.is_empty() and String(args[0]) == "vanish"
-			var gl_feet: Vector3 = gl_player.global_position + Vector3(0.0, 0.0, 2.0)
-			SpiritGlow.play(gl_player.get_parent(), gl_feet, not gl_vanish)
-			var gl_light: SpiritLight = SpiritLight.start(gl_player.get_parent(), gl_feet)
-			if gl_vanish:
-				gl_light.finish()
-			return "Glow."
-		"clear":
-			return "__clear__"
-		_:
-			return "Unknown command '%s'. Type help." % cmd
+	var run: Callable = _commands.get(cmd, Callable())
+	if not run.is_valid():
+		return "Unknown command '%s'. Type help." % cmd
+	return run.call(args)
 
 
 ## Town tune: `tune` plays it, `tune open` opens the editor, `tune reset` restores the default.
@@ -865,7 +136,7 @@ func _cmd_tune(args: PackedStringArray) -> String:
 	var sub: String = String(args[0]).to_lower() if not args.is_empty() else "play"
 	match sub:
 		"open":
-			var tree := Engine.get_main_loop() as SceneTree
+			var tree := _tree()
 			var ui: TownTuneOverlay = TownTuneOverlay.find(tree)
 			if ui == null:
 				return "No tune editor in this scene."
@@ -880,12 +151,12 @@ func _cmd_tune(args: PackedStringArray) -> String:
 
 ## Completions for the token under the cursor (Minecraft-style Tab).
 func suggestions(line: String) -> PackedStringArray:
-	var parsed: Dictionary = _token_at_end(line)
-	var token: String = String(parsed["token"])
-	var index: int = int(parsed["index"])
-	var prior: PackedStringArray = parsed["prior"] as PackedStringArray
+	var parsed: Token = _token_at_end(line)
+	var token: String = parsed.text
+	var index: int = parsed.index
+	var prior: PackedStringArray = parsed.prior
 	if index == 0:
-		return _filter_prefix(COMMANDS, token)
+		return _filter_prefix(command_names(), token)
 	var cmd: String = String(prior[0]).to_lower()
 	if cmd.begins_with("/"):
 		cmd = cmd.substr(1)
@@ -934,8 +205,7 @@ func autocomplete(line: String) -> String:
 	var matches: PackedStringArray = suggestions(line)
 	if matches.is_empty():
 		return line
-	var parsed: Dictionary = _token_at_end(line)
-	var prefix: String = String(parsed["prefix"])
+	var prefix: String = _token_at_end(line).prefix
 	var fill: String = matches[0] if matches.size() == 1 else _common_prefix(matches)
 	if fill.is_empty():
 		return line
@@ -946,8 +216,7 @@ func autocomplete(line: String) -> String:
 
 ## Replace the current token with a concrete suggestion (Tab cycle).
 func fill_suggestion(line: String, suggestion: String) -> String:
-	var parsed: Dictionary = _token_at_end(line)
-	return String(parsed["prefix"]) + suggestion
+	return _token_at_end(line).prefix + suggestion
 
 
 func history_prev(current: String, index: int) -> Dictionary:
@@ -981,7 +250,7 @@ func _push_history(line: String) -> void:
 		history = history.slice(history.size() - 64)
 
 
-func _cmd_help() -> String:
+func _cmd_help(_args: PackedStringArray) -> String:
 	return "\n".join([
 		"Commands:",
 		"  weather <clear|rain|snow|sakura> [none|light|normal|heavy]",
@@ -1012,28 +281,26 @@ func _cmd_resetti(args: PackedStringArray) -> String:
 	var sub: String = String(args[0]).to_lower() if not args.is_empty() else ""
 	if sub == "off" or sub == "disable":
 		SaveService.set_resetti_disabled(true)
-		load("res://scenes/world/resetti.gd").dismiss_all(Engine.get_main_loop() as SceneTree)
+		load("res://scenes/world/resetti.gd").dismiss_all(_tree())
 		return "Resetti disabled."
 	if sub == "on" or sub == "enable":
 		SaveService.set_resetti_disabled(false)
 		return "Resetti enabled."
 	## Mr. Resetti now, as after reset number N (1-8; default the next one).
-	var rs_tree := Engine.get_main_loop() as SceneTree
-	var rs_player := rs_tree.get_first_node_in_group(Player.GROUP) as Node3D if rs_tree != null else null
-	var rs_world := World.find(rs_tree) if rs_tree != null else null
-	if rs_player == null or rs_world == null:
+	var tree := _tree()
+	var player := tree.get_first_node_in_group(Player.GROUP) as Node3D if tree != null else null
+	var world := World.find(tree) if tree != null else null
+	if player == null or world == null:
 		return "Resetti needs the outdoor field."
 	Game.resident.reset_count = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else Game.resident.reset_count + 1
 	Game.reset_flag = true
-	load("res://scenes/world/resetti.gd").spawn(rs_world.get_node("Characters"), rs_player)
+	load("res://scenes/world/resetti.gd").spawn(world.get_node("Characters"), player)
 	return "Reset #%d." % Game.resident.reset_count
 
 
 ## Tortimer hands the lighthouse job out on his January / February vacation (`ac_ev_soncho2`);
 ## `start` gives it today without him, `lit` throws tonight's switch.
 func _cmd_lighthouse(args: PackedStringArray) -> String:
-	if Game == null or Game.lighthouse == null:
-		return "No game."
 	var book: LighthouseBook = Game.lighthouse
 	match String(args[0]).to_lower() if not args.is_empty() else "status":
 		"start":
@@ -1166,9 +433,9 @@ func _cmd_season(args: PackedStringArray) -> String:
 
 func _cmd_give(args: PackedStringArray) -> String:
 	if args.is_empty():
-		return "Usage: give <item_id> [count]"
-	var item_id := StringName(String(args[0]).to_lower())
-	var data: ItemData = ItemCatalog.get_item(item_id)
+		return "Usage: give <id> [count]"
+	var id := StringName(String(args[0]).to_lower())
+	var data: ItemData = ItemCatalog.get_item(id)
 	if data == null:
 		return "Unknown item '%s'." % String(args[0])
 	var count: int = 1
@@ -1179,7 +446,7 @@ func _cmd_give(args: PackedStringArray) -> String:
 	var left: int = Game.inventory.add(data, count)
 	var given: int = count - left
 	if given <= 0:
-		return "Pockets full — could not add %s." % String(item_id)
+		return "Pockets full — could not add %s." % String(id)
 	if left > 0:
 		return "Added %d× %s (%d did not fit)." % [given, _item_label(data), left]
 	return "Added %d× %s." % [given, _item_label(data)]
@@ -1355,7 +622,7 @@ func _cmd_place(args: PackedStringArray) -> String:
 		var entry: FurniturePlacement = session.place(data, cell, WorldGrid.Facing.SOUTH)
 		if entry == null:
 			continue
-		var host: Interior = Interior.find(Engine.get_main_loop() as SceneTree)
+		var host: Interior = Interior.find(_tree())
 		if host != null:
 			host.spawn_placement(entry)
 		return "Placed %s at %s." % [data.visual_id, cell]
@@ -1407,24 +674,24 @@ func _cmd_house(args: PackedStringArray) -> String:
 			return "Loan set to %d." % Game.inventory.loan
 		"goki":
 			if args.size() < 2 or not String(args[1]).is_valid_int():
-				return "Cockroaches waiting: %d (last played %d days ago)." % [house.goki_count, HouseCockroaches.days_away(house)]
-			house.goki_count = HouseCockroaches.clamp_count(int(args[1]))
-			return "%d cockroaches are waiting in the walls." % house.goki_count
+				return "Cockroaches waiting: %d (last played %d days ago)." % [house.roach_count, HouseCockroaches.days_away(house)]
+			house.roach_count = HouseCockroaches.clamp_count(int(args[1]))
+			return "%d cockroaches are waiting in the walls." % house.roach_count
 		"neglect":
 			var days: int = int(args[1]) if args.size() >= 2 and String(args[1]).is_valid_int() else 10
 			var then: Dictionary = Time.get_datetime_dict_from_unix_time(
 				int(Time.get_unix_time_from_datetime_dict({"year": Clock.year, "month": Clock.month, "day": Clock.day, "hour": 12})) - days * 86400
 			)
-			house.goki_year = int(then["year"])
-			house.goki_month = int(then["month"])
-			house.goki_day = int(then["day"])
+			house.roach_year = int(then["year"])
+			house.roach_month = int(then["month"])
+			house.roach_day = int(then["day"])
 			HouseCockroaches.decide_family_count(house)
-			return "Away %d days: %d cockroaches waiting." % [days, house.goki_count]
+			return "Away %d days: %d cockroaches waiting." % [days, house.roach_count]
 		"statue":
 			if args.size() >= 2 and String(args[1]).to_lower() == "built":
 				house.next_size_tier = House.SizeTier.STATUE
 				house.statue_rank = clampi(int(args[2]), 0, 3) if args.size() >= 3 else 0
-				var tree := Engine.get_main_loop() as SceneTree
+				var tree := _tree()
 				if tree != null:
 					for node: Node in tree.get_nodes_in_group(Statue.GROUP):
 						(node as Statue).refresh()
@@ -1437,7 +704,7 @@ func _cmd_house(args: PackedStringArray) -> String:
 			house.outlook_pal = clampi(int(args[1]), 0, PlayerHouse.ROOF_LETTERS.length() - 1) if args.size() >= 2 else 0
 			house.next_outlook_pal = house.outlook_pal
 			house.ordered_outlook_pal = house.outlook_pal
-			var roof_tree := Engine.get_main_loop() as SceneTree
+			var roof_tree := _tree()
 			if roof_tree != null:
 				var plot: Node = roof_tree.root.find_child(String(PlayerHouse.owned_building_id()), true, false)
 				if plot != null and plot.has_method("refresh_seasonal_visual"):
@@ -1500,7 +767,22 @@ func _filter_prefix(options: PackedStringArray, token: String) -> PackedStringAr
 	return out
 
 
-func _token_at_end(line: String) -> Dictionary:
+## The word being typed at the end of a console line: its text, its position (0 = the
+## command), the words before it, and the line up to it (`/` kept) for rewriting.
+class Token:
+	var text: String = ""
+	var index: int = 0
+	var prior := PackedStringArray()
+	var prefix: String = ""
+
+	func _init(p_text: String, p_index: int, p_prior: PackedStringArray, p_prefix: String) -> void:
+		text = p_text
+		index = p_index
+		prior = p_prior
+		prefix = p_prefix
+
+
+func _token_at_end(line: String) -> Token:
 	## Strip a leading `/` for command matching but keep spacing for rewrite.
 	var working: String = line
 	var slash: bool = working.begins_with("/")
@@ -1509,18 +791,13 @@ func _token_at_end(line: String) -> Dictionary:
 	var parts: PackedStringArray = working.split(" ", false)
 	var ends_space: bool = line.ends_with(" ")
 	if working.strip_edges().is_empty():
-		return {"token": "", "index": 0, "prior": PackedStringArray(), "prefix": "/" if slash else ""}
+		return Token.new("", 0, PackedStringArray(), "/" if slash else "")
 	if ends_space:
-		return {
-			"token": "",
-			"index": parts.size(),
-			"prior": parts,
-			"prefix": line,
-		}
+		return Token.new("", parts.size(), parts, line)
 	var token: String = String(parts[parts.size() - 1])
 	var prior: PackedStringArray = parts.slice(0, parts.size() - 1)
 	var prefix: String = line.substr(0, line.length() - token.length())
-	return {"token": token, "index": prior.size(), "prior": prior, "prefix": prefix}
+	return Token.new(token, prior.size(), prior, prefix)
 
 
 func _common_prefix(values: PackedStringArray) -> String:
@@ -1537,3 +814,908 @@ func _common_prefix(values: PackedStringArray) -> String:
 		if prefix.is_empty():
 			return ""
 	return prefix
+
+
+# --- Commands -------------------------------------------------------------------------------
+
+
+## Give a tool and hold it (`equip red_pinwheel`).
+func _cmd_equip(args: PackedStringArray) -> String:
+	var msg: String = _cmd_give(args)
+	var id := StringName(String(args[0]).to_lower()) if not args.is_empty() else &""
+	for i: int in Inventory.POCKET_SLOTS:
+		var slot: InventorySlot = Game.inventory.slot_at(i)
+		if slot != null and not slot.is_empty() and slot.item.item_id == id:
+			return "%s Equipped: %s." % [msg, Game.inventory.equip_slot(i)]
+	return msg
+
+
+## `bridge` sends Tortimer to the river for the second bridge; `bridge build` puts it
+## up now in the first river acre with a spot.
+func _cmd_bridge(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var world: World = World.find(tree) if tree != null else null
+	if world == null:
+		return "No field here."
+	if not args.is_empty() and String(args[0]) == "build":
+		var blocks: Array[Vector2i] = SecondBridge.blocks(world.layout)
+		if blocks.is_empty():
+			return "No bridge spot in this town."
+		var today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
+		SecondBridge.order(blocks[blocks.size() - 1], today - 1)
+		SecondBridge.build_if_due(today, Clock.hour)
+		SecondBridge.restore(world, world.layout, world.grid)
+		return "Bridge built in acre %s." % blocks[blocks.size() - 1]
+	SecondBridge.note_day(EventDates.ordinal(Clock.year, Clock.month, Clock.day))
+	Game.events.force(&"soncho_bridge_make")
+	_sync_events()
+	return "Tortimer is by the river (%d acres with a bridge spot)." % SecondBridge.blocks(world.layout).size()
+
+
+## Lay an item on the unit in front of the player (`drop turnips_10`), as dropping does.
+func _cmd_drop(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var world: Node = World.find(tree) if tree != null else null
+	var player: Node3D = Player.find(tree) if tree != null else null
+	if world == null or player == null or args.is_empty():
+		return "Usage: drop <item_id> (outdoors)."
+	var ctx := InteractionContext.new()
+	ctx.actor = player
+	ctx.world = world
+	var grid: WorldGrid = WorldGrid.of(world)
+	var front: Vector2i = ToolUse.facing_cell(ctx)
+	var cell: Vector2i = FieldItems.drop_cell(grid, front, front - grid.world_to_cell(player.global_position))
+	if cell.x < 0 or FieldItems.put(world, cell, StringName(String(args[0]).to_lower())) == null:
+		return "Can't drop here."
+	return "Dropped %s at %s." % [args[0], cell]
+
+
+## The shovel bouncing off something hard: the step back and the impact stars.
+func _cmd_reflect(_args: PackedStringArray) -> String:
+	var tree := _tree()
+	var player := tree.get_first_node_in_group(Player.GROUP) as Player if tree != null else null
+	if player == null:
+		return "No player in this scene."
+	var ctx := InteractionContext.new()
+	ctx.actor = player
+	ctx.world = World.find(tree)
+	ToolUse._reflect_scoop_fx(ctx)
+	return "Bounced."
+
+
+## Walk up to a tree with December lights (Dec 10–25).
+func _cmd_xmas(_args: PackedStringArray) -> String:
+	var xm_tree := _tree()
+	var xm_player := xm_tree.get_first_node_in_group(Player.GROUP) as Player if xm_tree != null else null
+	if xm_player == null:
+		return "No player in this scene."
+	for xm_node: Node in xm_tree.get_nodes_in_group("plant"):
+		if xm_node.find_child("XmasLights", true, false) != null:
+			var xm_pos: Vector3 = (xm_node as Node3D).global_position
+			xm_player.global_position = xm_pos + Vector3(0.0, 0.0, 2.5)
+			return "Lit tree at %s." % xm_pos
+	return "No lit trees."
+
+
+## Bring the town's ball in front of the player (`ball`), or kick it (`ball kick`).
+func _cmd_ball(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var player := tree.get_first_node_in_group(Player.GROUP) as Player if tree != null else null
+	var ball: FieldBall = FieldBall.find(tree)
+	if player == null or ball == null:
+		return "No ball here."
+	var yaw: float = player.facing_yaw()
+	if not args.is_empty() and String(args[0]) == "kick":
+		ball.kick(Vector2(sin(yaw), cos(yaw)), Vector2(sin(yaw), cos(yaw)) * 7.5 * FieldBall.FRAME)
+		return "Kicked."
+	ball.in_hole = false
+	ball.dead = false
+	ball.global_position = player.global_position + Vector3(sin(yaw), 0.0, cos(yaw)) * 2.0
+	ball.snap_ground()
+	return "Ball at %s." % ball.global_position
+
+
+## Play the dig-up report for an item (`digup conch`), or the loan cheer (`digup paid`).
+func _cmd_digup(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var player := tree.get_first_node_in_group(Player.GROUP) as Player if tree != null else null
+	if player == null:
+		return "No player in this scene."
+	if not args.is_empty() and String(args[0]) == "paid":
+		Game.session.complete_payment = Game.PAYMENT_HOUSE
+		player.reports.run_complete_payment()
+		return "Debt paid."
+	var item := StringName(String(args[0]) if not args.is_empty() else "conch")
+	player.reports.run_dig_get(item, true, Vector2i(-1, -1), null)
+	return "Dug up %s." % item
+
+
+## `throwfish [fish id]`: stand at the nearest bank facing the water and let a fish go.
+func _cmd_throwfish(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var player := Player.find(tree) if tree != null else null
+	var world := World.find(tree) if tree != null else null
+	if player == null or world == null:
+		return "No field."
+	var fish := ItemCatalog.get_item(StringName(str(args[0])) if args.size() >= 1 else &"crucian_carp") as FishData
+	if fish == null:
+		return "No such fish."
+	var is_water := func(at: Vector3) -> bool:
+		var attr: int = FieldCollision.unit_attr_at(world.layout, world.grid, at)
+		return attr >= 0 and FieldCatalog.is_water_attr(attr)
+	var cells: Array[Vector2i] = []
+	for body: WaterBodies.Body in world.fish.bodies:
+		cells.append_array(body.cells)
+	var from: Vector2i = world.grid.world_to_cell(player.global_position)
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.distance_squared_to(from) < b.distance_squared_to(from))
+	for cell: Vector2i in cells.slice(0, 80):
+		for dir: Vector2i in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+			var stand: Vector3 = world.grid.cell_to_world(cell - dir * 2)
+			if is_water.call(stand):
+				continue
+			var yaw: float = atan2(float(dir.x), float(dir.y))
+			var water: Variant = CreatureRelease.search_water(is_water, stand, yaw)
+			if water == null:
+				continue
+			var ground: float = FieldCollision.ground_y_at(world.layout, world.grid, stand)
+			stand.y = ground if FieldCollision.has_floor(ground) else player.global_position.y
+			player.global_position = stand
+			player.set_facing(yaw)
+			var w: Vector3 = water as Vector3
+			w.y = world.fish.surface_at(w)
+			player.sequences.release_from_pocket(fish, w)
+			return "Threw %s." % fish.display_name
+	return "No bank found."
+
+
+## Walk up to the player's own mailbox and check it, as the A button would.
+func _cmd_mailbox(_args: PackedStringArray) -> String:
+	var tree := _tree()
+	var player := Player.find(tree) if tree != null else null
+	if player == null:
+		return "No player."
+	for node: Node in tree.get_nodes_in_group("interactable"):
+		if node.has_method("stand_spot") and bool(node.call("is_owned")):
+			var box := node as Node3D
+			player.global_position = box.global_position + Vector3(0.3, 0.0, 1.6)
+			var ctx := InteractionContext.new()
+			ctx.actor = player
+			box.call("interact", Interaction.of(Interaction.READ, "Check mailbox"), ctx)
+			return "Checking the mailbox."
+	return "No mailbox."
+
+
+## Tool effects in front of the player: `fx dig`, `fx fill`, `fx chips`, `fx splash 3`
+## (an `eTM_CallEffect` arg), `fx net`, `fx soul`.
+func _cmd_fx(args: PackedStringArray) -> String:
+	var player := Player.find(_tree())
+	if player == null:
+		return "No player."
+	var bg: Array = player._bg()
+	var yaw: float = player.facing_yaw()
+	var at: Vector3 = player.global_position + Vector3(sin(yaw), 0.0, cos(yaw)) * 2.0
+	var attr: int = FootstepEffects.attr_at(bg, at)
+	match String(args[0]) if not args.is_empty() else "dig":
+		"dig":
+			FootstepEffects.dig_sequence(bg, at, player, attr, false)
+		"fill":
+			for i: int in range(3, 6):
+				FootstepEffects.dig_hole(bg, at, player.global_position, yaw, attr, i)
+			FootstepEffects.dig_scoop(bg, at, player.global_position, yaw, attr, 2)
+		"chips":
+			FootstepEffects.axe_chips(bg, player.global_position, yaw)
+		"splash":
+			FootstepEffects.bobber_splash(at, int(args[1]) if args.size() > 1 else 3)
+		"net":
+			FootstepEffects.net_splash(bg, at, yaw)
+		"soul":
+			## A trodden roach's soul (`ef_goki`).
+			FieldEffects.spawn(player.get_parent(), FieldEffects.Kind.ROACH, at, 0.0)
+		_:
+			return "fx dig | fill | chips | splash N | net | soul"
+	return "Spawned."
+
+
+## The umbrella twirl's spray at the player (`ef_kasamizu`; drops only in rain).
+func _cmd_twirl(_args: PackedStringArray) -> String:
+	var player := Player.find(_tree())
+	if player == null:
+		return "No player."
+	FootstepEffects.umbrella_spray(player.global_position, player.facing_yaw())
+	return "Twirled."
+
+
+## The New Year's visit at the wishing well, coin and all (no question asked).
+func _cmd_wish(args: PackedStringArray) -> String:
+	var ws_tree := _tree()
+	var ws_player := Player.find(ws_tree)
+	var ws_well: WishingWell = WishingWell.find(ws_tree)
+	if ws_player == null or ws_well == null:
+		return "No well."
+	if not args.is_empty() and args[0] == "queue":
+		## `wish queue`: the villager at the front of a column lets the player in, as if
+		## they'd said Yes (`aHN0_talk_saisen_suru`).
+		var ws_queue: ShrineQueue = ShrineQueue.find(ws_tree)
+		for ws_v: Node in ws_tree.get_nodes_in_group("event_npc"):
+			if ws_queue != null and ws_v.get("_well") != null and int(ws_v.get("_sq_state")) == 1 \
+					and ws_queue.can_offer(int(ws_v.get("slot"))):
+				ws_player.global_position = (ws_v as Node3D).global_position + Vector3(0.0, 0.0, 1.2)
+				ws_queue.queue_player(int(ws_v.get("slot")))
+				ws_v.set("_sq_let_in", true)
+				return "Queued behind slot %d." % int(ws_v.get("slot"))
+		return "Nobody at the front."
+	var ws_stand: Array = ws_well.visit_stand()
+	var ws_at: Vector3 = ws_stand[0]
+	ws_player.global_position = ws_at
+	ws_player.sequences.shrine_visit(ws_at, float(ws_stand[1]), true, ws_well.global_position.y)
+	return "Wishing."
+
+
+## `feel <happy|angry|sad|sleepy|normal>`: the villager nearest the camera falls into
+## that mood for an hour (`mNpc_FEEL_*`).
+func _cmd_feel(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var cam: Camera3D = tree.root.get_viewport().get_camera_3d() if tree != null else null
+	var names: PackedStringArray = ["normal", "happy", "angry", "sad", "sleepy"]
+	if cam == null or args.is_empty() or not names.has(args[0]):
+		return "Usage: feel <normal|happy|angry|sad|sleepy>"
+	var best: Node3D = null
+	for v: Node in tree.get_nodes_in_group("villagers"):
+		if not (v is Node3D and v.get("state") != null and (v as Node3D).is_visible_in_tree()):
+			continue
+		var d: float = (v as Node3D).global_position.distance_to(cam.global_position)
+		if best == null or d < best.global_position.distance_to(cam.global_position):
+			best = v as Node3D
+	if best == null:
+		return "No villager."
+	(best.get("state") as VillagerState).set_feel(names.find(args[0]), 60)
+	return "%s feels %s." % [best.name, args[0]]
+
+
+## `cam <closer|farther|left|right>`: step the indoor camera index as C-stick would.
+func _cmd_cam(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var node := tree.root.get_viewport().get_camera_3d() as FollowCamera if tree != null else null
+	if node == null:
+		return "No follow camera."
+	var steps := {"closer": Vector2i(-1, 0), "farther": Vector2i(1, 0), "left": Vector2i(0, -1), "right": Vector2i(0, 1)}
+	if args.is_empty() or not steps.has(String(args[0])):
+		return "Usage: cam <closer|farther|left|right>"
+	var step: Vector2i = steps[String(args[0])]
+	node.step_indoor(step.x, step.y)
+	return "Camera index %s." % [node.indoor_index()]
+
+
+## `leave`: the villager nearest the camera pops back indoors and walks out of its
+## door again (`aNPC_think_leave_house`).
+func _cmd_leave(_args: PackedStringArray) -> String:
+	var tree := _tree()
+	var cam: Camera3D = tree.root.get_viewport().get_camera_3d() if tree != null else null
+	if cam == null:
+		return "No camera."
+	var best: Villager = null
+	for v: Node in tree.get_nodes_in_group("villagers"):
+		if not (v is Villager) or (v as Villager).indoor_resident:
+			continue
+		var d: float = (v as Node3D).global_position.distance_to(cam.global_position)
+		if best == null or d < best.global_position.distance_to(cam.global_position):
+			best = v as Villager
+	if best == null:
+		return "No villager."
+	best.replay_leave_home()
+	return "%s leaves home." % best.name
+
+
+## `manpu <clip|code>`: the villager nearest the camera reacts as if a talk line
+## called for it.
+func _cmd_manpu(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var cam: Camera3D = tree.root.get_viewport().get_camera_3d() if tree != null else null
+	if cam == null or args.is_empty():
+		return "Usage: manpu <clip|code>"
+	var best: Node3D = null
+	for v: Node in tree.get_nodes_in_group("villagers"):
+		if not (v is Node3D and v.get("conversation") != null and (v as Node3D).is_visible_in_tree()):
+			continue
+		var d: float = (v as Node3D).global_position.distance_to(cam.global_position)
+		if best == null or d < best.global_position.distance_to(cam.global_position):
+			best = v as Node3D
+	if best == null:
+		return "No villager."
+	## Reactions only come in a talk: hold the villager still as a talk would.
+	var ai: Variant = best.get("ai")
+	if ai != null and not ai.is_talking():
+		ai.begin_talk()
+	(best.get("conversation") as VillagerConversation).cue_manpu(str(args[0]))
+	return "%s: %s" % [best.name, NpcManpu.clip_for(str(args[0]))]
+
+
+## Hold a seventh-stage axe one hit from breaking, and break it now (`BROKEN_AXE`).
+func _cmd_axebreak(_args: PackedStringArray) -> String:
+	_cmd_give(["axe_use_7"])
+	for i: int in Inventory.POCKET_SLOTS:
+		var slot: InventorySlot = Game.inventory.slot_at(i)
+		if slot != null and not slot.is_empty() and slot.item.item_id == &"axe_use_7":
+			Game.inventory.equip_slot(i)
+	Game.session.axe_damage = AxeWear.LIMIT - 1
+	var tree := _tree()
+	var player: Player = Player.find(tree) if tree != null else null
+	if player != null and AxeWear.apply(Game.inventory, false, player) == &"":
+		player.reports.broken_axe()
+		return "The axe broke."
+	return "Axe at stage 7, one swing from breaking."
+
+
+## Watch something drift off up and to the left, as after letting a bug go.
+func _cmd_release(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var player := Player.find(tree) if tree != null else null
+	if player == null:
+		return "No player."
+	## Parented to the player so it keeps its offset wherever the player is put.
+	var mark := Node3D.new()
+	player.add_child(mark)
+	var yaw: float = player.facing_yaw()
+	## `release [turn° [height m]]`: where the thing goes, from the player's facing.
+	var turn: float = deg_to_rad(float(args[0]) if args.size() >= 1 else 50.0)
+	var up: float = float(args[1]) if args.size() >= 2 else 3.0
+	mark.position = Vector3(sin(yaw + turn), 0.0, cos(yaw + turn)) * 2.5 + Vector3(0.0, up, 0.0)
+	player.sequences.watch_release(mark, HeldTool.find_skeleton(player._mesh))
+	return "Watching."
+
+
+## Show the waterfall rainbow now (`rainbow_opacity` 1), or `rainbow off`.
+func _cmd_rainbow(args: PackedStringArray) -> String:
+	var on: bool = args.is_empty() or String(args[0]).to_lower() != "off"
+	Game.rainbow.opacity = 1.0 if on else 0.0
+	return "Rainbow %s." % ("on" if on else "off")
+
+
+## Open the town map (`mSM_OVL_MAP`) as the sight-map board does.
+func _cmd_map(_args: PackedStringArray) -> String:
+	var tree := _tree()
+	var ui: MapOverlay = MapOverlay.find(tree)
+	if ui == null:
+		return "No map UI in this scene."
+	ui.open(true)
+	return "Map open."
+
+
+## Open the catalog, optionally on page 0-8 (1 wallpaper, 2 carpet).
+func _cmd_catalog(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var clg: CatalogOverlay = CatalogOverlay.find(tree)
+	if clg == null:
+		return "No catalog UI in this scene."
+	if args.size() >= 2 and String(args[1]).to_lower() == "fill":
+		## Every wallpaper and carpet as if collected.
+		for kind: String in ["wall", "carpet"]:
+			for i: int in 67:
+				var goods: StringName = FurnitureCatalog.goods_id(kind, i)
+				if goods != &"":
+					Game.catalog.record(goods)
+	clg.open()
+	if not args.is_empty() and String(args[0]).is_valid_int():
+		clg.show_page(int(args[0]))
+	return "Catalog open."
+
+
+## Open the post office bank terminal (`mSM_OVL_BANK`).
+func _cmd_abd(_args: PackedStringArray) -> String:
+	var tree := _tree()
+	var abd: BankOverlay = BankOverlay.find(tree)
+	if abd == null:
+		return "No bank UI in this scene."
+	abd.open()
+	return "Bank terminal open."
+
+
+## Open the post office's loan screen (`mSM_OVL_REPAY`).
+func _cmd_repay(_args: PackedStringArray) -> String:
+	var tree := _tree()
+	var rp: RepayOverlay = RepayOverlay.find(tree)
+	if rp == null:
+		return "No loan screen in this scene."
+	rp.open()
+	return "Loan screen open."
+
+
+## Open the community board's posts (`mSM_OVL_NOTICE`).
+func _cmd_board(_args: PackedStringArray) -> String:
+	var tree := _tree()
+	var ui: NoticeBoardOverlay = NoticeBoardOverlay.find(tree)
+	if ui == null:
+		return "No notice board UI in this scene."
+	ui.open()
+	return "%d posts on the board." % Game.notice_board.count()
+
+
+## Bee sting: `sting` plays it, `sting off` / `sting on` sets the swollen face,
+## `sting swarm` lets a swarm loose, `sting tree` hides a nest in the nearest tree.
+func _cmd_sting(args: PackedStringArray) -> String:
+	var sting_tree := _tree()
+	var mode: String = String(args[0]).to_lower() if not args.is_empty() else ""
+	if mode == "off" or mode == "on":
+		Game.bees.set_swollen(mode == "on")
+		return "Face %s." % ("swollen" if Game.bees.swollen else "normal")
+	var who := sting_tree.get_first_node_in_group(Player.GROUP) as Player if sting_tree != null else null
+	if who == null:
+		return "No player in this scene."
+	if mode == "swarm":
+		BeeSwarm.spawn(who.get_parent(), who.global_position + Vector3(4.0, 2.5, 4.0), who)
+		return "A swarm is after you."
+	if mode == "mosquito":
+		who.sequences.run_stung_mosquito()
+		return "Itchy."
+	if mode == "tree":
+		## The nearest tree hides a nest: shake it for the startle and the chase.
+		var tree: Node3D = null
+		for node: Node in sting_tree.get_nodes_in_group("plant"):
+			if node is Node3D and node.has_method("can_bump"):
+				if tree == null or (node as Node3D).global_position.distance_to(who.global_position) < tree.global_position.distance_to(who.global_position):
+					tree = node as Node3D
+		if tree == null:
+			return "No tree nearby."
+		PlantGrowth.set_shake_content(tree.call("_persist"), TreeUse.Content.BEES)
+		return "%s has a nest. Shake it." % tree.name
+	PlayerSe.bee_sting(who)
+	who.sequences.run_stung_bee()
+	return "Ouch."
+
+
+## The town assessment now (`mFAs_GetFieldRank_Condition`); `town perfect` also sets
+## fifteen perfect days so the well's spirit can come.
+func _cmd_town(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var world := World.find(tree) if tree != null else null
+	if world == null:
+		return "The assessment needs the outdoor field."
+	if not args.is_empty() and String(args[0]).to_lower() == "perfect":
+		Game.town.perfect_streak = TownAssessment.PERFECT_STREAK_MAX
+		Game.town.perfect_streak_day = Clock.day_number()
+	var r: Dictionary = TownAssessment.rate(world)
+	return "Rank %d (score %d: %d perfect, %d good acres); condition %d at %s; trees %d, flowers %d, weeds %d, trash %d; streak %d." % [
+		int(r["rank"]), int(r["score"]), int(r["perfect"]), int(r["good"]), int(r["condition"]),
+		r["block"], int(r["trees"]), int(r["flowers"]), int(r["weeds"]), int(r["dust"]), Game.town.perfect_streak,
+	]
+	return ""
+
+
+## Where today's money rock is (`moneyrock new` picks another now).
+func _cmd_moneyrock(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var world := World.find(tree) if tree != null else null
+	if world == null:
+		return "The money rock needs the outdoor field."
+	if not args.is_empty() and String(args[0]).to_lower() == "new":
+		Game.town.money_rock = ""
+		Game.town.money_rock_day = -1
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		MoneyRock.renew(world, rng, Clock.day_number())
+	if Game.town.money_rock == "":
+		return "No money rock today."
+	var rocks: Dictionary = MoneyRock.field_rocks(world)
+	return "Money rock: %s in acre %s." % [Game.town.money_rock, rocks.get(StringName(Game.town.money_rock), "?")]
+
+
+## The house's feng shui now (`mHsRm_GetHuusuiRoom`) and Nook's tier odds from it.
+func _cmd_fengshui(_args: PackedStringArray) -> String:
+	Game.refresh_feng_shui()
+	var cut: Vector2i = ShopGoods.tier_cutoffs(Game.session.goods_power)
+	return "Money power %d, goods power %d (Nook: rare %d%%, uncommon %d%%)." % [
+		Game.session.money_power, Game.session.goods_power, cut.x, cut.y - cut.x]
+	return ""
+
+
+## The Wisp's night: `wisp` brings him out, `wisp found` as if he had been found,
+## `wisp spirits 5` puts spirits in the pockets.
+func _cmd_wisp(args: PackedStringArray) -> String:
+	var state: Dictionary = WispEvent.state()
+	var sub: String = String(args[0]) if not args.is_empty() else ""
+	if sub == "found":
+		state["found"] = true
+		state["active"] = true
+		return "Wisp found; spirits in acres %s." % [state.get("acres", [])]
+	if sub == "spirits":
+		var n: int = clampi(int(args[1]) if args.size() > 1 else WispEvent.SPIRITS, 1, WispEvent.SPIRITS)
+		var bug: ItemData = BugCatalog.get_by_type(WispEvent.TYPE_SPIRIT)
+		if bug == null or Game.inventory.add(bug, n) != 0:
+			return "No room for spirits."
+		return "%d spirit(s) in the pockets." % n
+	Game.events.ghost_tonight = true
+	Game.events.force(&"ghost")
+	_sync_events()
+	return "The Wisp is out tonight."
+
+
+## Blanca in town with a test face (a smile) from "Tester".
+func _cmd_blanca(_args: PackedStringArray) -> String:
+	var bl_face := MaskCat.blank_face()
+	for bl_i: int in 32:
+		bl_face.pixels[8 * 32 + bl_i] = 1
+		bl_face.pixels[22 * 32 + bl_i] = 1
+		bl_face.pixels[bl_i * 32 + 8] = 4
+		bl_face.pixels[bl_i * 32 + 23] = 4
+	MaskCat.store(bl_face, "Tester", EventDates.ordinal(Clock.year, Clock.month, Clock.day))
+	Game.events.force(&"mask_npc")
+	_sync_events()
+	return "Blanca is in town."
+
+
+## Hold up a golden tool (`golden net|rod|axe`), as after Tortimer's visit or the well.
+func _cmd_golden(args: PackedStringArray) -> String:
+	var ids: Dictionary = {"net": &"golden_net", "rod": &"golden_fishing_rod", "axe": &"golden_axe"}
+	var id: StringName = ids.get(String(args[0]) if not args.is_empty() else "rod", &"golden_fishing_rod")
+	var tree := _tree()
+	var player := Player.find(tree) as Player if tree != null else null
+	if player == null:
+		return "No player here."
+	player.reports.get_golden_item(id)
+	return "Holding up %s." % id
+
+
+## A villager buries something now and posts where (`mNtc_check_treasure`).
+func _cmd_treasure(_args: PackedStringArray) -> String:
+	var tree := _tree()
+	var world: World = World.find(tree) if tree != null else null
+	if world == null:
+		return "No field here."
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var cell: Vector2i = BuriedTreasure.check(world, rng, true)
+	if cell.x < 0:
+		return "Nothing buried."
+	var rec: Dictionary = BuriedUse.record(BuriedUse.persist_id(cell))
+	return "%s buried at %s (acre %s): %s" % [rec.get("item_id", "?"), cell,
+		VillagerWalk.block_from_cell(cell), str(Game.notice_board.posts[-1]["text"]).replace("\n", " ")]
+	return ""
+
+
+## The calendar (`calendar day 31` opens on a day); `calendar played 2026-9-14` /
+## `calendar tortimer 2026-9-14` mark a day.
+func _cmd_calendar(args: PackedStringArray) -> String:
+	var tree := _tree()
+	if args.size() > 1 and String(args[0]) == "day":
+		var day_ui: CalendarOverlay = CalendarOverlay.find(tree)
+		if day_ui == null:
+			return "No calendar here."
+		day_ui.open_on_day(int(args[1]))
+		return "Calendar on day %s." % args[1]
+	if args.size() > 1:
+		var d: PackedStringArray = String(args[1]).split("-")
+		if d.size() != 3:
+			return "Date as Y-M-D."
+		var n: int = EventDates.ordinal(int(d[0]), int(d[1]), int(d[2]))
+		var today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
+		CalendarBook.trim(Game.resident.calendar, today)
+		var key: String = "events" if String(args[0]) == "tortimer" else "played"
+		if not (Game.resident.calendar[key] as Array).has(n):
+			(Game.resident.calendar[key] as Array).append(n)
+		return "Marked %s as %s." % [args[1], key]
+	var ui: CalendarOverlay = CalendarOverlay.find(tree)
+	if ui == null:
+		return "No calendar here."
+	ui.open()
+	return "Calendar."
+
+
+## Mom writes now: today's dated letter if there is one, else an everyday letter
+## (`mom 0x151` for a given one).
+func _cmd_mom(args: PackedStringArray) -> String:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var pick: Dictionary = MotherMail.dated(Clock.month, Clock.day, VillagerTalkManager.birthday(),
+		MotherMail.holiday(Clock.year, Clock.month, Clock.day), rng)
+	if not args.is_empty():
+		var no: int = String(args[0]).hex_to_int() if String(args[0]).begins_with("0x") else int(args[0])
+		var idx: int = no - MotherMail.MSG_NORMAL
+		pick = {"msg": no, "present": MotherMail.normal_present(idx, rng) if idx >= 0 and idx < MotherMail.NORMAL_COUNT else &""}
+	elif pick.is_empty():
+		var left: Array[int] = MotherMail.normal_left(Game.resident.mother_mail)
+		var n: int = left[rng.randi_range(0, left.size() - 1)] if not left.is_empty() else 0
+		pick = {"msg": MotherMail.MSG_NORMAL + n, "present": MotherMail.normal_present(n, rng)}
+	var mail: MailData = MotherMail.letter(int(pick["msg"]), StringName(pick["present"]),
+		MotherMail.paper(Clock.month, Clock.day, VillagerTalkManager.birthday()), Game.resident.player_name)
+	if mail == null or not MailDelivery.to_mailbox(mail):
+		return "Mom couldn't write (no mail bank or the mailbox is full)."
+	var tree := _tree()
+	var reader: LetterReaderOverlay = LetterReaderOverlay.find(tree)
+	if reader != null:
+		reader.open(mail)
+	return "Letter 0x%X from Mom in the mailbox%s." % [int(pick["msg"]),
+		(" with %s" % mail.present_item_id) if mail.present_item_id != &"" else ""]
+	return ""
+
+
+## `birthday` opens the "When's your birthday?" picker; `birthday visit [rod|net]`
+## sends the present visitor to the player now; `birthday cards` mails the cards.
+func _cmd_birthday(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var sub: String = String(args[0]).to_lower() if not args.is_empty() else ""
+	if sub == "cards":
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		var sent: int = PresentVisit.send_cards(Game.residents, Game.relationships, &"",
+			Game.resident.player_name, rng, MailDelivery.to_mailbox)
+		return "%d birthday card(s) sent." % sent
+	if sub == "visit":
+		var kind: int = PresentVisit.Kind.BIRTHDAY
+		if args.size() > 1:
+			kind = PresentVisit.Kind.GOLDEN_NET if String(args[1]) == "net" else PresentVisit.Kind.GOLDEN_ROD
+		else:
+			Game.resident.birthday_present_npc = PresentVisit.birthday_npc(Game.residents, Game.relationships)
+			if Game.resident.birthday_present_npc == &"" and not Game.residents.resident_ids().is_empty():
+				Game.resident.birthday_present_npc = Game.residents.resident_ids()[0]
+		var player: Player = Player.find(tree) if tree != null else null
+		var world: Node = World.find(tree) if tree != null else null
+		if player == null or world == null:
+			return "No field here."
+		var yaw: float = player.facing_yaw()
+		var npc: Node3D = load("res://features/events/present_npc.gd").spawn(
+			world.get_node("Characters"), kind, player.global_position, yaw)
+		return "Present visit." if npc != null else "Nobody to send."
+	var ui: BirthdayOverlay = BirthdayOverlay.find(tree)
+	if ui == null:
+		return "No birthday screen here."
+	ui.open()
+	return "Birthday: pick a date."
+
+
+## Open the diary on a month (`diary 4`), or write a line into one first
+## (`diary 4 Went fishing all day.`).
+func _cmd_diary(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var ui: DiaryOverlay = DiaryOverlay.find(tree)
+	if ui == null:
+		return "No diary screen here."
+	var month: int = clampi(int(args[0]), 1, 12) if not args.is_empty() and String(args[0]).is_valid_int() else Clock.month
+	if args.size() > 1:
+		Game.resident.diary[month] = DiaryOverlay.clip(" ".join(args.slice(1)))
+	ui.open(month)
+	return "Diary: month %d." % month
+
+
+## Set the sunburn rank 0–8 (`mPr_sunburn_c`) and repaint the face.
+func _cmd_tan(args: PackedStringArray) -> String:
+	if args.is_empty() or not String(args[0]).is_valid_int():
+		return "Tan rank %d (hold %d days)." % [int(Game.resident.sunburn.get("rank", 0)), int(Game.resident.sunburn.get("hold", 0))]
+	Game.resident.sunburn["rank"] = clampi(int(args[0]), 0, Sunburn.MAX_RANK)
+	Game.resident.sunburn["changed"] = Clock.day_number()
+	Game.resident.sunburn["hold"] = Sunburn.HOLD_DAYS if int(Game.resident.sunburn["rank"]) > 0 else 0
+	Game.bees.face_changed.emit()
+	return "Tan rank %d." % int(Game.resident.sunburn["rank"])
+
+
+## The body and head balls a few units ahead of the player, at size 0–1
+## (`snowballs 0.5`; default 0.4, big enough to push).
+func _cmd_snowballs(args: PackedStringArray) -> String:
+	var sb_tree := _tree()
+	var sb_world := World.find(sb_tree) if sb_tree != null else null
+	var sb_player := Player.find(sb_tree) if sb_tree != null else null
+	if sb_world == null or sb_player == null:
+		return "Snowballs need the outdoor field."
+	var sb_collide: bool = not args.is_empty() and String(args[0]).to_lower() == "collide"
+	var sb_args: PackedStringArray = args.slice(1) if sb_collide else args
+	var sb_n: float = clampf(float(sb_args[0]), 0.0, 1.0) if not sb_args.is_empty() and String(sb_args[0]).is_valid_float() else 0.4
+	var sb_cell: Vector2i = sb_world.grid.world_to_cell(sb_player.global_position)
+	var sb_fwd := Vector3(sin(sb_player.facing_yaw()), 0.0, cos(sb_player.facing_yaw()))
+	var sb_dir := Vector2i(roundi(sb_fwd.x), roundi(sb_fwd.z))
+	if sb_dir == Vector2i.ZERO:
+		sb_dir = Vector2i(0, 1)
+	var sb_side := Vector2i(-sb_dir.y, sb_dir.x)
+	SnowmanUse.spawn_ball(sb_world, SnowmanRules.PART_BODY, sb_cell + sb_dir * 2, sb_n * SnowmanRules.MOVE_DIST_MAX)
+	## `snowballs collide`: the head starts against the body, rolling into it.
+	var sb_gap: int = 1 if sb_collide else 3
+	var sb_head: Snowball = SnowmanUse.spawn_ball(sb_world, SnowmanRules.PART_HEAD, sb_cell + sb_dir * 2 + sb_side * sb_gap, sb_n * 0.85 * SnowmanRules.MOVE_DIST_MAX)
+	if sb_collide and sb_head != null:
+		sb_head.set("vel", Vector2(-sb_side.x, -sb_side.y) * 1.0)
+	return "Two snowballs at size %.2f%s." % [sb_n, ", the head rolling in" if sb_collide else ""]
+
+
+## A finished snowman two units ahead (`snowman [score 0-3]`).
+func _cmd_snowman(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var world := World.find(tree) if tree != null else null
+	var player := Player.find(tree) if tree != null else null
+	if world == null or player == null:
+		return "A snowman needs the outdoor field."
+	var score: int = clampi(int(args[0]), 0, 3) if not args.is_empty() and String(args[0]).is_valid_int() else 0
+	var fwd := Vector3(sin(player.facing_yaw()), 0.0, cos(player.facing_yaw()))
+	var cell: Vector2i = SnowmanUse.fg_cell(world, world.grid.world_to_cell(player.global_position + fwd * 4.0))
+	if cell.x < 0:
+		return "No room for a snowman there."
+	var slot: int = SnowmanRules.free_slot(Game.town.snowmen)
+	if slot >= 0:
+		Game.town.snowmen[slot] = {"head": 0.6, "body": 0.7, "score": score, "cell": [cell.x, cell.y], "age": 0}
+	SnowmanUse.spawn_snowman(world, slot, cell, 0.6, 0.7, score)
+	return "Snowman (score %d) in slot %d." % [score, slot]
+
+
+## Set N mushrooms under trees now (`mMsr_SetMushroomNum`), or `mushrooms clear`.
+func _cmd_mushrooms(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var world := World.find(tree) if tree != null else null
+	if world == null:
+		return "Mushrooms need the outdoor field."
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	if not args.is_empty() and String(args[0]).to_lower() == "clear":
+		MushroomUse.clear(world, Game.town.mushrooms.size(), Vector2i(-1, -1), rng)
+		return "Mushrooms cleared."
+	var n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else MushroomUse.NUM
+	var set: int = MushroomUse.grow(world, n, Vector2i(-1, -1), rng)
+	return "%d mushrooms set (%d in town)." % [set, Game.town.mushrooms.size()]
+
+
+## Put up a signboard in front of the player, showing design slot N if given.
+func _cmd_signboard(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var world := World.find(tree) if tree != null else null
+	var player: Node3D = Player.find(tree) if tree != null else null
+	if world == null or player == null:
+		return "Signboards need the outdoor field."
+	var ctx := InteractionContext.new()
+	ctx.world = world
+	ctx.actor = player
+	var cell: Vector2i = ToolUse.facing_cell(ctx)
+	if not SignboardUse.place(world, cell):
+		return "Can't put a signboard there."
+	if not args.is_empty() and String(args[0]).is_valid_int():
+		SignboardUse.post(SignboardUse.persist_id(cell), Game.designs.player[clampi(int(args[0]), 0, 7)])
+		for n: Node in tree.get_nodes_in_group(SignboardUse.GROUP):
+			n.call("refresh_design")
+	return "Signboard up at %s." % cell
+
+
+## Send a shooting star across the pond now (Meteor Shower only, `ef_shooting`).
+func _cmd_meteor(_args: PackedStringArray) -> String:
+	var tree := _tree()
+	var node: Node = tree.get_first_node_in_group(MeteorShower.GROUP) if tree != null else null
+	if node == null:
+		return "No meteor shower tonight (event meteor_shower)."
+	(node as MeteorShower).launch_now()
+	return "Shooting star."
+
+
+## Wash N shells up on the beach now (`mFI_SetShellWave`), with free wave units per acre.
+func _cmd_shells(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var world := World.find(tree) if tree != null else null
+	if world == null:
+		return "Shells need the outdoor field."
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else ShellUse.FIRST_NUM
+	var free: Array[String] = []
+	for b: Vector2i in ShellUse.beach_blocks():
+		free.append("%d,%d:%d" % [b.x, b.y, ShellUse.free_cells(world, world.grid, b).size()])
+	var set: int = ShellUse.wash_up(world, n, Vector2i(-1, -1), rng)
+	return "%d shells set (%d on the beach; free %s)." % [set, Game.town.shells.size(), " ".join(free)]
+
+
+## Sow N weeds now (`mAGrw_SetGrass`), or `weeds clear`.
+func _cmd_weeds(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var world := World.find(tree) if tree != null else null
+	if world == null:
+		return "Weeds need the outdoor field."
+	if not args.is_empty() and String(args[0]).to_lower() == "clear":
+		WeedUse.clear_all(world, world.grid)
+		return "Weeds cleared."
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else WeedUse.PER_DAY
+	var grown: int = WeedUse.grow(world, world.grid, world.layout, n, rng)
+	return "%d weeds sown (%d in town)." % [grown, WeedUse.count()]
+
+
+## Play radio exercise move 0-17 (`mPlayer_RADIO_EXERCISE_CMD*`).
+func _cmd_exercise(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var player := tree.get_first_node_in_group(Player.GROUP) as Player if tree != null else null
+	if player == null:
+		return "No player in this scene."
+	var cmd: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else 0
+	player.sequences.run_radio_exercise(cmd)
+	return "Exercise %d." % cmd
+
+
+## Bury a pitfall under the player; `pitfall auto` also struggles for you.
+func _cmd_pitfall(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var player := tree.get_first_node_in_group(Player.GROUP) as Player if tree != null else null
+	var world := World.find(tree) if tree != null else null
+	if player == null or world == null:
+		return "Pitfalls need the outdoor field."
+	var ctx := InteractionContext.new()
+	ctx.world = world
+	ctx.actor = player
+	var at: Vector3 = player.global_position
+	if not args.is_empty() and String(args[0]).to_lower() == "villager":
+		var best: Node3D = null
+		for v: Node in tree.get_nodes_in_group("villagers"):
+			var v3 := v as Node3D
+			if v3 != null and v3.is_visible_in_tree() and (best == null or v3.global_position.distance_to(at) < best.global_position.distance_to(at)):
+				best = v3
+		if best == null:
+			return "No villager nearby."
+		at = best.global_position
+	var cell: Vector2i = world.grid.world_to_cell(at)
+	if not HoleUse.dig(ctx, cell, false) or not BuriedUse.bury(ctx, cell, BuriedUse.PITFALL_ITEM):
+		return "Can't bury a pitfall here."
+	if not args.is_empty() and String(args[0]).to_lower() == "auto":
+		player.struggle_assist = 0.1
+	return "Pitfall buried at %s." % cell
+
+
+## `island [home]`: swap to Kapp'n's island (or back to the town) without the boat.
+func _cmd_island(args: PackedStringArray) -> String:
+	Game.island_visit = args.is_empty() or String(args[0]) != "home"
+	Game.island_ride = &""
+	Game.travel_to_world()
+	return "Island." if Game.island_visit else "Town."
+
+
+## Take Kapp'n's boat now, as if the talk had ended on yes.
+func _cmd_ride(args: PackedStringArray) -> String:
+	var tree := _tree()
+	var service: IslandService = tree.root.find_child("IslandService", true, false) as IslandService
+	if service == null:
+		return "No boat here."
+	var talk := KappnTalk.new()
+	talk.ride = true
+	service.mute = not args.is_empty() and String(args[0]) == "fast"
+	service._on_talked(talk)
+	return "All aboard."
+
+
+## The cannon furniture's shell, fired away from the camera over the player's ground.
+func _cmd_cannon(_args: PackedStringArray) -> String:
+	var player: Node3D = Player.find(_tree())
+	if player == null:
+		return "No player."
+	var at: Vector3 = player.global_position + Vector3(0.0, 0.8, 0.0)
+	CannonShot.fire(player.get_parent(), at, 0.0, Rect2(at.x - 30.0, at.z - 30.0, 60.0, 60.0))
+	return "Bang."
+
+
+## A New Year's party popper going off beside the player (`eEC_EFFECT_CLACKER`).
+func _cmd_popper(_args: PackedStringArray) -> String:
+	var player: Node3D = Player.find(_tree())
+	if player == null:
+		return "No player."
+	PartyPopper.fire(player.get_parent(), player.global_position + Vector3(0.0, 0.6, 1.0))
+	return "Pop."
+
+
+## A washed car glittering where the player stands (`eEC_EFFECT_CAR_BLIGHT`).
+func _cmd_shine(_args: PackedStringArray) -> String:
+	var player: Node3D = Player.find(_tree())
+	if player == null:
+		return "No player."
+	CarBlight.start(player.get_parent(), player.global_position + Vector3(0.0, 0.0, 1.0), true)
+	return "Glitter."
+
+
+## The puff after a trick changes the player's clothes (`eEC_EFFECT_HALLOWEEN`).
+func _cmd_costume(_args: PackedStringArray) -> String:
+	return "Puff." if CostumePuff.at_player() != null else "No player."
+
+
+## `glow [vanish]`: the well spirit's glow in front of the player (`eEC_EFFECT_MAKE_HEM`).
+func _cmd_glow(args: PackedStringArray) -> String:
+	var player: Node3D = Player.find(_tree())
+	if player == null:
+		return "No player."
+	var vanish: bool = not args.is_empty() and String(args[0]) == "vanish"
+	var feet: Vector3 = player.global_position + Vector3(0.0, 0.0, 2.0)
+	SpiritGlow.play(player.get_parent(), feet, not vanish)
+	var light: SpiritLight = SpiritLight.start(player.get_parent(), feet)
+	if vanish:
+		light.finish()
+	return "Glow."
+
+
+func _cmd_clear(_args: PackedStringArray) -> String:
+	return "__clear__"

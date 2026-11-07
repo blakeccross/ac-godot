@@ -234,7 +234,7 @@ func _run_net_catch() -> void:
 			## `release_creature`: let it go from the hand, then stand and watch it go.
 			var freed: BugActor = Netting.release(catch_, field, _player.left_hand_global())
 			HeldCatch.unbind(skeleton)
-			await _player._watch_release(freed, skeleton)
+			await _player.sequences.watch_release(freed, skeleton)
 	_player._motor.reset(_player._motor.facing)
 	_player._motor.mode_changed = true
 	if _player._anim != null:

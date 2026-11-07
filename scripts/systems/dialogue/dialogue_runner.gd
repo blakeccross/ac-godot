@@ -457,8 +457,7 @@ func _apply_event(event: Dictionary) -> void:
 				_sync_bond_context(_state.relationship)
 		"give_map":
 			## `mPr_SetNewMap`: Copper's map for a visitor (`aPOL_check_select2`).
-			if Game != null:
-				Game.unlock_map()
+			Game.unlock_map()
 		"give_item":
 			if context != null and context.inventory != null:
 				var data: ItemData = ItemCatalog.get_item(StringName(str(event.get("item", ""))))
@@ -479,10 +478,9 @@ func _apply_event(event: Dictionary) -> void:
 		"donate_commit":
 			_donate_commit(event)
 		"farway_send":
-			if Game != null:
-				var msg: String = MuseumDonation.mail_fossils(int(event.get("count", 1)))
-				if msg != "":
-					Game.post_notice(msg)
+			var msg: String = MuseumDonation.mail_fossils(int(event.get("count", 1)))
+			if msg != "":
+				Game.post_notice(msg)
 		"deposit_bells":
 			var dep_msg: String = PostUse.deposit_amount(int(event.get("amount", -1)))
 			if dep_msg != "":
@@ -530,7 +528,7 @@ func _demo_order(event: Dictionary) -> void:
 ## `{op:"donate_commit","item":"<id>"}` — hand the item to the museum and write the
 ## outcome back into context vars so the graph can branch on completion.
 func _donate_commit(event: Dictionary) -> void:
-	if context == null or Game == null:
+	if context == null:
 		return
 	var res: Dictionary = MuseumDonation.donate(StringName(str(event.get("item", ""))))
 	context.set_var("donate_ok", "yes" if res.get("ok", false) else "no")

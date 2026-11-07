@@ -364,7 +364,7 @@ func _tug() -> void:
 
 func make_context() -> DialogueContext:
 	var state: VillagerState = null
-	if Game != null and villager != null and Game.villagers.has_id(villager.id):
+	if villager != null and Game.villagers.has_id(villager.id):
 		state = Game.villagers.get_or_create(villager.id)
 	var ctx: DialogueContext = DialogueContext.from_game(villager, state)
 	if ctx.rng == null:
@@ -381,7 +381,7 @@ func make_talk() -> BankTalk:
 			return _sq_offer
 		return BankTalk.Fixed.new(_queue.talk_msg(_looks(), slot, rng()))
 	var alt_event: StringName = _data.get("alt_event", &"")
-	var alt: bool = alt_event != &"" and Game != null and Game.events != null and Game.events.is_active(alt_event)
+	var alt: bool = alt_event != &"" and Game.events.is_active(alt_event)
 	var term: int = FestivalCrowd.term_of(family, Clock.now_sec())
 	var n: int = FestivalCrowd.talk_msg(family, _looks(), slot, rng(), alt, term)
 	return BankTalk.Fixed.new(n) if n >= 0 else null
@@ -661,7 +661,7 @@ func _new_year_fireworks() -> void:
 	var mgr: EventManager = EventManager.find(get_tree())
 	if mgr == null:
 		return
-	var block: Vector2i = mgr.block_of("pool")
+	var block: Vector2i = mgr.block_of(EventManager.BlockKind.POOL)
 	if block.x < 0:
 		return
 	var center: Vector2i = EventManager.block_unit_to_cell(block, Vector2i(8, 8))

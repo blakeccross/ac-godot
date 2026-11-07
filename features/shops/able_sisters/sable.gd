@@ -54,7 +54,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if action == null or action.id != Interaction.TALK or Game == null:
+	if action == null or action.id != Interaction.TALK:
 		return false
 	return _begin_talk(ctx)
 
@@ -82,17 +82,14 @@ func _begin_talk(ctx: InteractionContext) -> bool:
 			_end_talk()
 		_talked_today = true
 		return true
-	if Game.designs != null:
-		var first := Game.designs.sable_last_date != _today()
-		## A visitor (`mPr_FOREIGNER`) is always a stranger: day 0, no tick, no look.
-		var days: int = 0 if Game.foreigner else Game.designs.sable_days
-		_story_row = NeedleworkTalk.pick_story_row(days, first and not Game.foreigner, _rng)
-		_story_ids = NeedleworkTalk.story_line_ids(_story_row)
-		if not Game.foreigner:
-			Game.designs.tick_sable_day(_today())
-		_turns_to_player = not Game.foreigner and Game.designs.sable_days >= NeedleworkTalk.SABLE_TURN_DAYS
-	else:
-		_turns_to_player = false
+	var first := Game.designs.sable_last_date != _today()
+	## A visitor (`mPr_FOREIGNER`) is always a stranger: day 0, no tick, no look.
+	var days: int = 0 if Game.foreigner else Game.designs.sable_days
+	_story_row = NeedleworkTalk.pick_story_row(days, first and not Game.foreigner, _rng)
+	_story_ids = NeedleworkTalk.story_line_ids(_story_row)
+	if not Game.foreigner:
+		Game.designs.tick_sable_day(_today())
+	_turns_to_player = not Game.foreigner and Game.designs.sable_days >= NeedleworkTalk.SABLE_TURN_DAYS
 	_story_index = 0
 	if _turns_to_player and listener != null:
 		_face_toward(listener.global_position)

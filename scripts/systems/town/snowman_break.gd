@@ -87,4 +87,4 @@ func _scatter(host: Node) -> void:
 		var at := global_position + Vector3(
 			randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)
 		) * CLUMP_SPREAD * GX
-		FieldEffects.spawn(host, FieldEffects.Kind.YUKIDAMA, at, 0.0, 0, 0x4000 | n)
+		FieldEffects.spawn(host, FieldEffects.Kind.SNOW_CLUMP, at, 0.0, 0, 0x4000 | n)

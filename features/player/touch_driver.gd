@@ -308,8 +308,8 @@ func _route(goal: Vector3) -> PackedVector3Array:
 	var bg: Array = _player._bg()
 	if bg.size() == 2:
 		return TouchPath.find(bg[0] as WorldData, bg[1] as WorldGrid, _player.global_position, goal)
-	var session: IndoorSession = Game.interior_session if Game != null else null
-	if Game != null and Game.is_indoors() and session != null and session.grid != null:
+	var session: IndoorSession = Game.interior_session
+	if Game.is_indoors() and session != null and session.grid != null:
 		return TouchPath.find(null, session.grid, _player.global_position, goal, session.room)
 	return PackedVector3Array()
 

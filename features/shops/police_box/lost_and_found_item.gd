@@ -25,7 +25,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if action == null or action.id != Interaction.TAKE or Game == null:
+	if action == null or action.id != Interaction.TAKE:
 		return false
 	var booker: Node = _booker()
 	if booker == null:

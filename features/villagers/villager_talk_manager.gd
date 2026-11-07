@@ -24,7 +24,7 @@ const CHOICE_TALK := 0x89
 const CHOICE_NEVERMIND := 0x16A
 
 ## `l_*_prob` tables.
-const KI_PROB: Array[int] = [40, 30, 10, 10, 10]
+const HAPPY_PROB: Array[int] = [40, 30, 10, 10, 10]
 const NORMAL_1_PROB: Array[int] = [70, 30]
 const GAME_PROB: Array[int] = [40, 60]
 const EV_PROB: Array[int] = [50, 50]
@@ -33,11 +33,11 @@ const TRADE_PROB: Array[int] = [25, 25, 25, 25]
 const NORMAL_3_PROB: Array[int] = [49, 17, 17, 17]
 
 ## Per-looks message bases (`l_ki_normal` … `l_normal3_season`).
-const KI_NORMAL: Array[int] = [0x20C3, 0x2099, 0x25B0, 0x257E, 0x29F0, 0x0F8C]
-const KI_WEATHER_TIME: Array[int] = [0x1FE8, 0x1DD0, 0x25DF, 0x2621, 0x2A6A, 0x0F60]
-const KI_FREE_ITEM: Array[int] = [0x1396, 0x1CBE, 0x2020, 0x202D, 0x2947, 0x0B36]
-const KI_FTR: Array[int] = [0x13C7, 0x1CC9, 0x2049, 0x205D, 0x2974, 0x0B49]
-const KI_FREE_ITEM_MONEY: Array[int] = [0x13DE, 0x1CF9, 0x2134, 0x203A, 0x295A, 0x0B5D]
+const HAPPY_NORMAL: Array[int] = [0x20C3, 0x2099, 0x25B0, 0x257E, 0x29F0, 0x0F8C]
+const HAPPY_WEATHER_TIME: Array[int] = [0x1FE8, 0x1DD0, 0x25DF, 0x2621, 0x2A6A, 0x0F60]
+const HAPPY_FREE_ITEM: Array[int] = [0x1396, 0x1CBE, 0x2020, 0x202D, 0x2947, 0x0B36]
+const HAPPY_FTR: Array[int] = [0x13C7, 0x1CC9, 0x2049, 0x205D, 0x2974, 0x0B49]
+const HAPPY_FREE_ITEM_MONEY: Array[int] = [0x13DE, 0x1CF9, 0x2134, 0x203A, 0x295A, 0x0B5D]
 const EV_SPECIAL: Array[int] = [0x11D9, 0x14E2, 0x1885, 0x211C, 0x273A, 0x0D61]
 const EV_CAL: Array[int] = [0x118E, 0x17ED, 0x27B2, 0x2806, 0x26EE, 0x0B87]
 const GAME_HINT: Array[int] = [0x11F1, 0x14FA, 0x2005, 0x2014, 0x2858, 0x0FAB]
@@ -115,15 +115,11 @@ enum Step {
 	CHANGE_WAIT,
 	RENEW_ERRAND_IRAI_END,
 	RENEW_ERRAND_IRAI_END_GIVE_ITEM,
-	CONTEST_HOKA_OR_NORMAL,
+	CONTEST_OTHER_OR_NORMAL,
 	FINISH_LETTER,
 	FINISH,
 	DONE,
 }
-
-## `manager->last_strings`: last picks of `aQMgr_order_set_string_1` / `_4` so a topic
-## doesn't repeat its word twice running. Lives as long as the quest manager actor.
-static var last_strings := PackedInt32Array([255, 255, 255, 255, 255, 255, 255])
 
 var villager: VillagerData
 var state: VillagerState
@@ -176,8 +172,8 @@ var money_power: int = 0
 ## `(block: Vector2i) -> {"seed": n, "flower": n, "null": n}` (`mQst_GetFlower*Num`).
 var field_counts: Callable
 var cloth_at_start: StringName = &""
-var _regist: Array[Dictionary] = []
-var _regist_idx: int = -1
+var _entries: Array[Dictionary] = []
+var _entry_idx: int = -1
 var _msg_category: int = VillagerQuests.Msg.NONE
 var _category_start: int = 0
 ## `manager->target`.
@@ -194,10 +190,9 @@ func _init(p_villager: VillagerData, p_state: VillagerState, p_ctx: DialogueCont
 	inventory = context.inventory if context != null else null
 	if villager != null and villager.personality != null:
 		looks = clampi(int(villager.personality.looks), 0, 5)
-	if Game != null:
-		quests = Game.quests
-		talk_info = Game.npc_talk_info
-		residents = Game.residents
+	quests = Game.quests
+	talk_info = Game.npc_talk_info
+	residents = Game.residents
 	if quests == null:
 		quests = VillagerQuests.new()
 	if talk_info == null:
@@ -259,7 +254,6 @@ func _change_normal_or_hint() -> Dictionary:
 ## one of ten, never the one said last.
 const ISLAND_CHAT: Array[int] = [0x3631, 0x3654, 0x36BC, 0x36DB, 0x367A, 0x369D]
 const ISLAND_CHAT_COUNT := 10
-static var _last_island_chat: int = 0
 
 
 ## `aQMgr_talk_island_select_talk`: what the islander says once the greeting is over. The decomp
@@ -271,11 +265,11 @@ func island_select_talk() -> int:
 	_normal_set_free_str()
 	var base: int = ISLAND_CHAT[clampi(looks, 0, ISLAND_CHAT.size() - 1)]
 	var msg_no: int = base + _rand(ISLAND_CHAT_COUNT)
-	if msg_no == _last_island_chat:
+	if msg_no == Game.session.talk_last_island_chat:
 		msg_no = base + _rand(ISLAND_CHAT_COUNT - 1)
-		if msg_no == _last_island_chat:
+		if msg_no == Game.session.talk_last_island_chat:
 			msg_no += 1
-	_last_island_chat = msg_no
+	Game.session.talk_last_island_chat = msg_no
 	return msg_no
 
 
@@ -293,7 +287,7 @@ func normal_select_talk() -> int:
 		msg_no = FJ_HINT_BASE + looks * 10 + _hint_count()
 		_add_hint()
 	elif state != null and state.mood == VillagerState.Mood.HAPPY:
-		msg_no = _decide_ki()
+		msg_no = _decide_happy()
 	else:
 		msg_no = _decide_normal()
 	return _change_ng_msg(msg_no)
@@ -312,7 +306,7 @@ func _clear_normal_info() -> void:
 func _normal_set_free_str() -> void:
 	if context == null:
 		return
-	var fruit: ItemData = ItemCatalog.get_item(Game.town.town_fruit if Game != null else &"apple")
+	var fruit: ItemData = ItemCatalog.get_item(Game.town.town_fruit)
 	_set_free(10, fruit.display_name if fruit != null else "")
 	_set_free(11, context.town_name)
 	_set_free(12, context.player_name)
@@ -322,8 +316,6 @@ func _normal_set_free_str() -> void:
 
 
 func _other_villager_name() -> String:
-	if Game == null or Game.residents == null:
-		return ""
 	var others: Array[StringName] = []
 	for id: StringName in Game.residents.resident_ids():
 		if villager == null or id != villager.id:
@@ -335,21 +327,21 @@ func _other_villager_name() -> String:
 
 
 ## `aQMgr_decide_ki_msg_no` (happy villager).
-func _decide_ki() -> int:
+func _decide_happy() -> int:
 	var msg: int = -1
-	match decide_idx_prob_table(KI_PROB):
+	match decide_idx_prob_table(HAPPY_PROB):
 		0:
-			msg = KI_NORMAL[looks] + _rand(10)
+			msg = HAPPY_NORMAL[looks] + _rand(10)
 		1:
-			msg = _msg_weather_time(KI_WEATHER_TIME[looks], 6, 2, 2)
+			msg = _msg_weather_time(HAPPY_WEATHER_TIME[looks], 6, 2, 2)
 		2:
-			msg = _check_possession(_free_pocket(), KI_FREE_ITEM[looks], 3, true)
+			msg = _check_possession(_free_pocket(), HAPPY_FREE_ITEM[looks], 3, true)
 		3:
-			msg = _check_possession(_ftr_pocket(), KI_FTR[looks], 3, false)
+			msg = _check_possession(_ftr_pocket(), HAPPY_FTR[looks], 3, false)
 		4:
-			msg = _check_possession(_free_pocket_with_money(), KI_FREE_ITEM_MONEY[looks], 3, true)
+			msg = _check_possession(_free_pocket_with_money(), HAPPY_FREE_ITEM_MONEY[looks], 3, true)
 	if msg == -1:
-		msg = KI_NORMAL[looks] + _rand(10)
+		msg = HAPPY_NORMAL[looks] + _rand(10)
 	return msg
 
 
@@ -432,7 +424,7 @@ func _decide_game() -> int:
 	if decide_idx_prob_table(GAME_PROB) == 0:
 		return GAME_HINT[looks] + _rand(5)
 	## `aQMgr_decide_msg_game_ev`: the animal picked to move talks about it.
-	if Game != null and Game.residents != null and slot >= 0 and Game.residents.remove_idx == slot:
+	if slot >= 0 and Game.residents.remove_idx == slot:
 		return REMOVE_YES[looks] + _rand(3)
 	return _decide_msg_ev()
 
@@ -455,8 +447,6 @@ func _decide_msg_ev() -> int:
 ## `aQMgr_decide_msg_special_ev`: before the visitor's start (on its day too, or until the
 ## sale ends), `l_ev_special + subtype × 3`, with the start month / day in FREE12 / FREE13.
 func _decide_special_ev() -> int:
-	if Game == null or Game.events == null:
-		return -1
 	var cal: EventCalendar = Game.events
 	var sub: int = EventCalendar.SPECIAL_POOL.find(cal.special_type)
 	if sub < 0:
@@ -493,14 +483,13 @@ func _decide_special_ev() -> int:
 ## `l_ev_cal + rumour × 2 + rand 2`, with the tourney / fireworks day and the moon dates.
 func _decide_calendar_ev() -> int:
 	var rumor: int = -1
-	if Game != null and Game.events != null:
-		var live: Array[int] = []
-		for id: StringName in Game.events.active_rumors():
-			var idx: int = RUMOR_TABLE.find(id)
-			if idx >= 0:
-				live.append(idx)
-		if not live.is_empty():
-			rumor = live[_rand(live.size())]
+	var live: Array[int] = []
+	for id: StringName in Game.events.active_rumors():
+		var idx: int = RUMOR_TABLE.find(id)
+		if idx >= 0:
+			live.append(idx)
+	if not live.is_empty():
+		rumor = live[_rand(live.size())]
 	var msg: int = -1
 	if rumor != -1:
 		msg = EV_CAL[looks] + rumor * 2 + _rand(2)
@@ -623,8 +612,6 @@ func order(order_type: int, value: int) -> void:
 ## `aQMgr_order_change_roof_color`.
 func _order_roof_color(value: int) -> void:
 	var color: int = value - 1 if value > 0 and value <= 16 else 0
-	if Game == null or Game.interiors == null:
-		return
 	var house: House = Game.interiors.player_house()
 	if house == null:
 		return
@@ -640,8 +627,6 @@ func _order_control_animal(value: int) -> void:
 	if value == 1:
 		if edit_catchphrase.is_valid():
 			edit_catchphrase.call()
-		return
-	if Game == null or Game.residents == null:
 		return
 	var rng := context.rng if context != null else RandomNumberGenerator.new()
 	Game.residents.cancel_moving({"rng": rng, "met": func(id: StringName) -> bool: return Game.player_met(id)})
@@ -732,7 +717,7 @@ func _goods(cat: StringName) -> StringName:
 	match cat:
 		&"diary":
 			var fruit_idx: int = _rand(4)
-			var town: int = maxi(ShopBook.FRUITS.find(Game.town.town_fruit if Game != null else &"apple"), 0)
+			var town: int = maxi(ShopBook.FRUITS.find(Game.town.town_fruit), 0)
 			if fruit_idx == town:
 				fruit_idx += 1
 			return ShopBook.FRUITS[fruit_idx]
@@ -758,7 +743,7 @@ func _goods(cat: StringName) -> StringName:
 		&"cloth":
 			pool = ShopGoods.category_pool(ItemData.Category.CLOTH)
 	var skip: Array[StringName] = [trade_items[0], trade_items[1]]
-	if cat == &"cloth" and Game != null:
+	if cat == &"cloth":
 		skip.append(Game.resident.cloth_id)
 	var live: Array[StringName] = []
 	for id: StringName in pool:
@@ -885,12 +870,12 @@ func _order_set_calendar(value: int) -> void:
 	if value != 1:
 		return
 	var moon: Vector2i = moon_dates(Clock.year)
-	_set_md(11, 12, moon.x)
-	_set_md(13, 14, moon.y)
-	_set_md(15, 16, lunar_today(Clock.year, Clock.month, Clock.day))
+	_set_month_day_free(11, 12, moon.x)
+	_set_month_day_free(13, 14, moon.y)
+	_set_month_day_free(15, 16, lunar_today(Clock.year, Clock.month, Clock.day))
 
 
-func _set_md(month_free: int, day_free: int, md: int) -> void:
+func _set_month_day_free(month_free: int, day_free: int, md: int) -> void:
 	@warning_ignore("integer_division")
 	_set_free(month_free, DialogueCatalog.rom_string(MONTH_STR + clampi(md / 100, 1, 12) - 1))
 	_set_free(day_free, DialogueCatalog.rom_string(DAY_STR + clampi(md % 100, 1, 31) - 1))
@@ -915,7 +900,7 @@ func _order_set_string(value: int) -> void:
 			_set_item_number(0, 1, 10)
 			_set_item_number(1, 10, 99)
 			_set_item_number(2, 0, 9)
-			var level: int = clampi(Game.shops.nook_level() if Game != null and Game.shops != null else 0, 0, 3)
+			var level: int = clampi(Game.shops.nook_level(), 0, 3)
 			_set_item_text(3, DialogueCatalog.rom_string(0x454 + level))
 			_random_string(4, 0x434, 32, -1)
 		3:
@@ -923,11 +908,11 @@ func _order_set_string(value: int) -> void:
 				_random_string(i, [0x464, 0x2F4, 0x4A0][i], 32, -1)
 		4:
 			for i: int in 2:
-				var last: int = last_strings[i]
+				var last: int = Game.session.talk_last_strings[i]
 				if last < 12:
-					last_strings[i] = _random_string(i, [0x458, 0x494][i], 11, last)
+					Game.session.talk_last_strings[i] = _random_string(i, [0x458, 0x494][i], 11, last)
 				else:
-					last_strings[i] = _random_string(i, [0x458, 0x494][i], 12, -1)
+					Game.session.talk_last_strings[i] = _random_string(i, [0x458, 0x494][i], 12, -1)
 			## The player's sign, month and day; unset reads as January 1st (`mPr_birthday_c`
 			## cleared to 0xFF → the month and day clamp to 1).
 			var bd: Vector2i = birthday()
@@ -938,11 +923,11 @@ func _order_set_string(value: int) -> void:
 			var bases: Array[int] = [0x6A1, 0x679, 0x334, 0x314, 0x414]
 			var maxes: Array[int] = [40, 40, 32, 32, 32]
 			for i: int in 5:
-				var last: int = last_strings[2 + i]
+				var last: int = Game.session.talk_last_strings[2 + i]
 				if last < maxes[i]:
-					last_strings[2 + i] = _random_string(i, bases[i], maxes[i] - 1, last)
+					Game.session.talk_last_strings[2 + i] = _random_string(i, bases[i], maxes[i] - 1, last)
 				else:
-					last_strings[2 + i] = _random_string(i, bases[i], maxes[i], -1)
+					Game.session.talk_last_strings[2 + i] = _random_string(i, bases[i], maxes[i], -1)
 
 
 ## `constellation_table`: the last day of each sign, January's first; later dates (and an
@@ -963,7 +948,7 @@ static func constellation(month: int, day: int) -> int:
 
 ## The player's birthday (month, day), or (0, 0) unset.
 static func birthday() -> Vector2i:
-	if Game == null or Game.events == null or Game.events.birthday_md == 0:
+	if Game.events.birthday_md == 0:
 		return Vector2i.ZERO
 	return Vector2i(EventDates.md_month(Game.events.birthday_md), EventDates.md_day(Game.events.birthday_md))
 
@@ -1109,7 +1094,7 @@ func _add_hint() -> void:
 
 
 func _first_job_active() -> bool:
-	return Game != null and Game.first_job != null and Game.first_job.is_active()
+	return Game.first_job.is_active()
 
 
 func _set_free(n: int, text: String) -> void:
@@ -1187,7 +1172,7 @@ const AFTER_REWARD_MSG: Array[int] = [0x0304, 0x0000, 0x0000, 0x0316, 0x0328, 0x
 ## `aQMgr_actor_talk_after_reward` swaps in the soccer / snowman / flower tables.
 const AFTER_CONTEST_SWAP := [CONTEST_REWARD_MSG[1], CONTEST_REWARD_MSG[2], CONTEST_REWARD_MSG[3]]
 ## `l_contest_hoka_msg_no`: "someone else already did it".
-const CONTEST_HOKA_MSG: Array[int] = [0x1134, 0x0E21, 0x0ED5, 0x1057, 0x1544, 0x15C2, 0x1AF3]
+const CONTEST_OTHER_MSG: Array[int] = [0x1134, 0x0E21, 0x0ED5, 0x1057, 0x1544, 0x15C2, 0x1AF3]
 ## `l_quest_type_table_fj` / `_qst` and their kind tables.
 const FJ_KINDS: Array = [[VillagerQuests.DELIVERY_NORMAL, VillagerQuests.DELIVERY_LOST], [VillagerQuests.ERRAND_REQUEST]]
 const QST_KINDS: Array = [
@@ -1197,10 +1182,6 @@ const QST_KINDS: Array = [
 ]
 ## `aQMgr_actor_set_quest_data` results.
 enum NewQuest { ERROR, SUCCESS, NO_SPACE, NO_FOREIGN_ID, NO_REMOVE_ANIMAL_ID }
-
-## `manager->errand_next[mPr_ERRAND_QUEST_NUM]`: per errand, whether the next villager hands
-## the item back (1) or passes it on (2); 0 = not decided. Lives with the quest manager.
-static var errand_next := PackedByteArray([0, 0, 0, 0, 0])
 
 
 ## `aQMgr_actor_move_talk_init`: run the step the last message was waiting for.
@@ -1274,8 +1255,8 @@ func _quest_run(action: int) -> Dictionary:
 			_msg_category = VillagerQuests.Msg.REQUEST_END
 			_talk_finish()
 			return _msg()
-		Step.CONTEST_HOKA_OR_NORMAL:
-			return _contest_hoka_or_normal()
+		Step.CONTEST_OTHER_OR_NORMAL:
+			return _contest_other_or_normal()
 		Step.FINISH_LETTER:
 			return _finish_letter()
 		Step.FINISH:
@@ -1297,7 +1278,7 @@ func _quest_run(action: int) -> Dictionary:
 func _select_talk() -> Dictionary:
 	_init_quest()
 	_clear_target()
-	var sel_regist: int = -1
+	var sel_entry: int = -1
 	var target_flag: bool = true
 	var r: int = _check_still_reward()
 	if r != -1:
@@ -1306,16 +1287,16 @@ func _select_talk() -> Dictionary:
 	else:
 		r = _check_own(true)
 		if r != -1:
-			var q: Dictionary = _regist[r]["quest"]
+			var q: Dictionary = _entries[r]["quest"]
 			var type: int = int(q["type"])
 			var kind: int = int(q["kind"])
-			if _check_finish(_regist[r]):
+			if _check_finish(_entries[r]):
 				_category_start = SELECT_TALK_MSG
 				if type == VillagerQuests.Type.CONTEST and kind == VillagerQuests.CONTEST_LETTER:
 					if _send_remail(q):
 						step = Step.FINISH_LETTER
 					else:
-						step = Step.CONTEST_HOKA_OR_NORMAL
+						step = Step.CONTEST_OTHER_OR_NORMAL
 				elif type == VillagerQuests.Type.CONTEST and kind in [
 					VillagerQuests.CONTEST_SOCCER, VillagerQuests.CONTEST_SNOWMAN, VillagerQuests.CONTEST_FLOWER
 				]:
@@ -1326,7 +1307,7 @@ func _select_talk() -> Dictionary:
 			else:
 				if type == VillagerQuests.Type.ERRAND:
 					step = Step.RENEW_ERRAND_OR_NORMAL
-					sel_regist = r
+					sel_entry = r
 					r = -1
 				elif type == VillagerQuests.Type.CONTEST:
 					if not VillagerQuests.limit_over(q, now_minute):
@@ -1343,13 +1324,13 @@ func _select_talk() -> Dictionary:
 						step = Step.NO_OR_NORMAL
 						_clear_target()
 						target_flag = false
-						_regist_idx = r
+						_entry_idx = r
 						_talk_finish()
 				_category_start = SELECT_TALK_MSG
 		else:
 			r = _check_own(false)
 			if r != -1:
-				var q: Dictionary = _regist[r]["quest"]
+				var q: Dictionary = _entries[r]["quest"]
 				if not VillagerQuests.limit_over(q, now_minute):
 					step = Step.RECONF_OR_NORMAL
 					_category_start = SELECT_TALK_MSG
@@ -1362,7 +1343,7 @@ func _select_talk() -> Dictionary:
 			else:
 				r = _check_errand_from()
 				if r != -1:
-					var q: Dictionary = _regist[r]["quest"]
+					var q: Dictionary = _entries[r]["quest"]
 					if not VillagerQuests.limit_over(q, now_minute):
 						step = Step.ROOT_RECONF_OR_NORMAL
 						_category_start = SELECT_TALK_MSG
@@ -1385,15 +1366,15 @@ func _select_talk() -> Dictionary:
 					target_flag = false
 	if target_flag:
 		if r != -1:
-			_regist_idx = r
-			_set_target_from_regist()
+			_entry_idx = r
+			_set_target_from_entry()
 			if step != Step.AFTER_REWARD:
 				_target["inv_idx"] = _get_item_idx()
 		else:
-			r = _new_quest(sel_regist)
+			r = _new_quest(sel_entry)
 		if int(_target["info"]["type"]) != VillagerQuests.Type.NONE:
 			_set_free_str(r)
-		_regist_idx = r
+		_entry_idx = r
 	return _msg(_quest_choices())
 
 
@@ -1405,8 +1386,8 @@ func _is_open_errand(q: Dictionary) -> bool:
 
 
 func _expire_errand(r: int) -> void:
-	_regist_idx = r
-	_set_target_from_regist()
+	_entry_idx = r
+	_set_target_from_entry()
 	_target["inv_idx"] = _get_item_idx()
 	_set_free_str(r)
 	_target["free"] = {}
@@ -1418,8 +1399,8 @@ func _expire_errand(r: int) -> void:
 func _init_quest() -> void:
 	quests.sync_residents(residents)
 	quests.move(now_minute, month, day)
-	_regist = quests.registry(inventory, residents)
-	_regist_idx = -1
+	_entries = quests.registry(inventory, residents)
+	_entry_idx = -1
 
 
 ## `aQMgr_talk_common_clear_talk_info` (target part).
@@ -1444,15 +1425,15 @@ func _clear_target() -> void:
 
 ## `aQMgr_actor_check_still_reward`: a reward the player's pockets couldn't take last time.
 func _check_still_reward() -> int:
-	for i: int in _regist.size():
-		var q: Dictionary = _regist[i]["quest"]
-		if bool(q.get("give_reward", false)) and _regist[i]["to"] == _client() and _regist_player(i):
+	for i: int in _entries.size():
+		var q: Dictionary = _entries[i]["quest"]
+		if bool(q.get("give_reward", false)) and _entries[i]["to"] == _client() and _entry_has_player(i):
 			return i
 	return -1
 
 
-func _regist_player(i: int) -> bool:
-	var q: Dictionary = _regist[i]["quest"]
+func _entry_has_player(i: int) -> bool:
+	var q: Dictionary = _entries[i]["quest"]
 	if int(q["type"]) == VillagerQuests.Type.CONTEST:
 		return bool(q.get("player", false))
 	return true
@@ -1460,16 +1441,16 @@ func _regist_player(i: int) -> bool:
 
 ## `aQMgr_actor_check_own_quest`.
 func _check_own(to: bool) -> int:
-	for i: int in _regist.size():
-		if _regist[i]["to" if to else "from"] == _client():
+	for i: int in _entries.size():
+		if _entries[i]["to" if to else "from"] == _client():
 			return i
 	return -1
 
 
 ## `aQMgr_actor_check_errand_from`: a chain that started with this villager.
 func _check_errand_from() -> int:
-	for i: int in _regist.size():
-		var q: Dictionary = _regist[i]["quest"]
+	for i: int in _entries.size():
+		var q: Dictionary = _entries[i]["quest"]
 		if int(q["type"]) == VillagerQuests.Type.ERRAND and int(q["kind"]) == VillagerQuests.ERRAND_REQUEST_CONTINUE:
 			if (q["used_ids"] as Array)[0] == _client():
 				return i
@@ -1515,8 +1496,8 @@ func _check_flower(q: Dictionary) -> bool:
 
 
 ## `aQMgr_talk_common_regist_set_target`.
-func _set_target_from_regist() -> void:
-	var e: Dictionary = _regist[_regist_idx]
+func _set_target_from_entry() -> void:
+	var e: Dictionary = _entries[_entry_idx]
 	var q: Dictionary = e["quest"]
 	_target["info"]["type"] = int(q["type"])
 	_target["info"]["kind"] = int(q["kind"])
@@ -1528,9 +1509,9 @@ func _set_target_from_regist() -> void:
 
 ## `aQMgr_talk_common_get_item_idx`.
 func _get_item_idx() -> int:
-	if _regist_idx < 0 or _regist_idx >= _regist.size():
+	if _entry_idx < 0 or _entry_idx >= _entries.size():
 		return -1
-	var e: Dictionary = _regist[_regist_idx]
+	var e: Dictionary = _entries[_entry_idx]
 	var q: Dictionary = e["quest"]
 	match int(q["type"]):
 		VillagerQuests.Type.DELIVERY:
@@ -1551,17 +1532,17 @@ func _get_item_idx() -> int:
 ## ---------------------------------------------------------------- new quests
 
 ## `aQMgr_actor_new_quest`. Returns the regist index the quest came from (errand renewals).
-func _new_quest(regist_idx: int) -> int:
+func _new_quest(entry_idx: int) -> int:
 	var quest: Dictionary = {}
 	var stage: int = 0
 	var exist: bool
 	var sel: int = -1
-	if regist_idx != -1:
-		var e: Dictionary = _regist[regist_idx]
+	if entry_idx != -1:
+		var e: Dictionary = _entries[entry_idx]
 		quest = e["quest"]
 		_target["info"]["type"] = int(quest["type"])
 		var slot_idx: int = int(e["idx"])
-		var next: int = errand_next[slot_idx] if slot_idx >= 0 and slot_idx < errand_next.size() else 0
+		var next: int = Game.session.errand_next[slot_idx] if slot_idx >= 0 and slot_idx < Game.session.errand_next.size() else 0
 		var next_type: int = 0
 		if next == 0:
 			next_type = _rand(2)
@@ -1574,7 +1555,7 @@ func _new_quest(regist_idx: int) -> int:
 		)
 		_target["free"] = quest
 		_target["free_idx"] = slot_idx
-		sel = regist_idx
+		sel = entry_idx
 		exist = true
 	else:
 		exist = _decide_quest()
@@ -1583,11 +1564,11 @@ func _new_quest(regist_idx: int) -> int:
 		_target["set_data"] = VillagerQuests.set_data(int(_target["info"]["type"]), int(_target["info"]["kind"]))
 		result = _set_quest_data(quest)
 		if result == NewQuest.SUCCESS:
-			if regist_idx != -1:
+			if entry_idx != -1:
 				_target["from"] = _client()
 				if stage != 0:
 					_target["info"]["progress"] = stage
-				_set_errand_next(int(_regist[regist_idx]["idx"]), 0)
+				_set_errand_next(int(_entries[entry_idx]["idx"]), 0)
 		elif result == NewQuest.NO_SPACE:
 			if int(_target["info"]["type"]) == VillagerQuests.Type.DELIVERY:
 				talk_info.set_client_quest(slot, _target["info"])
@@ -1610,8 +1591,8 @@ func _new_quest(regist_idx: int) -> int:
 
 
 func _set_errand_next(idx: int, value: int) -> void:
-	if idx >= 0 and idx < errand_next.size():
-		errand_next[idx] = value
+	if idx >= 0 and idx < Game.session.errand_next.size():
+		Game.session.errand_next[idx] = value
 
 
 ## `aQMgr_actor_decide_quest`: re-offer what was turned down, else a 3-in-4 chance of a new
@@ -1821,8 +1802,8 @@ func _set_quest_info() -> void:
 
 ## `aQMgr_actor_talk_finish`: a finished quest clears; a new one registers.
 func _talk_finish() -> void:
-	if _regist_idx >= 0 and _regist_idx < _regist.size():
-		var q: Dictionary = _regist[_regist_idx]["quest"]
+	if _entry_idx >= 0 and _entry_idx < _entries.size():
+		var q: Dictionary = _entries[_entry_idx]["quest"]
 		match int(q["type"]):
 			VillagerQuests.Type.DELIVERY:
 				VillagerQuests.clear_delivery(q)
@@ -1830,8 +1811,8 @@ func _talk_finish() -> void:
 				VillagerQuests.clear_errand(q)
 			VillagerQuests.Type.CONTEST:
 				VillagerQuests.clear_contest(q)
-		_regist.clear()
-		_regist_idx = -1
+		_entries.clear()
+		_entry_idx = -1
 
 
 ## ---------------------------------------------------------------- talk steps
@@ -1887,8 +1868,8 @@ func _renew_errand_or_normal() -> Dictionary:
 	_msg_category = VillagerQuests.Msg.REQUEST_INIT
 	_set_quest_info()
 	talk_info.clear_client_quest(slot)
-	_regist.clear()
-	_regist_idx = -1
+	_entries.clear()
+	_entry_idx = -1
 	var free: Dictionary = _target["free"]
 	if int(free.get("type", VillagerQuests.Type.NONE)) == VillagerQuests.Type.ERRAND and int(free.get("progress", 0)) == 0:
 		step = Step.RENEW_ERRAND_IRAI_END_GIVE_ITEM
@@ -1966,7 +1947,7 @@ func hand_result(item: StringName, pocket: int = -1) -> Dictionary:
 
 ## `aQMgr_actor_talk_fin_quest_reward`.
 func _fin_quest_reward() -> Dictionary:
-	var q: Dictionary = _regist[_regist_idx]["quest"] if _regist_idx >= 0 and _regist_idx < _regist.size() else {}
+	var q: Dictionary = _entries[_entry_idx]["quest"] if _entry_idx >= 0 and _entry_idx < _entries.size() else {}
 	_set_reward()
 	if _hand_reward():
 		_set_free_str_reward()
@@ -1982,7 +1963,7 @@ func _fin_quest_reward() -> Dictionary:
 		_msg_category = VillagerQuests.Msg.REWARD_FULL_ITEM
 		if not q.is_empty():
 			q["give_reward"] = true
-		_regist_idx = -1
+		_entry_idx = -1
 		step = Step.CHANGE_WAIT
 	if not q.is_empty() and int(q["type"]) == VillagerQuests.Type.CONTEST:
 		if int(q["progress"]) != 0:
@@ -1990,14 +1971,14 @@ func _fin_quest_reward() -> Dictionary:
 			q["limit"] = int(q["limit"]) + 3 * 1440
 			q["player"] = true
 			q["player_name"] = context.player_name if context != null else ""
-		_regist_idx = -1
+		_entry_idx = -1
 	_talk_finish()
 	return _msg()
 
 
 ## `aQMgr_actor_talk_after_reward`: the reward that didn't fit last time.
 func _after_reward() -> Dictionary:
-	var q: Dictionary = _regist[_regist_idx]["quest"] if _regist_idx >= 0 and _regist_idx < _regist.size() else {}
+	var q: Dictionary = _entries[_entry_idx]["quest"] if _entry_idx >= 0 and _entry_idx < _entries.size() else {}
 	_set_reward()
 	if _hand_reward():
 		_set_free_str_reward()
@@ -2015,33 +1996,33 @@ func _after_reward() -> Dictionary:
 
 
 ## `aQMgr_talk_quest_contest_hoka_or_normal`.
-func _contest_hoka_or_normal() -> Dictionary:
+func _contest_other_or_normal() -> Dictionary:
 	if _talk_action != 0:
 		return _change_normal_or_hint()
-	var q: Dictionary = _regist[_regist_idx]["quest"]
+	var q: Dictionary = _entries[_entry_idx]["quest"]
 	_finish_first_job_open_quest()
 	_target["free"] = {}
 	_set_free(12, str(q.get("player_name", "")))
 	if int(q["kind"]) == VillagerQuests.CONTEST_LETTER and bool(q["player"]):
 		_category_start = LETTER_FULL_MSG
 	else:
-		_category_start = _contest_hoka_msg(q)
+		_category_start = _contest_other_msg(q)
 		if int(q["kind"]) != VillagerQuests.CONTEST_LETTER:
 			_talk_finish()
 	step = Step.CHANGE_WAIT
 	return _msg()
 
 
-func _contest_hoka_msg(q: Dictionary) -> int:
+func _contest_other_msg(q: Dictionary) -> int:
 	var kind: int = int(q["kind"])
 	if kind == VillagerQuests.CONTEST_FLOWER and int(q["flowers_requested"]) > int(_home_counts().get("seed", -1)):
 		return FLOWER_SHORT_MSG
-	return CONTEST_HOKA_MSG[clampi(kind, 0, CONTEST_HOKA_MSG.size() - 1)]
+	return CONTEST_OTHER_MSG[clampi(kind, 0, CONTEST_OTHER_MSG.size() - 1)]
 
 
 ## `aQMgr_actor_talk_finish_letter`: the reply is in the mailbox.
 func _finish_letter() -> Dictionary:
-	var q: Dictionary = _regist[_regist_idx]["quest"]
+	var q: Dictionary = _entries[_entry_idx]["quest"]
 	_set_free(12, str(q.get("player_name", "")))
 	_category_start = LETTER_THANKS_MSG if bool(q["player"]) else LETTER_OTHER_MSG
 	var out: Dictionary = _msg()
@@ -2067,8 +2048,6 @@ func _send_remail(q: Dictionary) -> bool:
 ## `aQMgr_talk_quest_finish_firstjob_open_quest`: during the job's "go ask for work" chore,
 ## asking a villager for work finishes it.
 func _finish_first_job_open_quest() -> void:
-	if Game == null or Game.first_job == null:
-		return
 	var job: FirstJob = Game.first_job
 	if job.kind == FirstJob.Kind.OPEN and job.progress == FirstJob.PROGRESS_ACTIVE:
 		job.mark_open_finished()
@@ -2080,8 +2059,8 @@ func _finish_first_job_open_quest() -> void:
 func _set_reward() -> void:
 	var percents: Array
 	var base_pay: int
-	if int(_target["info"]["type"]) == VillagerQuests.Type.ERRAND and _regist_idx >= 0 and _regist_idx < _regist.size():
-		var r: Dictionary = VillagerQuests.errand_reward(int(_regist[_regist_idx]["quest"].get("used_num", 0)))
+	if int(_target["info"]["type"]) == VillagerQuests.Type.ERRAND and _entry_idx >= 0 and _entry_idx < _entries.size():
+		var r: Dictionary = VillagerQuests.errand_reward(int(_entries[_entry_idx]["quest"].get("used_num", 0)))
 		percents = r["percents"]
 		base_pay = int(r["pay"])
 	else:
@@ -2107,7 +2086,7 @@ func _set_reward() -> void:
 		VillagerQuests.Reward.WORN_CLOTH:
 			if state != null and state.cloth_design >= 0:
 				## `RSV_CLOTH` (an Able design): some other shirt instead.
-				_target["reward_item"] = _decide_cloth(Game.resident.cloth_id if Game != null else &"")
+				_target["reward_item"] = _decide_cloth(Game.resident.cloth_id)
 				_target["reward_kind"] = VillagerQuests.Reward.CLOTH
 			else:
 				_target["reward_item"] = cloth_at_start
@@ -2206,7 +2185,7 @@ func _set_free_str_reward() -> void:
 
 ## `aQMgr_actor_set_free_str`: FREE0 who asked, FREE1 who it's for, FREE2 the item,
 ## FREE3/4 their towns, FREE5 who started the errand chain.
-func _set_free_str(regist_idx: int) -> void:
+func _set_free_str(entry_idx: int) -> void:
 	_set_free(0, _name_of(_target["from"]))
 	if _target["to"] != &"":
 		_set_free(1, _name_of(_target["to"]))
@@ -2214,8 +2193,8 @@ func _set_free_str(regist_idx: int) -> void:
 	if _target["quest_item"] != &"":
 		_set_free(2, _article_name(_target["quest_item"]))
 	_set_free(4, context.town_name if context != null else "")
-	if regist_idx >= 0 and regist_idx < _regist.size():
-		var q: Dictionary = _regist[regist_idx]["quest"]
+	if entry_idx >= 0 and entry_idx < _entries.size():
+		var q: Dictionary = _entries[entry_idx]["quest"]
 		if int(q["type"]) == VillagerQuests.Type.ERRAND:
 			var first: StringName = (q["used_ids"] as Array)[0]
 			if first != &"":

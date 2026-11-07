@@ -39,12 +39,12 @@ func setup() -> void:
 
 
 func _area() -> Dictionary:
-	return Game.events.area(&"broker_sale") if Game != null and Game.events != null else {}
+	return Game.events.area(&"broker_sale")
 
 
 func _place_wares() -> void:
 	var interior: Interior = Interior.find(get_tree())
-	var grid: WorldGrid = interior.get("grid") as WorldGrid if interior != null and "grid" in interior else null
+	var grid: WorldGrid = WorldGrid.of(interior)
 	var items: Array[StringName] = ReddStock.items(_area())
 	for i: int in mini(items.size(), WARE_UNITS.size()):
 		if items[i] == &"":
@@ -62,18 +62,18 @@ func _say_hello() -> void:
 	if _greeted:
 		return
 	_greeted = true
-	begin_talk(player_node(), ReddTalk.new(ReddTalk.Kind.HELLO, _area(), Game.inventory if Game != null else null, rng()))
+	begin_talk(player_node(), ReddTalk.new(ReddTalk.Kind.HELLO, _area(), Game.inventory, rng()))
 
 
 func make_talk() -> BankTalk:
-	return ReddTalk.new(ReddTalk.Kind.CHAT, _area(), Game.inventory if Game != null else null, rng())
+	return ReddTalk.new(ReddTalk.Kind.CHAT, _area(), Game.inventory, rng())
 
 
 ## Called by a `ShopStock` in the tent (`aEBR2_message_ctrl`, A in front of a piece).
 func offer_item(item_id: StringName, ctx: InteractionContext) -> bool:
 	if talking:
 		return false
-	var t := ReddTalk.new(ReddTalk.Kind.OFFER, _area(), Game.inventory if Game != null else null, rng())
+	var t := ReddTalk.new(ReddTalk.Kind.OFFER, _area(), Game.inventory, rng())
 	t.item_id = item_id
 	t.explained = get_meta("explained", {})
 	_pending_item = item_id
@@ -97,7 +97,7 @@ func talk_ended(script: BankTalk) -> void:
 
 ## `aEBR2_message_ctrl`: the player at the exit strip, facing it (`EXIT_DOOR1`).
 func _check_goodbye() -> bool:
-	if _bye_said or talking or Game == null or Game.block_auto_enter_doors:
+	if _bye_said or talking or Game.block_auto_enter_doors:
 		return false
 	var ui := DialogueOverlay.find(get_tree())
 	if ui != null and ui.is_open():
@@ -123,7 +123,7 @@ func _leave() -> void:
 	var host: Interior = Interior.find(get_tree())
 	if host != null:
 		host.leave_through_exit()
-	elif Game != null:
+	else:
 		Game.exit_interior()
 
 

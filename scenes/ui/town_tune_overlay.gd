@@ -120,7 +120,7 @@ func dismiss() -> void:
 func open() -> void:
 	if _open:
 		return
-	notes = TownTune.sanitize(Game.town.town_tune) if Game != null else TownTune.default_notes()
+	notes = TownTune.sanitize(Game.town.town_tune)
 	_original = notes.duplicate()
 	cursor = -1
 	_proc = Proc.PLAY
@@ -293,8 +293,7 @@ func _on_prompt_answer(idx: int) -> void:
 	_prompt.close()
 	match idx:
 		0:
-			if Game != null:
-				Game.town.town_tune = notes.duplicate()
+			Game.town.town_tune = notes.duplicate()
 			close(true)
 		1:
 			_pulse = 0.0

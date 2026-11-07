@@ -45,7 +45,7 @@ static func apply(
 ## (`InteriorLightModel`). Called on entry and on every clock / weather change.
 static func refresh_light(host: Node3D, world_env: WorldEnvironment, grid: WorldGrid, room: Room) -> void:
 	var tier: int = 0
-	if Game.interiors != null and Game.interiors.player_house() != null:
+	if Game.interiors.player_house() != null:
 		tier = int(Game.interiors.player_house().size_tier)
 	var lit: bool = InteriorLightModel.lamp_on(room, Clock.hour, _owner_home(room))
 	var rain: bool = Weather.is_precip(Weather.kind_from_name(Game.town.weather))

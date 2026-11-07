@@ -41,7 +41,7 @@ func _process(delta: float) -> void:
 				player.facing_yaw(),
 				grid,
 				_spots(),
-				Game == null or not Game.is_indoors(),
+				not Game.is_indoors(),
 			)
 		var cam := get_viewport().get_camera_3d()
 		if cam != null:
@@ -58,11 +58,11 @@ func _process(delta: float) -> void:
 
 
 func _can_show(player: Player) -> bool:
-	if Game != null and Game.title_demo_active:
+	if Game.title_demo_active:
 		return false
 	if not player.is_waiting():
 		return false
-	if Game == null or not Game.is_indoors():
+	if not Game.is_indoors():
 		return true
 	## Loose items in your rooms; nothing in shops, the museum, or a villager's house.
 	return PlayerHouse.is_player_room(Game.current_room_id)

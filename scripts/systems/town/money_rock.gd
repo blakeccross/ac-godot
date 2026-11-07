@@ -23,9 +23,6 @@ const AROUND: Array[Vector2i] = [
 const SE_HIT := &"426"
 
 ## Hits so far in the running window, and when it closes (`Time.get_ticks_msec`).
-static var _active_id: StringName = &""
-static var _hits: int = 0
-static var _ends_msec: int = 0
 
 
 static func is_money_rock(id: StringName) -> bool:
@@ -34,7 +31,7 @@ static func is_money_rock(id: StringName) -> bool:
 
 ## `mPr_GetMoneyPower`: the house's feng shui, moved by the day's fortune.
 static func money_power() -> int:
-	var power: int = Game.money_power
+	var power: int = Game.session.money_power
 	match Game.destiny():
 		Game.Destiny.MONEY_LUCK:
 			power += 100
@@ -94,7 +91,7 @@ static func field_rocks(world: Node) -> Dictionary:
 	var out: Dictionary = {}
 	if world == null or world.get_tree() == null:
 		return out
-	var grid: WorldGrid = world.get("grid") as WorldGrid
+	var grid: WorldGrid = WorldGrid.of(world)
 	if grid == null:
 		return out
 	for node: Node in world.get_tree().get_nodes_in_group("interactable"):
@@ -115,42 +112,45 @@ static func hit(id: StringName, now_msec: int = -1) -> ItemData:
 	if not is_money_rock(id):
 		return null
 	var now: int = now_msec if now_msec >= 0 else Time.get_ticks_msec()
-	if _active_id == id and now >= _ends_msec:
+	if Game.session.money_rock_id == id and now >= Game.session.money_rock_ends_msec:
 		## The window closed: back to an ordinary rock (`ten_coin_move`).
 		finish()
 		return null
 	var luck: bool = Game.destiny() == Game.Destiny.MONEY_LUCK
-	if _active_id != id:
-		_active_id = id
-		_hits = 0
+	if Game.session.money_rock_id != id:
+		Game.session.money_rock_id = id
+		Game.session.money_rock_hits = 0
 		var frames: float = window_frames(money_power(), luck)
-		_ends_msec = now + int(DecompTime.ticks_to_sec(frames) * 1000.0)
+		Game.session.money_rock_ends_msec = now + int(DecompTime.ticks_to_sec(frames) * 1000.0)
 	else:
-		_hits += 1
-	return ItemCatalog.get_item(payout(_hits, luck))
+		Game.session.money_rock_hits += 1
+	return ItemCatalog.get_item(payout(Game.session.money_rock_hits, luck))
 
 
 static func active_hits() -> int:
-	return _hits if _active_id != &"" else -1
+	return Game.session.money_rock_hits if Game.session.money_rock_id != &"" else -1
 
 
 static func window_open(now_msec: int = -1) -> bool:
 	var now: int = now_msec if now_msec >= 0 else Time.get_ticks_msec()
-	return _active_id != &"" and now < _ends_msec
+	return Game.session.money_rock_id != &"" and now < Game.session.money_rock_ends_msec
+
+
+## The run on `id` timed out (the rock's `wait` after the last hit); a static callable, so
+## it still runs if the rock left with the field.
+static func finish_if_expired(id: StringName) -> void:
+	if is_money_rock(id) and not window_open():
+		finish()
 
 
 static func finish() -> void:
-	if _active_id != &"" and String(_active_id) == Game.town.money_rock:
+	if Game.session.money_rock_id != &"" and String(Game.session.money_rock_id) == Game.town.money_rock:
 		Game.town.money_rock = ""
-	_active_id = &""
-	_hits = 0
-	_ends_msec = 0
+	Game.session.money_rock_id = &""
+	Game.session.money_rock_hits = 0
+	Game.session.money_rock_ends_msec = 0
 
 
-static func reset() -> void:
-	_active_id = &""
-	_hits = 0
-	_ends_msec = 0
 
 
 ## `mFI_search_unit_around_high`: the first free unit around `cell`, or (-1, -1).

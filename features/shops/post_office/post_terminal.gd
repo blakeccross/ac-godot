@@ -11,7 +11,7 @@ func _ready() -> void:
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if action == null or action.id != Interaction.TALK or Game == null or _busy:
+	if action == null or action.id != Interaction.TALK or _busy:
 		return false
 	return _begin_use(ctx)
 

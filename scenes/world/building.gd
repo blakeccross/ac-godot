@@ -1,3 +1,4 @@
+class_name Building
 extends StaticBody3D
 
 ## Simple outdoor building shell (museum, Able Sisters, post office, …).
@@ -26,20 +27,15 @@ func _ready() -> void:
 	## Station is outdoor-only (`ac_station` + acre collision; Porter at ut 5,4). No Door.
 	if HostCollision.is_station(visual_id):
 		return
-	var door: Node = get_node_or_null("Door")
+	var door := get_node_or_null("Door") as Door
 	if door != null:
-		if "label" in door:
-			door.set("label", label)
-		if "verb" in door:
-			door.set("verb", door_verb)
-		if "closed_notice" in door:
-			door.set("closed_notice", "The %s is locked." % label)
-		## Museum: walk-in enter (`aMsm_check_player` has no A button).
-		if "auto_enter" in door and HostCollision.is_museum(visual_id):
-			door.set("auto_enter", true)
-		## Lighthouse: walk-in enter (`aTOU_actor_move` requests the door with no A button).
-		if "auto_enter" in door and HostCollision.is_lighthouse(visual_id):
-			door.set("auto_enter", true)
+		door.label = label
+		door.verb = door_verb
+		door.closed_notice = "The %s is locked." % label
+		## Museum: walk-in enter (`aMsm_check_player` has no A button); lighthouse too
+		## (`aTOU_actor_move` requests the door with no A button).
+		if HostCollision.is_museum(visual_id) or HostCollision.is_lighthouse(visual_id):
+			door.auto_enter = true
 
 
 func apply_grid_yaw(facing: WorldGrid.Facing) -> void:

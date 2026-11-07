@@ -120,9 +120,9 @@ func dismiss() -> void:
 func open(p_owner: int = -1) -> void:
 	if _open:
 		return
-	owner_slot = p_owner if Game != null and Game.roster != null and p_owner != Game.roster.current else -1
+	owner_slot = p_owner if p_owner != Game.roster.current else -1
 	_today = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
-	if Game != null and owner_slot < 0:
+	if owner_slot < 0:
 		CalendarBook.played_on(Game.resident.calendar, _today)
 	_pages.clear()
 	month_off = 0
@@ -175,15 +175,13 @@ func page(off: int) -> Dictionary:
 	if not _pages.has(off):
 		var ym: Vector2i = month_at(Clock.year, Clock.month, off)
 		var state: Dictionary = _state()
-		var town_day: int = Game.events.town_day if Game != null and Game.events != null else 15
+		var town_day: int = Game.events.town_day
 		var born: Vector2i = VillagerTalkManager.birthday() if owner_slot < 0 else Vector2i.ZERO
 		_pages[off] = CalendarBook.page(ym.x, ym.y, state, _today, town_day, born)
 	return _pages[off]
 
 
 func _state() -> Dictionary:
-	if Game == null:
-		return CalendarBook.new_state()
 	if owner_slot >= 0:
 		var saved: Variant = Game.roster.slots[owner_slot].get("calendar", {})
 		return saved as Dictionary if typeof(saved) == TYPE_DICTIONARY and not (saved as Dictionary).is_empty() \
@@ -450,7 +448,7 @@ func _draw_event_name() -> void:
 	if events.is_empty() or _font == null:
 		return
 	var ev: Array = events[clampi(event_idx, 0, events.size() - 1)]
-	var town: String = Game.town.town_name if Game != null else ""
+	var town: String = Game.town.town_name
 	var px: int = roundi(FONT_PX * NAME_SCALE)
 	_canvas.draw_string(_font, NAME_POS + Vector2(0.0, _font.get_ascent(px)), CalendarBook.event_name(int(ev[0]), town),
 		HORIZONTAL_ALIGNMENT_LEFT, -1, px, NUMBER2_PRIM[day_type()])

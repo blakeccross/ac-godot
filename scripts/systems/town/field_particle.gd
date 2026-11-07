@@ -22,10 +22,10 @@ const FRAME_DIR := "res://assets/generated/textures/rel/%s.png"
 const DUST_FRAMES: Array[String] = ["ef_dust01_0", "ef_dust01_1", "ef_dust01_2", "ef_dust01_3"]
 const SMOKE_FRAMES: Array[String] = ["ef_kisha_kemuri01_0", "ef_kisha_kemuri01_1"]
 const KINDS: Array[FieldEffects.Kind] = [
-	FieldEffects.Kind.DUST, FieldEffects.Kind.TUMBLE_DUST, FieldEffects.Kind.STEAM, FieldEffects.Kind.SOBA_YUGE,
-	FieldEffects.Kind.KISHA_KEMURI, FieldEffects.Kind.SAND, FieldEffects.Kind.SIBUKI, FieldEffects.Kind.YUKIHANE,
-	FieldEffects.Kind.MIZUTAMA, FieldEffects.Kind.YUKIDAMA, FieldEffects.Kind.KASAMIZUTAMA,
-	FieldEffects.Kind.DIG_MUD, FieldEffects.Kind.TURI_HANE, FieldEffects.Kind.TURI_SUITEKI,
+	FieldEffects.Kind.DUST, FieldEffects.Kind.TUMBLE_DUST, FieldEffects.Kind.STEAM, FieldEffects.Kind.NOODLE_STEAM,
+	FieldEffects.Kind.TRAIN_SMOKE, FieldEffects.Kind.SAND, FieldEffects.Kind.SPLASH, FieldEffects.Kind.SNOW_SPLASH,
+	FieldEffects.Kind.WATER_DROP, FieldEffects.Kind.SNOW_CLUMP, FieldEffects.Kind.UMBRELLA_DROP,
+	FieldEffects.Kind.DIG_MUD, FieldEffects.Kind.FISHING_SPLASH, FieldEffects.Kind.FISHING_DRIP,
 	FieldEffects.Kind.HALLOWEEN_SMOKE,
 ]
 ## `eDig_Mud_*_tex_tbl`: earth, sand and the mole cricket's (`arg1 | 0x8000`) frames.
@@ -35,7 +35,7 @@ const MUD_MOLE_FRAMES: Array[String] = ["ef_mogura01_02_tex", "ef_mogura01_03_te
 ## `eTH0_ct`: the splash card's scale by arg0.
 const HANE_SCALE: Array[float] = [0.01, 0.013, 0.014, 0.009, 0.007]
 ## `ef_turi_suiteki`: launched at 74.53° from level, 5 GX a tick along it, falling 0.75.
-const SUITEKI_ANGLE := 74.53125 * PI / 180.0
+const FISHING_DRIP_ANGLE := 74.53125 * PI / 180.0
 ## A drop lies where it lands for 14 ticks, playing its splat.
 const SPLAT_TIME := 14.0 * DecompTime.TICK_SEC
 var kind: FieldEffects.Kind = FieldEffects.Kind.DUST
@@ -117,25 +117,25 @@ static func style_for(
 			_tumble_dust(s, yaw, a1)
 		FieldEffects.Kind.STEAM:
 			_steam(s, yaw)
-		FieldEffects.Kind.SOBA_YUGE:
+		FieldEffects.Kind.NOODLE_STEAM:
 			_food_steam(s, a0, a1, at)
-		FieldEffects.Kind.KISHA_KEMURI:
+		FieldEffects.Kind.TRAIN_SMOKE:
 			_smoke(s, a0, a1, at)
 		FieldEffects.Kind.SAND:
 			_sand(s, yaw, a0, at)
-		FieldEffects.Kind.SIBUKI:
+		FieldEffects.Kind.SPLASH:
 			_splash(s, a0, at)
-		FieldEffects.Kind.YUKIHANE:
+		FieldEffects.Kind.SNOW_SPLASH:
 			_snow_kick(s, at)
-		FieldEffects.Kind.MIZUTAMA, FieldEffects.Kind.YUKIDAMA:
+		FieldEffects.Kind.WATER_DROP, FieldEffects.Kind.SNOW_CLUMP:
 			_drop(s, kind, yaw, a1, at, ground)
-		FieldEffects.Kind.KASAMIZUTAMA:
+		FieldEffects.Kind.UMBRELLA_DROP:
 			_spray(s, yaw)
 		FieldEffects.Kind.DIG_MUD:
 			_mud(s, yaw, a0, a1)
-		FieldEffects.Kind.TURI_HANE:
+		FieldEffects.Kind.FISHING_SPLASH:
 			_hane(s, a0, a1)
-		FieldEffects.Kind.TURI_SUITEKI:
+		FieldEffects.Kind.FISHING_DRIP:
 			_suiteki(s, a0, a1)
 		FieldEffects.Kind.HALLOWEEN_SMOKE:
 			_halloween_smoke(s)
@@ -513,7 +513,7 @@ static func _ground_card(s: Style, model: String, frames: Array[String], tilt: f
 ## direction), it flies until it reaches the ground 3 GX above where it started, then lies
 ## there splatting for 14 ticks. 50 ticks at most.
 static func _drop(s: Style, kind: FieldEffects.Kind, yaw: float, arg1: int, at: Array[Vector3], ground: Callable) -> void:
-	var water: bool = kind == FieldEffects.Kind.MIZUTAMA
+	var water: bool = kind == FieldEffects.Kind.WATER_DROP
 	var speeds: Array[Vector4] = FieldEffects.MIZU_SPEED if water else FieldEffects.YUKI_SPEED
 	var speed_set: int = clampi((arg1 >> 12) & 0xF, 0, speeds.size() - 1)
 	var dir_index: int = arg1 & 0x0FFF
@@ -523,7 +523,7 @@ static func _drop(s: Style, kind: FieldEffects.Kind, yaw: float, arg1: int, at: 
 	if water:
 		dir = yaw + MathUtil.s16_to_rad(FieldEffects.MIZU_ANGLE[clampi(dir_index, 0, FieldEffects.MIZU_ANGLE.size() - 1)])
 	else:
-		dir = yaw + deg_to_rad(FieldEffects.YUKI_ANGLE_DEG[clampi(dir_index, 0, FieldEffects.YUKI_ANGLE_DEG.size() - 1)])
+		dir = yaw + deg_to_rad(FieldEffects.SNOW_ANGLE_DEG[clampi(dir_index, 0, FieldEffects.SNOW_ANGLE_DEG.size() - 1)])
 	v = FieldEffects.rot_y(v, dir)
 	v.x += sin(yaw) * sp.w
 	v.z += cos(yaw) * sp.w
@@ -681,8 +681,8 @@ static func _halloween_smoke(s: Style) -> void:
 static func _suiteki(s: Style, arg0: int, arg1: int) -> void:
 	var heading: float = deg_to_rad(float(arg0) * 360.0 / float(arg1)) if arg1 != 0 else 0.0
 	var reach: float = randf() * 5.0
-	var flat: float = reach * cos(SUITEKI_ANGLE)
-	s.launch = _speed(Vector3(flat * sin(heading), 5.0 * sin(SUITEKI_ANGLE), flat * cos(heading)))
+	var flat: float = reach * cos(FISHING_DRIP_ANGLE)
+	s.launch = _speed(Vector3(flat * sin(heading), 5.0 * sin(FISHING_DRIP_ANGLE), flat * cos(heading)))
 	s.accel = _accel(Vector3(0.0, -0.75, 0.0))
 	s.lifetime = suiteki_flight()
 	s.model = "ef_turi_suiteki01_00"
@@ -697,7 +697,7 @@ static func _suiteki(s: Style, arg0: int, arg1: int) -> void:
 
 ## Seconds a fishing drop is up before it falls back to the water it left.
 static func suiteki_flight() -> float:
-	return _ticks(2.0 * 5.0 * sin(SUITEKI_ANGLE) / 0.75)
+	return _ticks(2.0 * 5.0 * sin(FISHING_DRIP_ANGLE) / 0.75)
 
 
 # --- art ---------------------------------------------------------------------------------

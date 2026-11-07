@@ -64,19 +64,18 @@ func pick_step(msg_no: int, index: int) -> Dictionary:
 func hand_result(item: StringName, pocket: int = -1) -> Dictionary:
 	if item == &"" or pocket < 0 or inventory == null:
 		return {}
-	var tags: Dictionary = Game.quests.to_from_for_pocket(inventory, pocket) if Game.quests != null else {}
+	var tags: Dictionary = Game.quests.to_from_for_pocket(inventory, pocket)
 	if not tags.is_empty():
-		if Game.residents != null and Game.residents.has_resident(StringName(str(tags.get("to", "")))):
+		if Game.residents.has_resident(StringName(str(tags.get("to", "")))):
 			return {"msg": MSG_STILL_WAITED_FOR}
-		if Game.residents != null and Game.residents.has_resident(StringName(str(tags.get("from", "")))):
+		if Game.residents.has_resident(StringName(str(tags.get("from", "")))):
 			return {"msg": MSG_RETURN_IT}
-	elif Game.first_job != null and Game.first_job.is_active():
+	elif Game.first_job.is_active():
 		return {"msg": MSG_RETURN_IT}
 	var data: ItemData = ItemCatalog.get_item(item)
 	if context != null:
 		context.frees = PackedStringArray([data.display_name if data != null else String(item)])
-	if Game.quests != null:
-		Game.quests.clear_by_pocket(inventory, pocket)
+	Game.quests.clear_by_pocket(inventory, pocket)
 	inventory.remove_from_slot(pocket, 1)
 	return {"msg": MSG_APOLOGIZED}
 
@@ -90,7 +89,7 @@ func _how_are_things() -> int:
 		and TownAssessment.perfect_long_enough()
 		and not Game.town.golden_axe_got
 		and inventory != null and inventory.has_space(1)
-		and not (Game.first_job != null and Game.first_job.is_active())
+		and not (Game.first_job.is_active())
 		and condition != TownAssessment.Condition.DUST_OVER
 	):
 		summon_spirit = true

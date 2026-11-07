@@ -22,12 +22,12 @@ func _ready() -> void:
 	PlayerHouse.apply_exterior_decorations(self)
 	HostCollision.apply_house(self, visual_id, footprint, HostCollision.CELL)
 	## A redrawn design repaints the door it is posted on.
-	if Game != null and not Game.design_changed.is_connected(_on_design_changed):
+	if not Game.design_changed.is_connected(_on_design_changed):
 		Game.design_changed.connect(_on_design_changed)
 
 
 func _exit_tree() -> void:
-	if Game != null and Game.design_changed.is_connected(_on_design_changed):
+	if Game.design_changed.is_connected(_on_design_changed):
 		Game.design_changed.disconnect(_on_design_changed)
 
 
@@ -75,7 +75,7 @@ func nameplate_cell(grid: WorldGrid) -> Vector2i:
 func _facing_nameplate(ctx: InteractionContext) -> bool:
 	if ctx == null or ctx.actor == null or ctx.world == null or not "grid" in ctx.world:
 		return false
-	var grid: WorldGrid = ctx.world.get("grid") as WorldGrid
+	var grid: WorldGrid = WorldGrid.of(ctx.world)
 	var plate: Vector2i = nameplate_cell(grid)
 	if plate.x < 0 or ToolUse.facing_cell(ctx) != plate:
 		return false

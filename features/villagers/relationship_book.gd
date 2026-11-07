@@ -1,5 +1,5 @@
 class_name RelationshipBook
-extends RefCounted
+extends SaveBook
 
 ## Player ↔ villager memories. Owned by Game, not an autoload. Not a dialogue graph.
 

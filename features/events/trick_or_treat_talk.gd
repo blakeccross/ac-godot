@@ -141,7 +141,6 @@ func _trick() -> Dictionary:
 			CostumePuff.at_player()
 			return msg(_m(JACK_TRICKED, NPC_TRICKED))
 	tricked_cloth = true
-	if Game != null:
-		Game.set_cloth(FurnitureCatalog.goods_id("cloth", TRICK_CLOTH))
+	Game.set_cloth(FurnitureCatalog.goods_id("cloth", TRICK_CLOTH))
 	CostumePuff.at_player()
 	return msg(_m(JACK_TRICKED, NPC_TRICKED))

@@ -68,8 +68,6 @@ static func season_letter() -> String:
 	## `obj_f_*` set is the cherry-blossom trees, not autumn; every other term, autumn
 	## included, is `BGITEM` → `s` (autumn recolours summer meshes via TLUT rows).
 	## Callers fall back to `s` when a variant GLB does not exist.
-	if Clock == null:
-		return "s"
 	if Clock.season() == ClockService.Season.WINTER:
 		return "w"
 	if Clock.term_idx() == CHERRY_TERM:
@@ -80,7 +78,7 @@ static func season_letter() -> String:
 static func acre_season_letter() -> String:
 	## Acre BG banks are summer (`grd_s_*`) or winter (`grd_w_*`) only.
 	## Spring/autumn keep summer CI textures and recolor via term palettes in the original.
-	if Clock != null and Clock.season() == ClockService.Season.WINTER:
+	if Clock.season() == ClockService.Season.WINTER:
 		return "w"
 	return "s"
 
@@ -139,8 +137,6 @@ static func warn_grass_pattern_pack_missing() -> void:
 static func season_tex_letter() -> String:
 	## Seasons-pack folder (palette snapshots): spring/summer `s`, autumn `f`, winter `w`.
 	## Follows the Clock season, not the mesh letter — autumn is a TLUT recolour.
-	if Clock == null:
-		return "s"
 	match Clock.season():
 		ClockService.Season.WINTER:
 			return "w"

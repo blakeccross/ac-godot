@@ -730,9 +730,8 @@ func _reel_catch(school: FishSchool) -> void:
 	if inventory == null or not inventory.has_space_for(fish, 1) or inventory.add(fish, 1) != 0:
 		## `notice_rod` → `release_creature`: shown, then thrown back.
 		out.pockets_full = true
-	if Game != null and Game.species_log != null:
-		## `mSM_COLLECT_FISH_SET`. `Inventory.add` already did it for a banked fish.
-		Game.species_log.record(fish.id)
+	## `mSM_COLLECT_FISH_SET`. `Inventory.add` already did it for a banked fish.
+	Game.species_log.record(fish.id)
 	shadow.reel_in()
 	if fish.is_trash:
 		## `aGTT_comeback` → `aGTT_kage_make_actor(gyo, 1)`: junk leaves a fish's shadow
@@ -744,7 +743,7 @@ func _reel_catch(school: FishSchool) -> void:
 ## `mSM_CHECK_LAST_FISH_GET`: every other fish is on the catch record and this one is not.
 ## Not "already in the museum" — it is true exactly once, for the catch that completes it.
 static func completes_record(fish: FishData) -> bool:
-	if fish == null or fish.is_trash or Game == null or Game.species_log == null:
+	if fish == null or fish.is_trash:
 		return false
 	var book: SpeciesLog = Game.species_log
 	if book.has(fish.id):

@@ -134,11 +134,11 @@ func open(force: bool = false) -> void:
 	if _open:
 		return
 	var title_preview := InputDeviceTracker.on_mobile and Game.title_demo_active
-	if not force and not title_preview and Game != null and not Game.resident.has_map:
+	if not force and not title_preview and not Game.resident.has_map:
 		Game.post_notice("You don't have a town map yet.")
 		return
 	color_set = 0 if force else 1
-	_layout = Game.resolve_world_data() if Game != null else null
+	_layout = Game.resolve_world_data()
 	player_fg = _resolve_player_fg()
 	sel = player_fg
 	_cursor = Vector2(sel.x * BLOCK, -sel.y * BLOCK)
@@ -192,7 +192,7 @@ static func build_labels(data: WorldData) -> Dictionary:
 			continue
 		if id == String(PlayerHouse.DEFAULT_PLOT):
 			var players: Array = []
-			var has_player: bool = owned != &"" and Game != null
+			var has_player: bool = owned != &""
 			for i: int in PLAYER_NUM:
 				if i == 0 and has_player:
 					players.append({"name": Game.resident.player_name,
@@ -424,7 +424,7 @@ func _draw_text(entry: Dictionary) -> void:
 		return
 	var name_pos := Vector2(-136.0 + 24.0 + 160.0, 120.0 - (102.0 - 29.0))
 	_canvas.draw_string(_font, name_pos + Vector2(0, _font.get_ascent(FONT_PX)),
-		Game.town.town_name if Game != null else "Town", HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX, LAND_COLOR[color_set])
+		Game.town.town_name, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX, LAND_COLOR[color_set])
 	if entry.is_empty():
 		return
 	var px := int(round(FONT_PX * 0.75))

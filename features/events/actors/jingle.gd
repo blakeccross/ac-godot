@@ -15,8 +15,6 @@ func _init() -> void:
 
 
 func _area() -> Dictionary:
-	if Game == null or Game.events == null:
-		return {}
 	var a: Dictionary = Game.events.area(&"toy_day_jingle")
 	if int(a.get("year", 0)) != Clock.year:
 		a.clear()
@@ -25,12 +23,12 @@ func _area() -> Dictionary:
 
 
 func make_talk() -> BankTalk:
-	var t := JingleTalk.new(_area(), Game.inventory if Game != null else null, rng())
+	var t := JingleTalk.new(_area(), Game.inventory, rng())
 	var p: Node3D = player_node()
 	var world: World = World.find(get_tree())
 	if p != null and world != null:
 		t.block = EventManager.cell_to_block(world.grid.world_to_cell(p.global_position))
-	t.cloth = Game.resident.cloth_id if Game != null else &""
+	t.cloth = Game.resident.cloth_id
 	return t
 
 

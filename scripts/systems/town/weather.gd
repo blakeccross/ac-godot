@@ -191,8 +191,18 @@ static func seed_rng(value: int) -> void:
 	_rng.seed = value
 
 
-static func roll(month: int = -1, day: int = -1) -> Dictionary:
-	## `mEnv_RandomWeather`. Returns `{kind: Kind, intensity: Intensity}`.
+## A weather pick: what falls and how hard.
+class Roll:
+	var kind: Kind
+	var intensity: Intensity
+
+	func _init(p_kind: Kind, p_intensity: Intensity) -> void:
+		kind = p_kind
+		intensity = p_intensity
+
+
+## `mEnv_RandomWeather`.
+static func roll(month: int = -1, day: int = -1) -> Roll:
 	var m: int = month if month > 0 else Clock.month
 	var d: int = day if day > 0 else Clock.day
 	var term: int = weather_term(m, d)
@@ -203,25 +213,25 @@ static func roll(month: int = -1, day: int = -1) -> Dictionary:
 		acc += int(weights[bucket])
 		if selected < acc:
 			return _bucket_to_result(bucket)
-	return {"kind": Kind.CLEAR, "intensity": Intensity.LIGHT}
+	return Roll.new(Kind.CLEAR, Intensity.LIGHT)
 
 
-static func _bucket_to_result(bucket: int) -> Dictionary:
+static func _bucket_to_result(bucket: int) -> Roll:
 	match bucket:
 		0:
-			return {"kind": Kind.CLEAR, "intensity": Intensity.LIGHT}
+			return Roll.new(Kind.CLEAR, Intensity.LIGHT)
 		1:
-			return {"kind": Kind.RAIN, "intensity": Intensity.LIGHT}
+			return Roll.new(Kind.RAIN, Intensity.LIGHT)
 		2:
-			return {"kind": Kind.RAIN, "intensity": Intensity.HEAVY}
+			return Roll.new(Kind.RAIN, Intensity.HEAVY)
 		3:
-			return {"kind": Kind.SNOW, "intensity": Intensity.LIGHT}
+			return Roll.new(Kind.SNOW, Intensity.LIGHT)
 		4:
-			return {"kind": Kind.SNOW, "intensity": Intensity.HEAVY}
+			return Roll.new(Kind.SNOW, Intensity.HEAVY)
 		5:
-			return {"kind": Kind.SAKURA, "intensity": Intensity.LIGHT}
+			return Roll.new(Kind.SAKURA, Intensity.LIGHT)
 		_:
-			return {"kind": Kind.SAKURA, "intensity": Intensity.HEAVY}
+			return Roll.new(Kind.SAKURA, Intensity.HEAVY)
 
 
 static func pack(kind: Kind, intensity: Intensity) -> int:
@@ -229,11 +239,11 @@ static func pack(kind: Kind, intensity: Intensity) -> int:
 	return (int(kind) << 4) | (int(intensity) & 0xF)
 
 
-static func unpack(packed: int) -> Dictionary:
-	return {
-		"kind": clampi((packed >> 4) & 0xF, 0, Kind.SAKURA) as Kind,
-		"intensity": clampi(packed & 0xF, 0, Intensity.HEAVY) as Intensity,
-	}
+static func unpack(packed: int) -> Roll:
+	return Roll.new(
+		clampi((packed >> 4) & 0xF, 0, Kind.SAKURA) as Kind,
+		clampi(packed & 0xF, 0, Intensity.HEAVY) as Intensity
+	)
 
 
 static func next_in_cycle(current: StringName) -> StringName:

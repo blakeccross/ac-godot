@@ -40,7 +40,7 @@ func _ensure_visual() -> void:
 
 
 func _process(_delta: float) -> void:
-	if Clock == null or (_hour_hand == null and _min_hand == null):
+	if (_hour_hand == null and _min_hand == null):
 		return
 	var stamp: int = Clock.hour * 60 + Clock.minute
 	if stamp == _last_stamp:

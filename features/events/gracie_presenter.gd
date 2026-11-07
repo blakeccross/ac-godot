@@ -6,8 +6,6 @@ extends EventPresenter
 
 
 func start() -> bool:
-	if Game == null or Game.events == null:
-		return false
 	var area: Dictionary = Game.events.area(&"designer")
 	var stamp: int = int(Game.events.special_dates.get("special1", 0))
 	if int(area.get("stamp", -1)) != stamp:

@@ -99,7 +99,7 @@ A large actor splits by responsibility into child `Node`s declared in its `.tscn
 
 ## Saved state
 
-`Game.resident` (`PlayerState`) holds the playing resident's own saved fields and `Game.town` (`TownState`) the town's; the per-system `*Book` classes hold the rest. Each writes and reads its part of `Game.to_save()` under its own keys. A new saved field goes on one of them, with its `write_save` / `read_save` / `reset` lines; session-only flags stay on `Game`.
+`Game.resident` (`PlayerState`) holds the playing resident's own saved fields and `Game.town` (`TownState`) the town's; the per-system `*Book` classes hold the rest. Each book extends `SaveBook` (`to_save` / `apply_snapshot` / `clear`, plus `start_new` and `apply_missing` when a new town or an older save needs more than an empty book) and is listed once, under its save key, in `Game._save_books()`; `Game` saves, loads and resets them all from that list. A new saved field goes on one of them; session-only flags that are never saved go on `SessionState` (`Game.session`).
 
 ## Autoloads
 

@@ -262,7 +262,7 @@ func test_train_smoke_and_steam_effects_follow_decomp() -> void:
 	## `eKishaK_ct`: 80 frames, swelling from small; `eSteam_ct`: 30 frames, thrown down then
 	## rising back.
 	var at: Array[Vector3] = [Vector3.ZERO]
-	var smoke: FieldParticle.Style = FieldParticle.style_for(FieldEffects.Kind.KISHA_KEMURI, 0.0, 0, 0, at)
+	var smoke: FieldParticle.Style = FieldParticle.style_for(FieldEffects.Kind.TRAIN_SMOKE, 0.0, 0, 0, at)
 	assert_float(smoke.lifetime).is_equal_approx(80.0 / 60.0, 0.0001)
 	assert_float(smoke.size_from_to.x).is_less(smoke.size_from_to.y)
 	assert_float(FieldParticle.offset_at(smoke, 1.0).y).is_greater(0.5)

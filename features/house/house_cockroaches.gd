@@ -21,7 +21,7 @@ const FLOOR_SIZE: Dictionary = {
 
 
 ## The floors that breed them: the player's three and the island cottage (`mCkRh_GetGokiNum`).
-static func is_goki_room(room: Room) -> bool:
+static func is_roach_room(room: Room) -> bool:
 	return room != null and (PlayerHouse.is_player_room(room.id) or room.kind == Room.Kind.COTTAGE)
 
 
@@ -33,7 +33,7 @@ static func house_for(room: Room) -> House:
 
 
 static func stored(house: House) -> int:
-	return house.goki_count if house != null else 0
+	return house.roach_count if house != null else 0
 
 
 static func clamp_count(count: int) -> int:
@@ -44,16 +44,16 @@ static func clamp_count(count: int) -> int:
 static func save_play_time(house: House) -> void:
 	if house == null:
 		return
-	house.goki_year = Clock.year
-	house.goki_month = Clock.month
-	house.goki_day = Clock.day
+	house.roach_year = Clock.year
+	house.roach_month = Clock.month
+	house.roach_day = Clock.day
 
 
 ## Whole days since the house was last played (`lbRTC_GetIntervalDays`); 0 when never recorded.
 static func days_away(house: House) -> int:
-	if house == null or house.goki_year <= 0:
+	if house == null or house.roach_year <= 0:
 		return 0
-	var then: int = _day_number(house.goki_year, house.goki_month, house.goki_day)
+	var then: int = _day_number(house.roach_year, house.roach_month, house.roach_day)
 	return maxi(_day_number(Clock.year, Clock.month, Clock.day) - then, 0)
 
 
@@ -61,13 +61,13 @@ static func days_away(house: House) -> int:
 static func decide_family_count(house: House) -> void:
 	if house == null:
 		return
-	if house.goki_year <= 0:
+	if house.roach_year <= 0:
 		save_play_time(house)
 		return
 	var gap: int = days_away(house)
 	if gap > INTERVAL_DAYS:
-		var count: int = gap if house.goki_count > 0 else gap - INTERVAL_DAYS
-		house.goki_count = clamp_count(count + house.goki_count)
+		var count: int = gap if house.roach_count > 0 else gap - INTERVAL_DAYS
+		house.roach_count = clamp_count(count + house.roach_count)
 
 
 static func _day_number(year: int, month: int, day: int) -> int:
@@ -117,7 +117,7 @@ static func entry_spawns(
 			spot = session.grid.cell_to_world(pick)
 		spot.y = 0.0
 		out.append({"pos": spot, "fade": false})
-		house.goki_count = clamp_count(house.goki_count - 1)
+		house.roach_count = clamp_count(house.roach_count - 1)
 	return out
 
 
@@ -128,7 +128,7 @@ static func furniture_spawn(
 ) -> Dictionary:
 	if stored(house) <= 0 or visible_now >= MAX_VISIBLE or session == null:
 		return {}
-	house.goki_count = clamp_count(house.goki_count - 1)
+	house.roach_count = clamp_count(house.roach_count - 1)
 	var pos: Vector3 = session.grid.cell_to_world(cell)
 	pos.y = 0.0
 	return {"pos": pos, "fade": true}
@@ -137,4 +137,4 @@ static func furniture_spawn(
 ## Leaving the room: the survivors go back into the walls (`aMR_GokiInfoDt`).
 static func return_survivors(house: House, alive: int) -> void:
 	if house != null:
-		house.goki_count = clamp_count(house.goki_count + alive)
+		house.roach_count = clamp_count(house.roach_count + alive)

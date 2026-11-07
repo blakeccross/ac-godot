@@ -165,7 +165,7 @@ static func fill_sell(ctx: DialogueContext, selection: Dictionary) -> void:
 ## &"sell" / &"order" when the pockets / catalog should open after the talk.
 static func apply_event(event: Dictionary, ctx: DialogueContext) -> Dictionary:
 	var out: Dictionary = {"notice": "", "open": &""}
-	if str(event.get("op", "")) != OP or Game == null:
+	if str(event.get("op", "")) != OP:
 		return out
 	match str(event.get("action", "")):
 		"sell":
@@ -198,7 +198,7 @@ static func apply_event(event: Dictionary, ctx: DialogueContext) -> Dictionary:
 			var say: String = "ask"
 			if Game.foreigner:
 				say = "foreign"
-			elif Game.nook_code_gifts >= CODE_GIFTS_MAX:
+			elif Game.session.nook_code_gifts >= CODE_GIFTS_MAX:
 				say = "out"
 			elif Game.inventory.empty_slot_count() <= 0:
 				say = "full"

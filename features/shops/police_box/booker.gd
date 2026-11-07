@@ -71,7 +71,7 @@ func bind_grid(grid: WorldGrid) -> void:
 
 ## The live room is only ever reached through its door; the F6 preview and tests are not.
 func _entered_by_door() -> bool:
-	return Game != null and Game.current_room_id == &"police_box"
+	return Game.current_room_id == &"police_box"
 
 
 func _process(delta: float) -> void:
@@ -109,7 +109,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 
 
 func interact(action: Interaction, _ctx: InteractionContext) -> bool:
-	if action == null or action.id != Interaction.TALK or Game == null:
+	if action == null or action.id != Interaction.TALK:
 		return false
 	if _talking or _pending_msg >= 0:
 		return false
@@ -122,7 +122,7 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 ## The player pressed A facing `RSV_POLICE_ITEM_<slot>` (`aPOL2_message_ctrl`): a kept
 ## item there starts the claim talk from wherever he is.
 func begin_claim(slot: int, _ctx: InteractionContext) -> bool:
-	if Game == null or Game.police == null or _talking or _pending_msg >= 0:
+	if _talking or _pending_msg >= 0:
 		return false
 	if Game.police.item_at(slot) == &"":
 		return false
@@ -158,7 +158,7 @@ func _turn_then_speak(player: Node3D, delta: float) -> void:
 func _open_talk(msg_no: int, player: Node3D) -> void:
 	var ctx: DialogueContext = DialogueContext.from_game()
 	ctx.speaker_name = "Booker"
-	if msg_no == PoliceTalk.MSG_CLAIM and Game != null and Game.police != null:
+	if msg_no == PoliceTalk.MSG_CLAIM:
 		PoliceTalk.fill_claim(ctx, Game.police.item_at(_item_idx))
 	var data: DialogueData = PoliceTalk.conversation(msg_no, ctx)
 	## `aPOL2_set_norm_talk_info_message_ctrl`: April Fools' Day's trick instead of the desk talk.
@@ -216,7 +216,7 @@ func _player_free(player: Node3D) -> bool:
 
 
 func _keep_sum() -> int:
-	return Game.police.keep_item_sum() if Game != null and Game.police != null else 0
+	return Game.police.keep_item_sum()
 
 
 ## --- Movement (`aPOL2_decide_next_move_act` and friends) --------------------------------

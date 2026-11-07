@@ -10,6 +10,12 @@ enum PlaceKind { ITEM, PLANT, BUILDING, FURNITURE }
 const FACING_COUNT := 4
 
 
+## The grid of a field host: the town's `World` or a room's `Interior` (both expose `grid`),
+## or null.
+static func of(host: Object) -> WorldGrid:
+	return host.get(&"grid") as WorldGrid if host != null else null
+
+
 static func yaw_for_facing(facing: Facing) -> float:
 	match facing:
 		Facing.EAST:

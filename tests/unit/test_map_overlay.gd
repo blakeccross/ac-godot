@@ -80,7 +80,7 @@ func after_test() -> void:
 
 
 func test_generated_town_labels_its_buildings_and_houses() -> void:
-	var data: WorldData = Game.resolve_world_data() if Game != null else null
+	var data: WorldData = Game.resolve_world_data()
 	if data == null or data.acre_types.size() != TownFieldGenerator.BLOCK_TOTAL:
 		return
 	var acres: Dictionary = MapOverlayScript.build_labels(data)

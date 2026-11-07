@@ -64,7 +64,7 @@ static func drop_cell(grid: WorldGrid, front: Vector2i, facing: Vector2i) -> Vec
 ## Lay `item_id` on `cell`. Returns the ground item (not yet positioned when `fall_from` is
 ## given: the caller drops it in), or null when the unit is taken.
 static func put(world: Node, cell: Vector2i, item_id: StringName, wrapped: bool = false) -> ItemPickup:
-	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	var grid: WorldGrid = WorldGrid.of(world)
 	if not can_put(grid, cell) or ItemCatalog.get_item(item_id) == null:
 		return null
 	var pid: StringName = persist_id(cell)
@@ -131,26 +131,22 @@ static func renew(spoil: bool, inventory: Inventory = null, tree: SceneTree = nu
 ## `mAGrw_SpoilAllPossession`, past the player's own pockets: the other residents' pockets,
 ## turnips set down in any resident's house, and the house gyroids' storage.
 static func spoil_elsewhere() -> int:
-	if Game == null:
-		return 0
 	var n: int = 0
-	if Game.roster != null:
-		for slot: int in PlayerRoster.MAX:
-			if slot == Game.roster.current or not PlayerRoster.is_resident(Game.roster.slots[slot]):
-				continue
-			var priv: Dictionary = Game.roster.slots[slot]
-			var inv := Inventory.new()
-			inv.from_save(priv.get(PlayerRoster.KEY_INVENTORY, {}))
-			var spoiled: int = spoil_pockets(inv)
-			if spoiled > 0:
-				priv[PlayerRoster.KEY_INVENTORY] = inv.to_save()
-				n += spoiled
-			n += spoil_saved_rooms(priv.get(PlayerRoster.KEY_ROOMS, {}))
-			n += spoil_gyroid(Game.roster.house_of(slot))
-	if Game.interiors != null:
-		for room_id: StringName in [PlayerHouse.MAIN, PlayerHouse.UPPER, PlayerHouse.BASEMENT]:
-			n += spoil_room(Game.interiors.room(room_id))
-		n += spoil_gyroid(Game.interiors.player_house())
+	for slot: int in PlayerRoster.MAX:
+		if slot == Game.roster.current or not PlayerRoster.is_resident(Game.roster.slots[slot]):
+			continue
+		var priv: Dictionary = Game.roster.slots[slot]
+		var inv := Inventory.new()
+		inv.from_save(priv.get(PlayerRoster.KEY_INVENTORY, {}))
+		var spoiled: int = spoil_pockets(inv)
+		if spoiled > 0:
+			priv[PlayerRoster.KEY_INVENTORY] = inv.to_save()
+			n += spoiled
+		n += spoil_saved_rooms(priv.get(PlayerRoster.KEY_ROOMS, {}))
+		n += spoil_gyroid(Game.roster.house_of(slot))
+	for room_id: StringName in [PlayerHouse.MAIN, PlayerHouse.UPPER, PlayerHouse.BASEMENT]:
+		n += spoil_room(Game.interiors.room(room_id))
+	n += spoil_gyroid(Game.interiors.player_house())
 	return n
 
 
@@ -213,7 +209,7 @@ static func _refresh_node(tree: SceneTree, pid: StringName) -> void:
 			continue
 		if not Game.town.field_items.has(String(pid)):
 			var world: Node = World.find(tree)
-			var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+			var grid: WorldGrid = WorldGrid.of(world)
 			if grid != null:
 				grid.remove(pid)
 			node.queue_free()

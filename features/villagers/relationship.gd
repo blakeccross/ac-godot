@@ -60,8 +60,7 @@ func talked_on(day_key: String) -> bool:
 
 ## `mNpc_SetAnimalMemory…`: every talk copies the town's current tune into the memory.
 func remember_town_tune() -> void:
-	if Game != null and Game.town != null:
-		saved_town_tune = Game.town.town_tune.duplicate()
+	saved_town_tune = Game.town.town_tune.duplicate()
 
 
 ## The remembered tune as sixteen notes, all `0` when there is none (`mMld_TransformMelodyData_u64_2_u8`).

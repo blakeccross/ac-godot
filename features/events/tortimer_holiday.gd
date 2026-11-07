@@ -148,8 +148,7 @@ func prepare() -> void:
 ## `aES2_set_norm_talk_info`, then `mCD_calendar_event_on`.
 func start_msg() -> int:
 	var day: Vector3i = event_date()
-	if Game != null:
-		CalendarBook.event_on(Game.resident.calendar, EventDates.ordinal(day.x, day.y, day.z))
+	CalendarBook.event_on(Game.resident.calendar, EventDates.ordinal(day.x, day.y, day.z))
 	if is_vacation(event):
 		return _vacation_msg()
 	var marked: bool = _calendar_marked()

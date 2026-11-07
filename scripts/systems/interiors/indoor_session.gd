@@ -57,7 +57,7 @@ func facing_exit(pos: Vector3, yaw: float) -> bool:
 func capacity() -> int:
 	if room == null or not PlayerHouse.is_player_room(room.id):
 		return 0
-	var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+	var house: House = Game.interiors.player_house()
 	return PlayerHouse.furniture_cap(room.id, house)
 
 
@@ -255,10 +255,10 @@ const NO_CELL := Vector2i(-99, -99)
 ## `mMkRm_ReportChangePlayerRoom`: a change to the player's main or upper room (not the
 ## basement) marks the house for the HRA's next day.
 func _report_change() -> void:
-	if room == null or Game == null or Game.hra == null:
+	if room == null:
 		return
 	if room.id == PlayerHouse.MAIN or room.id == PlayerHouse.UPPER:
-		Game.hra.report_change(Clock.year, Clock.month, Clock.day)
+		Game.happy_room_academy.report_change(Clock.year, Clock.month, Clock.day)
 
 
 func pick_up(placement_id: StringName) -> StringName:

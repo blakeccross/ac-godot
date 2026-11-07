@@ -6,7 +6,7 @@ extends GdUnitTestSuite
 
 
 func before_test() -> void:
-	VillagerOutdoor.reset()
+	Game.session = SessionState.new()
 
 
 func test_one_umbrella_opens_per_window() -> void:

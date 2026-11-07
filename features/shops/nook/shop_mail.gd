@@ -30,7 +30,7 @@ static func _base(level: int) -> MailData:
 	mail.sender_name = store_name(level)
 	mail.sender_type = MailData.NameType.NPC
 	mail.recipient_type = MailData.NameType.PLAYER
-	mail.recipient_name = Game.resident.player_name if Game != null else "Resident"
+	mail.recipient_name = Game.resident.player_name
 	mail.font = MailData.LetterFont.RECV
 	mail.header = "Dear %s," % mail.recipient_name
 	mail.footer = "— Tom Nook, %s" % store_name(level)
@@ -53,7 +53,7 @@ static func order_letter(item_id: StringName, level: int) -> MailData:
 ## Raffle tickets that didn't fit in the pockets, up to five per letter.
 static func ticket_letter(month: int, count: int) -> MailData:
 	var mail: MailData = _base(0)
-	var year: int = Clock.year if Clock != null else 2001
+	var year: int = Clock.year
 	mail.font = MailData.LetterFont.RECV_PRESENT
 	mail.present_item_id = ShopBook.ticket_id(month)
 	mail.present_count = count

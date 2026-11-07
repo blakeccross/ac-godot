@@ -105,8 +105,7 @@ func close() -> void:
 		return
 	_open = false
 	set_process_unhandled_input(false)
-	if Game != null and Game.events != null:
-		Game.events.birthday_md = EventDates.md(month, day)
+	Game.events.birthday_md = EventDates.md(month, day)
 	Audio.play_se(&"menu_exit")
 	_slide.slide_out(MenuSlide.Dir.OUT_TOP, _on_slid_out)
 	closed.emit()

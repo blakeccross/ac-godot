@@ -15,13 +15,13 @@ var _saved_goods: int
 func before_test() -> void:
 	_saved_type = Game.resident.destiny_type
 	_saved_date = Game.resident.destiny_date
-	_saved_goods = Game.goods_power
+	_saved_goods = Game.session.goods_power
 
 
 func after_test() -> void:
 	Game.resident.destiny_type = _saved_type
 	Game.resident.destiny_date = _saved_date
-	Game.goods_power = _saved_goods
+	Game.session.goods_power = _saved_goods
 
 
 func test_an_unpopular_day_sends_villagers_away() -> void:
@@ -62,14 +62,14 @@ func test_avoiding_heads_straight_away() -> void:
 
 
 func test_goods_power_moves_with_the_fortune_and_is_held_in_range() -> void:
-	Game.goods_power = 40
+	Game.session.goods_power = 40
 	Game.set_destiny(Game.Destiny.GOODS_LUCK)
 	assert_int(Game.goods_power_now()).is_equal(50)
-	Game.goods_power = 0
+	Game.session.goods_power = 0
 	Game.set_destiny(Game.Destiny.BAD_LUCK)
 	assert_int(Game.goods_power_now()).is_equal(-30)
 	Game.set_destiny(Game.Destiny.NORMAL)
-	Game.goods_power = 12
+	Game.session.goods_power = 12
 	assert_int(Game.goods_power_now()).is_equal(12)
 
 

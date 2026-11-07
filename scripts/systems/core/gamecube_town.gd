@@ -133,7 +133,7 @@ const LAYER_SIZE := 0x228
 const WALL_FLOOR := 0x8A0
 const HOME_MAILBOX := 0x1A30
 const HOME_HANIWA := 0x25D4
-const HOME_GOKI := 0x2678
+const HOME_ROACH := 0x2678
 const HOME_MUSIC := 0x2684
 const HANIWA_ITEM_NUM := 4
 const HANIWA_ITEM_SIZE := 8
@@ -355,8 +355,8 @@ static func _resident(file: PackedByteArray, at: int, home: int, house_index: in
 			"ordered_roof": file[home + HOME_ORDERED_ROOF],
 			"next_roof": file[home + HOME_NEXT_ROOF],
 			"music_box": _u64(file, home + HOME_MUSIC),
-			"goki_count": file[home + HOME_GOKI + 8],
-			"goki_time": _time(file, home + HOME_GOKI),
+			"goki_count": file[home + HOME_ROACH + 8],
+			"goki_time": _time(file, home + HOME_ROACH),
 			"gyroid": _gyroid(file, home + HOME_HANIWA),
 			"mailbox": _mails(file, home + HOME_MAILBOX, MAIL_HOME_NUM),
 		},

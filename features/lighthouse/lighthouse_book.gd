@@ -1,5 +1,5 @@
 class_name LighthouseBook
-extends RefCounted
+extends SaveBook
 
 ## The lighthouse's saved state (`Save_Get(LightHouse)`, `m_soncho.c` `mSC_LightHouse_*`).
 ## Owned by `Game`. Everything the tower, its door and the switch room do is decided here.
@@ -185,7 +185,7 @@ func lamp_on_now() -> bool:
 
 
 func door_open_now() -> bool:
-	var job: bool = Game != null and Game.first_job != null and Game.first_job.is_active()
+	var job: bool = Game.first_job.is_active()
 	return door_open(Clock.year, Clock.month, Clock.day, Clock.hour, job)
 
 
@@ -212,10 +212,9 @@ func to_save() -> Dictionary:
 	}
 
 
-func apply_snapshot(data: Dictionary) -> void:
+func apply_snapshot(saved: Variant) -> void:
+	var data: Dictionary = saved if saved is Dictionary else {}
 	clear()
-	if data == null:
-		return
 	start_ordinal = int(data.get("start", 0))
 	start_month = int(data.get("month", 0))
 	nights_lit = int(data.get("nights_lit", 0))

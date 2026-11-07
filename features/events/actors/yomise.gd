@@ -27,10 +27,9 @@ func can_talk() -> bool:
 
 func make_talk() -> BankTalk:
 	var area: Dictionary = {}
-	if Game != null and Game.events != null:
-		area = Game.events.area(&"fireworks_show")
-		var today: String = Game.events.day_key()
-		if str(area.get("date", "")) != today:
-			area.clear()
-			area["date"] = today
-	return YomiseTalk.new(area, Game.inventory if Game != null else null, rng())
+	area = Game.events.area(&"fireworks_show")
+	var today: String = Game.events.day_key()
+	if str(area.get("date", "")) != today:
+		area.clear()
+		area["date"] = today
+	return YomiseTalk.new(area, Game.inventory, rng())

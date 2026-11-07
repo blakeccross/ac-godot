@@ -90,7 +90,7 @@ func start_msg() -> int:
 
 func prepare() -> void:
 	if context != null:
-		context.frees = PackedStringArray([Game.town.island_name if Game != null else ""])
+		context.frees = PackedStringArray([Game.town.island_name])
 
 
 ## `aSEN_pl_ride_on_check_talk_proc` / `aSEN_pl_ride_on_check2_talk_proc`.

@@ -50,8 +50,7 @@ func _init(p_area: Dictionary, p_inventory: Inventory = null, p_rng: RandomNumbe
 	inventory = p_inventory
 	rng = p_rng if p_rng != null else RandomNumberGenerator.new()
 	hour = p_hour
-	if Game != null:
-		records = Game.town.fish_records
+	records = Game.town.fish_records
 
 
 ## `mFR_fish_rndsize`, in inches.

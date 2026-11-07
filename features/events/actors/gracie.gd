@@ -38,7 +38,7 @@ func _init() -> void:
 
 
 func _area() -> Dictionary:
-	return Game.events.area(&"designer") if Game != null and Game.events != null else {}
+	return Game.events.area(&"designer")
 
 
 func can_talk() -> bool:
@@ -46,7 +46,7 @@ func can_talk() -> bool:
 
 
 func make_talk() -> BankTalk:
-	var t := GracieTalk.new(GracieTalk.Kind.NORMAL, _area(), Game.inventory if Game != null else null, rng())
+	var t := GracieTalk.new(GracieTalk.Kind.NORMAL, _area(), Game.inventory, rng())
 	_fill(t)
 	return t
 
@@ -54,10 +54,9 @@ func make_talk() -> BankTalk:
 func _fill(t: GracieTalk) -> void:
 	t.complete = _complete
 	t.result = _result
-	if Game != null:
-		t.female = String(Game.resident.player_gender) == "girl" or String(Game.resident.player_gender) == "female"
-		t.wearing = FurnitureCatalog.named_list("cloth", "Event").has(Game.resident.cloth_id)
-		t.holding_tool = Game.inventory != null and Game.inventory.equipment_id != &""
+	t.female = String(Game.resident.player_gender) == "girl" or String(Game.resident.player_gender) == "female"
+	t.wearing = FurnitureCatalog.named_list("cloth", "Event").has(Game.resident.cloth_id)
+	t.holding_tool = Game.inventory.equipment_id != &""
 
 
 func talk_ended(script: BankTalk) -> void:
@@ -95,7 +94,7 @@ func _start_wash() -> void:
 	_speed = 0.0
 	_clip_index = 0
 	_play_wash_clip()
-	var t := GracieTalk.new(GracieTalk.Kind.START, _area(), Game.inventory if Game != null else null, rng())
+	var t := GracieTalk.new(GracieTalk.Kind.START, _area(), Game.inventory, rng())
 	_fill(t)
 	begin_talk(_player, t, false)
 
@@ -186,6 +185,6 @@ func _finish_wash(result: int) -> void:
 		_player.global_position = _player_return
 		_player.apply_facing(_player_yaw)
 		_player.play_wait_idle()
-	var t := GracieTalk.new(GracieTalk.Kind.RESULT, _area(), Game.inventory if Game != null else null, rng())
+	var t := GracieTalk.new(GracieTalk.Kind.RESULT, _area(), Game.inventory, rng())
 	_fill(t)
 	begin_talk(_player, t)

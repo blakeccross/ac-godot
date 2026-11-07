@@ -4,13 +4,7 @@ extends NpcEventPresenter
 ## Needs the shrine acre, where the feast is.
 
 
-func _init() -> void:
-	scene_path = "res://features/events/actors/franklin.tscn"
-	placement = "free"
-	adjust = 2
-
-
 func start() -> bool:
-	if mgr.block_of("shrine").x < 0:
+	if mgr.block_of(EventManager.BlockKind.SHRINE).x < 0:
 		return false
 	return super.start()

@@ -17,7 +17,7 @@ var _model: Node3D
 
 func _ready() -> void:
 	_ensure_visual()
-	if Game != null and Game.designs != null and not Game.designs.changed.is_connected(_refresh_design):
+	if not Game.designs.changed.is_connected(_refresh_design):
 		Game.designs.changed.connect(_refresh_design)
 
 
@@ -33,15 +33,12 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	var mabel: Node = get_tree().get_first_node_in_group("needlework_mabel") if get_tree() != null else null
 	if mabel != null and mabel.has_method("begin_trade"):
 		return bool(mabel.call("begin_trade", slot, ctx))
-	if Game != null:
-		var d: DesignPattern = _design()
-		Game.post_notice("A design by the Able Sisters: \"%s\"." % (d.name if d != null else "?"))
+	var d: DesignPattern = _design()
+	Game.post_notice("A design by the Able Sisters: \"%s\"." % (d.name if d != null else "?"))
 	return true
 
 
 func _design() -> DesignPattern:
-	if Game == null or Game.designs == null:
-		return null
 	return Game.designs.shop[slot & 7]
 
 

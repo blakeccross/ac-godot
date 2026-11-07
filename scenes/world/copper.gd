@@ -117,8 +117,6 @@ func _physics_process(delta: float) -> void:
 ## `aPOL_actor_ct`: Copper leads the aerobics at the shrine instead (`SP_NPC_EV_TAISOU_0`),
 ## so the one at the station is gone while either aerobics event runs.
 static func aerobics_running() -> bool:
-	if Game == null or Game.events == null:
-		return false
 	return Game.events.is_active(&"morning_aerobics") or Game.events.is_active(&"sports_fair_aerobics")
 
 
@@ -134,8 +132,8 @@ func _think(player: Node3D) -> void:
 	if absf(angle_difference(rotation.y, _home_yaw)) > 0.001:
 		_set_mode(Mode.TURN)
 		return
-	var hour: int = Clock.hour if Clock != null else 12
-	var raining: bool = Game != null and Game.town.weather == &"rain"
+	var hour: int = Clock.hour
+	var raining: bool = Game.town.weather == &"rain"
 	if not raining and hour == 6:
 		if not _player_in_front(player) and _rng.randf() < SPECIAL_CHANCE:
 			_set_mode(Mode.TAISOU)
@@ -196,12 +194,10 @@ func _player_dist(player: Node3D) -> float:
 
 
 func _wants_exit_greeting() -> bool:
-	return not _exit_greeted and Game != null and Game.last_room_id == &"police_box" and not Game.is_indoors()
+	return not _exit_greeted and Game.last_room_id == &"police_box" and not Game.is_indoors()
 
 
 static func away_for_event() -> bool:
-	if Game == null or Game.events == null:
-		return false
 	for id: StringName in AWAY_EVENTS:
 		if Game.events.is_active(id):
 			return true
@@ -234,7 +230,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if action == null or action.id != Interaction.TALK or Game == null or _talking:
+	if action == null or action.id != Interaction.TALK or _talking:
 		return false
 	var listener: Node3D = ctx.actor as Node3D if ctx != null else null
 	return _begin_talk(listener, false)

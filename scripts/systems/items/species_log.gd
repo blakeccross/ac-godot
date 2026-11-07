@@ -1,5 +1,5 @@
 class_name SpeciesLog
-extends RefCounted
+extends SaveBook
 
 ## "Caught at least once" set for the fish / insect encyclopedia pages
 ## (`mIV_set_collect_itemNo` reads `furniture_collected_bitfield`). Owned by `Game`.

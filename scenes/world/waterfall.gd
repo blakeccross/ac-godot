@@ -75,7 +75,7 @@ static func _find_rainbow(node: Node) -> Dictionary:
 
 
 func _process(_delta: float) -> void:
-	if _rainbow == null or Game == null or Game.rainbow == null:
+	if _rainbow == null:
 		return
 	var opacity: float = Game.rainbow.opacity
 	_rainbow.visible = opacity > 0.0

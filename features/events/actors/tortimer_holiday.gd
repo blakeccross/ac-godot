@@ -44,7 +44,7 @@ func setup() -> void:
 	var world: World = World.find(get_tree())
 	if world != null:
 		_block = TownSpace.block_of_cell(world.grid.world_to_cell(global_position))
-	var female: bool = Game != null and String(Game.resident.player_gender) == "female"
+	var female: bool = String(Game.resident.player_gender) == "female"
 	if not TortimerHoliday.is_vacation(holiday):
 		var pick := TortimerHoliday.new(holiday, {}, null, rng())
 		pick.female = female
@@ -58,11 +58,11 @@ func setup() -> void:
 
 
 func make_talk() -> BankTalk:
-	var record: Dictionary = Game.events.area(&"soncho_record") if Game != null and Game.events != null else {}
-	var t := TortimerHoliday.new(holiday, record, Game.inventory if Game != null else null, rng())
-	t.female = Game != null and String(Game.resident.player_gender) == "female"
+	var record: Dictionary = Game.events.area(&"soncho_record")
+	var t := TortimerHoliday.new(holiday, record, Game.inventory, rng())
+	t.female = String(Game.resident.player_gender) == "female"
 	t.item = item
-	t.lighthouse = Game.lighthouse if Game != null else null
+	t.lighthouse = Game.lighthouse
 	return t
 
 

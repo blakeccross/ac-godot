@@ -1,19 +1,33 @@
 class_name NpcEventPresenter
 extends EventPresenter
 
-## One visitor NPC at one spot (`make_actor_in_*_block` + the actor's `ct`). Subclasses pick
-## the scene and the spot; the spot is remembered for the day (`mEv_reserve_common_place`).
+## One visitor NPC at one spot (`make_actor_in_*_block` + the actor's `ct`). Each visitor's
+## `.tres` picks the scene and the spot; subclasses add the visitor's own start rules. The
+## spot is remembered for the day (`mEv_reserve_common_place`).
+
+enum Placement {
+	## A random acre (`make_actor_in_free_block`).
+	FREE,
+	## `make_move_actor_in_free_block`.
+	EMPTY,
+	## A beach acre at the waves (`make_actor_in_seaside_block`).
+	SEASIDE,
+	## An empty house lot.
+	LOT,
+	## `block_kind` + `unit` (`make_actor_in_fixed_block`).
+	FIXED,
+}
 
 ## `EventNpc` scene to instance.
-var scene_path: String = ""
-## Where to stand: "free" (`make_actor_in_free_block`), "empty" (`make_move_actor_in_free_block`),
-## "seaside", "lot" (an empty house lot), or "fixed" (`block_kind` + `unit`).
-var placement: String = "free"
-var block_kind: String = ""
-var unit: Vector2i = Vector2i(7, 7)
+@export var scene: PackedScene
+@export var placement: Placement = Placement.FREE
+## The acre for `FIXED`.
+@export var block_kind: EventManager.BlockKind = EventManager.BlockKind.STATION
+@export var unit: Vector2i = Vector2i(7, 7)
 ## `adjust` for `search_free_unit` (units kept clear of the acre edge).
-var adjust: int = 1
-var yaw: float = 0.0
+@export_range(0, 7) var adjust: int = 1
+@export var yaw: float = 0.0
+
 var npc: EventNpc
 
 
@@ -21,8 +35,7 @@ func start() -> bool:
 	var cell: Vector2i = mgr.place_once(id, 0, pick_cell)
 	if cell.x < 0:
 		return false
-	var packed: PackedScene = load(scene_path) as PackedScene
-	var node: Node3D = packed.instantiate() as Node3D if packed != null else null
+	var node: Node3D = scene.instantiate() as Node3D if scene != null else null
 	if node == null:
 		return false
 	configure(node)
@@ -39,15 +52,15 @@ func place_seed() -> int:
 
 func pick_cell() -> Vector2i:
 	match placement:
-		"free":
+		Placement.FREE:
 			return mgr.search_free_unit(id, place_seed(), adjust)
-		"empty":
+		Placement.EMPTY:
 			return mgr.search_empty_unit(id, place_seed())
-		"seaside":
+		Placement.SEASIDE:
 			return mgr.search_seaside_unit(place_seed())
-		"lot":
+		Placement.LOT:
 			return mgr.free_lot(place_seed())
-		"fixed":
+		Placement.FIXED:
 			var block: Vector2i = mgr.block_of(block_kind)
 			if block.x < 0:
 				return Vector2i(-1, -1)

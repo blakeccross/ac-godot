@@ -26,9 +26,9 @@ const CLACK_SE := &"3f"
 const RUN_LEVEL_SE := &"lev_10"
 
 ## `distance2vol4KITEKI` (320 to 6400 GX); the plain ongen curve is `SoundEmitter.volume`.
-const KITEKI_BASE_VOLUME := 1.15
-const KITEKI_MIN := 320.0 * TrainControl.GX
-const KITEKI_MAX := 6400.0 * TrainControl.GX
+const WHISTLE_BASE_VOLUME := 1.15
+const WHISTLE_MIN := 320.0 * TrainControl.GX
+const WHISTLE_MAX := 6400.0 * TrainControl.GX
 
 const BUS := "Train"
 ## Where in their cycles the chuff and the clack sound (`sou_shu_count == 4`, `== 10`).
@@ -204,7 +204,7 @@ func _stop_run() -> void:
 
 
 func _play_whistle(mode: int, ids: Dictionary, distance: float) -> void:
-	if mode == SCENE_SILENT or distance > KITEKI_MAX:
+	if mode == SCENE_SILENT or distance > WHISTLE_MAX:
 		return
 	_play(ids.get(mode, ids[SCENE_FIELD]) as StringName, whistle_volume(distance))
 
@@ -234,8 +234,8 @@ func _play(id: StringName, volume: float) -> void:
 ## `distance2vol4KITEKI`: linear from 1.15 at 320 GX to 0 at 6400 GX (the decomp's early-outs
 ## are dead code; `Sou_PosTrgStart` already drops anything past 6400). `distance` in metres.
 static func whistle_volume(distance: float) -> float:
-	var scale: float = KITEKI_BASE_VOLUME / (KITEKI_MAX - KITEKI_MIN)
-	return maxf(KITEKI_BASE_VOLUME - scale * (distance - KITEKI_MIN), 0.0)
+	var scale: float = WHISTLE_BASE_VOLUME / (WHISTLE_MAX - WHISTLE_MIN)
+	return maxf(WHISTLE_BASE_VOLUME - scale * (distance - WHISTLE_MIN), 0.0)
 
 
 func _scene_mode() -> int:

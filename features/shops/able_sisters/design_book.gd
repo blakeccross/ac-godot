@@ -1,5 +1,5 @@
 class_name DesignBook
-extends RefCounted
+extends SaveBook
 
 ## Original-design storage + Able Sisters shop state, owned by `Game`.
 ##

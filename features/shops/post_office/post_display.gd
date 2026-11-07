@@ -64,7 +64,7 @@ const SHELL_ID := &"grd_post_office"
 
 static func post_girl_species(hour: int = -1) -> StringName:
 	var h: int = hour
-	if h < 0 and Clock != null:
+	if h < 0:
 		h = Clock.hour
 	if h < 0:
 		h = 12
@@ -87,8 +87,7 @@ static func draw_type(species: StringName = &"") -> int:
 static func talk_status(desk_full: bool = false, has_bank: bool = true) -> int:
 	## status = desk_full | done_first_job | has_bank (`aPG_set_post_status`).
 	var owing: int = 0
-	if Game != null and Game.inventory != null:
-		owing = Game.inventory.loan
+	owing = Game.inventory.loan
 	var status: int = 0
 	if owing > 0:
 		status |= STATUS_DONE_FIRST_JOB

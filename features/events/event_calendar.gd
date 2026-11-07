@@ -1,5 +1,5 @@
 class_name EventCalendar
-extends RefCounted
+extends SaveBook
 
 ## Event scheduler (`m_event.c`): resolves `EventSchedule` rows against a date into per-hour
 ## active flags, owns the weekly visitor + special-NPC state, and reports starts/ends.
@@ -408,7 +408,7 @@ func _patch(id: StringName, begin: int, end: int, now: Dictionary, equinox_day: 
 			return _camper_span(now)
 		&"soncho_vacation_january", &"soncho_vacation_february":
 			## `update_soncho_event`: no vacation while a lighthouse job is still running.
-			if Game != null and Game.lighthouse != null and not Game.lighthouse.event_start(
+			if not Game.lighthouse.event_start(
 					EventDates.ordinal(year, int(now["month"]), int(now["day"]))):
 				return Vector2i(-1, -1)
 	return Vector2i(begin, end)
@@ -506,15 +506,14 @@ func _init_weekly(now: Dictionary) -> void:
 	_init_weekly_type(now)
 	var today: int = EventDates.md(int(now["month"]), int(now["day"]))
 	var gulliver_today: bool = weekly_type == &"dozaemon" and weekly_date == today
-	if Game != null:
-		MaskCat.check_delete(EventDates.ordinal(int(now["year"]), int(now["month"]), int(now["day"])))
+	MaskCat.check_delete(EventDates.ordinal(int(now["year"]), int(now["month"]), int(now["day"])))
 	weekly_flag = &""
-	if Game != null and Game.residents != null and SecondBridge.tortimer_due(int(now["weekday"]), gulliver_today,
+	if SecondBridge.tortimer_due(int(now["weekday"]), gulliver_today,
 			Game.residents.animal_num() >= TownResidents.ANIMAL_NUM_MAX, Game.foreigner,
 			Game.lighthouse.in_nights(int(now["year"]), int(now["month"]), int(now["day"]))):
 		weekly_flag = &"soncho_bridge_make"
 		SecondBridge.note_day(EventDates.ordinal(int(now["year"]), int(now["month"]), int(now["day"])))
-	elif not gulliver_today and Game != null and MaskCat.check_birth():
+	elif not gulliver_today and MaskCat.check_birth():
 		weekly_flag = &"mask_npc"
 
 
@@ -705,7 +704,8 @@ func to_save() -> Dictionary:
 	}
 
 
-func apply_snapshot(data: Dictionary) -> void:
+func apply_snapshot(saved: Variant) -> void:
+	var data: Dictionary = saved if saved is Dictionary else {}
 	clear()
 	town_day = clampi(int(data.get("town_day", 15)), 1, 31)
 	town_seed = int(data.get("town_seed", 0))

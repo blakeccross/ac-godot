@@ -687,7 +687,7 @@ func _begin_demand_payment() -> void:
 		_stage.notify_dialogue_closed()
 		return
 	_ensure_payment_bag()
-	if Game.inventory == null or Game.inventory.count_of(PAYMENT_ITEM) == 0:
+	if Game.inventory.count_of(PAYMENT_ITEM) == 0:
 		## Nothing to hand over (pockets full). Leave the parked window behind or the
 		## player stays locked after Nook walks off.
 		_payment_done = true
@@ -708,7 +708,7 @@ func _begin_demand_payment() -> void:
 ## so the pockets can still open (an exported build that never loaded the item, or a bag
 ## that was already spent).
 func _ensure_payment_bag() -> void:
-	if Game.inventory == null or Game.inventory.count_of(PAYMENT_ITEM) > 0:
+	if Game.inventory.count_of(PAYMENT_ITEM) > 0:
 		return
 	var bag: ItemData = ItemCatalog.get_item(PAYMENT_ITEM)
 	if bag != null:

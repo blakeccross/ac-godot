@@ -231,7 +231,7 @@ func _resolve_focus(root: Node, target: String) -> Variant:
 		"pos":
 			return _vec3(value, Vector3.ZERO)
 		"cell":
-			var grid: WorldGrid = root.get("grid") as WorldGrid
+			var grid: WorldGrid = WorldGrid.of(root)
 			var xz: PackedStringArray = value.split(",")
 			if grid == null or xz.size() != 2:
 				return null

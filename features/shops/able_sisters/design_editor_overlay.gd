@@ -33,7 +33,7 @@ enum Mode { MAIN, PALLET, GRID, TOOL }
 enum Tool { PEN, NURI, WAKU, MARK, UNDO }
 
 ## `mDE_paint_mizutama` — 16x16 polka tile (`m_design_ovl.c:186`).
-const MIZUTAMA := [
+const WATER_DROP := [
 	0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,
 	0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,
 	0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,
@@ -176,8 +176,6 @@ func dismiss() -> void:
 ## `aNNW_talk_design_open` → `mSM_OVL_DESIGN`. `slot` is a player display slot (0-7).
 func open(slot: int, on_done: Callable = Callable()) -> void:
 	if _open:
-		return
-	if Game == null or Game.designs == null:
 		return
 	_begin(slot, Game.designs.resolved(slot), on_done)
 
@@ -592,7 +590,7 @@ func _do_fill() -> void:
 			for ty in 2:
 				for tx in 2:
 					for i in 256:
-						if MIZUTAMA[i] != 0:
+						if WATER_DROP[i] != 0:
 							var x := tx * 16 + (i % 16)
 							var y := ty * 16 + int(i / 16.0)
 							_set_px(x, y)
@@ -749,10 +747,9 @@ func _resolve_prompt(idx: int) -> void:
 			_design.palette = _palette_no
 			_design.pixels = _work.duplicate()
 			_design.flag_set = true
-			if Game != null and Game.designs != null:
-				Game.designs.changed.emit()
+			Game.designs.changed.emit()
 			DesignTexture.clear_cache()
-			if Game != null and Game.resident.worn_design_slot == _slot:
+			if Game.resident.worn_design_slot == _slot:
 				Game.design_changed.emit()
 			Audio.play_se(&"cursol")
 			close()

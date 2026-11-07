@@ -54,7 +54,7 @@ func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 		Interaction.of(Interaction.PICK_UP, "Pick up signboard", 7, &"ply_1_pickup1", 20.0),
 	]
 	var actor := ctx.actor as Node3D if ctx != null else null
-	if actor == null or not actor.has_method("facing_yaw") or SignboardUse.can_read(global_position, actor.global_position, float(actor.call("facing_yaw"))):
+	if actor == null or not ActorFacing.has_facing(actor) or SignboardUse.can_read(global_position, actor.global_position, ActorFacing.yaw(actor)):
 		out.push_front(Interaction.of(Interaction.READ, "Post a design", 8))
 	return out
 
@@ -118,11 +118,11 @@ func _talk() -> void:
 func _open_designs() -> void:
 	var list: DesignListOverlay = DesignListOverlay.find(get_tree())
 	if list != null:
-		list.open("pick_trade", Callable(self, "_on_design_picked"))
+		list.open(DesignListOverlay.ListMode.PICK_TRADE, Callable(self, "_on_design_picked"))
 
 
 func _on_design_picked(slot: int) -> void:
-	if slot < 0 or Game.designs == null or slot >= Game.designs.player.size():
+	if slot < 0 or slot >= Game.designs.player.size():
 		return
 	SignboardUse.post(occupant_id, Game.designs.player[slot])
 	refresh_design()

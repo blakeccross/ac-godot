@@ -16,8 +16,8 @@ const AGAIN_EVENT := {"op": "museum_menu", "choice": "donate_again"}
 
 ## `preselect` jumps straight to that pocket item's outcome (pocket DONATE interaction).
 static func build_donate(preselect: StringName = &"") -> DialogueData:
-	var inv: Inventory = Game.inventory if Game != null else null
-	var book: MuseumBook = Game.museum if Game != null else null
+	var inv: Inventory = Game.inventory
+	var book: MuseumBook = Game.museum
 	var nodes: Dictionary = _static_nodes()
 	var options: Array = []
 	var start_id := "ask"
@@ -95,7 +95,7 @@ static func _fossil_piece_node(index: int) -> Dictionary:
 	var bank: DialogueData = DialogueCatalog.conversation(TRIVIA_ID)
 	var text: String = _bank_text(bank, "fossil_piece_%d" % gi) if gi >= 0 else ""
 	if text == "":
-		var remaining: int = MuseumDisplay.fossil_set_remaining(Game.museum if Game != null else null, index)
+		var remaining: int = MuseumDisplay.fossil_set_remaining(Game.museum, index)
 		text = (
 			(
 				"Ahh, a piece of the\n%s! Only %d more piece%s\nand we'll assemble the\nwhole skeleton, hoo."

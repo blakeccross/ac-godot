@@ -71,7 +71,7 @@ func _process(delta: float) -> void:
 
 
 func _rank() -> int:
-	var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+	var house: House = Game.interiors.player_house()
 	return house.statue_rank if house != null else 0
 
 
@@ -108,7 +108,7 @@ func refresh() -> void:
 	if _model != null:
 		_model.queue_free()
 		_model = null
-	var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+	var house: House = Game.interiors.player_house()
 	var owned: StringName = PlayerHouse.owned_building_id()
 	house_no = PlayerHouse.plot_of(String(owned)) if owned != &"" and shown_for(house) else -1
 	var shown := house_no >= 0

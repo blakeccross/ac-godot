@@ -131,7 +131,7 @@ func _add_building(root: Node3D, placement: BuildingPlacement, data: WorldData, 
 		return
 	var visual_id: StringName = placement.visual_id
 	## Live Nook visual follows upgrade level even if WorldData still has shop1.
-	if placement.id == &"acre_shop" and Game != null and Game.shops != null:
+	if placement.id == &"acre_shop":
 		visual_id = Game.shops.nook_visual_id()
 	_apply_common(node, placement.id, placement.footprint, placement.facing, placement.occupy_grid, visual_id)
 	if "occupant_id" in node and placement.resident_id != &"":

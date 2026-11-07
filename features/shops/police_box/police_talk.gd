@@ -78,8 +78,6 @@ static func with_article(item_name: String) -> String:
 static func apply_event(event: Dictionary, ctx: DialogueContext, slot: int) -> PoliceBook.Claim:
 	if str(event.get("op", "")) != OP or str(event.get("action", "")) != "claim":
 		return PoliceBook.Claim.EMPTY
-	if Game == null or Game.police == null:
-		return PoliceBook.Claim.EMPTY
 	var result: PoliceBook.Claim = Game.police.claim_result(slot, Game.inventory)
 	if ctx != null:
 		ctx.set_var(VAR_CLAIM, "full" if result == PoliceBook.Claim.POCKETS_FULL else "ok")

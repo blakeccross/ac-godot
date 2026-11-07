@@ -49,7 +49,7 @@ func test_tumble_dust_holds_then_moves() -> void:
 
 
 func test_smoke_climbs_fast_then_slow() -> void:
-	var s := _style(FieldEffects.Kind.KISHA_KEMURI)
+	var s := _style(FieldEffects.Kind.TRAIN_SMOKE)
 	var early: float = FieldParticle.offset_at(s, 10.0 / 60.0).y
 	var later: float = FieldParticle.offset_at(s, 40.0 / 60.0).y - FieldParticle.offset_at(s, 30.0 / 60.0).y
 	## First 10 ticks climb more than 10 ticks after the boost has gone.
@@ -72,7 +72,7 @@ func test_a_puff_frees_itself() -> void:
 func test_a_drop_lands_on_the_ground_and_splats_there() -> void:
 	## Flicked up at 2–3.5 GX a tick under −0.375 it comes down 3 GX above the ground and
 	## stays there for its splat.
-	var s := _style(FieldEffects.Kind.MIZUTAMA, 0.0, 0, 0x0000, _floor)
+	var s := _style(FieldEffects.Kind.WATER_DROP, 0.0, 0, 0x0000, _floor)
 	assert_float(s.land_time).is_greater(0.0)
 	var landed: Vector3 = FieldParticle.offset_at(s, s.land_time)
 	assert_float(landed.y).is_equal_approx(-0.5 + 3.0 * GX, 0.02)
@@ -90,13 +90,13 @@ func test_kicks_lie_tilted_on_the_ground() -> void:
 	assert_int(sand.mode).is_equal(3)
 	## A frame every four ticks: 0, 0, 1, 1, 2, 2, 3, 3.
 	assert_that(Array(sand.tile0)).is_equal([0, 0, 1, 1, 2, 2, 3, 3])
-	var splash := _style(FieldEffects.Kind.SIBUKI, 0.0, 0)
+	var splash := _style(FieldEffects.Kind.SPLASH, 0.0, 0)
 	## Hidden its first two steps, then four frames.
 	assert_float(splash.alphas[0]).is_equal(0.0)
 	assert_float(splash.alphas[2]).is_equal(1.0)
 	assert_float(splash.lifetime).is_equal_approx(12.0 / 60.0, 0.0001)
 	## Every table the same length.
-	for st: FieldParticle.Style in [sand, splash, _style(FieldEffects.Kind.KASAMIZUTAMA)]:
+	for st: FieldParticle.Style in [sand, splash, _style(FieldEffects.Kind.UMBRELLA_DROP)]:
 		var n: int = st.tile0.size()
 		assert_int(st.tile1.size()).is_equal(n)
 		assert_int(st.lods.size()).is_equal(n)

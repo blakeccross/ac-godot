@@ -194,7 +194,7 @@ func open(recipient: Dictionary, paper_type: int) -> void:
 	_board.header = "Dear "
 	_board.header_name = str(_recipient.get("name", "Friend"))
 	_board.header_after = ","
-	_board.footer = Game.resident.player_name if Game != null else ""
+	_board.footer = Game.resident.player_name
 	_keyboard.mode = KeyboardPanel.InputMode.LETTER
 	_keyboard.caps = false
 	_keyboard.refresh()

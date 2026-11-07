@@ -144,7 +144,7 @@ static func find(tree: SceneTree) -> DesignAlbumOverlay:
 
 
 func open(callback: Callable = Callable()) -> void:
-	if _open or Game == null or Game.designs == null:
+	if _open:
 		return
 	_cb = callback
 	_backup = Game.designs.to_save()
@@ -303,7 +303,7 @@ func _rename_folder() -> void:
 
 
 func _worn_pixels() -> PackedByteArray:
-	if Game == null or Game.designs == null or Game.resident.worn_design_slot < 0:
+	if Game.resident.worn_design_slot < 0:
 		return PackedByteArray()
 	return Game.designs.resolved(Game.resident.worn_design_slot).pixels.duplicate()
 

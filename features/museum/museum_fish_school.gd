@@ -48,7 +48,7 @@ func peck_check(a: MuseumFishActor) -> bool:
 		return false
 	if a.fish.id == &"piranha":
 		return true
-	var inv: Inventory = Game.inventory if Game != null else null
+	var inv: Inventory = Game.inventory
 	if inv == null:
 		return false
 	if inv.count_of(&"candy") > 0:

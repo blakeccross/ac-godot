@@ -1,5 +1,5 @@
 class_name TownResidents
-extends RefCounted
+extends SaveBook
 
 ## Who lives in town (`Save_Get(animals)` + `now_npc_max`, `m_npc.c`). Fifteen fixed slots
 ## in the save's order: several decomp picks walk slots in order, so the layout matters.

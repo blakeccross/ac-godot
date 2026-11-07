@@ -83,7 +83,7 @@ func _ready() -> void:
 	var world := _world()
 	_grid = world.grid if world != null else null
 	_apply_size()
-	_snap_ground()
+	snap_ground()
 
 
 ## Leaving the field whole: remember where it is and how big (`mEv` common area).
@@ -189,11 +189,11 @@ func _touch_player(player: Player, delta: float) -> void:
 ## Ball against ball: combine, or a shove (`aSMAN_snowman_hit_check`).
 func _touch_balls() -> void:
 	for node: Node in get_tree().get_nodes_in_group(GROUP):
-		if node == self or not is_instance_valid(node) or node.get("broken") or node.get("combining"):
+		var other := node as Snowball
+		if other == null or other == self or other.broken or other.combining:
 			continue
-		var other := node as Node3D
 		var d := Vector2(global_position.x - other.global_position.x, global_position.z - other.global_position.z)
-		var reach: float = radius() + float(other.call("radius"))
+		var reach: float = radius() + other.radius()
 		if d.length() >= reach:
 			continue
 		if SnowmanUse.try_combine(self, other):
@@ -231,7 +231,7 @@ func _move_by(step: Vector2) -> void:
 		to = revised
 	global_position = Vector3(to.x, global_position.y, to.z)
 	var before_y: float = from.y
-	_snap_ground()
+	snap_ground()
 	if before_y - global_position.y >= BREAK_DROP:
 		Audio.play_se(SE_FALL, self)
 		smash()
@@ -283,7 +283,7 @@ func _spin(step: Vector2) -> void:
 	_pivot.global_rotate(axis, step.length() / maxf(radius(), 0.01))
 
 
-func _snap_ground() -> void:
+func snap_ground() -> void:
 	var world := _world()
 	if world == null or world.layout == null or world.grid == null:
 		return
@@ -362,7 +362,7 @@ func push(delta: float, wish: Vector3, stick: float, dash: bool, player: Node3D)
 func carry_to(at: Vector3) -> void:
 	var step := Vector2(at.x - global_position.x, at.z - global_position.z)
 	global_position = Vector3(at.x, global_position.y, at.z)
-	_snap_ground()
+	snap_ground()
 	_spin(step)
 
 

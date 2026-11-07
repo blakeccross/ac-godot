@@ -31,9 +31,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	Audio.play_se(&"zassou_nuku", self)
 	GameConfig.rumble(GameConfig.REMOVE_GRASS)
-	var yaw: float = 0.0
-	if ctx != null and ctx.actor != null and ctx.actor.has_method("facing_yaw"):
-		yaw = float(ctx.actor.call("facing_yaw"))
+	var yaw: float = ActorFacing.yaw_or(ctx.actor, 0.0) if ctx != null else 0.0
 	var away := Vector3(sin(yaw + FLY_YAW), 0.0, cos(yaw + FLY_YAW))
 	var tw: Tween = create_tween().set_parallel(true)
 	tw.tween_property(self, "global_position", global_position + away * 1.2 + Vector3.UP * 0.8, FLY_SEC)

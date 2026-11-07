@@ -70,7 +70,7 @@ func _physics_process(delta: float) -> void:
 
 ## `aTOU_actor_move` over `delta` seconds.
 func advance(delta: float) -> void:
-	if follow_clock and Game != null and Game.lighthouse != null and Clock != null:
+	if follow_clock:
 		lit = Game.lighthouse.lamp_on_now()
 	var before: float = frame
 	if state != State.WAIT:

@@ -1,5 +1,5 @@
 class_name MuseumBook
-extends RefCounted
+extends SaveBook
 
 ## Town museum display bits (`mMmd_info_c`). Owned by `Game`, not an autoload.
 ## Each slot packs a 4-bit donator id (two slots per byte).

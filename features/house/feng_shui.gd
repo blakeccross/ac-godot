@@ -132,9 +132,7 @@ static func score_room(room: Room, ut_max: int) -> Vector2i:
 
 ## `mHsRm_GetHuusuiRoom`: money and goods power for the player's house now.
 static func evaluate() -> Vector2i:
-	if Game == null or Game.interiors == null:
-		return Vector2i.ZERO
-	if Game.first_job != null and Game.first_job.is_active():
+	if Game.first_job.is_active():
 		return Vector2i.ZERO
 	var house: House = Game.interiors.player_house()
 	var tier: int = PlayerHouse.tier_of(house)

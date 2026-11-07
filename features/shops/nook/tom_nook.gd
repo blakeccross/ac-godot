@@ -100,7 +100,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if action == null or Game == null:
+	if action == null:
 		return false
 	match action.id:
 		Interaction.TALK:
@@ -111,9 +111,9 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 
 func _maybe_force_greet() -> void:
 	## `aNRG2_think_init` force-talk on first shop visit during FIRSTJOB_START.
-	if Game == null or clerk >= 0:
+	if clerk >= 0:
 		return
-	if Game.first_job == null or not Game.first_job.is_active():
+	if not Game.first_job.is_active():
 		## `aNSC_start_wait`: he speaks up on every entry, with house business when there
 		## is some (not on raffle day, `ac_npc_shop_mastersp`).
 		if Game.shops.is_lottery_day() or _force_greet_queued:
@@ -147,7 +147,7 @@ func _greet_after_frames() -> void:
 	var player := Player.find(get_tree())
 	if player == null:
 		return
-	var house: House = Game.interiors.player_house() if Game.interiors != null else null
+	var house: House = Game.interiors.player_house()
 	if NookHouseTalk.has_business(house, Game.inventory):
 		var ctx := InteractionContext.new()
 		ctx.actor = player
@@ -188,7 +188,7 @@ func _graph(id: StringName) -> DialogueData:
 func _begin_talk(ctx: InteractionContext) -> bool:
 	var listener: Node3D = _listener(ctx)
 	_face_toward(listener.global_position if listener != null else global_position)
-	if clerk < 0 and Game != null and Game.first_job != null and Game.first_job.is_active():
+	if clerk < 0 and Game.first_job.is_active():
 		return _begin_first_job_talk(listener)
 	return _begin_normal_talk(listener)
 
@@ -200,14 +200,14 @@ func _begin_normal_talk(listener: Node3D) -> bool:
 	talk_ctx.already_talked = _talked_today
 	## House business first (`aNSC_set_talk_info_start_wait*`): a landed build, the statue, or
 	## an upgrade offer replaces the plain greeting.
-	var house: House = Game.interiors.player_house() if Game.interiors != null else null
+	var house: House = Game.interiors.player_house()
 	var house_plan: Dictionary = NookHouseTalk.plan(house, Game.inventory, Game.town.num_statues) if clerk < 0 else {}
 	var house_data: DialogueData = (
 		DialogueCatalog.conversation(NookHouseTalk.DIALOGUE_ID) if not house_plan.is_empty() else null
 	)
 	var hra_data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % HappyRoomAcademy.NOOK_TALK)) \
-		if clerk < 0 and Game.hra != null and Game.hra.talk == HappyRoomAcademy.Talk.DUE and not Game.foreigner else null
-	if hra_data != null and Game.hra.take_nook_talk():
+		if clerk < 0 and Game.happy_room_academy.talk == HappyRoomAcademy.Talk.DUE and not Game.foreigner else null
+	if hra_data != null and Game.happy_room_academy.take_nook_talk():
 		## `aNSC_WAIT_TYPE_HRATALK` comes before any house business.
 		data = hra_data
 		house_data = null
@@ -431,9 +431,7 @@ func _play_data(data: DialogueData, listener: Node3D) -> bool:
 	talk_ctx.speaker_name = clerk_name()
 	var play_data: DialogueData = data
 	if (
-		Game != null
-		and Game.first_job != null
-		and Game.first_job.needs_named_recipient()
+		Game.first_job.needs_named_recipient()
 		and play_data != null
 		and play_data.id in FirstJob.recipient_dialogue_ids()
 	):
@@ -468,7 +466,7 @@ func _bind_talk_end(ui: DialogueOverlay) -> void:
 
 
 func _on_house_event(event: Dictionary) -> void:
-	var house: House = Game.interiors.player_house() if Game.interiors != null else null
+	var house: House = Game.interiors.player_house()
 	var notice: String = NookHouseTalk.apply_event(event, house)
 	if notice != "":
 		Game.post_notice(notice)
@@ -479,10 +477,10 @@ func _on_house_event(event: Dictionary) -> void:
 func offer_item(item_id: StringName, ctx: InteractionContext) -> bool:
 	var data: DialogueData = _graph(NookShopTalk.OFFER_ID)
 	var ui := DialogueOverlay.find(get_tree())
-	if data == null or ui == null or Game == null:
+	if data == null or ui == null:
 		return false
 	## During first-job chores the goods stay locked (`aNRG2_goods_talk`).
-	if Game.first_job != null and Game.first_job.is_active():
+	if Game.first_job.is_active():
 		return _play_job_line(JOB_GOODS_BLOCK, JOB_GOODS_BLOCK_FALLBACK, null, _listener(ctx))
 	var listener: Node3D = _listener(ctx)
 	if Game.shops.is_lottery_day():
@@ -522,9 +520,9 @@ func offer_item(item_id: StringName, ctx: InteractionContext) -> bool:
 ## `aNSC_say_goodbye` (normal camera) → `aNSC_exit_wait` leaves the shop. Chores Nook just
 ## lets them out (`aNRG2_exit_check`).
 func _check_goodbye() -> bool:
-	if clerk >= 0 or _bye_said or Game == null or Game.block_auto_enter_doors or get_tree() == null:
+	if clerk >= 0 or _bye_said or Game.block_auto_enter_doors or get_tree() == null:
 		return false
-	if Game.first_job != null and Game.first_job.is_active():
+	if Game.first_job.is_active():
 		return false
 	var dlg := DialogueOverlay.find(get_tree())
 	if dlg != null and dlg.is_open():
@@ -567,7 +565,7 @@ func _leave_shop() -> void:
 	var host: Interior = Interior.find(get_tree())
 	if host != null:
 		host.leave_through_exit()
-	elif Game != null:
+	else:
 		Game.exit_interior()
 
 
@@ -683,7 +681,7 @@ func _start_code_say() -> void:
 	var item: ItemData = ItemCatalog.get_item(res.get("item", &"") as StringName)
 	if str(res["result"]) == "good" and item != null:
 		Game.inventory.add(item, 1, InventoryItem.Condition.PRESENT)
-		Game.nook_code_gifts += 1
+		Game.session.nook_code_gifts += 1
 	_play_code_result(str(res["result"]), item, {})
 
 
@@ -756,7 +754,7 @@ func _play_code_result(result: String, item: ItemData, frees: Dictionary) -> voi
 func _apply_pending_after() -> void:
 	var op: StringName = _pending_after
 	_pending_after = &""
-	if op == &"" or Game == null or Game.first_job == null:
+	if op == &"":
 		return
 	var job: FirstJob = Game.first_job
 	var listener: Node3D = (
@@ -863,12 +861,10 @@ func _play_clip(suffix: String, loop: bool) -> void:
 
 
 func _nook_level() -> int:
-	if Game != null and Game.current_room_id != &"":
+	if Game.current_room_id != &"":
 		if ShopDisplay.nook_is_shop_room(Game.current_room_id) or Game.current_room_id == &"shop3_2":
 			return ShopDisplay.nook_level_for_room(Game.current_room_id)
-	if Game != null and Game.shops != null:
-		return Game.shops.nook_level()
-	return 0
+	return Game.shops.nook_level()
 
 
 func _resolve_clip(suffix: String) -> String:

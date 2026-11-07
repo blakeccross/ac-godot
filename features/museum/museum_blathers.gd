@@ -68,7 +68,7 @@ func _idle_clip() -> String:
 
 ## Nocturnal: slumped and sleepy during daylight, alert after dusk (`ac_npc_curator`).
 func _is_drowsy() -> bool:
-	if not Engine.is_editor_hint() and Clock != null:
+	if not Engine.is_editor_hint():
 		return Clock.in_hour_window(DROWSY_START_HOUR, DROWSY_END_HOUR)
 	return false
 
@@ -84,7 +84,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if action == null or Game == null:
+	if action == null:
 		return false
 	match action.id:
 		Interaction.TALK:
@@ -134,7 +134,7 @@ func _make_talk_ctx() -> DialogueContext:
 	talk_ctx.sound_spec = 2
 	talk_ctx.speaker_sex = 0
 	talk_ctx.already_talked = _greeted_today()
-	var book: MuseumBook = Game.museum if Game != null else null
+	var book: MuseumBook = Game.museum
 	## String flags (JSON `var_eq` compares with `str()`; numeric literals parse as float).
 	talk_ctx.set_var("museum_empty", "yes" if book != null and book.count_all() == 0 else "no")
 	talk_ctx.set_var("museum_complete", "yes" if book != null and book.is_complete() else "no")
@@ -142,28 +142,21 @@ func _make_talk_ctx() -> DialogueContext:
 
 
 func _greet_day_key() -> String:
-	if Clock == null:
-		return ""
 	return "%04d-%02d-%02d" % [Clock.year, Clock.month, Clock.day]
 
 
 func _greeted_today() -> bool:
-	if Game == null:
-		return false
 	return str(Game.town.dialogue_vars.get("blathers_greet_day", "")) == _greet_day_key()
 
 
 func _mark_greeted() -> void:
-	if Game != null:
-		Game.town.dialogue_vars["blathers_greet_day"] = _greet_day_key()
+	Game.town.dialogue_vars["blathers_greet_day"] = _greet_day_key()
 
 
 ## Blathers opens the player's pockets to receive a donation (`mMmd` IV_OPEN). Each item
 ## worth offering shows a "Donate" tag; picking one books the outcome and Blathers
 ## responds. With no pockets UI (headless), fall back to the dialogue-list picker.
 func _open_donate_pockets() -> void:
-	if Game == null:
-		return
 	if not Game.pocket_requests.donation_resolved.is_connected(_on_donate_resolved):
 		Game.pocket_requests.donation_resolved.connect(_on_donate_resolved)
 	var inv_ui: InventoryOverlay = InventoryOverlay.find(get_tree())
@@ -174,7 +167,7 @@ func _open_donate_pockets() -> void:
 
 
 func _on_donate_resolved(donated: bool) -> void:
-	if Game != null and Game.pocket_requests.donation_resolved.is_connected(_on_donate_resolved):
+	if Game.pocket_requests.donation_resolved.is_connected(_on_donate_resolved):
 		Game.pocket_requests.donation_resolved.disconnect(_on_donate_resolved)
 	if not donated:
 		return
@@ -183,7 +176,7 @@ func _on_donate_resolved(donated: bool) -> void:
 
 ## Blathers' response to the item just picked in the pockets (`Game.pocket_requests.donation_result`).
 func _play_donate_outcome() -> void:
-	var result: Dictionary = Game.pocket_requests.donation_result if Game != null else {}
+	var result: Dictionary = Game.pocket_requests.donation_result
 	var item_id: StringName = StringName(str(result.get("item_id", "")))
 	var ui := DialogueOverlay.find(get_tree())
 	var data: DialogueData = MuseumDialogue.build_outcome(item_id, result)
@@ -276,9 +269,9 @@ func _play_putaway(item_id: StringName) -> void:
 ## wrong category, or an unexamined fossil — Blathers takes and examines the item exactly
 ## like an accepted donation, then visibly hands it back instead of filing it away.
 func _play_return(item_id: StringName) -> void:
-	if item_id == &"" or _listener == null or Game == null:
+	if item_id == &"" or _listener == null:
 		return
-	if Game.inventory == null or Game.inventory.count_of(item_id) <= 0:
+	if Game.inventory.count_of(item_id) <= 0:
 		return
 	HandOver.player_offers_npc_rejects(_listener, self, item_id)
 
@@ -291,7 +284,7 @@ func _say_line(text: String) -> void:
 		_start_talk_session(_listener)
 		_bind_talk_end(ui)
 		ui.say(text, "Blathers")
-	elif Game != null:
+	else:
 		Game.post_notice("Blathers: %s" % text)
 
 

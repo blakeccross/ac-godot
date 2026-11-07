@@ -168,7 +168,7 @@ func release_balloon() -> bool:
 	var attach := skeleton.get_node_or_null(HeldTool.ATTACH_NAME) as Node3D if skeleton != null else null
 	if attach != null and attach.get_child_count() > 0:
 		BalloonFlyaway.release(attach.get_child(0) as Node3D, _player)
-	return Game.inventory != null and Game.inventory.swap_equipped(&"")
+	return Game.inventory.swap_equipped(&"")
 
 
 func tick_pinwheel(delta: float) -> void:
@@ -345,6 +345,6 @@ func _blend_to_hold_pose() -> void:
 
 
 func equipped_tool() -> ToolData:
-	if Game.inventory == null or Game.inventory.equipment_id == &"":
+	if Game.inventory.equipment_id == &"":
 		return null
 	return ItemCatalog.get_item(Game.inventory.equipment_id) as ToolData

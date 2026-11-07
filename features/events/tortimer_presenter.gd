@@ -10,12 +10,8 @@ const WANDER_EVENTS: Array[StringName] = [
 ]
 
 
-func _init() -> void:
-	scene_path = "res://features/events/actors/tortimer_holiday.tscn"
-
-
 func start() -> bool:
-	if TortimerHoliday.is_vacation(TortimerHoliday.event_index(id)) and Game != null:
+	if TortimerHoliday.is_vacation(TortimerHoliday.event_index(id)):
 		if Game.foreigner or Game.lighthouse.talk_after_check(EventDates.ordinal(Clock.year, Clock.month, Clock.day)):
 			return false
 	return super.start()
@@ -24,7 +20,7 @@ func start() -> bool:
 func pick_cell() -> Vector2i:
 	if id in WANDER_EVENTS:
 		return mgr.search_free_unit(id, place_seed(), 1)
-	var block: Vector2i = mgr.block_of("shrine")
+	var block: Vector2i = mgr.block_of(EventManager.BlockKind.SHRINE)
 	if block.x < 0:
 		return Vector2i(-1, -1)
 	var unit: Vector2i = mgr.random_unit_in_block(block, 2)

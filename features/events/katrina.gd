@@ -13,7 +13,7 @@ func _init() -> void:
 
 
 func make_talk() -> BankTalk:
-	return KatrinaTalk.new(Game.destiny() if Game != null else 0, _given, Game.inventory if Game != null else null, rng())
+	return KatrinaTalk.new(Game.destiny(), _given, Game.inventory, rng())
 
 
 func talk_ended(script: BankTalk) -> void:
@@ -21,5 +21,4 @@ func talk_ended(script: BankTalk) -> void:
 	var t := script as KatrinaTalk
 	if t != null and t.given_this_visit:
 		_given = true
-		if Game != null:
-			Game.set_destiny(t.destiny)
+		Game.set_destiny(t.destiny)

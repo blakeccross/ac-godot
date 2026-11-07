@@ -25,7 +25,6 @@ const REPORT_DELAY_FRAMES := 80.0
 ## `Player_actor_SetEffect_Broken_axe`: `AXE_BREAK1` frame the pieces fly off.
 const PIECES_FRAME := 15.0
 
-static var damage: int = 0
 
 
 static func is_worn_axe(id: StringName) -> bool:
@@ -37,8 +36,8 @@ static func after_hit(id: StringName, reflected: bool) -> StringName:
 	var stage: int = STAGES.find(id)
 	if stage < 0 or Game.title_demo_active:
 		return id
-	damage += HIT_REFLECT if reflected else HIT_TREE
-	if damage < LIMIT:
+	Game.session.axe_damage += HIT_REFLECT if reflected else HIT_TREE
+	if Game.session.axe_damage < LIMIT:
 		return id
 	return STAGES[stage + 1] if stage + 1 < STAGES.size() else &""
 
@@ -52,7 +51,7 @@ static func apply(inventory: Inventory, reflected: bool, at: Node = null) -> Str
 	var next: StringName = after_hit(before, reflected)
 	if next == before:
 		return before
-	damage = 0
+	Game.session.axe_damage = 0
 	inventory.swap_equipped(next)
 	match next:
 		&"axe_use_2":
@@ -65,4 +64,4 @@ static func apply(inventory: Inventory, reflected: bool, at: Node = null) -> Str
 
 
 static func reset() -> void:
-	damage = 0
+	Game.session.axe_damage = 0

@@ -75,7 +75,7 @@ func dismiss() -> void:
 
 ## `mRP_repay_ovl_init`: in from the top.
 func open() -> void:
-	if _open or Game == null or Game.inventory == null:
+	if _open:
 		return
 	counter.open_from(Game.inventory)
 	_paid = false

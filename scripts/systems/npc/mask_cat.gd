@@ -22,7 +22,7 @@ const MSG_TOWN_AGAIN := 0x31E5
 
 
 static func state() -> Dictionary:
-	return Game.town.mask_cat if Game != null else {}
+	return Game.town.mask_cat
 
 
 ## `mDE_maskcat_init`: the face she arrives with.

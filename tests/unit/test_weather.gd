@@ -30,40 +30,40 @@ func test_april_sakura_terms_are_forced() -> void:
 	## Term 4 (Apr 5–7) is 100% light sakura; term 5 (Apr 8) is 100% heavy sakura.
 	Weather.seed_rng(42)
 	for _i: int in 20:
-		var light: Dictionary = Weather.roll(4, 6)
-		assert_that(light["kind"]).is_equal(Weather.Kind.SAKURA)
-		assert_that(light["intensity"]).is_equal(Weather.Intensity.LIGHT)
+		var light: Weather.Roll = Weather.roll(4, 6)
+		assert_that(light.kind).is_equal(Weather.Kind.SAKURA)
+		assert_that(light.intensity).is_equal(Weather.Intensity.LIGHT)
 	for _i: int in 20:
-		var heavy: Dictionary = Weather.roll(4, 8)
-		assert_that(heavy["kind"]).is_equal(Weather.Kind.SAKURA)
-		assert_that(heavy["intensity"]).is_equal(Weather.Intensity.HEAVY)
+		var heavy: Weather.Roll = Weather.roll(4, 8)
+		assert_that(heavy.kind).is_equal(Weather.Kind.SAKURA)
+		assert_that(heavy.intensity).is_equal(Weather.Intensity.HEAVY)
 
 
 func test_new_years_is_always_clear() -> void:
 	Weather.seed_rng(7)
 	for _i: int in 20:
-		var result: Dictionary = Weather.roll(1, 3)
-		assert_that(result["kind"]).is_equal(Weather.Kind.CLEAR)
+		var result: Weather.Roll = Weather.roll(1, 3)
+		assert_that(result.kind).is_equal(Weather.Kind.CLEAR)
 
 
 func test_blizzard_term_is_always_heavy_snow() -> void:
 	## Dec 10 is 100% blizzard → snow + heavy.
 	Weather.seed_rng(3)
 	for _i: int in 20:
-		var result: Dictionary = Weather.roll(12, 10)
-		assert_that(result["kind"]).is_equal(Weather.Kind.SNOW)
-		assert_that(result["intensity"]).is_equal(Weather.Intensity.HEAVY)
+		var result: Weather.Roll = Weather.roll(12, 10)
+		assert_that(result.kind).is_equal(Weather.Kind.SNOW)
+		assert_that(result.intensity).is_equal(Weather.Intensity.HEAVY)
 
 
 func test_pack_unpack_round_trip() -> void:
 	var packed: int = Weather.pack(Weather.Kind.RAIN, Weather.Intensity.HEAVY)
-	var unpacked: Dictionary = Weather.unpack(packed)
-	assert_that(unpacked["kind"]).is_equal(Weather.Kind.RAIN)
-	assert_that(unpacked["intensity"]).is_equal(Weather.Intensity.HEAVY)
+	var unpacked: Weather.Roll = Weather.unpack(packed)
+	assert_that(unpacked.kind).is_equal(Weather.Kind.RAIN)
+	assert_that(unpacked.intensity).is_equal(Weather.Intensity.HEAVY)
 
 
 func test_game_apply_roll_updates_session() -> void:
-	Game.apply_weather_roll({"kind": Weather.Kind.RAIN, "intensity": Weather.Intensity.LIGHT})
+	Game.apply_weather_roll(Weather.Roll.new(Weather.Kind.RAIN, Weather.Intensity.LIGHT))
 	assert_that(Game.town.weather).is_equal(&"rain")
 	assert_int(Game.town.weather_intensity).is_equal(int(Weather.Intensity.LIGHT))
 	assert_bool(Weather.is_raining()).is_true()

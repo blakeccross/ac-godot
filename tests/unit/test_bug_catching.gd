@@ -479,13 +479,13 @@ func test_scheduler_blends_next_month_in_before_it_starts() -> void:
 	Clock.month = 8
 	Clock.day = 30
 	Clock.hour = 12
-	Game.insect_term_month = 8
-	Game.insect_term_offset = 5
+	Game.session.insect_term_month = 8
+	Game.session.insect_term_offset = 5
 	var pool: Array[BugSpawnEntry] = BugSpawnScheduler.build_pool(null)
 	var aug: float = _pool_weight(BugSpawnTable.entries_for(8, 12), 4)
 	var sep: float = _pool_weight(BugSpawnTable.entries_for(9, 12), 4)
 	assert_float(_pool_weight(pool, 4)).is_equal_approx(aug * 2.0 / 6.0 + sep * 4.0 / 6.0, 0.001)
-	assert_int(Game.insect_term_month).is_equal(8)
+	assert_int(Game.session.insect_term_month).is_equal(8)
 
 
 func test_scheduler_no_blend_before_the_window() -> void:
@@ -493,8 +493,8 @@ func test_scheduler_no_blend_before_the_window() -> void:
 	Clock.month = 8
 	Clock.day = 20
 	Clock.hour = 12
-	Game.insect_term_month = 8
-	Game.insect_term_offset = 5
+	Game.session.insect_term_month = 8
+	Game.session.insect_term_offset = 5
 	var pool: Array[BugSpawnEntry] = BugSpawnScheduler.build_pool(null)
 	assert_float(_pool_weight(pool, 4)).is_equal_approx(
 		_pool_weight(BugSpawnTable.entries_for(8, 12), 4), 0.001
@@ -507,8 +507,8 @@ func test_scheduler_is_pure_new_month_once_it_starts() -> void:
 	Clock.month = 9
 	Clock.day = 2
 	Clock.hour = 12
-	Game.insect_term_month = 8
-	Game.insect_term_offset = 0
+	Game.session.insect_term_month = 8
+	Game.session.insect_term_offset = 0
 	var pool: Array[BugSpawnEntry] = BugSpawnScheduler.build_pool(null)
 	assert_float(_pool_weight(pool, 13)).is_equal_approx(
 		_pool_weight(BugSpawnTable.entries_for(9, 12), 13), 0.001
@@ -520,13 +520,13 @@ func test_scheduler_renews_the_term_after_the_window() -> void:
 	Clock.month = 9
 	Clock.day = 20
 	Clock.hour = 12
-	Game.insect_term_month = 8
-	Game.insect_term_offset = 0
+	Game.session.insect_term_month = 8
+	Game.session.insect_term_offset = 0
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5
 	BugSpawnScheduler.build_pool(rng)
-	assert_int(Game.insect_term_month).is_equal(9)   ## October, 0-based
-	assert_int(Game.insect_term_offset).is_between(0, 5)
+	assert_int(Game.session.insect_term_month).is_equal(9)   ## October, 0-based
+	assert_int(Game.session.insect_term_offset).is_between(0, 5)
 
 
 func _entry(type_index: int, area: int, weight: float) -> BugSpawnEntry:

@@ -133,9 +133,7 @@ static func reload() -> void:
 ## `mFAs_GetFieldRank`. No town-assessment system yet: the calendar's constant rank 3,
 ## so `env_rate` is 1.0.
 static func field_rank() -> int:
-	if Game != null and Game.events != null:
-		return Game.events.field_rank
-	return EventCalendar.DEFAULT_FIELD_RANK
+	return Game.events.field_rank
 
 
 static func env_rate() -> float:
@@ -264,7 +262,7 @@ static func build_pool(water_kind: int, raining: bool, rng: RandomNumberGenerato
 ## `aSOG_gyoei_check_fishing_event`. `tourney` < 0 reads the event calendar; 0 / 1 force it.
 static func check_fishing_event(block_kind: int, rng: RandomNumberGenerator, tourney: int = -1) -> bool:
 	var active: bool = tourney > 0
-	if tourney < 0 and Game != null and Game.events != null:
+	if tourney < 0:
 		for id: StringName in TOURNEY_EVENTS:
 			if Game.events.is_active(id):
 				active = true

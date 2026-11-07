@@ -14,7 +14,7 @@ const STOCK_SCENE := preload("res://features/shops/nook/shop_stock.tscn")
 
 
 func present(root: Node3D, interior: IndoorSession) -> void:
-	if root == null or interior == null or interior.room == null or Game == null:
+	if root == null or interior == null or interior.room == null:
 		return
 	var room: Room = interior.room
 	var shop_id: StringName = Game.shops.shop_id_for_room(room)

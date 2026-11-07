@@ -66,7 +66,7 @@ func can_talk() -> bool:
 
 
 func make_talk() -> BankTalk:
-	return WispTalk.new(WispTalk.Kind.NORMAL, state, Game.inventory if Game != null else null, rng())
+	return WispTalk.new(WispTalk.Kind.NORMAL, state, Game.inventory, rng())
 
 
 func think(delta: float) -> void:
@@ -99,7 +99,7 @@ func think(delta: float) -> void:
 
 
 func _say(kind: int) -> void:
-	begin_talk(player_node(), WispTalk.new(kind, state, Game.inventory if Game != null else null, rng()), false)
+	begin_talk(player_node(), WispTalk.new(kind, state, Game.inventory, rng()), false)
 
 
 ## `aEGH_byebye_check`: found and in the player's acre, he says goodbye; otherwise he is

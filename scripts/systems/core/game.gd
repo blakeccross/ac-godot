@@ -80,7 +80,7 @@ var wind: Wind = Wind.new()
 ## The community board's posts (`m_notice`).
 var notice_board: NoticeBoard = NoticeBoard.new()
 ## The Happy Room Academy's membership and marks (`m_mark_room`).
-var hra: HappyRoomAcademy = HappyRoomAcademy.new()
+var happy_room_academy: HappyRoomAcademy = HappyRoomAcademy.new()
 var designs: DesignBook = DesignBook.new()
 var first_job: FirstJob = FirstJob.new()
 
@@ -150,34 +150,8 @@ var emerge_from_door: bool = false
 ## you outside the police box).
 var last_room_id: StringName = &""
 
-# Small per-session flags, each read by the one feature named in its comment.
-
-## A paid-off loan or the end of Nook's chores, waiting for the next door (`PAYMENT_*`).
-var complete_payment: StringName = &""
-## The last board check wrote no seasonal notice, so a villager may bury treasure.
-var treasure_due: bool = false
-## `Save_Get(insect_term)` / `insect_term_transition_offset`: the 0-based month the insect
-## spawn table is heading into and how many days (0-5) before its 1st the cross-month blend
-## starts (`aSOI_ins_chk_term_info`).
-var insect_term_month: int = 0
-var insect_term_offset: int = 0
-## `mFI_GetDigStatus`'s `old_pos`: where the golden shovel last dug.
-var golden_last_dig: Vector2i = Vector2i(-1, -1)
-## `unk_nook_present_count`: presents Nook has handed over for codes this session.
-var nook_code_gifts: int = 0
-## `mMsr_FirstClearMushroom` has run for this play session.
-var mushrooms_session_cleared: bool = false
-## Shells still to wash up: twenty when a session starts (`mFI_SetFirstSetShell`).
-var shells_owed: int = ShellUse.FIRST_NUM
-var shell_minute_counted: bool = false
-## `Common.snowman_msg_id` (`mSN_decide_msg`): rolled each play session.
-var snowman_msg_id: int = 0
-## `Common.money_power` / `goods_power`: the house's feng shui (`FengShui`), recomputed on
-## the way out to the field.
-var money_power: int = 0
-var goods_power: int = 0
-## `goki_shocked_flag`: the first roach of a session startles the player, once.
-var goki_shocked: bool = false
+## Per-session flags that are never saved (`SessionState`).
+var session: SessionState = SessionState.new()
 
 ## `mSDI_StartInitAfter` runs once per load; the world resolves several times a session.
 var _residents_session_done: bool = false
@@ -623,8 +597,7 @@ var _town_weather: Dictionary = {}
 ## Arriving brings summer and the island's own weather; leaving puts the town's back
 ## (`aBTD_change_season`, `IslandClimate`).
 func _island_climate_changed() -> void:
-	if Clock != null:
-		Clock.summer_only = island_visit
+	Clock.summer_only = island_visit
 	if town == null:
 		return
 	if island_visit:
@@ -647,9 +620,9 @@ func set_weather(next: StringName, intensity: int = -1) -> void:
 
 
 ## `result` is `{kind: Weather.Kind, intensity: Weather.Intensity}` from `Weather.roll`.
-func apply_weather_roll(result: Dictionary) -> void:
-	var kind: Weather.Kind = result.get("kind", Weather.Kind.CLEAR) as Weather.Kind
-	var intensity: Weather.Intensity = result.get("intensity", Weather.Intensity.NONE) as Weather.Intensity
+func apply_weather_roll(result: Weather.Roll) -> void:
+	var kind: Weather.Kind = result.kind
+	var intensity: Weather.Intensity = result.intensity
 	if kind == Weather.Kind.CLEAR:
 		intensity = Weather.Intensity.NONE
 	set_weather(Weather.kind_name(kind), int(intensity))
@@ -665,9 +638,9 @@ func cycle_weather_debug() -> void:
 func apply_event_weather() -> void:
 	match events.weather_override():
 		&"clear":
-			apply_weather_roll({"kind": Weather.Kind.CLEAR, "intensity": Weather.Intensity.NONE})
+			apply_weather_roll(Weather.Roll.new(Weather.Kind.CLEAR, Weather.Intensity.NONE))
 		&"snow":
-			apply_weather_roll({"kind": Weather.Kind.SNOW, "intensity": Weather.Intensity.HEAVY})
+			apply_weather_roll(Weather.Roll.new(Weather.Kind.SNOW, Weather.Intensity.HEAVY))
 
 
 ## Bring `events` to the clock. The first sync after a session starts only adopts the current
@@ -746,7 +719,7 @@ func destiny() -> int:
 ## `mPr_GetGoodsPower`: the house's feng shui moved by the day's fortune (goods luck +30,
 ## bad luck -30), held to -30...50.
 func goods_power_now() -> int:
-	var power: int = goods_power
+	var power: int = session.goods_power
 	match destiny():
 		Destiny.GOODS_LUCK:
 			power += 30
@@ -758,8 +731,8 @@ func goods_power_now() -> int:
 ## `mHsRm_GetHuusuiRoom`.
 func refresh_feng_shui() -> void:
 	var power: Vector2i = FengShui.evaluate()
-	money_power = power.x
-	goods_power = power.y
+	session.money_power = power.x
+	session.goods_power = power.y
 
 
 ## `mCD_SetResetInfo`: the save was still marked open, so the last session ended without
@@ -957,25 +930,37 @@ func _museum_complete_stage() -> Node:
 # --- Saving -----------------------------------------------------------------------------------
 
 
+## The town save's books, by save key. Built on each call so a book swapped for a new
+## object is still the one saved.
+func _save_books() -> Dictionary[String, SaveBook]:
+	return {
+		"relationships": relationships,
+		"interiors": interiors,
+		"shops": shops,
+		"museum": museum,
+		"species_log": species_log,
+		"police": police,
+		"post": post,
+		"travel_book": travel_book,
+		"redd": redd,
+		"lighthouse": lighthouse,
+		"catalog": catalog,
+		"events": events,
+		"designs": designs,
+		"villagers": villagers,
+		"residents": residents,
+		"quests": quests,
+		"rainbow": rainbow,
+		"hra": happy_room_academy,
+		"notice_board": notice_board,
+		"first_job": first_job,
+	}
+
+
 func to_save() -> Dictionary:
 	## `mCkRh_SavePlayTime` runs whenever the game is saved.
 	HouseCockroaches.save_play_time(interiors.player_house())
 	var out := {
-		"villagers": villagers.to_save(),
-		"residents": residents.to_save(),
-		"relationships": relationships.to_save(),
-		"interiors": interiors.to_save(),
-		"shops": shops.to_save(),
-		"museum": museum.to_save(),
-		"species_log": species_log.to_save(),
-		"police": police.to_save(),
-		"post": post.to_save(),
-		"travel_book": travel_book.to_save(),
-		"redd": redd.to_save(),
-		"lighthouse": lighthouse.to_save(),
-		"catalog": catalog.to_save(),
-		"events": events.to_save(),
-		"designs": designs.to_save(),
 		"current_room_id": String(current_room_id),
 		"outdoor_return": {
 			"x": outdoor_return.x,
@@ -983,12 +968,10 @@ func to_save() -> Dictionary:
 			"z": outdoor_return.z,
 			"yaw": outdoor_return_yaw,
 		},
-		"first_job": first_job.to_save(),
-		"quests": quests.to_save(),
-		"rainbow": rainbow.to_save(),
-		"notice_board": notice_board.to_save(),
-		"hra": hra.to_save(),
 	}
+	var books := _save_books()
+	for key: String in books:
+		out[key] = books[key].to_save()
 	resident.write_save(out)
 	town.write_save(out)
 	return out
@@ -998,51 +981,27 @@ func apply_snapshot(data: Dictionary) -> void:
 	town.read_save(data)
 	resident.read_save(data)
 	_reset_session_flags()
-	relationships.apply_snapshot(data.get("relationships", {}))
-	interiors.apply_snapshot(data.get("interiors", {}))
+	var books := _save_books()
+	for key: String in books:
+		if data.has(key):
+			books[key].apply_snapshot(data[key])
+		else:
+			books[key].apply_missing()
+	current_room_id = StringName(str(data.get("current_room_id", "")))
+	_read_outdoor_return(data.get("outdoor_return", {}))
 	## `m_start_data_init.c`: a house ordered on an earlier day is built when the game starts.
 	check_rehouse_order()
 	HouseCockroaches.decide_family_count(interiors.player_house())
 	HouseCockroaches.decide_family_count(interiors.house(&"cottage"))
-	shops.apply_snapshot(data.get("shops", {}))
-	museum.apply_snapshot(data.get("museum", {}))
-	species_log.apply_snapshot(data.get("species_log", {}))
 	## `mPr_StartSetCompleteTalkInfo` (`m_start_data_init`): finished collections are noted for
 	## the villagers' congratulations once the encyclopedia is loaded.
 	CompleteTalk.start_set_info()
-	if data.has("police"):
-		police.apply_snapshot(data["police"])
-	else:
-		## Saves from before the lost and found was stored: treat as a new town's box.
-		police.init_town()
-	post.apply_snapshot(data.get("post", {}))
-	travel_book.apply_snapshot(data.get("travel_book", {}))
-	redd.apply_snapshot(data.get("redd", {}))
-	lighthouse.apply_snapshot(data.get("lighthouse", {}))
-	catalog.apply_snapshot(data.get("catalog", {}))
 	catalog.record_inventory(inventory)
-	events.apply_snapshot(data.get("events", {}))
 	events.field_rank = town.field_rank
 	_events_ready = false
-	designs.apply_snapshot(data.get("designs", {}))
-	current_room_id = StringName(str(data.get("current_room_id", "")))
-	_read_outdoor_return(data.get("outdoor_return", {}))
-	villagers.book = relationships
-	villagers.apply_snapshot(data.get("villagers", {}))
 	## Saves from before the roster was stored adopt the generated starters on first resolve.
-	residents.apply_snapshot(data.get("residents", {}))
 	_residents_session_done = false
 	npc_talk_info.clear()
-	quests.apply_snapshot(data.get("quests", {}))
-	rainbow.apply_snapshot(data.get("rainbow", {}))
-	hra = HappyRoomAcademy.new()
-	hra.apply_snapshot(data.get("hra", {}))
-	notice_board = NoticeBoard.new()
-	if data.has("notice_board"):
-		notice_board.apply_snapshot(data["notice_board"])
-	else:
-		notice_board.seed(Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute)
-	first_job.from_save(data.get("first_job", {}))
 
 
 func _read_outdoor_return(saved: Variant) -> void:
@@ -1061,12 +1020,7 @@ func _read_outdoor_return(saved: Variant) -> void:
 
 ## Everything a fresh town or a loaded save forgets: the per-session flags, not the books.
 func _reset_session_flags() -> void:
-	shells_owed = ShellUse.FIRST_NUM
-	shell_minute_counted = false
-	mushrooms_session_cleared = false
-	snowman_msg_id = randi_range(0, 2)
-	Sunburn.reset_session()
-	goki_shocked = false
+	session.reset_load()
 	bees.clear()
 
 
@@ -1083,27 +1037,10 @@ func reset_session() -> void:
 	## The title resets the session before this autoload is ready, when there is no train yet.
 	if train.is_inside_tree():
 		train.reset()
-	relationships.clear()
-	interiors.clear()
-	shops.clear()
-	museum.clear()
-	species_log.clear()
-	## `mPB_police_box_init` (`m_start_data_init`): a new town starts with three items.
-	police.init_town()
-	police.topup_waiting = false
-	post.clear()
-	travel_book.clear()
-	redd.clear()
-	lighthouse.clear()
-	catalog.clear()
-	designs.clear()
-	first_job.clear()
-	villagers.clear()
-	villagers.book = relationships
-	residents.clear()
+	for book: SaveBook in _save_books().values():
+		book.start_new()
 	_residents_session_done = false
 	npc_talk_info.clear()
-	quests.clear()
 	pocket_requests.clear()
 	intro.clear()
 	title_demo_active = false
@@ -1115,26 +1052,12 @@ func reset_session() -> void:
 	block_auto_enter_doors = false
 	emerge_from_door = false
 	last_room_id = &""
-	complete_payment = &""
-	treasure_due = false
-	insect_term_month = 0
-	insect_term_offset = 0
-	golden_last_dig = Vector2i(-1, -1)
-	nook_code_gifts = 0
-	money_power = 0
-	goods_power = 0
+	session = SessionState.new()
 	reset_flag = false
 	resetti_disabled = false
 	_reset_session_flags()
-	VillagerWalk.reset()
-	VillagerOutdoor.reset()
-	MoneyRock.reset()
-	rainbow = Rainbow.new()
+	VillagerWalk.clear_blocked_cache()
 	wind = Wind.new()
-	notice_board = NoticeBoard.new()
-	notice_board.seed(Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute)
-	hra = HappyRoomAcademy.new()
-	events.clear()
 	events.field_rank = town.field_rank
 	_events_ready = false
 	set_interact_prompt("")

@@ -1,5 +1,5 @@
 class_name ShopBook
-extends RefCounted
+extends SaveBook
 
 ## Town shops. Owned by `Game`, not an autoload. Nook buys and sells; Able Sisters is a
 ## design shop with no Bell stock (`needlework`).
@@ -134,7 +134,7 @@ static func buy_price(item: ItemData) -> int:
 		return 0
 	if item.id == ShopGoods.GRAB_BAG:
 		## `mSP_ItemNo2ItemPrice(ITM_HUKUBUKURO_BAG)` returns the year.
-		return Clock.year if Clock != null else 2001
+		return Clock.year
 	if item.id == ShopGoods.SIGNBOARD:
 		return SIGNBOARD_PRICE
 	if item.buy_price > 0:
@@ -168,9 +168,7 @@ static func can_sell(item: ItemData) -> bool:
 
 
 static func town_fruit() -> StringName:
-	if Game != null and Game.town != null:
-		return Game.town.town_fruit
-	return &"apple"
+	return Game.town.town_fruit
 
 
 ## Nook's price for one turnip bundle today (0 on Sunday — Joan's day).
@@ -268,7 +266,7 @@ func in_renewal() -> bool:
 ## `mSP_ShopOpen`.
 func nook_status() -> Status:
 	## Forced open during the part-time job (`mEv_CheckFirstJob`).
-	if Game != null and Game.first_job != null and Game.first_job.is_active():
+	if Game.first_job.is_active():
 		return Status.OPEN
 	_apply_due_renewal()
 	if in_renewal():
@@ -315,7 +313,7 @@ func _judge_renewal() -> void:
 		var d: Vector3i = EventDates.from_ordinal(today + offset)
 		if ShopGoods.is_lottery_day(d.x, d.y, d.z) or ShopGoods.is_grab_bag_day(d.x, d.y, d.z):
 			return
-		if offset == 0 and Game != null and Game.events != null and Game.events.is_active(&"shop_sale"):
+		if offset == 0 and Game.events.is_active(&"shop_sale"):
 			return
 	row["renewal"] = today + 2
 	_queue_mail({"kind": "renovation", "level": int(row.get("level", 0)), "day": today + 2})
@@ -369,7 +367,7 @@ func restock(shop_id: StringName) -> void:
 	rng.seed = _day_seed(shop_id)
 	var lineup: Dictionary = ShopGoods.roll(
 		int(row.get("level", 0)), int(row.get("sales", 0)), Clock.year, Clock.month, Clock.day,
-		int(row.get("paint", 0)), rng, Game.goods_power_now() if Game != null else 0
+		int(row.get("paint", 0)), rng, Game.goods_power_now()
 	)
 	row["goods"] = _as_strings(lineup["goods"] as Array[StringName])
 	row["rare"] = String(lineup["rare"])
@@ -378,7 +376,7 @@ func restock(shop_id: StringName) -> void:
 	var month_key: int = Clock.year * 12 + Clock.month
 	if int(row.get("lottery_month", -1)) != month_key:
 		row["lottery_month"] = month_key
-		var owned: Array[StringName] = Game.catalog.owned_ids() if Game != null and Game.catalog != null else []
+		var owned: Array[StringName] = Game.catalog.owned_ids()
 		row["lottery"] = _as_strings(ShopGoods.roll_lottery(owned, rng))
 
 
@@ -479,7 +477,7 @@ func buy_result(shop_id: StringName, item_id: StringName, inv: Inventory) -> Dic
 	if paint:
 		## `next_outlook_pal` + `mPr_FLAG_UPDATE_OUTLOOK_PENDING`: the roof changes when the
 		## next game starts (`mHm_CheckRehouseOrder` in `m_start_data_init`).
-		var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+		var house: House = Game.interiors.player_house()
 		if house != null:
 			house.next_outlook_pal = ShopGoods.PAINTS.find(item_id)
 		out["paint"] = ShopGoods.PAINTS.find(item_id)
@@ -692,7 +690,7 @@ func draw_lottery(inv: Inventory, roll: int = -1) -> Dictionary:
 ## `aNSC_check_present_balloon`: on the shop sale event Nook hands the first visitor with
 ## a free pocket slot one balloon (`ITM_BALLOON_START + RANDOM(8)`), once a day.
 func take_sale_balloon(inv: Inventory) -> StringName:
-	if Game == null or Game.events == null or not Game.events.is_active(&"shop_sale"):
+	if not Game.events.is_active(&"shop_sale"):
 		return &""
 	_ensure_row(NOOK_ID)
 	var row: Dictionary = _nook()
@@ -823,7 +821,7 @@ static func _string_names(raw: Variant) -> Array[StringName]:
 
 
 func _day_seed(shop_id: StringName) -> int:
-	var seed_value: int = Game.town.world_seed if Game != null else 1
+	var seed_value: int = Game.town.world_seed
 	return hash([seed_value, Clock.year, Clock.month, Clock.day, String(shop_id)])
 
 

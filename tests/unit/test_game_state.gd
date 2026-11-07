@@ -99,3 +99,39 @@ func test_game_saves_through_both_resources() -> void:
 	for key: String in PlayerRoster.PRIVATE_KEYS:
 		assert_bool(save.has(key)).override_failure_message("roster key " + key).is_true()
 	Game.reset_session()
+
+
+## Every `SaveBook` is written under its key, and a save written before a book existed
+## gives that book its new-town start (the police box's three items, the first handbills).
+func test_every_book_saves_under_its_key_and_old_saves_start_fresh() -> void:
+	Game.reset_session()
+	var save: Dictionary = Game.to_save()
+	for key: String in Game._save_books():
+		assert_bool(save.has(key)).override_failure_message("book key " + key).is_true()
+	save.erase("police")
+	save.erase("notice_board")
+	Game.police.clear()
+	Game.notice_board.clear()
+	Game.apply_snapshot(save)
+	var stocked: int = 0
+	for i: int in PoliceBook.STORAGE_COUNT:
+		if Game.police.item_at(i) != &"":
+			stocked += 1
+	assert_int(stocked).is_equal(3)
+	assert_int(Game.notice_board.count()).is_greater(0)
+	Game.reset_session()
+
+
+func test_a_new_town_starts_a_new_session() -> void:
+	Game.session.shells_owed = 0
+	Game.session.nook_code_gifts = 4
+	Game.reset_session()
+	assert_int(Game.session.shells_owed).is_equal(ShellUse.FIRST_NUM)
+	assert_int(Game.session.nook_code_gifts).is_equal(0)
+	Game.session.nook_code_gifts = 2
+	Game.session.roach_shocked = true
+	Game.apply_snapshot(Game.to_save())
+	## a load starts the per-load flags again, not the whole session
+	assert_bool(Game.session.roach_shocked).is_false()
+	assert_int(Game.session.nook_code_gifts).is_equal(2)
+	Game.reset_session()

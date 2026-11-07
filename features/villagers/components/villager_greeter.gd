@@ -48,7 +48,7 @@ func pair_greetings() -> void:
 
 func _greet_info(v: Node) -> Dictionary:
 	var vd: VillagerData = v.get("data")
-	var slot: int = Game.residents.slot_of(vd.id) if vd != null and Game != null and Game.residents != null else -1
+	var slot: int = Game.residents.slot_of(vd.id) if vd != null else -1
 	return {"state": v.get("state"), "data": vd, "slot": slot}
 
 
@@ -86,8 +86,6 @@ func begin_greeting() -> bool:
 ## player, friendliest first.
 func _around_npcs(pal: Node3D) -> Array:
 	var out: Array = []
-	if Game == null or Game.residents == null:
-		return out
 	var here: Vector2i = _villager._current_block()
 	var nodes: Dictionary = {}
 	for node: Node in get_tree().get_nodes_in_group("villagers"):

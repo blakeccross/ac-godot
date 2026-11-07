@@ -184,11 +184,10 @@ func add_to_empty_slot(
 func _note_obtained(item: ItemData) -> void:
 	## `mIV_set_collect_itemNo` reads the "obtained once" bitfield — a fish/bug
 	## registers in the encyclopedia the moment it first reaches the pockets.
-	if (item is FishData or item is BugData) and Game != null and Game.species_log != null:
+	if item is FishData or item is BugData:
 		Game.species_log.record(item.id)
 	## `mSP_CollectCheck`: catalog pages fill in as goods reach the pockets.
-	if Game != null and Game.catalog != null:
-		Game.catalog.record(item.id)
+	Game.catalog.record(item.id)
 
 
 func remove(item_id: StringName, count: int = 1) -> int:
@@ -767,13 +766,13 @@ func tags_for_slot(index: int, touch: bool = false) -> PackedStringArray:
 		return tags
 	## A villager is waiting for their item (`mSM_IV_OPEN_QUEST` / `mSM_IV_OPEN_TAKE`): only
 	## what they asked for can be picked (`mTG_TYPE_QUEST_ITEM`).
-	if Game != null and Game.pocket_requests.handover_pending:
+	if Game.pocket_requests.handover_pending:
 		if Game.pocket_requests.handover_allows(index):
 			tags.append("Give")
 			tags.append("Quit")
 		return tags
 	## Nook is buying (`mSM_IV_OPEN_SELL`): `mTG_TYPE_SELL_ITEM` / `SELL_ALL_ITEM`.
-	if Game != null and Game.pocket_requests.sell_pending:
+	if Game.pocket_requests.sell_pending:
 		if slot.item.condition != InventoryItem.Condition.QUEST:
 			tags.append("Sell All" if is_marked(index) and marked_indices().size() > 1 else "Sell")
 			tags.append("Quit")
@@ -785,21 +784,20 @@ func tags_for_slot(index: int, touch: bool = false) -> PackedStringArray:
 		## Intro down payment (`aNRG_menu_open_wait_talk_proc`): the money bag is the
 		## only pocket item Nook will take on the station acre.
 		if (
-			Game != null
-			and Game.intro.payment_pending
+			Game.intro.payment_pending
 			and slot.item.item_id == &"money_1000"
 		):
 			tags.append("Give")
 			tags.append("Quit")
 		return tags
 	## A drawer or music player opened the pockets (`mTG_TYPE_PUTIN_ITEM`).
-	if Game != null and Game.pocket_requests.putin_pending:
+	if Game.pocket_requests.putin_pending:
 		if putin_allowed(data, Game.pocket_requests.putin_filter):
 			tags.append("Put Away")
 			tags.append("Quit")
 		return tags
 	## Blathers opened the pockets to receive a donation (`mTG_tag_hand_over_curator`).
-	if Game != null and Game.pocket_requests.donation_pending and MuseumDialogue.is_offerable(data):
+	if Game.pocket_requests.donation_pending and MuseumDialogue.is_offerable(data):
 		tags.append("Give")
 		tags.append("Quit")
 		return tags
@@ -814,14 +812,14 @@ func tags_for_slot(index: int, touch: bool = false) -> PackedStringArray:
 	var stationery: bool = data.id == FirstJob.PAPER_ID
 	if stationery:
 		tags.append("Write Letter")
-	if Game != null and Game.is_indoors() and not Game.is_decorating() and not stationery:
+	if Game.is_indoors() and not Game.is_decorating() and not stationery:
 		## Another room (`mTG_TYPE_CATCH_ITEM`): you can only pick things up.
 		tags.append("Quit")
 		return tags
-	if Game != null and Game.is_indoors() and not Game.is_decorating():
+	if Game.is_indoors() and not Game.is_decorating():
 		tags.append("Quit")
 		return tags
-	if Game != null and Game.is_decorating():
+	if Game.is_decorating():
 		## Your own room (`mTG_TYPE_ROOM_*`).
 		if data.droppable:
 			tags.append(drop)
@@ -840,8 +838,7 @@ func tags_for_slot(index: int, touch: bool = false) -> PackedStringArray:
 			tags.append("Release")
 		tags.append("Quit")
 		return tags
-	var plant_job: bool = Game != null and Game.first_job != null \
-			and Game.first_job.kind == FirstJob.Kind.PLANT_FLOWER \
+	var plant_job: bool = Game.first_job.kind == FirstJob.Kind.PLANT_FLOWER \
 			and Game.first_job.progress == FirstJob.PROGRESS_ACTIVE
 	if data.id == ShopGoods.GRAB_BAG:
 		## `mTG_field_hukubukuro`.

@@ -1,5 +1,5 @@
 class_name Rainbow
-extends RefCounted
+extends SaveBook
 
 ## The waterfall rainbow (`m_kankyo.c` `mEnv_rainbow_power_calc`, drawn by `ac_fallS` /
 ## `ac_fallSESW` as `obj_fall*_rainbowT_model`). A day that turns fine after rain or snow
@@ -51,13 +51,19 @@ func advance(on_month: int, on_day: int, now_sec: int, summer: bool, delta: floa
 		opacity = maxf(0.0, opacity - delta / FADE_OUT_SEC)
 
 
+func clear() -> void:
+	reserved = false
+	month = 0
+	day = 0
+	opacity = 0.0
+
+
 func to_save() -> Dictionary:
 	return {"reserved": reserved, "month": month, "day": day}
 
 
 func apply_snapshot(data: Variant) -> void:
-	reserved = false
-	opacity = 0.0
+	clear()
 	if typeof(data) != TYPE_DICTIONARY:
 		return
 	var d: Dictionary = data

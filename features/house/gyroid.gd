@@ -55,12 +55,12 @@ func refresh_seasonal_visual() -> void:
 ## and `mHS_get_pl_no(house_idx) == player_no`). The other three plots are empty in a
 ## one-player town, and all four are while the station intro is still picking.
 func has_owner() -> bool:
-	return Game != null and PlayerHouse.resident_slot(PlayerHouse.plot_building(house_idx)) >= 0
+	return PlayerHouse.resident_slot(PlayerHouse.plot_building(house_idx)) >= 0
 
 
 ## The owner is the resident playing (not another resident whose plot this is).
 func owner_is_player() -> bool:
-	return Game != null and PlayerHouse.is_owned_node(PlayerHouse.plot_building(house_idx))
+	return PlayerHouse.is_owned_node(PlayerHouse.plot_building(house_idx))
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
@@ -70,7 +70,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if action == null or action.id != Interaction.TALK or Game == null or _talking:
+	if action == null or action.id != Interaction.TALK or _talking:
 		return false
 	var listener: Node3D = ctx.actor as Node3D if ctx != null else _player()
 	var saving: bool = await _talk(listener)
@@ -154,13 +154,13 @@ func _talk(listener: Node3D) -> bool:
 	var is_mine: bool = owner_is_player()
 	var house: House = PlayerHouse.resident_house(PlayerHouse.plot_building(house_idx))
 	if house == null:
-		house = Game.interiors.player_house() if Game.interiors != null else null
+		house = Game.interiors.player_house()
 	var msg: GyroidTalk.Msg = GyroidTalk.decide_msg(
 		owned,
 		is_mine,
 		house != null and house.has_saved,
-		Game.first_job != null and Game.first_job.is_active(),
-		Game.relationships.friend_count() if Game.relationships != null else 0,
+		Game.first_job.is_active(),
+		Game.relationships.friend_count(),
 		house.gyroid_bells if house != null and owned else 0
 	)
 	if ui == null:
@@ -284,9 +284,9 @@ func _run_menu(menu: String, house: House) -> void:
 		GyroidTalk.MENU_DOOR:
 			## `mNW_OPEN_DESIGN` → `door_original = mNW_get_image_no(slot)`, SE 0x461.
 			var list_ui: DesignListOverlay = DesignListOverlay.find(tree)
-			if list_ui != null and Game.designs != null:
+			if list_ui != null:
 				var picked: Array[int] = [-1]
-				list_ui.open("pick_trade", func(slot: int) -> void: picked[0] = slot)
+				list_ui.open(DesignListOverlay.ListMode.PICK_TRADE, func(slot: int) -> void: picked[0] = slot)
 				if bool(list_ui.is_open()):
 					await list_ui.closed
 					## The list emits `closed` before it hands over the pick.
@@ -305,7 +305,7 @@ func _refresh_door() -> void:
 
 ## `aHNW_save_end_wait` → `aHNW_pl_approach_door` → door opens → `SCENE_PLAYERSELECT_SAVE`.
 func _save_walk() -> void:
-	var house_record: House = Game.interiors.player_house() if Game.interiors != null else null
+	var house_record: House = Game.interiors.player_house()
 	if house_record != null:
 		house_record.has_saved = true
 	Audio.play_bgm(&"enter_house")

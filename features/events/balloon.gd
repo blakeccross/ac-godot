@@ -352,7 +352,7 @@ static func true_present(r: RandomNumberGenerator) -> StringName:
 		var ftr: StringName = FurnitureCatalog.pick_named("ftr", "C", r)
 		if ftr != &"":
 			return ftr
-	var own: StringName = Game.town.town_fruit if Game != null else &"apple"
+	var own: StringName = Game.town.town_fruit
 	var others: Array[StringName] = []
 	for f: StringName in ShopBook.FRUITS:
 		if f != own:
@@ -367,7 +367,7 @@ func _out_of_town() -> bool:
 	var mgr: EventManager = EventManager.find(get_tree())
 	if mgr == null:
 		return false
-	var station: Vector2i = mgr.block_of("station")
+	var station: Vector2i = mgr.block_of(EventManager.BlockKind.STATION)
 	if station.x < 0:
 		return false
 	var local := Vector2(field.x - station.x * 640.0, field.y - station.y * 640.0)

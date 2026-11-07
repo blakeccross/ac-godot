@@ -47,10 +47,10 @@ const OUTLOOK_PAL_COUNT := 12
 @export var music_box: int = 0
 ## `mHm_goki_c`: cockroaches waiting in the house (0..10) and the day it was last played on
 ## (`goki.time`; year 0 = not recorded yet).
-@export var goki_count: int = 0
-@export var goki_year: int = 0
-@export var goki_month: int = 0
-@export var goki_day: int = 0
+@export var roach_count: int = 0
+@export var roach_year: int = 0
+@export var roach_month: int = 0
+@export var roach_day: int = 0
 ## `mHm_hs_c.flags.has_saved`: the owner has saved at the gyroid at least once
 ## (`aHNW_set_save_permission`). Until then a first-job player with no villager friends gets
 ## the "good luck with your part-time job" line instead of the menu.
@@ -103,8 +103,8 @@ func to_save() -> Dictionary:
 		"keep_house_size": keep_house_size,
 		## A string: JSON numbers are doubles and 55 bits do not fit.
 		"music_box": str(music_box),
-		"goki_count": goki_count,
-		"goki_date": [goki_year, goki_month, goki_day],
+		"goki_count": roach_count,
+		"goki_date": [roach_year, roach_month, roach_day],
 		"has_saved": has_saved,
 		"gyroid_items": _gyroid_items_to_save(),
 		"gyroid_message": gyroid_message,
@@ -157,7 +157,7 @@ func apply_snapshot(data: Variant) -> void:
 	)
 	keep_house_size = int(bag.get("keep_house_size", keep_house_size))
 	music_box = int(str(bag.get("music_box", music_box)))
-	goki_count = clampi(int(bag.get("goki_count", goki_count)), 0, 10)
+	roach_count = clampi(int(bag.get("goki_count", roach_count)), 0, 10)
 	has_saved = bool(bag.get("has_saved", has_saved))
 	var held: Variant = bag.get("gyroid_items", null)
 	if typeof(held) == TYPE_ARRAY:
@@ -176,11 +176,11 @@ func apply_snapshot(data: Variant) -> void:
 	gyroid_message = str(bag.get("gyroid_message", gyroid_message))
 	gyroid_bells = maxi(0, int(bag.get("gyroid_bells", gyroid_bells)))
 	door_original = int(bag.get("door_original", door_original))
-	var goki_date: Variant = bag.get("goki_date", [])
-	if typeof(goki_date) == TYPE_ARRAY and (goki_date as Array).size() >= 3:
-		goki_year = int((goki_date as Array)[0])
-		goki_month = int((goki_date as Array)[1])
-		goki_day = int((goki_date as Array)[2])
+	var roach_date: Variant = bag.get("goki_date", [])
+	if typeof(roach_date) == TYPE_ARRAY and (roach_date as Array).size() >= 3:
+		roach_year = int((roach_date as Array)[0])
+		roach_month = int((roach_date as Array)[1])
+		roach_day = int((roach_date as Array)[2])
 	var ids: Variant = bag.get("rooms", [])
 	if typeof(ids) != TYPE_ARRAY:
 		return

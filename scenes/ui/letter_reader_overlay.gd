@@ -69,8 +69,7 @@ func open(mail: MailData) -> void:
 	_board.footer = mail.footer
 
 	mail.mark_read()
-	if Game != null and Game.inventory != null:
-		Game.inventory.mail_changed.emit()
+	Game.inventory.mail_changed.emit()
 
 	Audio.play_se(&"cursol")
 	_slide(true)

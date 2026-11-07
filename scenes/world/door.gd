@@ -1,3 +1,4 @@
+class_name Door
 extends Node3D
 
 ## Door / entrance sensor. Compose under a building or place as its own world object.
@@ -216,13 +217,13 @@ func _resolved_room(target: StringName = &"") -> Room:
 	if entry == &"":
 		return null
 	var room_id: StringName = InteriorCatalog.resolve_entry(entry)
-	if room_id == &"" or Game.interiors == null:
+	if room_id == &"":
 		return null
 	return Game.interiors.room(room_id)
 
 
 func _is_museum_room(room_id: StringName) -> bool:
-	if room_id == &"" or Game.interiors == null:
+	if room_id == &"":
 		return false
 	var room: Room = Game.interiors.room(room_id)
 	return room != null and room.kind == Room.Kind.MUSEUM
