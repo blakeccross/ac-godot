@@ -1,3 +1,4 @@
+class_name FieldFlower
 extends Node3D
 
 ## Outdoor flower. Growth is derived from `Game.town.plant_states`; this scene presents it.

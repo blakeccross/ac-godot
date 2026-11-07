@@ -153,5 +153,5 @@ static func add_furniture(root: Node3D, interior: IndoorSession, entry: Furnitur
 		VisualCloth.apply_cloth(node, entry.cloth_index)
 	if node.has_method("apply_grid_yaw"):
 		node.call("apply_grid_yaw", entry.facing)
-	if node.has_method("apply_footprint"):
-		node.call("apply_footprint", interior.grid.cell_size)
+	if node is Furniture:
+		(node as Furniture).apply_footprint(interior.grid.cell_size)

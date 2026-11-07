@@ -1,5 +1,5 @@
 class_name TownTuneOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## The town tune editor at the tune board (`m_mscore_ovl.c`), in 320x240 screen units.
 ## Sixteen frogs in two rows of eight, each one step of the tune: ←/→ (A / B, C-left /

@@ -1,3 +1,4 @@
+class_name FestivalVillager
 extends EventNpc
 
 ## A resident out at a festival (`ac_hanabi_npc0`, `ac_hanami_npc0`, `ac_tukimi_npc1`, …). The
@@ -35,7 +36,7 @@ var _race_center: Vector3 = Vector3.INF
 var _race_to_finish: bool = false
 ## New Year's queue (`ShrineQueue`): where this villager is on its column's round.
 enum Shrine { WALK, FRONT, SAISEN, OMAIRI, AFTER, BOW, BACK }
-var _well: Node3D
+var _well: WishingWell
 var _sq_leg: int = 0
 var _sq_state: int = Shrine.WALK
 var _sq_timer: float = 0.0
@@ -409,7 +410,7 @@ func can_talk() -> bool:
 
 
 func _setup_shrine() -> void:
-	_well = get_tree().get_first_node_in_group("wishing_well") as Node3D if get_tree() != null else null
+	_well = get_tree().get_first_node_in_group("wishing_well") as WishingWell if get_tree() != null else null
 	if _well == null:
 		return
 	_queue = ShrineQueue.join(get_parent())
@@ -552,7 +553,7 @@ func _sq_let_through() -> void:
 
 
 func _player_offering(player: Player) -> void:
-	var stand: Array = _well.call("visit_stand")
+	var stand: Array = _well.visit_stand()
 	var at: Vector3 = stand[0]
 	at.y = player.global_position.y
 	player.doors.begin_demo_walk(at, ShrineQueue.PLAYER_WALK_SPEED, 0.05)
@@ -565,7 +566,7 @@ func _player_offering(player: Player) -> void:
 		player.doors.end_demo_walk()
 	var ui := DialogueOverlay.find(get_tree()) if is_inside_tree() else null
 	if ui != null and is_instance_valid(player) and is_instance_valid(_well):
-		await _well.call("offer_wish", ui, player)
+		await _well.offer_wish(ui, player)
 	_queue.step_down(ShrineQueue.PLAYER)
 	_queue.player_state = ShrineQueue.PlayerState.DONE
 

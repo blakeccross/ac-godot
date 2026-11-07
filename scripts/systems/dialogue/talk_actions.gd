@@ -1,50 +1,49 @@
 class_name TalkActions
 extends RefCounted
 
-## Plays a `BankTalk` step that needs the world: the pockets opened for a hand-over
-## (`{"hand": …}`) or an item passed across (`{"anim": {"give"|"take": item}}`), then answers
-## the runner. Shared by villagers and event NPCs.
+## Plays a `TalkStep` demo that needs the world: the pockets opened for a hand-over, the
+## letter board, or an item passed across, then answers the runner. Shared by villagers and
+## event NPCs.
 
 
-static func handle(action: Dictionary, ui: DialogueOverlay, npc: Node3D, player: Node3D) -> void:
+static func handle(step: TalkStep, ui: DialogueOverlay, npc: Node3D, player: Node3D) -> void:
 	var runner: DialogueRunner = ui.runner() if ui != null else null
 	if runner == null:
 		return
 	ui.set_suspended(true)
-	if action.has("hand"):
-		var hand: Dictionary = action["hand"]
-		Game.pocket_requests.request_handover(int(hand.get("pocket", -1)), str(hand.get("mode", "quest")))
+	if step.pockets_mode != "":
+		Game.pocket_requests.request_handover(step.pocket, step.pockets_mode)
 		var picked: Array = await Game.pocket_requests.handover_resolved
 		ui.set_suspended(false)
-		runner.resolve_action({"item": picked[0], "pocket": picked[1]})
+		runner.resolve_action(picked[0], picked[1])
 		return
-	if action.has("text"):
-		var text: String = await _edit_text(action["text"], ui)
+	if step.text_len > 0:
+		var text: String = await _edit_text(step, ui)
 		ui.set_suspended(false)
-		runner.resolve_action({"text": text})
+		runner.resolve_action(&"", -1, text)
 		return
-	var anim: Dictionary = action.get("anim", {})
 	if player != null and is_instance_valid(player) and npc != null and is_instance_valid(npc):
-		if anim.has("give"):
-			await HandOver.npc_gives_to_player(npc, player, anim["give"])
-		elif anim.has("take"):
-			await HandOver.player_gives_to_npc(player, npc, anim["take"])
+		match step.handover:
+			TalkStep.Handover.NPC_GIVES:
+				await HandOver.npc_gives_to_player(npc, player, step.item)
+			TalkStep.Handover.PLAYER_GIVES:
+				await HandOver.player_gives_to_npc(player, npc, step.item)
 	ui.set_suspended(false)
-	runner.resolve_action({})
+	runner.resolve_action()
 
 
-## `mSM_OVL_LEDIT` on the letter board: one line of `len` characters; resolves with the text
-## (empty if the board is missing).
-static func _edit_text(spec: Dictionary, ui: DialogueOverlay) -> String:
+## `mSM_OVL_LEDIT` on the letter board: `text_lines` lines of `text_len` characters; resolves
+## with the text (empty if the board is missing).
+static func _edit_text(step: TalkStep, ui: DialogueOverlay) -> String:
 	var tree: SceneTree = ui.get_tree() if ui != null else null
 	if tree == null:
 		return ""
 	var board: LetterWriterOverlay = LetterWriterOverlay.find(tree)
-	if board == null or bool(board.is_open()):
+	if board == null or board.is_open():
 		return ""
 	var box: Array = [""]
-	board.call(
-		"open_board", str(spec.get("initial", "")), int(spec.get("lines", 1)), int(spec.get("len", 16)),
+	board.open_board(
+		step.text_initial, step.text_lines, step.text_len,
 		func(text: String) -> void: box[0] = text
 	)
 	await board.closed

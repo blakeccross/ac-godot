@@ -66,8 +66,8 @@ func start() -> bool:
 		var villager: VillagerData = VillagerCatalog.get_villager(chosen[i])
 		if villager == null:
 			continue
-		var node: Node3D = (load(VILLAGER_SCENE) as PackedScene).instantiate() as Node3D
-		node.call("assign", villager, FestivalCrowd.family_of(e["actor"]), FestivalCrowd.slot_of(e["actor"]), cloth)
+		var node := (load(VILLAGER_SCENE) as PackedScene).instantiate() as FestivalVillager
+		node.assign(villager, FestivalCrowd.family_of(e["actor"]), FestivalCrowd.slot_of(e["actor"]), cloth)
 		mgr.add_actor(id, node, e["cell"], _face(e["cell"], props, center), i + 1)
 		_away.append(chosen[i])
 	for e: Dictionary in entries:

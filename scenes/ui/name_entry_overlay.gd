@@ -1,5 +1,5 @@
 class_name NameEntryOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## Text entry window (`m_ledit_ovl.c`) over the pad keyboard (`KeyboardPanel`). Opened
 ## after the editor saves a fresh design (`aNNW_talk_design_open3`) to set

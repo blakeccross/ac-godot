@@ -72,19 +72,19 @@ func start_msg() -> int:
 
 
 ## `aEGH_give_me_wait` ("Please, show them to me!") and `aEGH_give_you_wait` (the gift).
-func lock_continue() -> Dictionary:
+func lock_continue() -> TalkStep:
 	if current_msg == MSG_ALL and not _taken and order_value("npc0", 9) == 1:
 		_taken = true
 		if inventory != null:
 			inventory.remove(WispEvent.SPIRIT_ID, WispEvent.spirit_count(inventory))
-		return {"anim": {"take": WispEvent.SPIRIT_ID}}
+		return TalkStep.take(WispEvent.SPIRIT_ID)
 	if current_msg == MSG_ITEM and not _given and item != &"" and order_value("npc0", 1) == 2:
 		_given = true
 		var data: ItemData = ItemCatalog.get_item(item)
 		if data != null and inventory != null:
 			inventory.add(data, 1)
-		return {"anim": {"give": item}}
-	return {}
+		return TalkStep.give(item)
+	return null
 
 
 func picked(msg_no: int, index: int) -> int:

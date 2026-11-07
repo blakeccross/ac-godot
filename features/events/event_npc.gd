@@ -308,7 +308,7 @@ func begin_talk(listener: Node3D, script: BankTalk = null, turn_player: bool = t
 	return true
 
 
-func _on_talk_action(action: Dictionary, ui: DialogueOverlay, player: Node3D) -> void:
+func _on_talk_action(action: TalkStep, ui: DialogueOverlay, player: Node3D) -> void:
 	await TalkActions.handle(action, ui, self, player)
 
 

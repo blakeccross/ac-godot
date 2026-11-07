@@ -242,12 +242,12 @@ func test_full_pockets_dig_it_up_then_bury_it_again() -> void:
 func test_dig_report_asks_to_swap_when_full() -> void:
 	var t := DigReport.new(&"apple", false)
 	t.current_msg = DigReport.MSG_GOT
-	assert_int(int(t.next_step()["msg"])).is_equal(DigReport.MSG_FULL)
+	assert_int(t.next_step().msg).is_equal(DigReport.MSG_FULL)
 	t.picked(DigReport.MSG_FULL, 0)
 	assert_bool(t.swap).is_true()
 	var ok := DigReport.new(&"apple", true)
 	ok.current_msg = DigReport.MSG_GOT
-	assert_bool(ok.next_step().is_empty()).is_true()
+	assert_bool(ok.next_step() == null).is_true()
 
 
 func test_paying_off_the_loan_queues_the_cheer() -> void:

@@ -95,7 +95,7 @@ static func field_rocks(world: Node) -> Dictionary:
 	if grid == null:
 		return out
 	for node: Node in world.get_tree().get_nodes_in_group("interactable"):
-		if not node is Node3D or not node.has_method("is_rock") or node.is_queued_for_deletion():
+		if not node is FieldRock or node.is_queued_for_deletion():
 			continue
 		var id: StringName = node.get("occupant_id") as StringName
 		if id == &"":

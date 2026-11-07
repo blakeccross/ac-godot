@@ -1,5 +1,5 @@
 class_name DebugConsoleOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## Minecraft-style debug console. Open with `/` or ` (backtick). Tab completes. The commands
 ## themselves are `DebugConsole`.

@@ -10,8 +10,8 @@ extends RefCounted
 ## - `picked(msg_no, index)` — a choice inside a message was taken (`mChoice_Get_ChoseNum`).
 ##   Return a message number to go there instead (`mMsg_Set_continue_msg_num`), or -1 to
 ##   follow the message's own branch.
-## - `next_step()` — a message ended on `MSGCONTINUE` with nowhere to go: return
-##   `{"msg": n}` to continue, `{"anim": {...}}` / `{"hand": {...}}` for a demo, or `{}`.
+## - `next_step()` — a message ended on `MSGCONTINUE` with nowhere to go: return a
+##   `TalkStep` (a message, a demo, or both), or null to end.
 ## - `npc_order(target, slot, value)` — `mDemo_ORDER_NPC0..2` values the messages set.
 ## - `finish()` — the talk closed.
 ##
@@ -46,35 +46,34 @@ func continue_to(_from_msg: int, to_msg: int) -> int:
 	return to_msg
 
 
-## A choice that opens a demo instead of a message (`{"hand"|"text"|"anim": …}`).
-func pick_step(_msg_no: int, _index: int) -> Dictionary:
-	return {}
+## A choice that opens a demo (pockets, letter board, hand-over) instead of a message.
+func pick_step(_msg_no: int, _index: int) -> TalkStep:
+	return null
 
 
-## The text editor closed after a `{"text": {"initial", "lines", "len"}}` step
-## (`mSM_OVL_LEDIT`).
-func text_result(_text: String) -> Dictionary:
-	return {}
+## The letter board closed after a `TalkStep.edit_text` step (`mSM_OVL_LEDIT`).
+func text_result(_text: String) -> TalkStep:
+	return null
 
 
-func next_step() -> Dictionary:
-	return {}
+func next_step() -> TalkStep:
+	return null
 
 
-## A page is about to move on (`mMsg_SET_LOCKCONTINUE`): return `{"anim": {...}}` to play
-## a demo first, or `{}`.
-func lock_continue() -> Dictionary:
-	return {}
+## A page is about to move on (`mMsg_SET_LOCKCONTINUE`): return a hand-over to play first,
+## or null.
+func lock_continue() -> TalkStep:
+	return null
 
 
-## Answer to a menu `next_step` put up with `{"msg", "choices"}`.
-func choose(_index: int) -> Dictionary:
-	return {}
+## Answer to a menu a step put up with `TalkStep.show(msg, choices)`.
+func choose(_index: int) -> TalkStep:
+	return null
 
 
-## The pockets closed after a `{"hand": …}` step.
-func hand_result(_item: StringName, _pocket: int = -1) -> Dictionary:
-	return {}
+## The pockets closed after a `TalkStep.open_pockets` step.
+func hand_result(_item: StringName, _pocket: int = -1) -> TalkStep:
+	return null
 
 
 ## `mDemo_ORDER_QUEST` (villager quest talk only).
@@ -108,21 +107,6 @@ func set_free(index: int, text: String) -> void:
 ## `mFont_UnintToString(…, 5, TRUE, FALSE, TRUE)`: a price as the messages print it.
 static func number(value: int) -> String:
 	return str(value)
-
-
-## Step helpers.
-static func msg(n: int, choices: Array = []) -> Dictionary:
-	if choices.is_empty():
-		return {"msg": n}
-	return {"msg": n, "choices": choices}
-
-
-static func give(item: StringName) -> Dictionary:
-	return {"anim": {"give": item}}
-
-
-static func take(item: StringName) -> Dictionary:
-	return {"anim": {"take": item}}
 
 
 ## One message and whatever it chains to by itself (`aNTT_set_force_talk_info` and co.).

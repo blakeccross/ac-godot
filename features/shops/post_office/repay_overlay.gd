@@ -1,5 +1,5 @@
 class_name RepayOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## The post office's loan screen (`m_repay_ovl.c`), in 320x240 screen units: "Your Loan",
 ## Cash, the six-digit amount with the picked digit in red, OK, and what is still owed.

@@ -183,12 +183,12 @@ func spawn(bug: BugData, habitat: BugData.Habitat, at: Vector3, released: bool =
 		## Tie the HIDE trigger to the cell it spawned on (tree / rock / dig spot).
 		var cell: Vector2i = _grid.world_to_cell(at)
 		var prog: BugBehavior = actor._prog
-		if prog.has_method("set_tree_cell"):
-			prog.call("set_tree_cell", cell)
-		if prog.has_method("set_dig_cell"):
-			prog.call("set_dig_cell", cell)
-		if prog.has_method("set_rock_cell"):
-			prog.call("set_rock_cell", cell)
+		if prog is Bagworm:
+			(prog as Bagworm).set_tree_cell(cell)
+		elif prog is MoleCricket:
+			(prog as MoleCricket).set_dig_cell(cell)
+		elif prog is PillBug:
+			(prog as PillBug).set_rock_cell(cell)
 	actors.append(actor)
 	return actor
 

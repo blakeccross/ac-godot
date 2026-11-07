@@ -23,7 +23,7 @@ static func rect_of(control: Control) -> Rect2:
 	return Rect2(min_point, max_point - min_point)
 
 
-static func fit(host: Node, root: Control, screen: Control) -> void:
+static func fit(host: MenuOverlay, root: Control, screen: Control) -> void:
 	if root == null or screen == null:
 		return
 	_bind_close(host, root)
@@ -61,8 +61,8 @@ static func fit(host: Node, root: Control, screen: Control) -> void:
 		close.z_index = 20
 
 
-static func _bind_close(host: Node, root: Control) -> void:
-	if host == null or not host.has_method(&"dismiss"):
+static func _bind_close(host: MenuOverlay, root: Control) -> void:
+	if host == null:
 		return
 	var close := root.get_node_or_null("MobileClose") as Button
 	if close == null:
@@ -72,4 +72,4 @@ static func _bind_close(host: Node, root: Control) -> void:
 	if bool(close.get_meta("dismiss_bound", false)):
 		return
 	close.set_meta("dismiss_bound", true)
-	close.pressed.connect(func() -> void: host.call(&"dismiss"))
+	close.pressed.connect(host.dismiss)

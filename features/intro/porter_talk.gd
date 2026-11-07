@@ -89,11 +89,11 @@ func entered(msg_no: int) -> void:
 			result = Result.FAILED
 
 
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	match current_msg:
 		SAVE_PASSPORT, SAVE_NEXTLAND:
-			return {"msg": READY} if result != Result.FAILED else {}
-	return {}
+			return TalkStep.show(READY) if result != Result.FAILED else {}
+	return null
 
 
 func finish() -> void:

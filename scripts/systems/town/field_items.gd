@@ -213,8 +213,8 @@ static func _refresh_node(tree: SceneTree, pid: StringName) -> void:
 			if grid != null:
 				grid.remove(pid)
 			node.queue_free()
-		elif node.has_method("set_item"):
-			node.call("set_item", ItemCatalog.get_item(StringName(str((Game.town.field_items[String(pid)] as Dictionary).get("id", "")))))
+		elif node is ItemPickup:
+			(node as ItemPickup).set_item(ItemCatalog.get_item(StringName(str((Game.town.field_items[String(pid)] as Dictionary).get("id", "")))))
 
 
 static func _instance(world: Node, grid: WorldGrid, cell: Vector2i, pid: StringName) -> ItemPickup:

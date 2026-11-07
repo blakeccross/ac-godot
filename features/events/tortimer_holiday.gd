@@ -183,15 +183,15 @@ static func _day_string(ordinal: int) -> String:
 
 
 ## `aES2_talk_before_give` → `aES2_talk_give`.
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if is_vacation(event) or current_msg != msg_for(_first_idx) or _first_idx > 1:
-		return {}
+		return null
 	if inventory == null or not inventory.has_space(1):
-		return msg(msg_for(2))
+		return TalkStep.show(msg_for(2))
 	var data: ItemData = ItemCatalog.get_item(item)
 	if data != null:
 		inventory.add(data, 1)
 	var trophies: Dictionary = record.get("trophies", {})
 	trophies[str(event)] = true
 	record["trophies"] = trophies
-	return {"anim": {"give": item}, "msg": msg_for(3)}
+	return TalkStep.give(item).then_show(msg_for(3))

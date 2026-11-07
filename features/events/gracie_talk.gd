@@ -78,18 +78,18 @@ func start_msg() -> int:
 
 
 ## `aEDSN_inventory_check_talk_proc` (the message's order 9) / `aEDSN_check_result_talk_proc`.
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if kind == Kind.RESULT and current_msg == _first:
 		return _result()
 	if kind == Kind.NORMAL and current_msg == _first and not complete and not area.has("gift"):
 		if inventory == null or not inventory.has_space(1):
-			return {}
+			return null
 		wants_wash = true
-		return msg(msg_no(26 if holding_tool else 19))
-	return {}
+		return TalkStep.show(msg_no(26 if holding_tool else 19))
+	return null
 
 
-func _result() -> Dictionary:
+func _result() -> TalkStep:
 	area["complete"] = true
 	var given: Array = area.get("gifted", [])
 	match result:
@@ -99,7 +99,7 @@ func _result() -> Dictionary:
 			present = FurnitureCatalog.pick_named("cloth", "A", rng, given)
 	var n: int = msg_no(RESULT_MSG_IDX[clampi(result, 0, 2)])
 	if present == &"":
-		return msg(n)
+		return TalkStep.show(n)
 	var data: ItemData = ItemCatalog.get_item(present)
 	if data != null and inventory != null:
 		inventory.add(data, 1)
@@ -107,4 +107,4 @@ func _result() -> Dictionary:
 	area["gifted"] = given
 	area["gift"] = String(present)
 	## The shirt changes hands after her lines (`aEDSN_demo_start_wait_talk_proc`).
-	return msg(n)
+	return TalkStep.show(n)

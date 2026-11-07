@@ -60,13 +60,13 @@ func start_msg() -> int:
 	return MSG_CHAT + rng.randi_range(0, 5)
 
 
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	match current_msg:
 		MSG_GIFT, MSG_GIFT_LATE:
 			return _hand_over()
 	if current_msg >= MSG_WAKE and current_msg < MSG_WAKE + 6:
-		return msg(_offer(false))
-	return {}
+		return TalkStep.show(_offer(false))
+	return null
 
 
 ## `aEDZ_to_ageru` / `aEDZ_to_ageru2`.
@@ -78,7 +78,7 @@ func _offer(late: bool) -> int:
 
 
 ## `aEDZ_ageru`: the keepsake goes straight into the pockets, then changes hands.
-func _hand_over() -> Dictionary:
+func _hand_over() -> TalkStep:
 	gift = FurnitureCatalog.pick("jonason", rng)
 	var item: ItemData = ItemCatalog.get_item(gift)
 	if item != null and inventory != null:
@@ -87,5 +87,5 @@ func _hand_over() -> Dictionary:
 	Game.events.dozaemon_completed = true
 	var bye: int = MSG_BYE_FIRST if bool(area.get("gave_first", false)) else MSG_BYE_LATE
 	if gift == &"":
-		return msg(bye)
-	return {"anim": {"give": gift}, "msg": bye}
+		return TalkStep.show(bye)
+	return TalkStep.give(gift).then_show(bye)

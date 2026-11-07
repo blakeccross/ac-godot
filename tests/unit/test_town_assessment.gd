@@ -93,4 +93,4 @@ func test_well_names_the_acre_to_look_at() -> void:
 	assert_bool(talk.summon_spirit).is_false()
 	## Nothing to apologize for.
 	assert_int(talk.picked(WishingWellTalk.MSG_ASK, 1)).is_equal(WishingWellTalk.MSG_NOTHING_TO_APOLOGIZE)
-	assert_bool(talk.pick_step(WishingWellTalk.MSG_ASK, 1).is_empty()).is_true()
+	assert_bool(talk.pick_step(WishingWellTalk.MSG_ASK, 1) == null).is_true()

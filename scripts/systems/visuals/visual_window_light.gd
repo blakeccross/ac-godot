@@ -219,9 +219,9 @@ static func room_prim_color() -> Color:
 	## `InteriorLightModel`. Otherwise fine-weather `room_color` from `l_mEnv_kcolor_fine_data`.
 	if _indoor_room_prim.a > 0.0:
 		return _indoor_room_prim
-	var clock: Node = Engine.get_main_loop().root.get_node_or_null("/root/Clock")
-	if clock != null and clock.has_method("outdoor_light"):
-		var pal: Dictionary = clock.call("outdoor_light") as Dictionary
+	var clock := Engine.get_main_loop().root.get_node_or_null("/root/Clock") as ClockService
+	if clock != null:
+		var pal: Dictionary = clock.outdoor_light()
 		if pal.has("room"):
 			return pal["room"] as Color
 	return Color8(200, 240, 240)

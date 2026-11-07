@@ -326,8 +326,8 @@ static func _face_toward(actor: Node3D, target: Vector3) -> void:
 	if to.length_squared() <= 0.0001:
 		return
 	var yaw: float = atan2(to.x, to.z)
-	if actor.has_method("set_facing"):
-		actor.call("set_facing", yaw)
+	if actor is Player:
+		(actor as Player).set_facing(yaw)
 		return
 	actor.rotation.y = yaw
 

@@ -1,3 +1,4 @@
+class_name Furniture
 extends StaticBody3D
 
 ## Placed furniture. Verbs come from `FurnitureData` via `FurnitureUse`.

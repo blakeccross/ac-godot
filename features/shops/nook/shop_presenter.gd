@@ -57,7 +57,7 @@ func _stock(root: Node3D, interior: IndoorSession, shop_id: StringName) -> void:
 			var stock: Node3D = _add_stock(root, i, shop_id, listed[i], _slot_pos(interior, row))
 			var half: float = float(row.get("half", 0.0))
 			if half > 0.0 and stock != null:
-				stock.call("set_footprint", half)
+				(stock as ShopStock).set_footprint(half)
 
 
 static func _slot_pos(interior: IndoorSession, slot: Dictionary) -> Vector3:

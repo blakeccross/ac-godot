@@ -85,8 +85,8 @@ func test_kapp_n_talks_in_the_players_voice_and_asks_for_a_name() -> void:
 	assert_bool(talk.ride).is_true()
 	talk.current_msg = 0x3079
 	talk.npc_order("npc0", 9, 1)
-	assert_dict(talk.next_step()).contains_keys(["text"])
-	assert_int(int(talk.text_result("Mira")["msg"])).is_equal(0x30BE)
+	assert_int(talk.next_step().text_len).is_greater(0)
+	assert_int(talk.text_result("Mira").msg).is_equal(0x30BE)
 	assert_str(Game.town.island_name).is_equal("Mira")
 	Game.town.island_name = ""
 
@@ -217,12 +217,12 @@ func test_the_islander_chats_after_the_greeting_without_the_quest_menu() -> void
 	Game.island_visit = was_island
 	assert_object(m).is_not_null()
 	assert_int(m.slot).is_equal(-1)
-	var first: Dictionary = m.next_step()
-	var msg: int = int(first["msg"])
+	var first: TalkStep = m.next_step()
+	var msg: int = first.msg
 	var base: int = VillagerTalkManager.ISLAND_CHAT[m.looks]
 	assert_int(msg).is_between(base, base + VillagerTalkManager.ISLAND_CHAT_COUNT)
 	assert_object(DialogueCatalog.conversation(StringName("msg_%d" % msg))).is_not_null()
-	assert_bool(m.next_step().is_empty()).is_true()  ## and then the talk is over
+	assert_bool(m.next_step() == null).is_true()  ## and then the talk is over
 
 
 func test_a_knock_while_the_islander_sleeps_is_answered_from_inside() -> void:

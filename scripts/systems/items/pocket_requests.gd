@@ -55,7 +55,8 @@ func request_handover(pocket: int, mode: String = "quest") -> void:
 	handover_pocket = pocket
 	handover_mode = mode
 	if not _open_pockets():
-		cancel_handover()
+		## Deferred: the asker awaits `handover_resolved` right after this call returns.
+		cancel_handover.call_deferred()
 
 
 ## May this pocket be handed over right now?

@@ -61,7 +61,7 @@ var month: int
 var day: int
 ## The card (or radio) changing hands, and what he does at each message's end.
 var held: StringName = &""
-var _steps: Dictionary = {}
+var _steps: Dictionary[int, TalkStep] = {}
 var _take_old: bool = false
 
 
@@ -211,7 +211,7 @@ func start_msg() -> int:
 		return MSG_FOREIGNER
 	var time: int = time_check(card, year, month, day)
 	if time == Stamp.SAME_DAY:
-		_steps[MSG_SAME_DAY] = {"msg": MSG_SAME_DAY_AFTER + rng.randi_range(0, 2)}
+		_steps[MSG_SAME_DAY] = TalkStep.show(MSG_SAME_DAY_AFTER + rng.randi_range(0, 2))
 		return MSG_SAME_DAY
 	var cards: int = card_count(inventory)
 	var current: StringName = held_card(inventory)
@@ -224,20 +224,20 @@ func start_msg() -> int:
 		Action.NEW_CARD:
 			var first: int = MSG_NEW_AGAIN if marked else MSG_NEW
 			if not room:
-				_steps[first] = {"msg": MSG_NEW_FULL}
+				_steps[first] = TalkStep.show(MSG_NEW_FULL)
 				return first
 			held = card_id(0)
 			_give(held)
 			_stamp(0)
-			_steps[first] = {"msg": MSG_NEW_GIVE}
-			_steps[MSG_NEW_GIVE] = {"anim": {"give": held}, "msg": MSG_NEW_AFTER}
+			_steps[first] = TalkStep.show(MSG_NEW_GIVE)
+			_steps[MSG_NEW_GIVE] = TalkStep.give(held).then_show(MSG_NEW_AFTER)
 			return first
 		Action.LOST_CARD, Action.LOST_CARD_AND_FINISH:
 			var finish: bool = int(card.get("days", 0)) == DAYS - 1
 			var first: int = MSG_LOST_AGAIN if marked else MSG_LOST
 			set_free(0, str(int(card.get("days", 0)) + 2))
 			if not room:
-				_steps[first] = {"msg": MSG_LOST_FINISH_FULL if finish else MSG_LOST_FULL}
+				_steps[first] = TalkStep.show(MSG_LOST_FINISH_FULL if finish else MSG_LOST_FULL)
 				return first
 			var days: int = int(card.get("days", 0)) + 1
 			held = radio_id() if finish else card_id(days)
@@ -245,11 +245,11 @@ func start_msg() -> int:
 			_stamp(days)
 			if finish:
 				_set_prize_name()
-				_steps[first] = {"msg": MSG_LOST_FINISH}
-				_steps[MSG_LOST_FINISH] = {"anim": {"give": held}, "msg": MSG_PRIZE}
+				_steps[first] = TalkStep.show(MSG_LOST_FINISH)
+				_steps[MSG_LOST_FINISH] = TalkStep.give(held).then_show(MSG_PRIZE)
 			else:
-				_steps[first] = {"msg": MSG_LOST_GIVE}
-				_steps[MSG_LOST_GIVE] = {"anim": {"give": held}, "msg": MSG_LOST_AFTER}
+				_steps[first] = TalkStep.show(MSG_LOST_GIVE)
+				_steps[MSG_LOST_GIVE] = TalkStep.give(held).then_show(MSG_LOST_AFTER)
 			return first
 		Action.STAMP_CARD:
 			var days: int = held_days + 1
@@ -257,33 +257,33 @@ func start_msg() -> int:
 			held = card_id(days)
 			_swap_card(current, held)
 			set_free(0, str(days + 1))
-			_steps[MSG_STAMP] = {"anim": {"take": current}, "msg": MSG_STAMP_COUNT}
-			_steps[MSG_STAMP_COUNT] = {"anim": {"give": held}, "msg": MSG_STAMP_AFTER}
+			_steps[MSG_STAMP] = TalkStep.take(current).then_show(MSG_STAMP_COUNT)
+			_steps[MSG_STAMP_COUNT] = TalkStep.give(held).then_show(MSG_STAMP_AFTER)
 			return MSG_STAMP
 		Action.FINISH_CARD:
 			_stamp(held_days + 1)
 			held = radio_id()
 			_swap_card(current, held)
 			_set_prize_name()
-			_steps[MSG_FINISH] = {"anim": {"take": current}, "msg": MSG_FINISH_COUNT}
-			_steps[MSG_FINISH_COUNT] = {"msg": MSG_FINISH_PRESENT}
-			_steps[MSG_FINISH_PRESENT] = {"anim": {"give": held}, "msg": MSG_PRIZE}
+			_steps[MSG_FINISH] = TalkStep.take(current).then_show(MSG_FINISH_COUNT)
+			_steps[MSG_FINISH_COUNT] = TalkStep.show(MSG_FINISH_PRESENT)
+			_steps[MSG_FINISH_PRESENT] = TalkStep.give(held).then_show(MSG_PRIZE)
 			return MSG_FINISH
-	_steps[MSG_TOO_LATE] = {"msg": MSG_TOO_LATE_AFTER + rng.randi_range(0, 2)}
+	_steps[MSG_TOO_LATE] = TalkStep.show(MSG_TOO_LATE_AFTER + rng.randi_range(0, 2))
 	return MSG_TOO_LATE
 
 
-func next_step() -> Dictionary:
-	return (_steps.get(current_msg, {}) as Dictionary).duplicate()
+func next_step() -> TalkStep:
+	return _steps.get(current_msg)
 
 
 ## `mSCR_talk_pickup_all`: "Hand it over" takes every card.
-func lock_continue() -> Dictionary:
+func lock_continue() -> TalkStep:
 	if current_msg == MSG_OLD_CARD and _take_old and order_value("npc0", 9) == 1:
 		_take_old = false
 		var shown: StringName = held_card(inventory)
 		for d: int in DAYS:
 			if inventory != null:
 				inventory.remove(card_id(d), inventory.count_of(card_id(d)))
-		return {"anim": {"take": shown}}
-	return {}
+		return TalkStep.take(shown)
+	return null

@@ -159,7 +159,7 @@ func _contacts(delta: float) -> void:
 			continue
 		touched = body
 		## `mQst_CheckSoccerTarget`: the resident who asked for it keeps it there.
-		if body != _collider and body.has_method("take_soccer_ball") and bool(body.call("take_soccer_ball")):
+		if body != _collider and body is Villager and (body as Villager).take_soccer_ball():
 			speed = 0.0
 			vy = minf(vy, 0.0)
 			_collider = body

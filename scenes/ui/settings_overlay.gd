@@ -1,5 +1,5 @@
 class_name SettingsOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## Screen shape and controls remapping. Open from the pause menu or the title. Process always so it works while
 ## the tree is paused.

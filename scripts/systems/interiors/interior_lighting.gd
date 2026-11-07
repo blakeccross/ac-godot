@@ -10,35 +10,27 @@ static func apply(
 	host: Node3D, world_env: WorldEnvironment, camera: Camera3D, grid: WorldGrid, room: Room
 ) -> void:
 	refresh_light(host, world_env, grid, room)
-	if camera != null and allows_camera_index(room) and camera.has_method("follow_in_room"):
+	var follow := camera as FollowCamera
+	if follow == null:
+		return
+	if allows_camera_index(room):
 		## The normal 620 GX camera following the player inside the room
 		## (`Camera2_main_Normal_SetEndCenterPos_fromPlayer`). Pulled back when the south
 		## door would sit under the lens, so a tap has floor past the wall.
 		var room_box: AABB = InteriorShellBuilder.shell_bounds(room, grid)
-		camera.set(
-			"offset",
-			FollowCamera.offset_to_show_south(room_box, InteriorShellBuilder.south_floor_z(room, grid))
-		)
-		camera.call("follow_in_room", room_box)
+		follow.offset = FollowCamera.offset_to_show_south(room_box, InteriorShellBuilder.south_floor_z(room, grid))
+		follow.follow_in_room(room_box)
 		return
-	if camera != null and "offset" in camera:
-		## Homes frame the shell (never closer than Camera2 620). Museum / shops /
-		## other public rooms keep outdoor focus distance — `Camera2_InDoorCheck`
-		## is only NPCROOM0 / ROOM0 / PLAYER0_ROOM.
-		if pins_follow_camera(room):
-			var bounds: AABB = InteriorShellBuilder.shell_bounds(room, grid)
-			var span: float = maxf(bounds.size.x, bounds.size.z)
-			if camera.has_method("offset_to_frame_span"):
-				camera.set("offset", camera.call("offset_to_frame_span", span))
-			elif camera.has_method("offset_for_ground_span"):
-				camera.set("offset", camera.call("offset_for_ground_span", span))
-			else:
-				camera.set("offset", Vector3(0.0, span, span))
-		else:
-			## Restore Camera2 620 when leaving a framed home for a public room.
-			camera.set("offset", preload("res://scenes/world/follow_camera.gd").DEFAULT_OFFSET)
-	if pins_follow_camera(room) and camera.has_method("lock_at"):
-		camera.call("lock_at", inner_look_point(grid, room))
+	## Homes frame the shell (never closer than Camera2 620). Museum / shops / other public
+	## rooms keep outdoor focus distance — `Camera2_InDoorCheck` is only NPCROOM0 / ROOM0 /
+	## PLAYER0_ROOM.
+	if pins_follow_camera(room):
+		var bounds: AABB = InteriorShellBuilder.shell_bounds(room, grid)
+		follow.offset = follow.offset_to_frame_span(maxf(bounds.size.x, bounds.size.z))
+		follow.lock_at(inner_look_point(grid, room))
+	else:
+		## Restore Camera2 620 when leaving a framed home for a public room.
+		follow.offset = FollowCamera.DEFAULT_OFFSET
 
 
 ## Ambient, sun, moon and room lamp for the current time and weather

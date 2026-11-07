@@ -48,10 +48,10 @@ func picked(msg_no: int, index: int) -> int:
 
 
 ## `aESC_talk_secand`: "STILL thinking?!" then a look-elsewhere line.
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if current_msg == SecondBridge.MSG_STILL:
-		return {"msg": SecondBridge.elsewhere_msg()}
-	return {}
+		return TalkStep.show(SecondBridge.elsewhere_msg())
+	return null
 
 
 ## `aESC_set_day`: the build day's date.

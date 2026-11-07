@@ -466,7 +466,7 @@ func _follow(snap: bool, delta: float = 0.0) -> void:
 		return
 	if _target == null:
 		return
-	if _target.has_method("wade_state") and TownSpace.is_outdoor_town():
+	if _target is Player and TownSpace.is_outdoor_town():
 		_follow_acre(snap, delta)
 		return
 	_acre_active = false
@@ -514,7 +514,7 @@ func _follow_acre(snap: bool, delta: float) -> void:
 			_acre_distance = arm.length()
 			_acre_pitch = atan2(arm.y, Vector2(arm.x, arm.z).length()) - atan2(offset.y, offset.z)
 			_acre_yaw = atan2(arm.x, arm.z)
-	var wade: Dictionary = _target.call("wade_state") as Dictionary
+	var wade: Dictionary = (_target as Player).wade_state()
 	if not wade.is_empty() and _acre_wade.is_empty() and DisplayConfig.camera_wade():
 		## `Camera2_request_main_wade(end eye, 9, 36)` with the acre still being left.
 		var end_eye: Vector3 = (wade["end"] as Vector3) + (look_w - _target.global_position)
@@ -684,6 +684,6 @@ func look_center() -> Vector3:
 
 
 func _look_point() -> Vector3:
-	if _target.has_method("camera_look_position"):
-		return _target.call("camera_look_position") as Vector3
+	if _target is Player:
+		return (_target as Player).camera_look_position()
 	return _target.global_position + Vector3(0.0, Player.LOOK_HEIGHT, 0.0)

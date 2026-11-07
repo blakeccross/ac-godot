@@ -929,8 +929,8 @@ func _face_toward(node: Node3D, target_gx: Vector3) -> void:
 func _face_yaw(node: Node3D, yaw: float) -> void:
 	if node == null:
 		return
-	if node.has_method("apply_facing"):
-		node.call("apply_facing", yaw)
+	if node is Player:
+		(node as Player).apply_facing(yaw)
 	else:
 		node.rotation = Vector3(0.0, yaw, 0.0)
 

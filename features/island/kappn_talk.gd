@@ -121,20 +121,20 @@ func msg_is(base: int) -> bool:
 	return current_msg == gendered(base, female)
 
 
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if _naming:
 		_naming = false
-		return {"text": {"initial": "", "lines": 1, "len": NAME_LEN}}
-	return {}
+		return TalkStep.edit_text(NAME_LEN)
+	return null
 
 
 ## `mLE_TYPE_ISLAND_NAME` closed: keep the name and board.
-func text_result(text: String) -> Dictionary:
+func text_result(text: String) -> TalkStep:
 	var name: String = text.strip_edges()
 	if name.is_empty():
 		ride = false
-		return {"msg": gendered(MSG_NO_RIDE, female)}
+		return TalkStep.show(gendered(MSG_NO_RIDE, female))
 	Game.town.island_name = name
 	if context != null:
 		context.frees = PackedStringArray([name])
-	return {"msg": gendered(MSG_BOARD, female)}
+	return TalkStep.show(gendered(MSG_BOARD, female))

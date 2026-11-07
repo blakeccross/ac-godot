@@ -1,3 +1,4 @@
+class_name WaspNest
 extends Node3D
 
 ## The wasp nest a shaken tree drops (`bIT_actor_drop_wait_bee`). It is not an item: it

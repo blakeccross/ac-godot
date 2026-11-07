@@ -1,10 +1,9 @@
 class_name Menus
 extends RefCounted
 
-## Whether a menu is up, by its group (`inventory_ui`, `shop_ui`, `map_ui`, …). Menus are
-## different classes (`CanvasLayer`s, `Control`s) with no common base, and a group such as
-## `shop_ui` holds several of them, so this is the one place that asks each for `is_open()`
-## by name. Code that knows the one overlay it wants uses that class's `find` instead.
+## Whether a menu is up, by its group (`inventory_ui`, `shop_ui`, `map_ui`, …). Most menus are
+## `MenuOverlay`s, but a group such as `shop_ui` also holds plain `Control`s, so this is the one
+## place that asks each for `is_open()` by name. Code that knows the one overlay it wants uses that class's `find` instead.
 
 ## The groups that count as "a menu is open" for the player, the HUD and the touch pads.
 const ALL: Array[StringName] = [

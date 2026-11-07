@@ -1,3 +1,4 @@
+class_name FieldTree
 extends StaticBody3D
 
 ## Outdoor tree. Shake / chop / stump rules live in TreeUse; this scene presents them.
@@ -124,8 +125,8 @@ func _on_shake(use: TreeUse, ctx: InteractionContext) -> bool:
 	var out: TreeUse.Outcome = use.shake()
 	if not out.shook:
 		return false
-	if ctx != null and ctx.actor != null and ctx.actor.has_method("note_big_tree_shake"):
-		ctx.actor.call("note_big_tree_shake", _cell())
+	if ctx != null and ctx.actor is Player:
+		(ctx.actor as Player).note_big_tree_shake(_cell())
 	PlayerSe.tree_yurasu(self)
 	shaken.emit(true)
 	_stress_bugs_at(ctx)
@@ -413,9 +414,9 @@ func _drop_nest(ctx: InteractionContext) -> void:
 	var land: Vector3 = grid.cell_to_world(cells[0] if not cells.is_empty() else origin)
 	land.y = global_position.y
 	_nest_land = land
-	var nest: Node3D = WASP_NEST.instantiate() as Node3D
+	var nest := WASP_NEST.instantiate() as WaspNest
 	objects.add_child(nest)
-	nest.call("drop", global_position + TreeUse.crown_offset(0, true, false), land, TreeUse.drop_duration(0, true, false))
+	nest.drop(global_position + TreeUse.crown_offset(0, true, false), land, TreeUse.drop_duration(0, true, false))
 	_nest_landed_at = null
 	nest.connect(&"landed", func() -> void:
 		_nest_landed_at = land

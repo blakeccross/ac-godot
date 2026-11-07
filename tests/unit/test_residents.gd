@@ -108,37 +108,37 @@ func _roster(names: Array) -> PlayerRoster:
 
 func test_kk_asks_who_from_the_residents_and_newcomers() -> void:
 	var talk := _talk(_roster(["Ann", "Bob"]))
-	var step: Dictionary = talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.SHALL_WE), 0)
-	assert_int(int(step["msg"])).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.WHO))
-	assert_array(step["choices"]).contains_exactly(["Ann", "Bob", PlayerSelectTalk.NEW_PLAYER])
-	assert_int(int(talk.choose(1)["msg"])).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.KNOWN))
+	var step: TalkStep = talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.SHALL_WE), 0)
+	assert_int(step.msg).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.WHO))
+	assert_array(step.choices).contains_exactly(["Ann", "Bob", PlayerSelectTalk.NEW_PLAYER])
+	assert_int(talk.choose(1).msg).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.KNOWN))
 	assert_int(talk.result).is_equal(PlayerSelectTalk.Result.LOAD)
 	assert_int(talk.chosen).is_equal(1)
 	assert_str(talk.context.player_name).is_equal("Bob")
 	talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.SHALL_WE), 0)
-	assert_int(int(talk.choose(2)["msg"])).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.NEWCOMER))
+	assert_int(talk.choose(2).msg).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.NEWCOMER))
 	assert_int(talk.result).is_equal(PlayerSelectTalk.Result.NEW)
 	assert_int(talk.chosen).is_equal(2)
 
 
 func test_a_full_town_has_no_room_for_a_newcomer() -> void:
 	var talk := _talk(_roster(["A", "B", "C", "D"]))
-	var step: Dictionary = talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.SHALL_WE), 0)
-	assert_array(step["choices"]).contains_exactly(["A", "B", "C", "D"])
+	var step: TalkStep = talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.SHALL_WE), 0)
+	assert_array(step.choices).contains_exactly(["A", "B", "C", "D"])
 
 
 func test_demolishing_a_house_two_names_a_page_when_full() -> void:
 	var roster := _roster(["A", "B", "C", "D"])
 	var talk := _talk(roster)
-	var step: Dictionary = talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.OTHER_THINGS), 0)
-	assert_int(int(step["msg"])).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.DEMOLISH_WHO))
-	assert_int((step["choices"] as Array).size()).is_equal(4)
-	assert_str(str(step["choices"][0])).is_equal("A")
+	var step: TalkStep = talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.OTHER_THINGS), 0)
+	assert_int(step.msg).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.DEMOLISH_WHO))
+	assert_int(step.choices.size()).is_equal(4)
+	assert_str(str(step.choices[0])).is_equal("A")
 	## "Someone else." turns to C and D.
 	step = talk.choose(2)
-	assert_int(int(step["msg"])).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.DEMOLISH_OTHER))
-	assert_str(str(step["choices"][0])).is_equal("C")
-	assert_int(int(talk.choose(1)["msg"])).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.DEMOLISH_SURE))
+	assert_int(step.msg).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.DEMOLISH_OTHER))
+	assert_str(str(step.choices[0])).is_equal("C")
+	assert_int(talk.choose(1).msg).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.DEMOLISH_SURE))
 	assert_int(talk.picked(PlayerSelectTalk.at(PlayerSelectTalk.DEMOLISH_SURE), 1)).is_equal(
 		PlayerSelectTalk.at(PlayerSelectTalk.TEARING)
 	)
@@ -149,8 +149,8 @@ func test_demolishing_a_house_two_names_a_page_when_full() -> void:
 
 func test_the_last_house_stays() -> void:
 	var talk := _talk(_roster(["Ann"]))
-	var step: Dictionary = talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.OTHER_THINGS), 0)
-	assert_int(int(step["msg"])).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.LAST_HOUSE))
+	var step: TalkStep = talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.OTHER_THINGS), 0)
+	assert_int(step.msg).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.LAST_HOUSE))
 
 
 func test_a_letter_to_a_housemate_reaches_their_mailbox() -> void:

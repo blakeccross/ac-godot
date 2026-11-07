@@ -118,20 +118,20 @@ func picked(msg_no: int, index: int) -> int:
 	return -1
 
 
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if current_msg == MSG_HAND_IT_OVER:
-		return {"hand": {"pocket": -1, "mode": "take"}}
+		return TalkStep.open_pockets("take")
 	if item != &"" and MSG_BASS.has(item) and current_msg == int(MSG_BASS[item]):
 		return _measured()
-	return {}
+	return null
 
 
 ## `aEANG_msg_win_open_wait`: what came out of the pockets.
-func hand_result(p_item: StringName, _pocket: int = -1) -> Dictionary:
+func hand_result(p_item: StringName, _pocket: int = -1) -> TalkStep:
 	item = p_item
 	if item == &"":
 		_set_top_name()
-		return msg(MSG_NOTHING_TOP if _top_is_player() else MSG_NOTHING)
+		return TalkStep.show(MSG_NOTHING_TOP if _top_is_player() else MSG_NOTHING)
 	var data: ItemData = ItemCatalog.get_item(item)
 	if MSG_BASS.has(item):
 		## `aEANG_demo_measure_init`.
@@ -142,20 +142,20 @@ func hand_result(p_item: StringName, _pocket: int = -1) -> Dictionary:
 			rank = Size.MEDIUM
 		size = fish_size(rank, rng.randf())
 		set_free(2, inches(size))
-		return {"anim": {"take": item}, "msg": int(MSG_BASS[item])}
+		return TalkStep.take(item).then_show(int(MSG_BASS[item]))
 	if data != null and data.category == ItemData.Category.FISH:
 		_offered_back = true
 		var idx: int = FishData.TYPE_IDS.find(item)
 		var n: int = MSG_FISH[idx] if idx >= 0 and idx < MSG_FISH.size() else MSG_NOT_A_FISH
-		return {"anim": {"take": item}, "msg": n}
+		return TalkStep.take(item).then_show(n)
 	if data != null and data.category == ItemData.Category.TOOL:
-		return {"anim": {"take": item}, "then": {"anim": {"give": item}, "msg": MSG_TOO_VALUABLE}}
+		return TalkStep.take(item).then_step(TalkStep.give(item).then_show(MSG_TOO_VALUABLE))
 	_offered_back = true
-	return {"anim": {"take": item}, "msg": MSG_NOT_A_FISH}
+	return TalkStep.take(item).then_show(MSG_NOT_A_FISH)
 
 
 ## `aEANG_demo_measure`: record or not, the bass is his.
-func _measured() -> Dictionary:
+func _measured() -> TalkStep:
 	var bass: StringName = item
 	item = &""
 	if inventory != null:
@@ -175,10 +175,10 @@ func _measured() -> Dictionary:
 		if context != null:
 			context.set_item_str(0, PoliceTalk.with_article(data.display_name) if data != null else "")
 		var n: int = MSG_BEAT_SELF if was_top else int(MSG_BASS[bass]) + 2
-		return {"anim": {"give": prize}, "msg": n}
+		return TalkStep.give(prize).then_show(n)
 	if was_top:
-		return msg(int(MSG_BASS_TOP_ZANNEN[bass]))
-	return msg(int(MSG_BASS[bass]) + 1)
+		return TalkStep.show(int(MSG_BASS_TOP_ZANNEN[bass]))
+	return TalkStep.show(int(MSG_BASS[bass]) + 1)
 
 
 ## `aEANG_SelectRandomItem`: a shirt or a piece of furniture from Nook's A/B/C lists.

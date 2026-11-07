@@ -196,10 +196,10 @@ static func sources(session: IndoorSession) -> Array:
 
 
 func _process(delta: float) -> void:
-	var host: Node = get_parent()
+	var host := get_parent() as Interior
 	var player := Player.find(get_tree())
-	var session: IndoorSession = host.get("session") as IndoorSession if host != null else null
-	if player == null or session == null or not host.has_method("furniture_node"):
+	var session: IndoorSession = host.session if host != null else null
+	if player == null or session == null:
 		_silence()
 		return
 	_steam(host, session, delta)
@@ -207,7 +207,7 @@ func _process(delta: float) -> void:
 	var mic_m: Vector3 = player.global_position + SoundEmitter.MIC_OFFSET
 	var heard: Array = []
 	for src: Array in sources(session):
-		var node: Node3D = host.call("furniture_node", src[0]) as Node3D
+		var node: Node3D = host.furniture_node(src[0]) as Node3D
 		if node == null:
 			continue
 		var d: float = node.global_position.distance_to(mic_m)
@@ -239,7 +239,7 @@ func _process(delta: float) -> void:
 var _rng := RandomNumberGenerator.new()
 
 
-func _steam(host: Node, session: IndoorSession, delta: float) -> void:
+func _steam(host: Interior, session: IndoorSession, delta: float) -> void:
 	if session.room == null or not ACTOR_ROOMS.has(int(session.room.kind)):
 		return
 	for entry: FurniturePlacement in session.room.placements:
@@ -251,7 +251,7 @@ func _steam(host: Node, session: IndoorSession, delta: float) -> void:
 		_puff_wait[entry.id] = wait[0]
 		if not puff:
 			continue
-		var node: Node3D = host.call("furniture_node", entry.id) as Node3D
+		var node: Node3D = host.furniture_node(entry.id) as Node3D
 		if node == null:
 			continue
 		var rule: Array = STEAM[data.visual_id]
@@ -268,14 +268,14 @@ static func crossed(prev: float, now: float, at: float) -> bool:
 	return at > prev or at <= now
 
 
-func _frame_sounds(host: Node, session: IndoorSession) -> void:
+func _frame_sounds(host: Interior, session: IndoorSession) -> void:
 	if session.room == null or not ACTOR_ROOMS.has(int(session.room.kind)):
 		return
 	for entry: FurniturePlacement in session.room.placements:
 		var data: FurnitureData = session.furniture_of(entry.furniture_id)
 		if data == null or not FRAME_SE.has(data.visual_id):
 			continue
-		var node: Node = host.call("furniture_node", entry.id)
+		var node: Node = host.furniture_node(entry.id)
 		var anim: AnimationPlayer = VisualAnimation.find_animation_player(node)
 		if anim == null or not anim.is_playing():
 			continue

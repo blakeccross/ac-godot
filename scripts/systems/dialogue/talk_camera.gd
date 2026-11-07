@@ -27,8 +27,8 @@ static func begin(
 	if cam != null:
 		cam.begin_talk(speaker, listener)
 	## `mDemo` TYPE_TALK defaults `turn = TRUE` → player faces the NPC.
-	if turn and speaker != null and speaker.has_method("begin_talk_face"):
-		speaker.call("begin_talk_face", listener)
+	if turn and speaker != null and speaker.has_method(&"begin_talk_face"):
+		speaker.call(&"begin_talk_face", listener)
 
 
 static func end(tree: SceneTree = null) -> void:
@@ -53,8 +53,8 @@ static func face_yaw_toward(from: Vector3, toward: Vector3) -> float:
 static func eye_of(node: Node3D) -> Vector3:
 	if node == null:
 		return Vector3.ZERO
-	if node.has_method("camera_look_position"):
-		return node.call("camera_look_position") as Vector3
+	if node is Player:
+		return (node as Player).camera_look_position()
 	return node.global_position + Vector3(0.0, EYE_HEIGHT_M, 0.0)
 
 

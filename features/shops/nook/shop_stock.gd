@@ -1,3 +1,4 @@
+class_name ShopStock
 extends StaticBody3D
 
 ## One shelf good (`ac_shop_goods` / mannequin). Buy spends Bells and removes the listing.

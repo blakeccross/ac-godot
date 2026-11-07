@@ -55,29 +55,29 @@ func picked(msg_no: int, index: int) -> int:
 
 ## "Apologize" with something to apologize for: the pockets open, quest items only
 ## (`mSM_IV_OPEN_SHRINE`).
-func pick_step(msg_no: int, index: int) -> Dictionary:
+func pick_step(msg_no: int, index: int) -> TalkStep:
 	if msg_no == MSG_ASK and index == 1 and _has_quest_items():
-		return {"hand": {"pocket": -1, "mode": "shrine"}}
-	return {}
+		return TalkStep.open_pockets("shrine")
+	return null
 
 
-func hand_result(item: StringName, pocket: int = -1) -> Dictionary:
+func hand_result(item: StringName, pocket: int = -1) -> TalkStep:
 	if item == &"" or pocket < 0 or inventory == null:
-		return {}
+		return null
 	var tags: Dictionary = Game.quests.to_from_for_pocket(inventory, pocket)
 	if not tags.is_empty():
 		if Game.residents.has_resident(StringName(str(tags.get("to", "")))):
-			return {"msg": MSG_STILL_WAITED_FOR}
+			return TalkStep.show(MSG_STILL_WAITED_FOR)
 		if Game.residents.has_resident(StringName(str(tags.get("from", "")))):
-			return {"msg": MSG_RETURN_IT}
+			return TalkStep.show(MSG_RETURN_IT)
 	elif Game.first_job.is_active():
-		return {"msg": MSG_RETURN_IT}
+		return TalkStep.show(MSG_RETURN_IT)
 	var data: ItemData = ItemCatalog.get_item(item)
 	if context != null:
 		context.frees = PackedStringArray([data.display_name if data != null else String(item)])
 	Game.quests.clear_by_pocket(inventory, pocket)
 	inventory.remove_from_slot(pocket, 1)
-	return {"msg": MSG_APOLOGIZED}
+	return TalkStep.show(MSG_APOLOGIZED)
 
 
 func _how_are_things() -> int:

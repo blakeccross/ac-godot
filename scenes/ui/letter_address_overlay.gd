@@ -1,5 +1,5 @@
 class_name LetterAddressOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## Address book (`m_address_ovl.c`), opened over the letter board once the paper is on
 ## it. Lists "Museum" (`mPr_CheckMuseumAddress`, for mailing a fossil in) on the first

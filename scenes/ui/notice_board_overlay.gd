@@ -1,5 +1,5 @@
 class_name NoticeBoardOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## The community board's posts (`m_notice_ovl.c`), in 320x240 screen units. It opens on the
 ## latest post; ←/→ (C-left / C-right) turn one page, ↓ jumps to the first and ↑ to the

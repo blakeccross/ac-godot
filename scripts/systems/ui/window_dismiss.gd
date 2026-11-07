@@ -28,24 +28,17 @@ static func handle(tree: SceneTree, event: InputEvent, allow: bool = true) -> bo
 	var front := front_menu(tree)
 	if front == null:
 		return false
-	var rect: Rect2 = front.call("menu_rect")
-	if rect.has_point(click.global_position):
+	if front.menu_rect().has_point(click.global_position):
 		return false
-	front.call("dismiss")
+	front.dismiss()
 	return true
 
 
-static func front_menu(tree: SceneTree) -> Node:
-	var best: Node = null
-	var best_layer := -100000
+static func front_menu(tree: SceneTree) -> MenuOverlay:
+	var best: MenuOverlay = null
 	for node: Node in tree.get_nodes_in_group(GROUP):
-		if not _usable(node):
-			continue
-		var canvas := node as CanvasLayer
-		var layer := canvas.layer if canvas != null else 0
-		if best == null or layer >= best_layer:
-			best = node
-			best_layer = layer
+		if _usable(node) and (best == null or (node as MenuOverlay).layer >= best.layer):
+			best = node as MenuOverlay
 	return best
 
 
@@ -54,9 +47,8 @@ static func _usable(node: Node) -> bool:
 		return false
 	if node is CanvasLayer and not (node as CanvasLayer).visible:
 		return false
-	if not node.has_method(&"is_open") or not bool(node.call(&"is_open")):
+	var menu := node as MenuOverlay
+	if menu == null or not menu.is_open():
 		return false
-	if not node.has_method(&"menu_rect") or not node.has_method(&"dismiss"):
-		return false
-	var rect: Rect2 = node.call(&"menu_rect")
+	var rect: Rect2 = menu.menu_rect()
 	return rect.size.x > 1.0 and rect.size.y > 1.0

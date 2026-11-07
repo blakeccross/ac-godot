@@ -74,19 +74,19 @@ func picked(msg_no: int, index: int) -> int:
 
 
 ## `aEKPD_sell_check_after`: at the end of "That'll be … Bells".
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if _kind < 0:
-		return {}
+		return null
 	var table: Array[int] = AFTER_FIRST if _round == 0 else AFTER_MORE
 	var kind: int = _kind
 	_kind = -1
 	var item: ItemData = ItemCatalog.get_item(BUNCHES[kind])
 	if inventory == null or item == null or not inventory.has_space(1):
-		return msg(table[2])
+		return TalkStep.show(table[2])
 	var cost: int = price * BUNCH_SIZES[kind]
 	if not ShopBook.can_afford(inventory, cost):
-		return msg(table[1])
+		return TalkStep.show(table[1])
 	ShopBook.pay(inventory, cost)
 	inventory.add(item, 1)
 	## `mPlib_request_main_give_type1(ITM_MONEY_10000)` then the bunch comes back (`NPC1`).
-	return {"anim": {"take": &"money_10000"}, "then": {"anim": {"give": BUNCHES[kind]}, "msg": MSG_HERE_YOU_GO}}
+	return TalkStep.take(&"money_10000").then_step(TalkStep.give(BUNCHES[kind]).then_show(MSG_HERE_YOU_GO))

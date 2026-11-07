@@ -1,5 +1,5 @@
 class_name CalendarOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## The calendar (`m_calendar_ovl.c`), opened from the diary in the player's room. Month
 ## pages from eleven months back to eleven ahead: ← / → turn a page (it slides 320 across),

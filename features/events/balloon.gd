@@ -325,8 +325,8 @@ func _start_escape(shaken: bool) -> void:
 	_rise = 0.0
 	look_up = false
 	if shaken:
-		if tree != null and is_instance_valid(tree) and tree.has_method("drop_present"):
-			tree.call("drop_present", ItemCatalog.get_item(true_present(_rng)))
+		if is_instance_valid(tree) and tree is FieldTree:
+			(tree as FieldTree).drop_present(ItemCatalog.get_item(true_present(_rng)))
 		_present.visible = false
 	else:
 		escape_time = ESCAPE_SEC
@@ -424,20 +424,20 @@ func _tree_at(world: Vector3) -> Node3D:
 		_trees_at_ms = now
 		_trees.clear()
 		for node: Node in get_tree().get_nodes_in_group("plant"):
-			if node is Node3D and node.has_method("can_catch_balloon"):
+			if node is FieldTree and (node as FieldTree).can_catch_balloon():
 				_trees[_world.grid.world_to_cell((node as Node3D).global_position)] = node
 	var n: Variant = _trees.get(_cell_of(world))
-	if n == null or not is_instance_valid(n) or not bool((n as Node3D).call("can_catch_balloon")):
+	if n == null or not is_instance_valid(n) or not (n as FieldTree).can_catch_balloon():
 		return null
 	return n as Node3D
 
 
 func _is_cedar(t: Node3D) -> bool:
-	return t.has_method("_family") and int(t.call("_family")) == PlantData.Family.CEDAR
+	return t is FieldTree and (t as FieldTree)._family() == PlantData.Family.CEDAR
 
 
 func _perch(t: Node3D) -> Vector3:
-	return t.call("balloon_perch")
+	return (t as FieldTree).balloon_perch()
 
 
 func _place() -> void:

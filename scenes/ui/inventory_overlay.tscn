@@ -1362,6 +1362,170 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
+[node name="HaniwaTable" type="Control" parent="Root/Center/Pages/ShellStack/SlotLayer" unique_id=1312476029]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 2
+
+[node name="HaniwaSlot0" type="Button" parent="Root/Center/Pages/ShellStack/SlotLayer/HaniwaTable" unique_id=1519205539]
+layout_mode = 0
+offset_left = 514.56
+offset_top = 280.56
+offset_right = 577.44
+offset_bottom = 343.44
+focus_mode = 0
+theme_override_colors/font_color = Color(1, 1, 1, 0.95)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("SlotItem")
+theme_override_styles/pressed = SubResource("SlotItem")
+theme_override_styles/hover = SubResource("SlotItem")
+theme_override_styles/disabled = SubResource("SlotItem")
+theme_override_styles/focus = SubResource("SlotItem")
+clip_text = true
+expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/Pages/ShellStack/SlotLayer/HaniwaTable/HaniwaSlot0" unique_id=916692908]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -2.0
+offset_top = -2.0
+offset_right = 2.0
+offset_bottom = 2.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HaniwaSlot1" type="Button" parent="Root/Center/Pages/ShellStack/SlotLayer/HaniwaTable" unique_id=1048148248]
+layout_mode = 0
+offset_left = 589.44
+offset_top = 280.56
+offset_right = 652.32
+offset_bottom = 343.44
+focus_mode = 0
+theme_override_colors/font_color = Color(1, 1, 1, 0.95)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("SlotItem")
+theme_override_styles/pressed = SubResource("SlotItem")
+theme_override_styles/hover = SubResource("SlotItem")
+theme_override_styles/disabled = SubResource("SlotItem")
+theme_override_styles/focus = SubResource("SlotItem")
+clip_text = true
+expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/Pages/ShellStack/SlotLayer/HaniwaTable/HaniwaSlot1" unique_id=1834592777]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -2.0
+offset_top = -2.0
+offset_right = 2.0
+offset_bottom = 2.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HaniwaSlot2" type="Button" parent="Root/Center/Pages/ShellStack/SlotLayer/HaniwaTable" unique_id=173522521]
+layout_mode = 0
+offset_left = 514.56
+offset_top = 355.44
+offset_right = 577.44
+offset_bottom = 418.32
+focus_mode = 0
+theme_override_colors/font_color = Color(1, 1, 1, 0.95)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("SlotItem")
+theme_override_styles/pressed = SubResource("SlotItem")
+theme_override_styles/hover = SubResource("SlotItem")
+theme_override_styles/disabled = SubResource("SlotItem")
+theme_override_styles/focus = SubResource("SlotItem")
+clip_text = true
+expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/Pages/ShellStack/SlotLayer/HaniwaTable/HaniwaSlot2" unique_id=421875757]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -2.0
+offset_top = -2.0
+offset_right = 2.0
+offset_bottom = 2.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HaniwaSlot3" type="Button" parent="Root/Center/Pages/ShellStack/SlotLayer/HaniwaTable" unique_id=1671338034]
+layout_mode = 0
+offset_left = 589.44
+offset_top = 355.44
+offset_right = 652.32
+offset_bottom = 418.32
+focus_mode = 0
+theme_override_colors/font_color = Color(1, 1, 1, 0.95)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("SlotItem")
+theme_override_styles/pressed = SubResource("SlotItem")
+theme_override_styles/hover = SubResource("SlotItem")
+theme_override_styles/disabled = SubResource("SlotItem")
+theme_override_styles/focus = SubResource("SlotItem")
+clip_text = true
+expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/Pages/ShellStack/SlotLayer/HaniwaTable/HaniwaSlot3" unique_id=1405718014]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -2.0
+offset_top = -2.0
+offset_right = 2.0
+offset_bottom = 2.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HaniwaStatus" type="Label" parent="Root/Center/Pages/ShellStack/SlotLayer/HaniwaTable" unique_id=770731828]
+layout_mode = 0
+offset_left = 504.56
+offset_top = 130.8
+offset_right = 660.32
+offset_bottom = 256.56
+theme_override_colors/font_color = Color(0.35, 0.22, 0.12, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
 [node name="Detail" type="VBoxContainer" parent="Root/Center/Pages/ShellStack" unique_id=1485548797]
 unique_name_in_owner = true
 layout_mode = 0

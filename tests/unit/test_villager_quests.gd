@@ -5,7 +5,7 @@ extends GdUnitTestSuite
 ## `ac_quest_manager.c` and `ac_quest_talk_init.c`.
 
 const Q := preload("res://features/villagers/villager_quests.gd")
-const S := VillagerTalkManager.Step
+const S := VillagerQuestTalk.Step
 
 
 func before_test() -> void:
@@ -55,8 +55,8 @@ func _offer(slot: int, type: int, kind: int) -> void:
 	Game.npc_talk_info.set_client_quest(slot, info)
 
 
-func _in(msg: Dictionary, base: int, looks: int) -> bool:
-	var n: int = int(msg.get("msg", -1))
+func _in(step: TalkStep, base: int, looks: int) -> bool:
+	var n: int = step.msg if step != null else -1
 	return n >= base + looks * 3 and n <= base + looks * 3 + 2
 
 
@@ -78,18 +78,18 @@ func test_limit_over_past_the_deadline_or_before_the_start() -> void:
 func test_delivery_from_offer_to_reward() -> void:
 	_offer(0, Q.Type.DELIVERY, Q.DELIVERY_NORMAL)
 	var a: VillagerTalkManager = _manager(0)
-	var first: Dictionary = a.next_step()
-	assert_int(a.step).is_equal(S.NEW_QUEST_OR_NORMAL)
+	var first: TalkStep = a.next_step()
+	assert_int(a.quest.step).is_equal(S.NEW_QUEST_OR_NORMAL)
 	assert_bool(_in(first, 0x2A6, a.looks)).is_true()
-	var ask: Dictionary = a.choose(0)
+	var ask: TalkStep = a.choose(0)
 	assert_bool(_in(ask, 0x0151, a.looks)).is_true()
-	assert_int((ask["choices"] as Array).size()).is_equal(2)
-	var accepted: Dictionary = a.choose(0)
+	assert_int(ask.choices.size()).is_equal(2)
+	var accepted: TalkStep = a.choose(0)
 	assert_bool(_in(accepted, 0x024C, a.looks)).is_true()
 	## The clothes are in the first pocket, flagged as a quest item, and handed over.
 	var parcel: InventorySlot = Game.inventory.slot_at(0)
 	assert_int(parcel.item.condition).is_equal(InventoryItem.Condition.QUEST)
-	assert_that(accepted["anim"]["give"]).is_equal(parcel.item.item_id)
+	assert_that(accepted.item).is_equal(parcel.item.item_id)
 	var d: Dictionary = Game.quests.deliveries[0]
 	assert_int(int(d["type"])).is_equal(Q.Type.DELIVERY)
 	assert_that(d["from"]).is_equal(_id(0))
@@ -101,25 +101,25 @@ func test_delivery_from_offer_to_reward() -> void:
 	var b: VillagerTalkManager = _manager(to_slot, 5)
 	b.state.relationship.set_friendship(20)
 	b.next_step()
-	assert_int(b.step).is_equal(S.FIN_QUEST_START)
-	var hand: Dictionary = b.choose(0)
-	assert_int(int(hand["hand"]["pocket"])).is_equal(0)
+	assert_int(b.quest.step).is_equal(S.FIN_QUEST_START)
+	var hand: TalkStep = b.choose(0)
+	assert_int(int(hand.pocket)).is_equal(0)
 	var item: StringName = parcel.item.item_id
-	var complete: Dictionary = b.hand_result(item, 0)
+	var complete: TalkStep = b.hand_result(item, 0)
 	assert_bool(_in(complete, 0x0175, b.looks)).is_true()
 	assert_bool(Game.inventory.slot_at(0).is_empty() or Game.inventory.slot_at(0).item.item_id != item).is_true()
 	assert_that(b.state.cloth_id).is_equal(item)
 	var wallet: int = Game.inventory.wallet
-	var reward: Dictionary = b.next_step()
-	assert_int(int(reward["msg"])).is_greater(0)
+	var reward: TalkStep = b.next_step()
+	assert_int(reward.msg).is_greater(0)
 	assert_int(b.state.friendship).is_equal(23)
 	assert_bool(Q.is_free(d)).is_true()
 	## Bells, furniture or the shirt they had on (`l_set_delivery_data[0]`: 40 / 30 / 30).
-	var kind: int = int(b._target["reward_kind"])
+	var kind: int = int(b.quest._target["reward_kind"])
 	assert_bool(kind in [Q.Reward.FTR, Q.Reward.MONEY, Q.Reward.WORN_CLOTH]).is_true()
 	if kind == Q.Reward.MONEY:
 		assert_int(Game.inventory.wallet).is_greater(wallet)
-	var thanks: Dictionary = b.next_step()
+	var thanks: TalkStep = b.next_step()
 	assert_bool(_in(thanks, 0x0294, b.looks)).is_true()
 
 
@@ -129,7 +129,7 @@ func test_turning_a_request_down_costs_friendship_and_is_remembered() -> void:
 	m.state.relationship.set_friendship(30)
 	m.next_step()
 	m.choose(0)
-	var no: Dictionary = m.choose(1)
+	var no: TalkStep = m.choose(1)
 	assert_bool(_in(no, 0x025E, m.looks)).is_true()
 	assert_int(m.state.friendship).is_equal(27)
 	assert_int(int(Game.npc_talk_info.client_quest(1)["type"])).is_equal(Q.Type.DELIVERY)
@@ -143,7 +143,7 @@ func test_full_pockets_mean_no_delivery() -> void:
 	_offer(2, Q.Type.DELIVERY, Q.DELIVERY_NORMAL)
 	var m: VillagerTalkManager = _manager(2)
 	m.next_step()
-	assert_int(m.step).is_equal(S.FULL_ITEM_OR_NORMAL)
+	assert_int(m.quest.step).is_equal(S.FULL_ITEM_OR_NORMAL)
 	assert_bool(_in(m.choose(0), 0x0440, m.looks)).is_true()
 
 
@@ -157,14 +157,14 @@ func test_overdue_delivery_goes_back_to_the_sender() -> void:
 	var later: VillagerTalkManager = _manager(0, 9)
 	later.now_minute += 3 * 1440
 	later.state.relationship.set_friendship(40)
-	var nag: Dictionary = later.next_step()
-	assert_int(later.step).is_equal(S.GIVEUP)
+	var nag: TalkStep = later.next_step()
+	assert_int(later.quest.step).is_equal(S.GIVEUP)
 	assert_bool(_in(nag, 0x0187, later.looks)).is_true()
-	assert_int(int(later.next_step()["hand"]["pocket"])).is_equal(0)
+	assert_int(int(later.next_step().pocket)).is_equal(0)
 	## Closing the pockets: "dirty thief", then the pockets again.
 	assert_bool(_in(later.hand_result(&""), 0x0499, later.looks)).is_true()
-	assert_bool(later.next_step().has("hand")).is_true()
-	var back: Dictionary = later.hand_result(item, 0)
+	assert_bool(later.next_step().pockets_mode != "").is_true()
+	var back: TalkStep = later.hand_result(item, 0)
 	assert_bool(_in(back, 0x02B8, later.looks)).is_true()
 	assert_int(later.state.friendship).is_equal(35)
 	assert_bool(Q.is_free(Game.quests.deliveries[0])).is_true()
@@ -186,21 +186,21 @@ func test_errand_chain_returns_the_item_to_whoever_lent_it() -> void:
 	Game.session.errand_next[0] = 1
 	var b: VillagerTalkManager = _manager(Game.residents.slot_of(e["to"]))
 	b.next_step()
-	assert_int(b.step).is_equal(S.RENEW_ERRAND_OR_NORMAL)
-	var give: Dictionary = b.choose(0)
+	assert_int(b.quest.step).is_equal(S.RENEW_ERRAND_OR_NORMAL)
+	var give: TalkStep = b.choose(0)
 	assert_bool(_in(give, 0x039E, b.looks)).is_true()
 	assert_int(int(e["kind"])).is_equal(Q.ERRAND_REQUEST_FINAL)
 	assert_that(e["to"]).is_equal(_id(0))
 	var pocket: int = int(e["pocket"])
 	assert_int(pocket).is_equal(0)
 	assert_that(Game.inventory.slot_at(0).item.item_id).is_equal(e["item"])
-	var end: Dictionary = b.next_step()
+	var end: TalkStep = b.next_step()
 	assert_bool(_in(end, 0x024C, b.looks)).is_true()
-	assert_that(end["anim"]["give"]).is_equal(e["item"])
+	assert_that(end.item).is_equal(e["item"])
 	## Back to the lender.
 	var home: VillagerTalkManager = _manager(0, 4)
 	home.next_step()
-	assert_int(home.step).is_equal(S.FIN_QUEST_START)
+	assert_int(home.quest.step).is_equal(S.FIN_QUEST_START)
 	home.choose(0)
 	assert_bool(_in(home.hand_result(e["item"], 0), 0x03F8, home.looks)).is_true()
 	home.next_step()
@@ -227,7 +227,7 @@ func test_errand_passed_on_goes_to_someone_new() -> void:
 	## The first villager now reminds the player where it went (`aQMgr_actor_check_errand_from`).
 	var lender: VillagerTalkManager = _manager(0)
 	lender.next_step()
-	assert_int(lender.step).is_equal(S.ROOT_RECONF_OR_NORMAL)
+	assert_int(lender.quest.step).is_equal(S.ROOT_RECONF_OR_NORMAL)
 
 
 func test_fruit_contest_takes_the_fruit_and_stays_done() -> void:
@@ -245,9 +245,9 @@ func test_fruit_contest_takes_the_fruit_and_stays_done() -> void:
 	Game.inventory.slot_at(4).set_stack(c["requested"], 1)
 	var done: VillagerTalkManager = _manager(3, 2)
 	done.next_step()
-	assert_int(done.step).is_equal(S.FIN_QUEST_START)
-	var hand: Dictionary = done.choose(0)
-	assert_int(int(hand["hand"]["pocket"])).is_equal(4)
+	assert_int(done.quest.step).is_equal(S.FIN_QUEST_START)
+	var hand: TalkStep = done.choose(0)
+	assert_int(int(hand.pocket)).is_equal(4)
 	done.hand_result(c["requested"], 4)
 	done.next_step()
 	assert_int(int(c["progress"])).is_equal(0)
@@ -255,7 +255,7 @@ func test_fruit_contest_takes_the_fruit_and_stays_done() -> void:
 	## Done for now: nothing more to ask this villager until it runs out.
 	var again: VillagerTalkManager = _manager(3, 3)
 	again.next_step()
-	assert_int(again.step).is_equal(S.NO_OR_NORMAL)
+	assert_int(again.quest.step).is_equal(S.NO_OR_NORMAL)
 	## Deadline +3 days, then the fin limit clears it.
 	Game.quests.move(int(c["limit"]) + 1, Clock.month, Clock.day)
 	assert_bool(Q.is_free(c)).is_true()
@@ -291,7 +291,7 @@ func test_letter_contest_answers_with_a_ranked_reply() -> void:
 	reply.next_step()
 	if not MailBank.has_bank():
 		return
-	assert_int(reply.step).is_equal(S.FINISH_LETTER)
+	assert_int(reply.quest.step).is_equal(S.FINISH_LETTER)
 	assert_int(sent.size()).is_equal(1)
 	assert_int(sent[0].paper_type).is_equal(Q.LETTER_REPLY_PAPER)
 	assert_bool(_in(reply.choose(0), 0x1B17, reply.looks)).is_true()
@@ -302,7 +302,7 @@ func test_other_resident_skips_the_excluded_and_the_same_acre() -> void:
 	var m: VillagerTalkManager = _manager(0)
 	for i: int in 30:
 		m.context.rng.seed = i
-		var id: StringName = m.other_resident([_id(0), _id(1)], VillagerWalk.block_from_cell(Game.residents.home_of(2)), true)
+		var id: StringName = m.quest.other_resident([_id(0), _id(1)], VillagerWalk.block_from_cell(Game.residents.home_of(2)), true)
 		assert_bool(id in [_id(3), _id(4), _id(5)]).is_true()
 
 

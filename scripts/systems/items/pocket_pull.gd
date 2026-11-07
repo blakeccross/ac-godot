@@ -36,9 +36,9 @@ static func run(node: Node3D, hand_world: Callable) -> void:
 
 
 static func hand_from_context(ctx: InteractionContext, fallback: Vector3) -> Callable:
-	if ctx != null and ctx.actor != null and ctx.actor.has_method("left_hand_global"):
-		var actor: Node = ctx.actor
-		return func() -> Vector3: return actor.call("left_hand_global") as Vector3
+	if ctx != null and ctx.actor is Player:
+		var actor := ctx.actor as Player
+		return func() -> Vector3: return actor.left_hand_global()
 	if ctx != null and ctx.actor is Node3D:
 		var body := ctx.actor as Node3D
 		return func() -> Vector3: return body.global_position + Vector3(0.0, 0.9, 0.0)

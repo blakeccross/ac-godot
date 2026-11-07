@@ -1,3 +1,4 @@
+class_name PresentNpc
 extends EventNpc
 
 ## The visitor with a present outside the house (`ac_present_npc`). Waits until the player
@@ -191,15 +192,15 @@ static func spawn(parent: Node, kind: int, stand: Vector3, yaw: float, house: in
 	var packed: PackedScene = load("res://features/events/present_npc.tscn") as PackedScene
 	if packed == null or parent == null or kind == PresentVisit.Kind.NONE:
 		return null
-	var npc := packed.instantiate()
+	var npc := packed.instantiate() as PresentNpc
 	var who: VillagerData = null
 	if kind == PresentVisit.Kind.BIRTHDAY:
 		who = VillagerCatalog.get_villager(Game.resident.birthday_present_npc)
 		if who == null:
 			return null
-	npc.call("assign", kind, who)
-	npc.set("home_yaw", yaw + PI)
-	npc.set("house_index", house)
+	npc.assign(kind, who)
+	npc.home_yaw = yaw + PI
+	npc.house_index = house
 	parent.add_child(npc)
-	(npc as Node3D).global_position = stand + Vector3(sin(yaw), 0.0, cos(yaw)) * PresentVisit.STAND
+	npc.global_position = stand + Vector3(sin(yaw), 0.0, cos(yaw)) * PresentVisit.STAND
 	return npc

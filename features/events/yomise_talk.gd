@@ -80,20 +80,20 @@ func prepare() -> void:
 
 
 ## "Buy one?" (the pitch) or "anything else?" → the goods menu.
-func pick_step(msg_no: int, index: int) -> Dictionary:
+func pick_step(msg_no: int, index: int) -> TalkStep:
 	if index != 0:
-		return {}
+		return null
 	if msg_no in MSG_PITCH:
 		_start = 0
 		return _menu()
 	if msg_no == MSG_MORE:
 		return _menu()
-	return {}
+	return null
 
 
 ## `aEYMS_to_talk_buy`.
-func _menu() -> Dictionary:
-	var labels: Array = []
+func _menu() -> TalkStep:
+	var labels: Array[String] = []
 	_shown.clear()
 	var g: Array = goods()
 	var j: int = _start
@@ -104,41 +104,41 @@ func _menu() -> Dictionary:
 		j += 1
 	_next_start = j
 	labels.append(NOT_BUYING if j == GOODS_COUNT else NOT_THESE)
-	return msg(MSG_LAST_FEW if left_from(_start) < 4 else MSG_PICK, labels)
+	return TalkStep.show(MSG_LAST_FEW if left_from(_start) < 4 else MSG_PICK, labels)
 
 
 ## `aEYMS_talk_fruit`.
-func choose(index: int) -> Dictionary:
+func choose(index: int) -> TalkStep:
 	if index < 0 or index >= _shown.size():
 		if left_from(_start) < 4:
-			return msg(MSG_NOTHING)
+			return TalkStep.show(MSG_NOTHING)
 		_start = _next_start
-		return msg(MSG_MORE)
+		return TalkStep.show(MSG_MORE)
 	var idx: int = _shown[index]
 	var id := StringName(str(goods()[idx]))
 	var data: ItemData = ItemCatalog.get_item(id)
 	var price: int = PRICE[kind()]
 	if inventory == null or not inventory.has_space(1):
-		return msg(MSG_FULL)
+		return TalkStep.show(MSG_FULL)
 	if inventory.wallet < price:
-		return msg(MSG_BROKE)
+		return TalkStep.show(MSG_BROKE)
 	inventory.set_wallet(inventory.wallet - price)
 	if data != null:
 		inventory.add(data, 1)
 	item = id
 	goods()[idx] = ""
 	_start = 0
-	return msg(MSG_BOUGHT)
+	return TalkStep.show(MSG_BOUGHT)
 
 
 ## `aEYMS_talk_give`: the goods change hands after "that'll come to …".
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if current_msg == MSG_BOUGHT and item != &"":
 		var then: int = MSG_EMPTIED if left_from(0) == 0 else MSG_ANOTHER
 		var gift: StringName = item
 		item = &""
-		return {"anim": {"give": gift}, "msg": then}
-	return {}
+		return TalkStep.give(gift).then_show(then)
+	return null
 
 
 static func _name(id: StringName) -> String:

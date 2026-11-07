@@ -6,7 +6,7 @@ extends RefCounted
 
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
-const HOUSE_ARGS: PackedStringArray = ["size", "basement", "build", "loan", "statue", "goki", "neglect", "roof"]
+const HOUSE_ARGS: PackedStringArray = ["size", "basement", "build", "loan", "statue", "goki", "gyroid", "neglect", "roof"]
 const HOUSE_SIZES: PackedStringArray = ["small", "medium", "large", "upper"]
 const WEATHER_KINDS: PackedStringArray = ["clear", "rain", "snow", "sakura"]
 const INTENSITY_NAMES: PackedStringArray = ["none", "light", "normal", "heavy"]
@@ -672,6 +672,13 @@ func _cmd_house(args: PackedStringArray) -> String:
 				return "Usage: house loan <amount>"
 			Game.inventory.set_loan(maxi(int(args[1]), 0))
 			return "Loan set to %d." % Game.inventory.loan
+		"gyroid":
+			## The house gyroid's table beside the pockets, as the owner entrusting goods.
+			var inv_ui: InventoryOverlay = InventoryOverlay.find(_tree())
+			if inv_ui == null:
+				return "No pockets screen."
+			inv_ui.open_gyroid(house, true)
+			return "Gyroid table open."
 		"goki":
 			if args.size() < 2 or not String(args[1]).is_valid_int():
 				return "Cockroaches waiting: %d (last played %d days ago)." % [house.roach_count, HouseCockroaches.days_away(house)]
@@ -975,12 +982,12 @@ func _cmd_mailbox(_args: PackedStringArray) -> String:
 	if player == null:
 		return "No player."
 	for node: Node in tree.get_nodes_in_group("interactable"):
-		if node.has_method("stand_spot") and bool(node.call("is_owned")):
-			var box := node as Node3D
+		var box := node as Mailbox
+		if box != null and box.is_owned():
 			player.global_position = box.global_position + Vector3(0.3, 0.0, 1.6)
 			var ctx := InteractionContext.new()
 			ctx.actor = player
-			box.call("interact", Interaction.of(Interaction.READ, "Check mailbox"), ctx)
+			box.interact(Interaction.of(Interaction.READ, "Check mailbox"), ctx)
 			return "Checking the mailbox."
 	return "No mailbox."
 
@@ -1251,12 +1258,12 @@ func _cmd_sting(args: PackedStringArray) -> String:
 		## The nearest tree hides a nest: shake it for the startle and the chase.
 		var tree: Node3D = null
 		for node: Node in sting_tree.get_nodes_in_group("plant"):
-			if node is Node3D and node.has_method("can_bump"):
+			if node is FieldTree:
 				if tree == null or (node as Node3D).global_position.distance_to(who.global_position) < tree.global_position.distance_to(who.global_position):
 					tree = node as Node3D
 		if tree == null:
 			return "No tree nearby."
-		PlantGrowth.set_shake_content(tree.call("_persist"), TreeUse.Content.BEES)
+		PlantGrowth.set_shake_content((tree as FieldTree)._persist(), TreeUse.Content.BEES)
 		return "%s has a nest. Shake it." % tree.name
 	PlayerSe.bee_sting(who)
 	who.sequences.run_stung_bee()
@@ -1564,7 +1571,7 @@ func _cmd_signboard(args: PackedStringArray) -> String:
 	if not args.is_empty() and String(args[0]).is_valid_int():
 		SignboardUse.post(SignboardUse.persist_id(cell), Game.designs.player[clampi(int(args[0]), 0, 7)])
 		for n: Node in tree.get_nodes_in_group(SignboardUse.GROUP):
-			n.call("refresh_design")
+			(n as Signboard).refresh_design()
 	return "Signboard up at %s." % cell
 
 

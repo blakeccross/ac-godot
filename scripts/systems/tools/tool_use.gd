@@ -150,8 +150,8 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 	if tool.field_verb == Interaction.AIR_AXE and axe_hits_bank(ctx):
 		## `REFLECT_AXE` with no actor: `AXE_HIT` and the hard rumble.
 		PlayerSe.axe_hit(ctx.actor if ctx != null else null)
-		if ctx != null and ctx.actor != null and ctx.actor.has_method("recoil"):
-			ctx.actor.call("recoil", REFLECT_STEP_BACK)
+		if ctx != null and ctx.actor is Player:
+			(ctx.actor as Player).recoil(REFLECT_STEP_BACK)
 		wear_axe(ctx, true)
 		_scare_fish(ctx)
 		_stress_bugs(ctx)
@@ -292,8 +292,8 @@ static func _reflect_scoop_fx(ctx: InteractionContext) -> void:
 	var who := ctx.actor as Node3D if ctx != null else null
 	if who == null or not who.is_inside_tree():
 		return
-	if who.has_method("recoil"):
-		who.call("recoil", REFLECT_STEP_BACK)
+	if who is Player:
+		(who as Player).recoil(REFLECT_STEP_BACK)
 	var yaw: float = facing_yaw(ctx)
 	var gx: float = FieldCatalog.GX_TO_METERS
 	var hit: Vector3 = who.global_position + Vector3(37.0 * sin(yaw) + 2.0 * cos(yaw), 0.0, 37.0 * cos(yaw) - 2.0 * sin(yaw)) * gx

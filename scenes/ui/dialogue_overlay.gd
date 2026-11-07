@@ -1,5 +1,5 @@
 class_name DialogueOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## Modal talk window (`m_msg` appear/normal/cursor/disappear) drawn by `MessageWindowChrome`.
 

@@ -67,30 +67,30 @@ func start_msg() -> int:
 
 ## "Trick or treat!" → the ask (`aEPK_first_call_talk_proc`); the tricks after the lines
 ## that end on order 9 (`aEPK_trick_timing_wait_talk_proc`); Jack's present after "take this".
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if current_msg == MSG_TRICK_OR_TREAT:
-		return msg(_m(JACK_ASK, NPC_ASK))
+		return TalkStep.show(_m(JACK_ASK, NPC_ASK))
 	if current_msg in [_m(JACK_EMPTY, NPC_EMPTY), _m(JACK_OTHER, NPC_OTHER), _m(JACK_TOOL, NPC_TOOL)]:
 		return _trick()
 	if jack and current_msg == JACK_CANDY and present != &"":
 		var gift: StringName = present
 		present = &""
-		return {"anim": {"give": gift}, "msg": JACK_BYE}
-	return {}
+		return TalkStep.give(gift).then_show(JACK_BYE)
+	return null
 
 
 ## "Yes" opens the pockets (`mSM_IV_OPEN_GIVE`); "no" runs on to the empty-hand line.
-func pick_step(msg_no: int, index: int) -> Dictionary:
+func pick_step(msg_no: int, index: int) -> TalkStep:
 	if msg_no == _m(JACK_ASK, NPC_ASK) and index == 0:
-		return {"hand": {"pocket": -1, "mode": "take"}}
-	return {}
+		return TalkStep.open_pockets("take")
+	return null
 
 
 ## `aEPK_menu_close_wait_talk_proc`.
-func hand_result(item: StringName, _pocket: int = -1) -> Dictionary:
+func hand_result(item: StringName, _pocket: int = -1) -> TalkStep:
 	_item = item
 	if item == &"":
-		return msg(_m(JACK_EMPTY, NPC_EMPTY))
+		return TalkStep.show(_m(JACK_EMPTY, NPC_EMPTY))
 	var data: ItemData = ItemCatalog.get_item(item)
 	if item == CANDY:
 		inventory.remove(item, 1)
@@ -99,11 +99,11 @@ func hand_result(item: StringName, _pocket: int = -1) -> Dictionary:
 			var gift: ItemData = ItemCatalog.get_item(present)
 			if gift != null:
 				inventory.add(gift, 1, InventoryItem.Condition.PRESENT)
-		return {"anim": {"take": item}, "msg": _m(JACK_CANDY, NPC_CANDY)}
+		return TalkStep.take(item).then_show(_m(JACK_CANDY, NPC_CANDY))
 	if data != null and data.category == ItemData.Category.TOOL:
-		return {"anim": {"take": item}, "then": {"anim": {"give": item}, "msg": _m(JACK_TOOL, NPC_TOOL)}}
+		return TalkStep.take(item).then_step(TalkStep.give(item).then_show(_m(JACK_TOOL, NPC_TOOL)))
 	inventory.remove(item, 1)
-	return {"anim": {"take": item}, "msg": _m(JACK_OTHER, NPC_OTHER)}
+	return TalkStep.take(item).then_show(_m(JACK_OTHER, NPC_OTHER))
 
 
 ## `aEPK_decide_present`.
@@ -118,7 +118,7 @@ static func decide_present(r: RandomNumberGenerator) -> StringName:
 
 
 ## `aEPK_get_trick_type`: swap a pocket item, else change the shirt.
-func _trick() -> Dictionary:
+func _trick() -> TalkStep:
 	var keep: Array[StringName] = FurnitureCatalog.named_list("ftr", TRICK_KEEP_LIST)
 	var slots: Array[int] = []
 	if inventory != null:
@@ -139,8 +139,8 @@ func _trick() -> Dictionary:
 			inventory.changed.emit()
 			tricked_item = swap
 			CostumePuff.at_player()
-			return msg(_m(JACK_TRICKED, NPC_TRICKED))
+			return TalkStep.show(_m(JACK_TRICKED, NPC_TRICKED))
 	tricked_cloth = true
 	Game.set_cloth(FurnitureCatalog.goods_id("cloth", TRICK_CLOTH))
 	CostumePuff.at_player()
-	return msg(_m(JACK_TRICKED, NPC_TRICKED))
+	return TalkStep.show(_m(JACK_TRICKED, NPC_TRICKED))

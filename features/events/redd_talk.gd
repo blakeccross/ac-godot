@@ -99,20 +99,20 @@ func picked(msg_no: int, index: int) -> int:
 
 
 ## `aEBR2_sell_after`: at the end of "before you change your mind…".
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if current_msg < MSG_YES or current_msg >= MSG_YES + 5:
-		return {}
+		return null
 	var cost: int = ReddStock.price(item_id)
 	if inventory == null or not ShopBook.can_afford(inventory, cost):
-		return msg(MSG_BROKE)
+		return TalkStep.show(MSG_BROKE)
 	var data: ItemData = ItemCatalog.get_item(item_id)
 	if data == null or not inventory.has_space(1):
-		return msg(MSG_FULL)
+		return TalkStep.show(MSG_FULL)
 	ShopBook.pay(inventory, cost)
 	inventory.add(data, 1)
 	ReddStock.sell(area, item_id)
 	sold_now = true
-	return msg(MSG_SOLD)
+	return TalkStep.show(MSG_SOLD)
 
 
 static func _name(id: StringName) -> String:

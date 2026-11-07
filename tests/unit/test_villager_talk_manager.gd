@@ -40,10 +40,10 @@ func _manager(looks: int = 2, seed_value: int = 1, hints_done: bool = true) -> V
 
 func test_after_greeting_offers_the_three_choices() -> void:
 	var m: VillagerTalkManager = _manager(2)
-	var step: Dictionary = m.next_step()
-	var msg: int = int(step["msg"])
+	var step: TalkStep = m.next_step()
+	var msg: int = step.msg
 	assert_int(msg).is_between(0x2A6 + 2 * 3, 0x2A6 + 2 * 3 + 2)
-	var labels: Array = step["choices"]
+	var labels: Array = step.choices
 	assert_int(labels.size()).is_equal(3)
 	if DialogueCatalog.choice_label(0x7F) != "":
 		var help: Array[String] = []
@@ -57,22 +57,22 @@ func test_choices_route_like_no_or_normal() -> void:
 	## Not asking for anything (`mNpc_CheckQuestRequest` off) → NO_OR_NORMAL.
 	m.talk_info.set_quest_request_off(m.slot, m.looks)
 	m.next_step()
-	assert_int(int(m.choose(0)["msg"])).is_between(0x282, 0x282 + 2)
+	assert_int(m.choose(0).msg).is_between(0x282, 0x282 + 2)
 	m = _manager(5)
 	m.talk_info.set_quest_request_off(m.slot, m.looks)
 	m.next_step()
-	assert_int(int(m.choose(2)["msg"])).is_between(0x254A + 15, 0x254A + 17)
+	assert_int(m.choose(2).msg).is_between(0x254A + 15, 0x254A + 17)
 
 
 func test_lets_talk_adds_one_friendship_then_a_topic() -> void:
 	var m: VillagerTalkManager = _manager(2)
 	m.state.relationship.set_friendship(10)
 	m.next_step()
-	var step: Dictionary = m.choose(1)
+	var step: TalkStep = m.choose(1)
 	assert_int(m.state.friendship).is_equal(11)
-	assert_int(int(step["msg"])).is_greater(0)
+	assert_int(step.msg).is_greater(0)
 	## The chat topic ends the talk.
-	assert_that(m.next_step()).is_equal({})
+	assert_object(m.next_step()).is_null()
 
 
 func test_first_ten_chats_are_first_job_hints() -> void:
@@ -146,22 +146,22 @@ func test_trade_buys_the_players_furniture_for_goods() -> void:
 
 func test_each_trade_order_changes_hands_on_screen() -> void:
 	var items: Array[StringName] = [&"mine", &"g1", &"g2", &"g3", &"g4"]
-	assert_that(VillagerTalkManager.trade_hand(3, items)).is_equal({"give": &"g3"})
-	assert_that(VillagerTalkManager.trade_hand(6, items)).is_equal({"take": &"mine"})
-	assert_that(VillagerTalkManager.trade_hand(10, items)).is_equal({"take": &"money_30000"})
-	assert_that(VillagerTalkManager.trade_hand(13, items)).is_equal({"take": &"mine"})
-	assert_that(VillagerTalkManager.trade_hand(23, items)).is_equal({"take": &"mine"})
-	assert_that(VillagerTalkManager.trade_hand(15, items)).is_equal({"give": &"g2"})
-	assert_that(VillagerTalkManager.trade_hand(21, items)).is_equal({"give": &"g4"})
-	assert_that(VillagerTalkManager.trade_hand(22, items)).is_equal({"give": &"money_30000"})
-	assert_that(VillagerTalkManager.trade_hand(0, items)).is_equal({})
+	_assert_handover(VillagerTalkManager.trade_hand(3, items), TalkStep.Handover.NPC_GIVES, &"g3")
+	_assert_handover(VillagerTalkManager.trade_hand(6, items), TalkStep.Handover.PLAYER_GIVES, &"mine")
+	_assert_handover(VillagerTalkManager.trade_hand(10, items), TalkStep.Handover.PLAYER_GIVES, &"money_30000")
+	_assert_handover(VillagerTalkManager.trade_hand(13, items), TalkStep.Handover.PLAYER_GIVES, &"mine")
+	_assert_handover(VillagerTalkManager.trade_hand(23, items), TalkStep.Handover.PLAYER_GIVES, &"mine")
+	_assert_handover(VillagerTalkManager.trade_hand(15, items), TalkStep.Handover.NPC_GIVES, &"g2")
+	_assert_handover(VillagerTalkManager.trade_hand(21, items), TalkStep.Handover.NPC_GIVES, &"g4")
+	_assert_handover(VillagerTalkManager.trade_hand(22, items), TalkStep.Handover.NPC_GIVES, &"money_30000")
+	assert_object(VillagerTalkManager.trade_hand(0, items)).is_null()
 	var m: VillagerTalkManager = _manager()
 	m._normal = true
 	m.trade_items = items
-	assert_that(m.lock_continue()).is_equal({})
+	assert_object(m.lock_continue()).is_null()
 	m.order(3, 1)
-	assert_that(m.lock_continue()).is_equal({"anim": {"give": &"g1"}})
-	assert_that(m.lock_continue()).is_equal({})
+	_assert_handover(m.lock_continue(), TalkStep.Handover.NPC_GIVES, &"g1")
+	assert_object(m.lock_continue()).is_null()
 
 
 ## `msg_7309` ends on the gift: the window stays up for the hand-over, then closes.
@@ -174,7 +174,7 @@ func test_the_runner_hands_a_gift_over_before_the_talk_ends() -> void:
 	var runner := DialogueRunner.new()
 	runner.talk_manager = m
 	var asked: Array = []
-	runner.action_requested.connect(func(a: Dictionary) -> void: asked.append(a))
+	runner.action_requested.connect(func(a: TalkStep) -> void: asked.append(a))
 	runner.start(DialogueCatalog.conversation(&"msg_7309"), m.context)
 	var guard := 0
 	while not runner.waiting_action and not runner.done and guard < 40:
@@ -183,8 +183,8 @@ func test_the_runner_hands_a_gift_over_before_the_talk_ends() -> void:
 			break
 		runner.advance()
 	assert_bool(runner.waiting_action).is_true()
-	assert_that(asked.back()).is_equal({"anim": {"give": &"g1"}})
-	runner.resolve_action({})
+	_assert_handover(asked.back(), TalkStep.Handover.NPC_GIVES, &"g1")
+	runner.resolve_action()
 	assert_bool(runner.done).is_true()
 
 
@@ -356,3 +356,9 @@ func test_lunar_dates_are_near_the_harvest_moon() -> void:
 	assert_int(moon.x).is_equal(1001)
 	assert_int(moon.y).is_equal(1029)
 	assert_int(VillagerTalkManager.lunar_today(2001, 10, 1)).is_equal(815)
+
+
+func _assert_handover(step: TalkStep, kind: TalkStep.Handover, item: StringName) -> void:
+	assert_object(step).is_not_null()
+	assert_int(step.handover).is_equal(kind)
+	assert_str(String(step.item)).is_equal(String(item))

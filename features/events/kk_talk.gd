@@ -91,11 +91,11 @@ func picked(msg_no: int, index: int) -> int:
 
 
 ## `aNTT_talk_select1`: "Do you have a request?" — 0 no, 1 yes.
-func pick_step(msg_no: int, index: int) -> Dictionary:
+func pick_step(msg_no: int, index: int) -> TalkStep:
 	if msg_no != MSG_REQUEST:
-		return {}
+		return null
 	if index == 1:
-		return {"text": {"initial": "", "lines": 1, "len": REQUEST_LEN}}
+		return TalkStep.edit_text(REQUEST_LEN)
 	song = random_song()
 	var tries: int = 0
 	while tries < 3 and song == int(show.get("last_song", -1)):
@@ -103,20 +103,20 @@ func pick_step(msg_no: int, index: int) -> Dictionary:
 		tries += 1
 	show["last_song"] = song
 	_give(song)
-	return msg(MSG_RANDOM)
+	return TalkStep.show(MSG_RANDOM)
 
 
 ## `aNTT_talk_submenu2`: the typed title against the disc's record names.
-func text_result(text: String) -> Dictionary:
+func text_result(text: String) -> TalkStep:
 	request_text = text
 	var match_index: int = song_for_title(text)
 	if match_index < 0:
 		song = MADE_UP_FIRST + rng.randi_range(0, 2)
 		after = After.MADE_UP
-		return msg(MSG_MADE_UP)
+		return TalkStep.show(MSG_MADE_UP)
 	song = match_index
 	_give(song)
-	return msg(MSG_SECRET if song >= GOOD_SONGS else MSG_FAR_OUT)
+	return TalkStep.show(MSG_SECRET if song >= GOOD_SONGS else MSG_FAR_OUT)
 
 
 ## `mLE_move_Wait`: a byte-for-byte match with a record name (`mem_cmp`, padded to 16).

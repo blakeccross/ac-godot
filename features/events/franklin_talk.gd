@@ -63,18 +63,18 @@ func start_msg() -> int:
 	return MSG_AGAIN + present_idx if talks > 0 else MSG_STORY
 
 
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if current_msg >= MSG_STORY and current_msg < MSG_STORY_LAST:
-		return msg(current_msg + 1)
+		return TalkStep.show(current_msg + 1)
 	if current_msg == MSG_STORY_LAST or current_msg == MSG_AGAIN + present_idx:
 		return _fork_sequence()
-	return {}
+	return null
 
 
 ## `aETKY_SetKnifeForkSequence` → `aETKY_Give_Me_Fork` → `aETKY_Give_You_Present`.
-func _fork_sequence() -> Dictionary:
+func _fork_sequence() -> TalkStep:
 	if inventory == null or inventory.count_of(FORK) == 0:
-		return msg(MSG_PLEA + rng.randi_range(0, 2))
+		return TalkStep.show(MSG_PLEA + rng.randi_range(0, 2))
 	var list: Array[StringName] = presents()
 	var present: StringName = list[present_idx] if present_idx < list.size() else &""
 	var data: ItemData = ItemCatalog.get_item(present)
@@ -84,4 +84,4 @@ func _fork_sequence() -> Dictionary:
 	if data != null:
 		inventory.add(data, 1)
 	area["given"] = int(area.get("given", 0)) | (1 << present_idx)
-	return {"anim": {"take": FORK}, "then": {"anim": {"give": present}, "msg": MSG_THANKS + present_idx}}
+	return TalkStep.take(FORK).then_step(TalkStep.give(present).then_show(MSG_THANKS + present_idx))

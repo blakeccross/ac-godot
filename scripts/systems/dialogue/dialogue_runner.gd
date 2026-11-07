@@ -7,10 +7,10 @@ signal finished
 signal line_shown(text: String)
 signal choices_shown(options: Array)
 signal event_fired(event: Dictionary)
-## The quest manager wants the pockets opened (`{"hand": …}`) or a hand-over played
-## (`{"anim": …}`); answer with `resolve_action`. Unanswered (no listener), a hand-over
-## counts as the pockets closing empty and an animation is skipped.
-signal action_requested(action: Dictionary)
+## A `TalkStep` wants the world: the pockets opened, the letter board, or a hand-over played;
+## answer with `resolve_action`. Unanswered (no listener), the pockets count as closing empty
+## and a hand-over is skipped.
+signal action_requested(step: TalkStep)
 
 var conversation: DialogueData
 var context: DialogueContext
@@ -48,7 +48,10 @@ var _manager_choice: bool = false
 ## rest of the message still shows, then this message follows.
 var _continue_override: StringName = &""
 var waiting_action: bool = false
-var _pending_action: Dictionary = {}
+var _pending_action: TalkStep
+## Where a held page goes once its hand-over has played (`mMsg_SET_LOCKCONTINUE`).
+var _action_then_goto: StringName = &""
+var _action_then_end: bool = false
 
 
 func start(
@@ -96,9 +99,9 @@ func advance() -> void:
 	## `mMsg_SET_LOCKCONTINUE`: the speaker holds a page for a demo (an item changing hands)
 	## and lets it go on afterwards.
 	if talk_manager != null and _is_bank_message():
-		var lock: Dictionary = talk_manager.lock_continue()
-		if lock.has("anim"):
-			lock["_then_goto"] = next_id
+		var lock: TalkStep = talk_manager.lock_continue()
+		if lock != null and lock.has_handover():
+			_action_then_goto = next_id
 			_run_manager_step(lock)
 			return
 	_goto(next_id)
@@ -166,8 +169,8 @@ func choose(index: int) -> void:
 	var next_id := StringName(str(opt.get("goto", "")))
 	if talk_manager != null and _is_bank_message():
 		## A pick that opens a demo (the pockets, a text box) instead of a message.
-		var step: Dictionary = talk_manager.pick_step(talk_manager.current_msg, index)
-		if not step.is_empty():
+		var step: TalkStep = talk_manager.pick_step(talk_manager.current_msg, index)
+		if step != null:
 			_run_manager_step(step)
 			return
 		## `mChoice_Get_ChoseNum` → `mMsg_Set_continue_msg_num`.
@@ -593,9 +596,9 @@ func _message_end() -> void:
 	## A lock set on the last page (a trade's goods changing hands) holds the window open
 	## until the hand-over is done.
 	if talk_manager != null and _is_bank_message():
-		var lock: Dictionary = talk_manager.lock_continue()
-		if lock.has("anim"):
-			lock["_then_end"] = true
+		var lock: TalkStep = talk_manager.lock_continue()
+		if lock != null and lock.has_handover():
+			_action_then_end = true
 			_run_manager_step(lock)
 			return
 	_message_end_unlocked()
@@ -630,39 +633,40 @@ func _message_end_unlocked() -> void:
 	_finish()
 
 
-## The pockets closed (`{"item", "pocket"}`) or the hand-over animation finished.
-func resolve_action(result: Dictionary) -> void:
+## The pockets closed (`item`, `pocket`), the letter board closed (`text`) or the hand-over
+## finished (no arguments).
+func resolve_action(item: StringName = &"", pocket: int = -1, text: String = "") -> void:
 	if not waiting_action or done:
 		return
 	waiting_action = false
-	var step: Dictionary = _pending_action
-	_pending_action = {}
-	if step.has("hand"):
+	var step: TalkStep = _pending_action
+	_pending_action = null
+	if step.pockets_mode != "":
 		if talk_manager == null:
 			_finish()
 			return
-		_run_manager_step(
-			talk_manager.hand_result(StringName(str(result.get("item", ""))), int(result.get("pocket", -1)))
-		)
+		_run_manager_step(talk_manager.hand_result(item, pocket))
 		return
-	if step.has("text"):
+	if step.text_len > 0:
 		if talk_manager == null:
 			_finish()
 			return
-		_run_manager_step(talk_manager.text_result(str(result.get("text", ""))))
+		_run_manager_step(talk_manager.text_result(text))
 		return
-	if step.has("_then_goto"):
-		_goto(StringName(str(step["_then_goto"])))
+	if _action_then_goto != &"":
+		var next_id: StringName = _action_then_goto
+		_action_then_goto = &""
+		_goto(next_id)
 		return
-	if step.has("_then_end"):
+	if _action_then_end:
+		_action_then_end = false
 		_message_end_unlocked()
 		return
-	if step.has("then"):
-		## Several demos in a row (`{"anim": …, "then": {…}}`).
-		_run_manager_step(step["then"])
+	if step.after != null:
+		## Several demos in a row (`TalkStep.take(…).then_step(TalkStep.give(…))`).
+		_run_manager_step(step.after)
 		return
-	step["_anim_done"] = true
-	_run_manager_step(step)
+	_run_manager_step(step.without_handover())
 
 
 ## Imported disc messages carry their terminator (`cont`); authored graphs don't.
@@ -670,31 +674,20 @@ func _is_bank_message() -> bool:
 	return conversation != null and String(conversation.id).begins_with("msg_")
 
 
-func _run_manager_step(step: Dictionary) -> void:
-	if step.has("hand") or step.has("text") or (step.has("anim") and not step.has("_anim_done")):
+func _run_manager_step(step: TalkStep) -> void:
+	if step != null and step.needs_action():
 		_pending_action = step
 		waiting_action = true
-		var ask: Dictionary = {}
-		if step.has("hand"):
-			ask = {"hand": step["hand"]}
-		elif step.has("text"):
-			ask = {"text": step["text"]}
-		else:
-			ask = {"anim": step["anim"]}
 		if action_requested.get_connections().is_empty():
-			resolve_action({})
+			resolve_action()
 			return
-		action_requested.emit(ask)
+		action_requested.emit(step)
 		return
-	if step.is_empty() or int(step.get("msg", -1)) < 0:
+	if step == null or step.msg < 0:
 		_finish()
 		return
-	var raw: Variant = step.get("choices", [])
-	_pending_choices.clear()
-	if typeof(raw) == TYPE_ARRAY:
-		for label: Variant in raw as Array:
-			_pending_choices.append(str(label))
-	var target := StringName("msg_%d" % int(step["msg"]))
+	_pending_choices = step.choices.duplicate()
+	var target := StringName("msg_%d" % step.msg)
 	if DialogueCatalog.conversation(target) == null:
 		## Bank missing: still offer the menu so the flow can go on.
 		if not _pending_choices.is_empty():
@@ -712,6 +705,10 @@ func _finish() -> void:
 	waiting_choice = false
 	waiting_prompt = false
 	_prompt_next = &""
+	waiting_action = false
+	_pending_action = null
+	_action_then_goto = &""
+	_action_then_end = false
 	if talk_manager != null:
 		talk_manager.finish()
 	finished.emit()

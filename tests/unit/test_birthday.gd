@@ -77,10 +77,10 @@ func test_the_talk_hands_the_present_over_on_the_order() -> void:
 	var saved: Dictionary = Game.events.area(&"present_npc").duplicate()
 	Game.events.area(&"present_npc").erase("first_present")
 	assert_int(talk.start_msg()).is_equal(PresentVisit.MSG_NET)
-	assert_that(talk.lock_continue()).is_equal({})
+	assert_object(talk.lock_continue()).is_null()
 	talk.npc_order("npc0", 1, 2)
-	assert_that(talk.lock_continue()).is_equal({"anim": {"give": PresentVisit.GOLDEN_NET}})
-	assert_that(talk.lock_continue()).is_equal({})
+	_assert_handover(talk.lock_continue(), TalkStep.Handover.NPC_GIVES, PresentVisit.GOLDEN_NET)
+	assert_object(talk.lock_continue()).is_null()
 	assert_int(talk.inventory.count_of(PresentVisit.GOLDEN_NET)).is_equal(1)
 	## The trophy waits until Tortimer has gone (`aPRD_retire_npc_wait`).
 	if not had_net:
@@ -115,7 +115,7 @@ func test_the_runner_holds_the_page_for_the_hand_over() -> void:
 	runner.talk_manager = talk
 	talk.context = DialogueContext.new()
 	var asked: Array = []
-	runner.action_requested.connect(func(a: Dictionary) -> void: asked.append(a))
+	runner.action_requested.connect(func(a: TalkStep) -> void: asked.append(a))
 	runner.start(DialogueCatalog.conversation(&"msg_12739"), talk.context)
 	var guard := 0
 	while not runner.waiting_action and not runner.done and guard < 20:
@@ -123,9 +123,9 @@ func test_the_runner_holds_the_page_for_the_hand_over() -> void:
 		runner.advance()
 	assert_bool(runner.waiting_action).is_true()
 	assert_int(asked.size()).is_equal(1)
-	assert_that(asked[0]).is_equal({"anim": {"give": PresentVisit.GOLDEN_ROD}})
+	_assert_handover(asked[0], TalkStep.Handover.NPC_GIVES, PresentVisit.GOLDEN_ROD)
 	assert_int(talk.current_msg).is_equal(PresentVisit.MSG_ROD)
-	runner.resolve_action({})
+	runner.resolve_action()
 	assert_bool(runner.done).is_false()
 	assert_int(talk.current_msg).is_equal(0x31C4)
 	assert_int(talk.inventory.count_of(PresentVisit.GOLDEN_ROD)).is_equal(1)
@@ -147,3 +147,9 @@ func test_the_visitor_leaves_along_the_path_between_the_houses() -> void:
 	assert_float((east[0] as Vector3).x).is_equal_approx(-60.0 * s, 0.001)
 	var south: Array = npc.call("exit_points", Vector3.ZERO, 3)
 	assert_vector(south[1]).is_equal_approx(Vector3(-60.0, 0.0, 160.0) * s, Vector3.ONE * 0.001)
+
+
+func _assert_handover(step: TalkStep, kind: TalkStep.Handover, item: StringName) -> void:
+	assert_object(step).is_not_null()
+	assert_int(step.handover).is_equal(kind)
+	assert_str(String(step.item)).is_equal(String(item))

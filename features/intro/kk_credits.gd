@@ -1,3 +1,4 @@
+class_name KkCredits
 extends CanvasLayer
 
 ## The staff roll over K.K.'s song (`aMKBC_clip_roll_draw`): 16 pages of the disc's credit

@@ -26,8 +26,8 @@ func advance(delta: float) -> void:
 		var v := node as Villager
 		if v == null or v.data == null or not v.visible or v.indoor_resident or v.data.id in _away:
 			continue
-		var costume: Node3D = costume_scene.instantiate() as Node3D
-		costume.call("assign", v.data)
+		var costume := costume_scene.instantiate() as HalloweenVillager
+		costume.assign(v.data)
 		var cell: Vector2i = mgr.world.grid.world_to_cell(v.global_position)
 		mgr.add_actor(id, costume, cell, v.rotation.y, _away.size() + 1)
 		v.set_event_away(true)

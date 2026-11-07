@@ -286,12 +286,12 @@ class Talk extends BankTalk:
 			context.set_item_str(0, PoliceTalk.with_article(data.display_name) if data != null else "")
 
 	## `aPST_present_send_start_wait_talk_proc`: all but the golden tools come wrapped.
-	func lock_continue() -> Dictionary:
+	func lock_continue() -> TalkStep:
 		if given or present == &"" or order_value("npc0", 1) != 2:
-			return {}
+			return null
 		given = true
 		var data: ItemData = ItemCatalog.get_item(present)
 		var golden: bool = kind == Kind.GOLDEN_ROD or kind == Kind.GOLDEN_NET
 		if data != null and inventory != null:
 			inventory.add(data, 1, InventoryItem.Condition.NORMAL if golden else InventoryItem.Condition.PRESENT)
-		return {"anim": {"give": present}}
+		return TalkStep.give(present)

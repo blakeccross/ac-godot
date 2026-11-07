@@ -1,5 +1,5 @@
 class_name CatalogOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## The player's catalog at Nook's counter (`m_catalog_ovl.c` + the catalog tables of
 ## `m_tag_ovl.c`). Nine stacked pages with a tab column; the front page lists seven

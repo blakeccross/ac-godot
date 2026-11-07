@@ -33,10 +33,10 @@ func start_msg() -> int:
 	return MSG_GOT
 
 
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if current_msg == MSG_GOT and not banked:
-		return msg(MSG_FULL)
-	return {}
+		return TalkStep.show(MSG_FULL)
+	return null
 
 
 func picked(msg_no: int, index: int) -> int:

@@ -1,5 +1,5 @@
 class_name DesignAlbumOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## "Save a pattern" — the design album (`mSM_OVL_NEEDLEWORK` opened with
 ## `mNW_OPEN_CPORIGINAL` + `m_cporiginal_ovl.c`). Top: one folder of the album,

@@ -1,5 +1,5 @@
 class_name BankOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## The post office ABD screen (`m_bank_ovl.c`), in 320x240 screen units: the piggy-bank
 ## window (`tyo_win`), "Your Account", Cash and Balance in their colours, the six-digit

@@ -125,8 +125,8 @@ func test_kk_request_by_exact_title() -> void:
 	var t := KkTalk.new({}, {}, inv)
 	t.context = DialogueContext.new()
 	var title: String = MinidiskCatalog.song_name(5)
-	var step: Dictionary = t.text_result(title)
-	assert_int(int(step["msg"])).is_equal(KkTalk.MSG_FAR_OUT)
+	var step: TalkStep = t.text_result(title)
+	assert_int(step.msg).is_equal(KkTalk.MSG_FAR_OUT)
 	assert_int(t.song).is_equal(5)
 	assert_int(inv.count_of(MinidiskCatalog.item_id(5))).is_equal(1)
 	assert_int(t.after_show_msg()).is_equal(KkTalk.MSG_AIRCHECK)
@@ -135,7 +135,7 @@ func test_kk_request_by_exact_title() -> void:
 	## Unknown title: one of his made-up tunes, no aircheck.
 	var u := KkTalk.new({}, {}, inv)
 	u.context = DialogueContext.new()
-	assert_int(int(u.text_result("not a song")["msg"])).is_equal(KkTalk.MSG_MADE_UP)
+	assert_int(u.text_result("not a song").msg).is_equal(KkTalk.MSG_MADE_UP)
 	assert_int(u.song).is_between(KkTalk.MADE_UP_FIRST, KkTalk.MADE_UP_FIRST + 2)
 	assert_int(u.after_show_msg()).is_equal(KkTalk.MSG_NOT_MY_BAG)
 
@@ -154,10 +154,10 @@ func test_gulliver_gives_a_keepsake_once_awake() -> void:
 	assert_int(first).is_between(GulliverTalk.MSG_WAKE, GulliverTalk.MSG_WAKE + 5)
 	assert_bool(bool(area["wakeup"])).is_true()
 	g.current_msg = first
-	assert_int(int(g.next_step()["msg"])).is_equal(GulliverTalk.MSG_GIFT)
+	assert_int(g.next_step().msg).is_equal(GulliverTalk.MSG_GIFT)
 	g.current_msg = GulliverTalk.MSG_GIFT
-	var step: Dictionary = g.next_step()
-	assert_int(int(step["msg"])).is_equal(GulliverTalk.MSG_BYE_FIRST)
+	var step: TalkStep = g.next_step()
+	assert_int(step.msg).is_equal(GulliverTalk.MSG_BYE_FIRST)
 	assert_bool(bool(area["give"])).is_true()
 	if FurnitureCatalog.available():
 		assert_int(inv.count_of(g.gift)).is_equal(1)
@@ -211,8 +211,8 @@ func test_saharah_prices_double_and_needs_a_carpet() -> void:
 	var floor_item: ItemData = ItemCatalog.get_item(InteriorStyleCatalog.floor_style_id(3))
 	inv.add(floor_item, 1)
 	assert_int(t.picked(SaharahTalk.MSG_OFFER, 0)).is_equal(SaharahTalk.MSG_CHOOSE)
-	var step: Dictionary = t.hand_result(floor_item.id)
-	assert_int(int(step["then"]["msg"])).is_equal(SaharahTalk.MSG_TRADE)
+	var step: TalkStep = t.hand_result(floor_item.id)
+	assert_int(int(step.after.msg)).is_equal(SaharahTalk.MSG_TRADE)
 	assert_int(inv.wallet).is_equal(8000)
 	assert_int(inv.count_of(t.carpet)).is_equal(1)
 	assert_int(int(area["used"])).is_equal(3)
@@ -233,10 +233,10 @@ func test_wendell_gives_wallpaper_for_fish() -> void:
 	if fish == null:
 		return
 	inv.add(fish, 1)
-	assert_int(int(t.hand_result(fish.id)["msg"])).is_equal(WendellTalk.MSG_FISH)
+	assert_int(t.hand_result(fish.id).msg).is_equal(WendellTalk.MSG_FISH)
 	assert_int(inv.count_of(fish.id)).is_equal(0)
 	t.current_msg = WendellTalk.MSG_FISH
-	assert_int(int(t.next_step()["msg"])).is_equal(WendellTalk.MSG_THANKS)
+	assert_int(t.next_step().msg).is_equal(WendellTalk.MSG_THANKS)
 	assert_int(inv.count_of(t.present)).is_equal(1)
 	assert_int(WendellTalk.new(area, inv).start_msg()).is_equal(WendellTalk.MSG_FULL)
 
@@ -251,12 +251,12 @@ func test_gracie_wash_results() -> void:
 	var first: int = t.start_msg()
 	assert_int(first).is_between(GracieTalk.MSG_NOT_WEARING[4], GracieTalk.MSG_NOT_WEARING[7])
 	t.current_msg = first
-	assert_int(int(t.next_step()["msg"])).is_equal(GracieTalk.MSG_NOT_WEARING[19])
+	assert_int(t.next_step().msg).is_equal(GracieTalk.MSG_NOT_WEARING[19])
 	assert_bool(t.wants_wash).is_true()
 	var r := GracieTalk.new(GracieTalk.Kind.RESULT, area, inv)
 	r.result = 0
 	r.current_msg = r.start_msg()
-	assert_int(int(r.next_step()["msg"])).is_equal(GracieTalk.MSG_NOT_WEARING[12])
+	assert_int(r.next_step().msg).is_equal(GracieTalk.MSG_NOT_WEARING[12])
 	assert_bool(FurnitureCatalog.named_list("cloth", "Event").has(r.present)).is_true()
 	assert_int(inv.count_of(r.present)).is_equal(1)
 
@@ -270,7 +270,7 @@ func test_katrina_reading_costs_50_and_sets_a_destiny() -> void:
 	assert_int(t.picked(KatrinaTalk.MSG_ASK, 0)).is_equal(KatrinaTalk.MSG_READING)
 	assert_int(inv.wallet).is_equal(10)
 	t.current_msg = KatrinaTalk.MSG_READING
-	var n: int = int(t.next_step()["msg"])
+	var n: int = t.next_step().msg
 	assert_int(n).is_between(KatrinaTalk.MSG_RESULT, KatrinaTalk.MSG_RESULT + 5)
 	assert_int(t.destiny).is_equal(n - KatrinaTalk.MSG_RESULT)
 	## Out of Bells now.
@@ -290,8 +290,8 @@ func test_tortimer_holiday_gives_the_trophy_once() -> void:
 	var first: int = t.start_msg()
 	assert_int(first).is_equal(t.msg_for(0))
 	t.current_msg = first
-	var step: Dictionary = t.next_step()
-	assert_int(int(step["msg"])).is_equal(t.msg_for(3))
+	var step: TalkStep = t.next_step()
+	assert_int(step.msg).is_equal(t.msg_for(3))
 	assert_int(inv.count_of(t.item)).is_equal(1)
 	## Same year, trophy owned: one of the chat lines.
 	var again := TortimerHoliday.new(ev, record, inv)
@@ -393,22 +393,22 @@ func test_yomise_sells_tonights_goods() -> void:
 	var t := YomiseTalk.new(area, inv, rng)
 	t.context = DialogueContext.new()
 	assert_int(t.start_msg()).is_equal(YomiseTalk.MSG_PITCH[t.kind()])
-	var menu: Dictionary = t.pick_step(t.start_msg(), 0)
-	assert_int(int(menu["msg"])).is_equal(YomiseTalk.MSG_PICK)
-	assert_int((menu["choices"] as Array).size()).is_equal(4)
-	assert_int(int(t.choose(0)["msg"])).is_equal(YomiseTalk.MSG_BOUGHT)
+	var menu: TalkStep = t.pick_step(t.start_msg(), 0)
+	assert_int(menu.msg).is_equal(YomiseTalk.MSG_PICK)
+	assert_int(menu.choices.size()).is_equal(4)
+	assert_int(t.choose(0).msg).is_equal(YomiseTalk.MSG_BOUGHT)
 	assert_int(inv.wallet).is_equal(1000 - YomiseTalk.PRICE[t.kind()])
 	t.current_msg = YomiseTalk.MSG_BOUGHT
-	assert_int(int(t.next_step()["msg"])).is_equal(YomiseTalk.MSG_ANOTHER)
+	assert_int(t.next_step().msg).is_equal(YomiseTalk.MSG_ANOTHER)
 	assert_int(t.left_from(0)).is_equal(7)
 	## "I don't want it!" on a full page → "anything else?", then the next three.
 	t.pick_step(YomiseTalk.MSG_MORE, 0)
-	assert_int(int(t.choose(3)["msg"])).is_equal(YomiseTalk.MSG_MORE)
+	assert_int(t.choose(3).msg).is_equal(YomiseTalk.MSG_MORE)
 	## Out of Bells.
 	var broke := Inventory.new()
 	var t2 := YomiseTalk.new(area, broke, rng)
 	t2.pick_step(YomiseTalk.MSG_PITCH[t2.kind()], 0)
-	assert_int(int(t2.choose(0)["msg"])).is_equal(YomiseTalk.MSG_BROKE)
+	assert_int(t2.choose(0).msg).is_equal(YomiseTalk.MSG_BROKE)
 
 
 func test_angler_measures_bass_and_keeps_the_record() -> void:
@@ -426,14 +426,14 @@ func test_angler_measures_bass_and_keeps_the_record() -> void:
 	assert_int(AnglerTalk.new(area, inv, rng, 10).start_msg()).is_equal(AnglerTalk.MSG_CAUGHT_ONE)
 	assert_int(AnglerTalk.new(area, inv, rng, 19).start_msg()).is_equal(AnglerTalk.MSG_CLOSED)
 	t.current_msg = AnglerTalk.MSG_HAND_IT_OVER
-	assert_str(str(t.next_step()["hand"]["mode"])).is_equal("take")
-	var step: Dictionary = t.hand_result(&"large_bass")
-	assert_int(int(step["msg"])).is_equal(0x111A)
+	assert_str(str(t.next_step().pockets_mode)).is_equal("take")
+	var step: TalkStep = t.hand_result(&"large_bass")
+	assert_int(step.msg).is_equal(0x111A)
 	## `mFR_fish_rndsize(LARGE)`: 50–70 cm.
 	assert_int(t.size).is_between(19, 27)
 	t.current_msg = 0x111A
-	var after: Dictionary = t.next_step()
-	assert_int(int(after["msg"])).is_equal(0x111A + 2)
+	var after: TalkStep = t.next_step()
+	assert_int(after.msg).is_equal(0x111A + 2)
 	assert_int(inv.count_of(&"large_bass")).is_equal(0)
 	assert_bool(bool(area["top_player"])).is_true()
 	assert_int(int(area["size"])).is_equal(t.size)
@@ -450,7 +450,7 @@ func test_miko_fortune_costs_50_and_sends_a_letter() -> void:
 	assert_int(t.start_msg()).is_equal(MikoTalk.MSG_ASK)
 	assert_int(t.picked(MikoTalk.MSG_ASK, 0)).is_equal(-1)
 	t.current_msg = MikoTalk.MSG_CHANT
-	var n: int = int(t.next_step()["msg"])
+	var n: int = t.next_step().msg
 	assert_int(n).is_between(MikoTalk.MSG_READING, MikoTalk.MSG_READING + 3)
 	assert_int(inv.wallet).is_equal(30)
 	t.entered(MikoTalk.MSG_HERE)
@@ -487,16 +487,16 @@ func test_franklin_trades_his_knife_and_fork_for_a_present() -> void:
 	t.context = DialogueContext.new()
 	assert_int(t.start_msg()).is_equal(FranklinTalk.MSG_STORY)
 	t.current_msg = FranklinTalk.MSG_STORY
-	assert_int(int(t.next_step()["msg"])).is_equal(FranklinTalk.MSG_STORY + 1)
+	assert_int(t.next_step().msg).is_equal(FranklinTalk.MSG_STORY + 1)
 	t.current_msg = FranklinTalk.MSG_STORY_LAST
-	assert_int(int(t.next_step()["msg"])).is_between(FranklinTalk.MSG_PLEA, FranklinTalk.MSG_PLEA + 2)
+	assert_int(t.next_step().msg).is_between(FranklinTalk.MSG_PLEA, FranklinTalk.MSG_PLEA + 2)
 	inv.add(ItemCatalog.get_item(FranklinTalk.FORK), 1)
 	var again := FranklinTalk.new(area, inv, rng, t.present_idx)
 	again.context = DialogueContext.new()
 	assert_int(again.start_msg()).is_equal(FranklinTalk.MSG_AGAIN + t.present_idx)
 	again.current_msg = FranklinTalk.MSG_AGAIN + t.present_idx
-	var step: Dictionary = again.next_step()
-	assert_int(int(step["then"]["msg"])).is_equal(FranklinTalk.MSG_THANKS + t.present_idx)
+	var step: TalkStep = again.next_step()
+	assert_int(int(step.after.msg)).is_equal(FranklinTalk.MSG_THANKS + t.present_idx)
 	assert_int(inv.count_of(FranklinTalk.FORK)).is_equal(0)
 	assert_int(inv.count_of(FranklinTalk.presents()[t.present_idx])).is_equal(1)
 	## Never the same present twice until all twelve are given.
@@ -514,19 +514,19 @@ func test_trick_or_treat_candy_and_tricks() -> void:
 	var jack := TrickOrTreatTalk.new(true, 0, inv, rng)
 	assert_int(jack.start_msg()).is_equal(TrickOrTreatTalk.MSG_TRICK_OR_TREAT)
 	jack.current_msg = TrickOrTreatTalk.MSG_TRICK_OR_TREAT
-	assert_int(int(jack.next_step()["msg"])).is_equal(TrickOrTreatTalk.JACK_ASK)
-	assert_str(str(jack.pick_step(TrickOrTreatTalk.JACK_ASK, 0)["hand"]["mode"])).is_equal("take")
-	assert_int(int(jack.hand_result(&"candy")["msg"])).is_equal(TrickOrTreatTalk.JACK_CANDY)
+	assert_int(jack.next_step().msg).is_equal(TrickOrTreatTalk.JACK_ASK)
+	assert_str(str(jack.pick_step(TrickOrTreatTalk.JACK_ASK, 0).pockets_mode)).is_equal("take")
+	assert_int(jack.hand_result(&"candy").msg).is_equal(TrickOrTreatTalk.JACK_CANDY)
 	assert_int(inv.count_of(&"candy")).is_equal(0)
 	jack.current_msg = TrickOrTreatTalk.JACK_CANDY
-	assert_int(int(jack.next_step()["msg"])).is_equal(TrickOrTreatTalk.JACK_BYE)
+	assert_int(jack.next_step().msg).is_equal(TrickOrTreatTalk.JACK_BYE)
 	## A costumed villager (looks 2) with no candy: the empty-hand line, then a trick.
 	var npc := TrickOrTreatTalk.new(false, 2, inv, rng)
 	npc.current_msg = TrickOrTreatTalk.MSG_TRICK_OR_TREAT
-	assert_int(int(npc.next_step()["msg"])).is_equal(TrickOrTreatTalk.NPC_ASK + 12)
-	assert_int(int(npc.hand_result(&"")["msg"])).is_equal(TrickOrTreatTalk.NPC_EMPTY + 12)
+	assert_int(npc.next_step().msg).is_equal(TrickOrTreatTalk.NPC_ASK + 12)
+	assert_int(npc.hand_result(&"").msg).is_equal(TrickOrTreatTalk.NPC_EMPTY + 12)
 	npc.current_msg = TrickOrTreatTalk.NPC_EMPTY + 12
-	assert_int(int(npc.next_step()["msg"])).is_equal(TrickOrTreatTalk.NPC_TRICKED + 12)
+	assert_int(npc.next_step().msg).is_equal(TrickOrTreatTalk.NPC_TRICKED + 12)
 	assert_bool(npc.tricked_cloth or npc.tricked_item != &"").is_true()
 
 

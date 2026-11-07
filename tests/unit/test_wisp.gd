@@ -63,7 +63,7 @@ func test_his_night_comes_two_to_four_days_out_and_lasts_a_week() -> void:
 func _talk_to(talk: WispTalk) -> DialogueRunner:
 	var runner := DialogueRunner.new()
 	runner.talk_manager = talk
-	runner.action_requested.connect(func(_a: Dictionary) -> void: pass)
+	runner.action_requested.connect(func(_a: TalkStep) -> void: pass)
 	talk.context = DialogueContext.new()
 	talk.prepare()
 	runner.start(DialogueCatalog.conversation(StringName("msg_%d" % talk.start_msg())), talk.context)
@@ -93,7 +93,7 @@ func test_five_spirits_buy_a_wish() -> void:
 	_advance_until(runner, func() -> bool: return false)
 	assert_bool(runner.waiting_action).is_true()
 	assert_int(WispEvent.spirit_count(inv)).is_equal(0)
-	runner.resolve_action({})
+	runner.resolve_action()
 	_advance_until(runner, func() -> bool: return false)
 	assert_bool(runner.waiting_choice).is_true()
 	## "Give me stuff!"
@@ -102,7 +102,7 @@ func test_five_spirits_buy_a_wish() -> void:
 	assert_str(String(talk.item)).is_not_empty()
 	_advance_until(runner, func() -> bool: return false)
 	assert_bool(runner.waiting_action).is_true()
-	runner.resolve_action({})
+	runner.resolve_action()
 	assert_int(inv.count_of(talk.item)).is_equal(1)
 
 
@@ -115,7 +115,7 @@ func test_the_weeds_wish_clears_them_with_the_next_growth() -> void:
 	var talk := WispTalk.new(WispTalk.Kind.NORMAL, state, inv, _rng(2))
 	var runner := _talk_to(talk)
 	_advance_until(runner, func() -> bool: return false)
-	runner.resolve_action({})
+	runner.resolve_action()
 	_advance_until(runner, func() -> bool: return false)
 	Game.town.clear_grass = false
 	runner.choose(0)

@@ -62,11 +62,11 @@ func picked(msg_no: int, index: int) -> int:
 
 
 ## `aEGPS_decide_result` at the message's order 9.
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if current_msg == MSG_READING:
 		var selected: int = maxi(rng.randi_range(0, 9), 4) - 4
 		destiny = selected
-		return msg(MSG_RESULT + selected)
+		return TalkStep.show(MSG_RESULT + selected)
 	if current_msg == MSG_ALREADY:
-		return msg(MSG_REMINDER + destiny - 1)
-	return {}
+		return TalkStep.show(MSG_REMINDER + destiny - 1)
+	return null

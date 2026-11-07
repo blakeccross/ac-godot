@@ -1,3 +1,4 @@
+class_name Booker
 extends CharacterBody3D
 
 ## Booker in the police box (`ac_npc_police2` / `SP_NPC_POLICE2`, skeleton `pla_1`).

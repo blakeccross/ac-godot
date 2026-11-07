@@ -1,5 +1,5 @@
 class_name DesignListOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## The 8-slot design list (`mSM_OVL_NEEDLEWORK` / `m_needlework_ovl.c`). Shows the
 ## player's 8 original designs in display order (`my_org_no_table`) with a hand

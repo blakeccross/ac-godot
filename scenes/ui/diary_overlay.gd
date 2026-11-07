@@ -1,5 +1,5 @@
 class_name DiaryOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## The diary (`m_diary_ovl.c`): one long page per month, `mDI_ENTRY_SIZE` (992) characters in
 ## up to 31 lines 192 px wide, on three stacked sheets (`dia_win`, `dia_win2` 194 below,

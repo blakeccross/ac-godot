@@ -1,5 +1,5 @@
 class_name InventoryOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## Pocket submenu. Scene-first layout + textures in `inventory_overlay.tscn`.
 ## Runtime fills missing chrome via `InventoryChrome` and wires pocket/mail buttons.
@@ -185,9 +185,9 @@ var _gyroid_house: House = null
 var _gyroid_owner: bool = true
 var _focus_gyroid: bool = false
 var _gyroid_sel: int = 0
-var _gyroid_root: Control = null
+@onready var _gyroid_root: Control = %HaniwaTable
 var _gyroid_buttons: Array[Button] = []
-var _gyroid_status: Label = null
+@onready var _gyroid_status: Label = %HaniwaTable.get_node("HaniwaStatus")
 var _gyroid_tag_mode: bool = false
 ## Pocket slot being put in (hand held over an empty gyroid slot), −1 = setting terms on an
 ## item already there.
@@ -292,6 +292,13 @@ func _wire_slot_buttons() -> void:
 			continue
 		btn.pressed.connect(_on_mail_pressed.bind(i))
 		_mail_buttons.append(btn)
+	_gyroid_buttons.clear()
+	for i: int in GyroidStore.SLOTS:
+		var btn: Button = _gyroid_root.get_node("HaniwaSlot%d" % i) as Button
+		btn.pressed.connect(_on_gyroid_pressed.bind(i))
+		_gyroid_buttons.append(btn)
+	if _ui_font != null:
+		_gyroid_status.add_theme_font_override("font", _ui_font)
 
 
 func _set_slot_picture(btn: Button, tex: Texture2D) -> void:
@@ -1002,7 +1009,7 @@ func _show_pages(up: Array) -> void:
 			_pocket_contents.append(_portrait_viewport.get_parent() as CanvasItem)
 	for n: CanvasItem in _pocket_contents:
 		n.visible = pockets_up
-	for btn: Button in _slot_buttons + _mail_buttons:
+	for btn: Button in _slot_buttons + _mail_buttons + _gyroid_buttons:
 		var icon: TextureRect = btn.get_node_or_null("ItemIcon") as TextureRect
 		if icon != null:
 			icon.self_modulate.a = 1.0 if pockets_up else 0.0
@@ -1372,7 +1379,6 @@ func open_gyroid(house: House, owner: bool) -> void:
 	_gyroid_owner = owner
 	_focus_gyroid = false
 	_gyroid_sel = 0
-	_build_gyroid_table()
 	_set_gyroid_visible(true)
 	_refresh()
 
@@ -2569,41 +2575,8 @@ const GYROID_ROWS := 2
 const GYROID_INTERRUPT_SEC := 120.0 / DecompTime.TICK_HZ
 
 
-## Four slots over the letter column's rows 2-3 (level with pocket rows 0-1), styled like the
-## pocket slots, plus the gyroid's status line above them. Built once, like the other
-## supplementary chrome here.
-func _build_gyroid_table() -> void:
-	if _gyroid_root != null or _slot_buttons.is_empty() or _mail_buttons.size() < 8:
-		return
-	var host: Control = _mail_buttons[0].get_parent() as Control
-	_gyroid_root = Control.new()
-	_gyroid_root.name = "HaniwaTable"
-	_gyroid_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	host.add_child(_gyroid_root)
-	for i: int in GyroidStore.SLOTS:
-		var mail_btn: Button = _mail_buttons[MAIL_ROW_OFFSET * Inventory.MAIL_COLUMNS + i]
-		var btn: Button = _slot_buttons[0].duplicate() as Button
-		btn.name = "HaniwaSlot%d" % i
-		btn.unique_name_in_owner = false
-		btn.position = mail_btn.position
-		btn.size = mail_btn.size
-		btn.pressed.connect(_on_gyroid_pressed.bind(i))
-		_gyroid_root.add_child(btn)
-		_gyroid_buttons.append(btn)
-	var top: Button = _mail_buttons[0]
-	_gyroid_status = Label.new()
-	_gyroid_status.position = top.position - Vector2(10.0, 0.0)
-	_gyroid_status.size = Vector2(top.size.x * 2.0 + 30.0, top.size.y * 2.0)
-	_gyroid_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_gyroid_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_gyroid_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_font_label(_gyroid_status, 16, Color(0.35, 0.22, 0.12))
-	_gyroid_root.add_child(_gyroid_status)
-
-
 func _set_gyroid_visible(on: bool) -> void:
-	if _gyroid_root != null:
-		_gyroid_root.visible = on
+	_gyroid_root.visible = on
 	for btn: Button in _mail_buttons:
 		btn.visible = not on
 	if _letters_label != null:
@@ -2796,7 +2769,7 @@ func _price_text() -> String:
 
 
 func _refresh_gyroid() -> void:
-	if _gyroid_root == null or _gyroid_house == null:
+	if _gyroid_house == null:
 		return
 	var house: House = _gyroid_house
 	for i: int in _gyroid_buttons.size():

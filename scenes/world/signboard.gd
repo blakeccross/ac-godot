@@ -1,3 +1,4 @@
+class_name Signboard
 extends StaticBody3D
 
 ## A signboard the player put up (`ac_sign`): the white sign model with one of their designs

@@ -30,9 +30,9 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.TALK:
 		return false
-	var mabel: Node = get_tree().get_first_node_in_group("needlework_mabel") if get_tree() != null else null
-	if mabel != null and mabel.has_method("begin_trade"):
-		return bool(mabel.call("begin_trade", slot, ctx))
+	var mabel := get_tree().get_first_node_in_group("needlework_mabel") as Mabel if get_tree() != null else null
+	if mabel != null:
+		return mabel.begin_trade(slot, ctx)
 	var d: DesignPattern = _design()
 	Game.post_notice("A design by the Able Sisters: \"%s\"." % (d.name if d != null else "?"))
 	return true

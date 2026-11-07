@@ -1,3 +1,4 @@
+class_name FieldRock
 extends StaticBody3D
 
 ## Outdoor rock FG item (`ROCK_A`–`ROCK_E`). The shovel bounces off it (`reflect_scoop`,

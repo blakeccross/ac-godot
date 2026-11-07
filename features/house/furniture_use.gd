@@ -132,9 +132,9 @@ static func toggle(placement_id: StringName, ctx: InteractionContext = null) -> 
 	if press != &"":
 		Audio.play_se(press)
 	var switched_node: Node = pid_node(placement_id)
-	var spin: Node = switched_node.get_node_or_null("FurnitureSwitchAnim") if switched_node != null else null
+	var spin := switched_node.get_node_or_null("FurnitureSwitchAnim") as FurnitureSwitchAnim if switched_node != null else null
 	if spin != null:
-		spin.call("switched")
+		spin.switched()
 	if data != null and data.kind == FurnitureData.Kind.GYROID:
 		_hop(pid_node(placement_id))
 	if data != null:

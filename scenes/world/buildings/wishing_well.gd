@@ -109,7 +109,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	var runner: DialogueRunner = ui.runner()
 	if runner != null:
 		runner.action_requested.connect(
-			func(step: Dictionary) -> void: TalkActions.handle(step, ui, self, player)
+			func(step: TalkStep) -> void: TalkActions.handle(step, ui, self, player)
 		)
 	await ui.closed
 	var summon: bool = _talk.summon_spirit

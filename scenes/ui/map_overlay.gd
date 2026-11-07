@@ -1,5 +1,5 @@
 class_name MapOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## Town map submenu (`m_map_ovl.c`), drawn like `mMP_set_dl` in 320x240 screen units from
 ## layers `menu_ui.py` bakes into `ui/map_screen/`: the window (`kan_win_model`, yellow for

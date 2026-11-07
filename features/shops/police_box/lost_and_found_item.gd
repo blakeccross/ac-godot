@@ -30,14 +30,14 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	var booker: Node = _booker()
 	if booker == null:
 		return false
-	return bool(booker.call("begin_claim", slot, ctx))
+	return booker.begin_claim(slot, ctx)
 
 
 func _booker() -> Node:
 	if get_tree() == null:
 		return null
 	for node: Node in get_tree().get_nodes_in_group("police_set"):
-		if node.has_method("begin_claim"):
+		if node is Booker:
 			return node
 	return null
 

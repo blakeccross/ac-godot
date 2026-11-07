@@ -49,11 +49,11 @@ func test_first_visit_hands_over_a_one_stamp_card() -> void:
 	assert_int(int(card["days"])).is_equal(0)
 	assert_int(int(card["day"])).is_equal(25)
 	t.current_msg = RadioCard.MSG_NEW
-	assert_int(int(t.next_step()["msg"])).is_equal(RadioCard.MSG_NEW_GIVE)
+	assert_int(t.next_step().msg).is_equal(RadioCard.MSG_NEW_GIVE)
 	t.current_msg = RadioCard.MSG_NEW_GIVE
-	var give: Dictionary = t.next_step()
-	assert_str(String(give["anim"]["give"])).is_equal("exercise_card_00")
-	assert_int(int(give["msg"])).is_equal(RadioCard.MSG_NEW_AFTER)
+	var give: TalkStep = t.next_step()
+	assert_str(String(give.item)).is_equal("exercise_card_00")
+	assert_int(give.msg).is_equal(RadioCard.MSG_NEW_AFTER)
 
 
 func test_full_pockets_get_no_card_and_the_second_try_says_so() -> void:
@@ -65,7 +65,7 @@ func test_full_pockets_get_no_card_and_the_second_try_says_so() -> void:
 	var t := _talk(inv, RadioCard.new_state(), record, Vector3i(2002, 7, 25))
 	assert_int(t.start_msg()).is_equal(RadioCard.MSG_NEW)
 	t.current_msg = RadioCard.MSG_NEW
-	assert_int(int(t.next_step()["msg"])).is_equal(RadioCard.MSG_NEW_FULL)
+	assert_int(t.next_step().msg).is_equal(RadioCard.MSG_NEW_FULL)
 	## The calendar has today now: "What do you say?"
 	var again := _talk(inv, RadioCard.new_state(), record, Vector3i(2002, 7, 25))
 	assert_int(again.start_msg()).is_equal(RadioCard.MSG_NEW_AGAIN)
@@ -78,7 +78,7 @@ func test_one_stamp_a_day() -> void:
 	var t := _talk(inv, card, {}, Vector3i(2002, 7, 25))
 	assert_int(t.start_msg()).is_equal(RadioCard.MSG_SAME_DAY)
 	t.current_msg = RadioCard.MSG_SAME_DAY
-	assert_int(int(t.next_step()["msg"])).is_between(RadioCard.MSG_SAME_DAY_AFTER, RadioCard.MSG_SAME_DAY_AFTER + 2)
+	assert_int(t.next_step().msg).is_between(RadioCard.MSG_SAME_DAY_AFTER, RadioCard.MSG_SAME_DAY_AFTER + 2)
 
 
 func test_next_day_stamps_the_card() -> void:
@@ -91,12 +91,12 @@ func test_next_day_stamps_the_card() -> void:
 	assert_int(inv.count_of(RadioCard.card_id(0))).is_equal(0)
 	assert_str(t.context.frees[0]).is_equal("2")
 	t.current_msg = RadioCard.MSG_STAMP
-	var show: Dictionary = t.next_step()
-	assert_str(String(show["anim"]["take"])).is_equal("exercise_card_00")
+	var show: TalkStep = t.next_step()
+	assert_str(String(show.item)).is_equal("exercise_card_00")
 	t.current_msg = RadioCard.MSG_STAMP_COUNT
-	var back: Dictionary = t.next_step()
-	assert_str(String(back["anim"]["give"])).is_equal("exercise_card_01")
-	assert_int(int(back["msg"])).is_equal(RadioCard.MSG_STAMP_AFTER)
+	var back: TalkStep = t.next_step()
+	assert_str(String(back.item)).is_equal("exercise_card_01")
+	assert_int(back.msg).is_equal(RadioCard.MSG_STAMP_AFTER)
 
 
 func test_fourteenth_visit_trades_the_card_for_the_radio() -> void:
@@ -109,9 +109,9 @@ func test_fourteenth_visit_trades_the_card_for_the_radio() -> void:
 	assert_int(inv.count_of(RadioCard.radio_id())).is_equal(1)
 	assert_int(int(card["days"])).is_equal(RadioCard.DAYS)
 	t.current_msg = RadioCard.MSG_FINISH_PRESENT
-	var give: Dictionary = t.next_step()
-	assert_str(String(give["anim"]["give"])).is_equal(String(RadioCard.radio_id()))
-	assert_int(int(give["msg"])).is_equal(RadioCard.MSG_PRIZE)
+	var give: TalkStep = t.next_step()
+	assert_str(String(give.item)).is_equal(String(RadioCard.radio_id()))
+	assert_int(give.msg).is_equal(RadioCard.MSG_PRIZE)
 	assert_str(t.context.frees[1]).is_not_empty()
 
 
@@ -123,7 +123,7 @@ func test_lost_card_is_remembered_and_replaced() -> void:
 	assert_str(t.context.frees[0]).is_equal("6")
 	assert_int(inv.count_of(RadioCard.card_id(5))).is_equal(1)
 	t.current_msg = RadioCard.MSG_LOST
-	assert_int(int(t.next_step()["msg"])).is_equal(RadioCard.MSG_LOST_GIVE)
+	assert_int(t.next_step().msg).is_equal(RadioCard.MSG_LOST_GIVE)
 
 
 func test_lost_card_on_the_last_stamp_wins_the_radio() -> void:
@@ -133,7 +133,7 @@ func test_lost_card_on_the_last_stamp_wins_the_radio() -> void:
 	assert_int(t.start_msg()).is_equal(RadioCard.MSG_LOST)
 	assert_int(inv.count_of(RadioCard.radio_id())).is_equal(1)
 	t.current_msg = RadioCard.MSG_LOST
-	assert_int(int(t.next_step()["msg"])).is_equal(RadioCard.MSG_LOST_FINISH)
+	assert_int(t.next_step().msg).is_equal(RadioCard.MSG_LOST_FINISH)
 
 
 func test_last_years_card_is_taken_away() -> void:
@@ -144,8 +144,8 @@ func test_last_years_card_is_taken_away() -> void:
 	assert_int(t.start_msg()).is_equal(RadioCard.MSG_OLD_CARD)
 	t.npc_order("npc0", 9, 1)
 	t.current_msg = RadioCard.MSG_OLD_CARD
-	var take: Dictionary = t.lock_continue()
-	assert_str(String(take["anim"]["take"])).is_equal("exercise_card_03")
+	var take: TalkStep = t.lock_continue()
+	assert_str(String(take.item)).is_equal("exercise_card_03")
 	assert_int(RadioCard.card_count(inv)).is_equal(0)
 
 

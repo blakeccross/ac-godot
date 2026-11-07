@@ -41,36 +41,36 @@ func start_msg() -> int:
 	return MSG_FULL if served() else MSG_HUNGRY
 
 
-func pick_step(msg_no: int, index: int) -> Dictionary:
+func pick_step(msg_no: int, index: int) -> TalkStep:
 	if msg_no != MSG_HUNGRY:
-		return {}
+		return null
 	if index == 0:
-		return {"hand": {"pocket": -1, "mode": "take"}}
-	return msg(MSG_NOTHING)
+		return TalkStep.open_pockets("take")
+	return TalkStep.show(MSG_NOTHING)
 
 
 ## `aEART_msg_win_open_wait`: what he was handed.
-func hand_result(item: StringName, _pocket: int = -1) -> Dictionary:
+func hand_result(item: StringName, _pocket: int = -1) -> TalkStep:
 	if item == &"":
-		return msg(MSG_NOTHING)
+		return TalkStep.show(MSG_NOTHING)
 	var data: ItemData = ItemCatalog.get_item(item)
 	var category: int = data.category if data != null else ItemData.Category.OTHER
 	if data is ToolData or category == ItemData.Category.TOOL:
 		## Handed straight back (`aEART_refuse_demo_start_wait`).
-		return {"anim": {"take": item}, "then": {"anim": {"give": item}, "msg": MSG_TOOL}}
+		return TalkStep.take(item).then_step(TalkStep.give(item).then_show(MSG_TOOL))
 	inventory.remove(item, 1)
 	match category:
 		ItemData.Category.FISH:
-			return {"anim": {"take": item}, "msg": MSG_FISH}
+			return TalkStep.take(item).then_show(MSG_FISH)
 		ItemData.Category.FRUIT:
-			return {"anim": {"take": item}, "msg": MSG_FRUIT}
-	return {"anim": {"take": item}, "msg": MSG_OTHER}
+			return TalkStep.take(item).then_show(MSG_FRUIT)
+	return TalkStep.take(item).then_show(MSG_OTHER)
 
 
 ## After 0x02F9: `aEART_demo_start_wait_init` picks a wallpaper he hasn't given yet.
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if current_msg != MSG_FISH:
-		return {}
+		return null
 	var given: Array = area.get("walls", [])
 	present = FurnitureCatalog.pick_named("wall", "Event", rng, given)
 	var used: int = int(area.get("used", 0))
@@ -82,4 +82,4 @@ func next_step() -> Dictionary:
 	var data: ItemData = ItemCatalog.get_item(present)
 	if data != null and inventory != null:
 		inventory.add(data, 1)
-	return {"anim": {"give": present}, "msg": MSG_THANKS}
+	return TalkStep.give(present).then_show(MSG_THANKS)

@@ -1,5 +1,5 @@
 class_name LetterWriterOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## The letter composition board (`m_board_ovl.c` WRITE mode) over the pad keyboard
 ## (`m_editor_ovl.c`, `mED_TYPE_BOARD`, with its ink pot). Recipient

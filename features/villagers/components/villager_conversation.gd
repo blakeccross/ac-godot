@@ -149,7 +149,7 @@ func unbind_talk() -> void:
 
 ## The quest talk wants the pockets opened or an item passed across
 ## (`aQMgr_TALK_SUB_STATE_HAND_ITEM_WAIT`, `aQMgr_talk_common_set_npc_takeout_*`).
-func on_talk_action(action: Dictionary, ui: DialogueOverlay, player: Node3D) -> void:
+func on_talk_action(action: TalkStep, ui: DialogueOverlay, player: Node3D) -> void:
 	await TalkActions.handle(action, ui, _villager, player)
 
 

@@ -1,5 +1,5 @@
 class_name DesignEditorOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## The pixel design editor (`m_design_ovl.c` / `mSM_OVL_DESIGN`). Edits one of the
 ## player's 8 original designs in place: 32x32, 16-colour indexed, one of the 16

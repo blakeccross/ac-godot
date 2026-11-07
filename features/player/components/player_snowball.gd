@@ -34,8 +34,8 @@ func end_snowball_push() -> void:
 	if is_instance_valid(ball):
 		if ball is PhysicsBody3D:
 			_player.remove_collision_exception_with(ball)
-		if ball.has_method("end_push"):
-			ball.call("end_push")
+		if ball is Snowball:
+			(ball as Snowball).end_push()
 	_player.velocity = Vector3.ZERO
 
 
@@ -47,7 +47,7 @@ func push_snowball(
 	if not is_instance_valid(_player._snowball):
 		end_snowball_push()
 		return
-	var last: Dictionary = _player._snowball.call("push", delta, wish, stick, dash, _player)
+	var last: Dictionary = (_player._snowball as Snowball).push(delta, wish, stick, dash, _player)
 	if last.is_empty():
 		end_snowball_push()
 		return

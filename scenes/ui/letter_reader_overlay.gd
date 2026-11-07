@@ -1,5 +1,5 @@
 class_name LetterReaderOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## "Read a letter" (`m_board_ovl.c`, `mSM_BD_OPEN_READ`): the letter on its stationery
 ## via `LetterBoard` — the paper model, header, six body lines and right-aligned footer

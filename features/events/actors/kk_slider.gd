@@ -36,7 +36,7 @@ var show_state: Show = Show.NONE
 var _show_t: float = 0.0
 var _song_len: float = 0.0
 var _talk_after: KkTalk
-var _credits: Node
+var _credits: KkCredits
 var _cue: int = 0
 var _saved_weather: StringName = &""
 var _saved_intensity: int = 0
@@ -165,7 +165,7 @@ func _tick_song() -> void:
 		var page_t: float = _show_t
 		var page: int = int(page_t / PAGE_SECONDS)
 		var in_page: float = fmod(page_t, PAGE_SECONDS) * DecompTime.TICK_HZ
-		_credits.call("show_page", page if page < PAGE_COUNT else -1, in_page)
+		_credits.show_page(page if page < PAGE_COUNT else -1, in_page)
 
 
 func _end_show() -> void:

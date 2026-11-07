@@ -52,12 +52,12 @@ func picked(msg_no: int, index: int) -> int:
 
 
 ## `aEMK_talk_omikuji`: the reading, paid for.
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if current_msg == MSG_CHANT and fortune >= 0:
 		inventory.set_wallet(inventory.wallet - PRICE)
 		Game.set_destiny(DESTINY[fortune])
-		return msg(MSG_READING + fortune)
-	return {}
+		return TalkStep.show(MSG_READING + fortune)
+	return null
 
 
 ## `aEMK_talk_give`: "Here you go." — the fortune letter.

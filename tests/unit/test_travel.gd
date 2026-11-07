@@ -93,8 +93,8 @@ func test_kk_welcomes_a_visitor_and_the_shop_counts_them() -> void:
 	talk.context = DialogueContext.new()
 	talk.passport = Travel.read_passport()
 	talk.town_id = SaveService.read_town_id(B)
-	var step: Dictionary = talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.SHALL_WE), 0)
-	assert_int(int(step["msg"])).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.CARD_VISIT))
+	var step: TalkStep = talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.SHALL_WE), 0)
+	assert_int(step.msg).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.CARD_VISIT))
 	assert_int(talk.result).is_equal(PlayerSelectTalk.Result.VISIT)
 	assert_int(SaveService.load_visitor(talk.passport)).is_equal(OK)
 	assert_bool(Game.foreigner).is_true()
@@ -132,8 +132,8 @@ func test_back_home_with_what_she_carried() -> void:
 	talk.context = DialogueContext.new()
 	talk.passport = Travel.read_passport()
 	talk.town_id = SaveService.read_town_id(A)
-	var step: Dictionary = talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.SHALL_WE), 0)
-	assert_int(int(step["msg"])).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.CARD_HOME))
+	var step: TalkStep = talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.SHALL_WE), 0)
+	assert_int(step.msg).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.CARD_HOME))
 	assert_int(talk.result).is_equal(PlayerSelectTalk.Result.RETURN)
 	assert_int(Travel.adopt_passport()).is_equal(0)
 	assert_bool(Travel.has_passport()).is_false()
@@ -154,7 +154,7 @@ func test_playing_the_left_behind_data_is_asked_first() -> void:
 	## The passport is home's: K.K. would copy it back. Picking Ann from the list instead:
 	talk.passport = {}
 	talk.pick_step(PlayerSelectTalk.at(PlayerSelectTalk.SHALL_WE), 0)
-	assert_int(int(talk.choose(0)["msg"])).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.TRAVELLER))
+	assert_int(talk.choose(0).msg).is_equal(PlayerSelectTalk.at(PlayerSelectTalk.TRAVELLER))
 	assert_int(talk.picked(PlayerSelectTalk.at(PlayerSelectTalk.TRAVELLER), 0)).is_equal(
 		PlayerSelectTalk.at(PlayerSelectTalk.TRAVELLER_OK)
 	)

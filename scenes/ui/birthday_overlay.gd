@@ -1,5 +1,5 @@
 class_name BirthdayOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## "When's your birthday?" (`m_birthday_ovl.c`), opened when a villager asks
 ## (`aQMgr_order_input_birthday`). Month, day, then OK: ↑ / ↓ change the one picked (red),

@@ -81,20 +81,20 @@ func has_carpet() -> bool:
 
 
 ## `aECPD_grad_message` → `mSM_OVL_INVENTORY` (`mSM_IV_OPEN_TAKE`).
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if current_msg == MSG_CHOOSE or current_msg == MSG_CHOOSE_AGAIN:
-		return {"hand": {"pocket": -1, "mode": "take"}}
-	return {}
+		return TalkStep.open_pockets("take")
+	return null
 
 
 ## `aECPD_menu_close_wait` / `aECPD_demo0_end_wait`.
-func hand_result(item: StringName, _pocket: int = -1) -> Dictionary:
+func hand_result(item: StringName, _pocket: int = -1) -> TalkStep:
 	if item == &"":
-		return msg(MSG_CHANGED_MIND)
+		return TalkStep.show(MSG_CHANGED_MIND)
 	var data: ItemData = ItemCatalog.get_item(item)
 	if data == null or data.category != ItemData.Category.FLOOR:
 		## Handed straight back (`aECPD_refuse_trade_in`).
-		return {"anim": {"take": item}, "then": {"anim": {"give": item}, "msg": MSG_REFUSE}}
+		return TalkStep.take(item).then_step(TalkStep.give(item).then_show(MSG_REFUSE))
 	## `aECPD_demo0_end_wait_init`: her carpet takes the slot, the Bells go.
 	area["used"] = mini(int(area.get("used", 0)) + 1, PRICE_MULT_CAP)
 	inventory.remove(item, 1)
@@ -102,4 +102,4 @@ func hand_result(item: StringName, _pocket: int = -1) -> Dictionary:
 	if mine != null:
 		inventory.add(mine, 1)
 	ShopBook.pay(inventory, price)
-	return {"anim": {"take": item}, "then": {"anim": {"give": carpet}, "msg": MSG_TRADE}}
+	return TalkStep.take(item).then_step(TalkStep.give(carpet).then_show(MSG_TRADE))

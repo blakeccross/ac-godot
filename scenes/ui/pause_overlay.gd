@@ -1,5 +1,5 @@
 class_name PauseOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## Esc pause menu: resume, settings, or save and return to the title. Pauses the tree while
 ## open, like the pockets.

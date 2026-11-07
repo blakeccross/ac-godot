@@ -635,7 +635,7 @@ func _tick_wade(delta: float) -> void:
 	_mesh.rotation.y = _motor.facing
 	var ball: Variant = _wade.get("ball")
 	if ball != null and is_instance_valid(ball):
-		(ball as Node3D).call("carry_to", global_position + (_wade["ball_ofs"] as Vector3))
+		(ball as Snowball).carry_to(global_position + (_wade["ball_ofs"] as Vector3))
 	if t > AcreWade.TICKS:
 		_wade = {}
 
@@ -726,7 +726,7 @@ func _tick_tree_bump(delta: float) -> void:
 		delta, global_position, _motor.facing, bg[0] as WorldData, bg[1] as WorldGrid, _bump_trees(bg)
 	)
 	if hit != null:
-		hit.call("bump")
+		(hit as FieldTree).bump()
 
 
 ## Collideable trees within three units: the candidates `TreeBump.pick` chooses among.
@@ -735,12 +735,12 @@ func _bump_trees(bg: Array) -> Array[Node3D]:
 	var reach_sq: float = pow((bg[1] as WorldGrid).cell_size * 3.0, 2.0)
 	var trees: Array[Node3D] = []
 	for node: Node in get_tree().get_nodes_in_group("plant"):
-		var tree_node := node as Node3D
-		if tree_node == null or not tree_node.has_method("can_bump"):
+		var tree_node := node as FieldTree
+		if tree_node == null:
 			continue
 		if tree_node.global_position.distance_squared_to(here) > reach_sq:
 			continue
-		if bool(tree_node.call("can_bump")):
+		if tree_node.can_bump():
 			trees.append(tree_node)
 	return trees
 
@@ -1510,9 +1510,9 @@ func _try_auto_enter() -> void:
 	var hit: InteractionQuery = _resolve_interact()
 	if hit == null or hit.host == null or hit.action == null:
 		return
-	if not hit.host.has_method("should_auto_enter"):
+	if not hit.host is Door:
 		return
-	if not bool(hit.host.call("should_auto_enter")):
+	if not (hit.host as Door).should_auto_enter():
 		return
 	## Lock before the first await so the next physics tick does not re-fire.
 	_busy = true

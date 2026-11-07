@@ -1,5 +1,5 @@
 class_name LetterPaperPickerOverlay
-extends CanvasLayer
+extends MenuOverlay
 
 ## Stationery picker — the first step of writing a letter. The original writes on the
 ## stationery item chosen in the pockets (`mTG_write_proc`); this port has no

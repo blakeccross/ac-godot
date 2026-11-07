@@ -1,3 +1,4 @@
+class_name HalloweenVillager
 extends EventNpc
 
 ## A resident out in Jack's costume on Halloween night (`ac_halloween_npc`,

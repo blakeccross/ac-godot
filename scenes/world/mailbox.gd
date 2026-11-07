@@ -1,3 +1,4 @@
+class_name Mailbox
 extends StaticBody3D
 
 ## The player's house mailbox (`ac_mailbox` / `ACTOR_PROP_MAILBOX0`). Delivered letters

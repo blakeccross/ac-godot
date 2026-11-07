@@ -92,14 +92,14 @@ static func sounding(session: IndoorSession) -> Array:
 
 
 func _process(delta: float) -> void:
-	var host: Node = get_parent()
-	var session: IndoorSession = host.get("session") as IndoorSession if host != null else null
+	var host := get_parent() as Interior
+	var session: IndoorSession = host.session if host != null else null
 	var player := Player.find(get_tree())
 	var info: Dictionary = rhythm_for(Audio.current_id)
 	bpm = move_toward(bpm, float(info["bpm"]), TEMPO_SLEW * delta)
 	swing = bool(info["swing"])
 	beats += delta * bpm / 60.0
-	if session == null or player == null or not host.has_method("furniture_node"):
+	if session == null or player == null:
 		_silence()
 		return
 	var rate: float = playback_rate(bpm)
@@ -107,7 +107,7 @@ func _process(delta: float) -> void:
 	var mic: Vector3 = player.global_position + SoundEmitter.MIC_OFFSET
 	var heard: Array = []
 	for src: Array in sounding(session):
-		var node: Node3D = host.call("furniture_node", src[0]) as Node3D
+		var node: Node3D = host.furniture_node(src[0]) as Node3D
 		if node == null:
 			continue
 		var distance: float = node.global_position.distance_to(mic)

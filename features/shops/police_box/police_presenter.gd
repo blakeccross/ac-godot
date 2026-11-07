@@ -14,9 +14,9 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 	if root == null or interior == null or interior.grid == null:
 		return
 	_furniture_collision(root, interior)
-	var booker: Node = root.get_node_or_null("Booker")
-	if booker != null and booker.has_method("bind_grid"):
-		booker.call("bind_grid", interior.grid)
+	var booker := root.get_node_or_null("Booker") as Booker
+	if booker != null:
+		booker.bind_grid(interior.grid)
 	_lost_and_found(root, interior)
 
 

@@ -107,10 +107,10 @@ func entered(msg_no: int) -> void:
 		_voice_set = false
 
 
-func pick_step(msg_no: int, index: int) -> Dictionary:
+func pick_step(msg_no: int, index: int) -> TalkStep:
 	if msg_no == at(SHALL_WE) and index == 0:
-		var card: Dictionary = _passport_step()
-		return card if not card.is_empty() else _who()
+		var card: TalkStep = _passport_step()
+		return card if card != null else _who()
 	## "Umm, hang on!" to playing the left-behind data: the names again.
 	if msg_no == at(TRAVELLER) and index == 1:
 		return _who()
@@ -118,10 +118,10 @@ func pick_step(msg_no: int, index: int) -> Dictionary:
 		if roster.count() <= 1:
 			set_free(1, roster.name_of(roster.resident_slots()[0]) if roster.count() == 1 else "")
 			context.player_name = roster.name_of(roster.resident_slots()[0]) if roster.count() == 1 else context.player_name
-			return {"msg": at(LAST_HOUSE)}
+			return TalkStep.show(at(LAST_HOUSE))
 		_page = 0
 		return _demolish_list(at(DEMOLISH_WHO))
-	return {}
+	return null
 
 
 func picked(msg_no: int, index: int) -> int:
@@ -156,13 +156,13 @@ func picked(msg_no: int, index: int) -> int:
 
 
 ## A message ended on `MSGCONTINUE` with nowhere to go: back to "Shall we get started?".
-func next_step() -> Dictionary:
+func next_step() -> TalkStep:
 	if current_msg == at(SOUND) or current_msg == at(RUMBLE):
-		return {"msg": at(SHALL_WE)}
-	return {}
+		return TalkStep.show(at(SHALL_WE))
+	return null
 
 
-func choose(index: int) -> Dictionary:
+func choose(index: int) -> TalkStep:
 	var pick: int = _options[index] if index >= 0 and index < _options.size() else -1
 	match _menu:
 		Menu.WHO:
@@ -173,32 +173,32 @@ func choose(index: int) -> Dictionary:
 				## Out travelling: the data left behind, without their things (0x5135).
 				if Travel.is_away(roster, pick):
 					result = Result.NONE
-					return {"msg": at(TRAVELLER)}
+					return TalkStep.show(at(TRAVELLER))
 				result = Result.LOAD
-				return {"msg": at(KNOWN)}
+				return TalkStep.show(at(KNOWN))
 			chosen = roster.free_slot()
 			result = Result.NEW
-			return {"msg": at(NEWCOMER)}
+			return TalkStep.show(at(NEWCOMER))
 		Menu.DEMOLISH:
 			_menu = Menu.NONE
 			if pick >= 0:
 				_target = pick
 				set_free(1, roster.name_of(pick))
-				return {"msg": at(DEMOLISH_SURE)}
+				return TalkStep.show(at(DEMOLISH_SURE))
 			if pick == -2:
 				_page = 1 - _page
 				return _demolish_list(at(DEMOLISH_OTHER))
-			return {"msg": at(KEEP_HOUSES)}
-	return {}
+			return TalkStep.show(at(KEEP_HOUSES))
+	return null
 
 
 ## `aNPS2_whats_happen` choice 0: a passport on the card decides first. A visitor from another
 ## town is welcomed in (`START_TYPE2`); this town's own traveller is copied home (`START_TYPE1`),
 ## or, back already, asked whether to use the travel data anyway.
-func _passport_step() -> Dictionary:
+func _passport_step() -> TalkStep:
 	var kind: int = Travel.passport_kind(passport, town_id)
 	if kind == Travel.Kind.NONE:
-		return {}
+		return null
 	var traveller: String = str(passport.get("player_name", ""))
 	set_free(2, traveller)
 	## Partner town for copy / load lines (was the other card's "Slot A" / "Slot B").
@@ -208,16 +208,16 @@ func _passport_step() -> Dictionary:
 	context.player_name = traveller
 	if kind == Travel.Kind.VISIT:
 		result = Result.VISIT
-		return {"msg": at(CARD_VISIT)}
+		return TalkStep.show(at(CARD_VISIT))
 	chosen = int(passport.get("resident", 0))
 	if Travel.is_away(roster, chosen):
 		result = Result.RETURN
-		return {"msg": at(CARD_HOME)}
-	return {"msg": at(BACK_ALREADY)}
+		return TalkStep.show(at(CARD_HOME))
+	return TalkStep.show(at(BACK_ALREADY))
 
 
 ## `aNPS2_set_choice_str(…, 1)`: every resident, then "I'm new" while there is room.
-func _who() -> Dictionary:
+func _who() -> TalkStep:
 	_menu = Menu.WHO
 	_options.clear()
 	var labels: Array[String] = []
@@ -227,13 +227,13 @@ func _who() -> Dictionary:
 	if roster.free_slot() >= 0:
 		_options.append(-1)
 		labels.append(NEW_PLAYER)
-	return {"msg": at(WHO), "choices": labels}
+	return TalkStep.show(at(WHO), labels)
 
 
 ## `aNPS2_set_choice_str(…, 0)` / `aNPS2_set_choice_str2`: names then "Maybe not...", or two
 ## names a page with "Someone else." when all four houses are taken. -1 = maybe not,
 ## -2 = the other page.
-func _demolish_list(msg_no: int) -> Dictionary:
+func _demolish_list(msg_no: int) -> TalkStep:
 	_menu = Menu.DEMOLISH
 	_options.clear()
 	var labels: Array[String] = []
@@ -250,4 +250,4 @@ func _demolish_list(msg_no: int) -> Dictionary:
 			labels.append(roster.name_of(s))
 	_options.append(-1)
 	labels.append(DialogueCatalog.choice_label(SEL_MAYBE_NOT))
-	return {"msg": msg_no, "choices": labels}
+	return TalkStep.show(msg_no, labels)
